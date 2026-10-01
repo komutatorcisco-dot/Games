@@ -18,7 +18,7 @@ const Guess = (() => {
 
   const norm = (s) => s.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9 ]/g, '');
 
-  let mode = 'career', answer = null, guesses = [], revealed = [], maxTries = 8, over = false;
+  let mode = 'career', answer = null, guesses = [], revealed = [], maxTries = 8, over = false, revived = false;
   let turn = 0, roundStarter = 0, score = [0, 0], selIdx = 0, suggestions = [];
 
   function compare(g, a) {
@@ -91,7 +91,7 @@ const Guess = (() => {
   }
 
   function reset() {
-    guesses = []; revealed = []; over = false;
+    guesses = []; revealed = []; over = false; revived = false;
     Screens.show('guess');
     $('#guess-rows').innerHTML = '';
     $('#guess-field').value = '';
@@ -208,6 +208,16 @@ const Guess = (() => {
   }
 
   function finishCareer(won) {
+    // попытки кончились: один раз на игрока можно взять ещё 2 попытки за запасную жизнь
+    if (!won && !revived) {
+      later(() => Shop.offerLife('Попытки закончились', 'Взять ещё 2 попытки?', () => {
+        revived = true; over = false; maxTries += 2;
+        $('#guess-field').disabled = false;
+        renderAttempts();
+        $('#guess-field').focus();
+      }, () => { revived = true; finishCareer(false); }), 500);
+      return;
+    }
     const G = Store.d.guess;
     const lvl = G.level;
     const tries = guesses.length;

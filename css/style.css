@@ -929,3 +929,108 @@ a { color: var(--danil); }
 body.in-runner { overflow: hidden; }
 body.in-runner #tabbar { display: none; }
 .sball.flying { position: relative; z-index: 5; }
+
+/* ---------- игрок дня ---------- */
+.dly-card { display: flex; align-items: center; gap: 14px; width: 100%; padding: 14px; border: 0; border-radius: 18px; text-align: left; color: #fff; position: relative; overflow: hidden;
+  background: radial-gradient(120% 120% at 0% 0%, #2fb35a 0%, #155c32 55%, #0d3a20 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 6px 0 #0a2c18; }
+.dly-card::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 28px, transparent 28px 56px); pointer-events: none; }
+.dly-card-photo { flex: none; width: 64px; height: 64px; border-radius: 50%; display: grid; place-content: center; background: radial-gradient(circle at 40% 35%, #fff 0 10%, #d9f5e2 11% 60%, #9fd9b4 61%);
+  box-shadow: 0 0 0 3px var(--gold), 0 6px 14px rgba(0,0,0,.35); animation: dlyGlow 2.4s ease-in-out infinite; }
+.dly-card-photo i { font: 34px var(--font-display); font-style: normal; color: #155c32; }
+.dly-card.done .dly-card-photo { animation: none; box-shadow: 0 0 0 3px rgba(255,255,255,.5); }
+@keyframes dlyGlow { 50% { box-shadow: 0 0 0 3px var(--gold), 0 0 22px 4px rgba(255,207,58,.55); } }
+.dly-card-body { display: grid; gap: 3px; min-width: 0; position: relative; z-index: 1; }
+.dly-card-top { display: flex; align-items: center; gap: 8px; }
+.dly-card-top .tag { background: var(--gold); color: #2a1d00; font-size: 11px; }
+.dly-card-top b { font-family: var(--font-display); font-weight: 400; }
+.dly-card-top em { font-style: normal; font-weight: 800; color: var(--gold); }
+.dly-card-title { font-family: var(--font-display); font-weight: 400; font-size: 21px; text-transform: uppercase; line-height: 1.05; }
+.dly-card small { color: rgba(255,255,255,.8); font-size: 13px; }
+
+.dly-top { display: grid; justify-items: center; gap: 10px; }
+.dly-photo { width: 150px; height: 150px; border-radius: 50%; overflow: hidden; background: #d9e4f5; box-shadow: 0 0 0 4px var(--gold), 0 10px 24px rgba(0,0,0,.4); }
+.dly-photo img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.12); filter: blur(var(--b, 20px)) saturate(.9); transition: filter .7s ease; }
+.dly-photo.shake { animation: shakeBad .45s; }
+.dly-tries { display: flex; gap: 6px; }
+.dly-tries i { width: 26px; height: 10px; border-radius: 5px; background: rgba(255,255,255,.14); }
+.dly-tries .ev-x { background: var(--danger); } .dly-tries .ev-h { background: var(--gold); } .dly-tries .ev-w { background: var(--hit); }
+.dly-tries i[class] { animation: numPop .35s ease; }
+.dly-clues { display: grid; gap: 6px; margin: 14px 0; }
+.dly-clue { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.05); color: var(--muted); font-size: 13px; }
+.dly-clue b { font-weight: 700; text-align: right; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; }
+.dly-clue.open { background: var(--night-3); color: #fff; animation: rise .4s ease both; animation-delay: calc(var(--i) * 40ms); }
+.dly-clue.open span { color: var(--muted); }
+.dly-club { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.dly-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 10px; }
+.dly-guesses { display: grid; gap: 6px; margin-top: 12px; }
+.dly-g { display: grid; grid-template-columns: 1fr auto auto auto auto; gap: 5px; align-items: center; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.05); font-size: 13px; animation: rise .35s ease both; }
+.dly-g span { padding: 3px 7px; border-radius: 8px; font-weight: 700; font-size: 12px; text-align: center; }
+.dly-g .hit { background: var(--hit); color: #06210f; } .dly-g .near { background: var(--near); color: #2a1d00; } .dly-g .miss { background: var(--miss); color: #fff; }
+.dly-result { display: grid; gap: 10px; margin-top: 14px; text-align: center; animation: rise .45s ease both; }
+.dly-verdict { margin: 0; font-weight: 800; font-size: 17px; }
+.dly-share-row { font-size: 24px; letter-spacing: 3px; }
+.dly-next { margin: 0; }
+.dly-face { width: 96px; height: 96px; border-radius: 50%; background: #d9e4f5; box-shadow: 0 0 0 3px var(--hit); }
+.limit-note { font-style: normal; font-size: 11px; font-weight: 800; color: var(--gold); letter-spacing: .02em; }
+
+/* ---------- магазин ---------- */
+.shop-row { display: grid; gap: 8px; }
+.shop-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.shop-item { display: grid; justify-items: center; align-content: start; gap: 8px; padding: 12px 10px; border-radius: 16px; background: var(--night-2); text-align: center; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.shop-item.on { box-shadow: inset 0 0 0 2px var(--gold); }
+.shop-item.wide { grid-template-columns: auto 1fr auto; justify-items: start; align-items: center; text-align: left; }
+.shop-item.wide small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.shop-item b { font-size: 14px; }
+.shop-item .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 14px; }
+.shop-item .btn .coin { width: 16px; height: 16px; }
+.shop-on { font-size: 12px; font-weight: 800; color: var(--gold); padding: 8px 0; }
+.shop-ico.life { font-size: 30px; color: var(--danger); width: 44px; text-align: center; }
+.shop-item .tile-ico { margin: 0; }
+.shop-frame { width: 58px; height: 58px; border-radius: 50%; display: grid; place-content: center; font: 24px var(--font-display); color: var(--night);
+  background: conic-gradient(var(--danil), var(--gold), var(--sasha), var(--danil)); }
+.shop-card { width: 100%; pointer-events: none; }
+.shop-card .tile-card { width: 100%; min-height: 64px; }
+.shop-balls { display: flex; gap: 6px; padding: 6px 0; pointer-events: none; }
+.shop-balls .sball { width: 32px; height: 32px; }
+
+/* рамки аватара */
+.frame-host { position: relative; }
+.frame-host[data-frame="gold"] { box-shadow: 0 0 0 4px #ffcf3a, 0 0 0 7px #8a6400; }
+.frame-host[data-frame="fire"] { animation: frameFire 1.4s ease-in-out infinite; }
+@keyframes frameFire { 0%, 100% { box-shadow: 0 0 0 4px #ff6a00, 0 0 14px 3px #ff3d00; } 50% { box-shadow: 0 0 0 4px #ffb300, 0 0 24px 8px #ff6a00; } }
+.frame-host[data-frame="neon"] { animation: frameNeon 2.2s steps(1) infinite; box-shadow: 0 0 0 3px #2fd3e0, 0 0 16px 4px #2fd3e0; }
+@keyframes frameNeon { 0%, 46%, 50%, 100% { box-shadow: 0 0 0 3px #2fd3e0, 0 0 16px 4px #2fd3e0; } 48% { box-shadow: 0 0 0 3px #1a7f9a, 0 0 4px 0 #1a7f9a; } }
+.frame-host[data-frame="rainbow"]::before, .frame-host[data-frame="diamond"]::before { content: ""; position: absolute; inset: -6px; border-radius: 50%; z-index: -1; }
+.frame-host[data-frame="rainbow"]::before { background: conic-gradient(#ff4d4d, #ffcf3a, #34c46a, #2fd3e0, #5b8cff, #c65bd8, #ff4d4d); animation: spin 3s linear infinite; }
+.frame-host[data-frame="diamond"] { box-shadow: 0 0 0 4px #e6f7ff, 0 0 0 7px #7fb8ff, 0 0 18px 4px rgba(160,220,255,.7); }
+.frame-host[data-frame="diamond"]::before { inset: -10px; background: radial-gradient(circle at 20% 15%, #fff 0 3px, transparent 4px), radial-gradient(circle at 85% 30%, #fff 0 2px, transparent 3px), radial-gradient(circle at 70% 90%, #fff 0 3px, transparent 4px);
+  animation: sparkle 1.6s ease-in-out infinite; z-index: 1; pointer-events: none; }
+@keyframes sparkle { 50% { opacity: .2; transform: rotate(20deg); } }
+.prof-badge, .shop-frame { isolation: isolate; }
+
+/* темы карточек на главной */
+.shop-card[data-cards="classic"] .tile-card { background: var(--night-2); color: var(--ink); }
+body[data-cards="night"] .tile-card, .shop-card[data-cards="night"] .tile-card {
+  background: radial-gradient(120% 80% at 50% -10%, color-mix(in srgb, var(--c1) 45%, transparent), transparent 60%), #0e0a26; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c1) 60%, transparent), 0 5px 0 #05030f; }
+body[data-cards="grass"] .tile-card, .shop-card[data-cards="grass"] .tile-card {
+  background: repeating-linear-gradient(90deg, #2f9a4f 0 18px, #2a8c47 18px 36px); box-shadow: inset 0 0 0 2px rgba(255,255,255,.35), 0 5px 0 #145a2a; }
+body[data-cards="grass"] .tile-card small, .shop-card[data-cards="grass"] .tile-card small { color: #fff3b0; }
+body[data-cards="retro"] .tile-card, .shop-card[data-cards="retro"] .tile-card {
+  background: linear-gradient(90deg, var(--c1) 0 8px, transparent 8px), #f3e6c8; color: #3a2a12; box-shadow: inset 0 0 0 2px #3a2a12, 0 5px 0 #3a2a12; }
+body[data-cards="retro"] .tile-card small, .shop-card[data-cards="retro"] .tile-card small { color: #9a4b12; }
+body[data-cards="gold"] .tile-card, .shop-card[data-cards="gold"] .tile-card {
+  background: linear-gradient(135deg, #fff1a8, #ffcf3a 40%, #c98f00); color: #2a1d00; box-shadow: inset 0 0 0 1px rgba(255,255,255,.6), 0 5px 0 #7a5600; }
+body[data-cards="gold"] .tile-card small, .shop-card[data-cards="gold"] .tile-card small { color: #5a3d00; }
+
+/* мячи в Сортировке */
+.shop-balls[data-balls="classic"] .sball { background: radial-gradient(circle at 50% 50%, rgba(0,0,0,.28) 0 12%, transparent 13%), radial-gradient(circle at 18% 32%, rgba(0,0,0,.2) 0 8%, transparent 9%),
+    radial-gradient(circle at 82% 32%, rgba(0,0,0,.2) 0 8%, transparent 9%), radial-gradient(circle at 35% 30%, rgba(255,255,255,.65), transparent 40%), var(--c); }
+body[data-balls="gloss"] .sball, .shop-balls[data-balls="gloss"] .sball {
+  background: radial-gradient(circle at 32% 26%, #fff 0 10%, rgba(255,255,255,.4) 11% 24%, transparent 46%), radial-gradient(circle at 70% 80%, rgba(0,0,0,.35), transparent 60%), var(--c); }
+body[data-balls="ball"] .sball, .shop-balls[data-balls="ball"] .sball {
+  background: url('../img/ui/ball.webp') center / 112% no-repeat, var(--c); background-blend-mode: multiply; }
+body[data-balls="crests"] .sball, .shop-balls[data-balls="crests"] .sball {
+  background: var(--k, none) center / 62% no-repeat, radial-gradient(circle at 35% 30%, #fff, #e9e9f2); box-shadow: inset 0 0 0 4px var(--c), 0 2px 4px rgba(0,0,0,.3); }
+.pack-dots { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 10px 0 4px; }
+.pack-dots button { aspect-ratio: 1; border: 0; border-radius: 10px; background: var(--night-3); font: 16px var(--font-display); color: var(--ink); }
+.pack-dots button.ok { background: var(--gold); color: #2a1d00; }

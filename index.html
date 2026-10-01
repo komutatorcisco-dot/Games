@@ -42,6 +42,15 @@
       <span><b>Колесо удачи</b><small>Крути раз в день — до 250 монет</small></span>
     </button>
 
+    <button id="dly-card" class="dly-card" data-act="dly">
+      <span class="dly-card-photo" aria-hidden="true"><i>?</i></span>
+      <span class="dly-card-body">
+        <span class="dly-card-top"><span class="tag">ИГРОК ДНЯ</span><b id="dly-card-num"></b><em id="dly-card-streak"></em></span>
+        <b class="dly-card-title">Кто этот футболист?</b>
+        <small id="dly-card-state"></small>
+      </span>
+    </button>
+
     <a class="runner-hero" href="runner.html" data-act="runner">
       <span class="rh-badge">3D</span>
       <b>Прорыв к воротам</b>
@@ -54,6 +63,7 @@
       <span class="ah-top"><span class="tag tag-danil">ДАНИЛ: 50</span><span class="ah-coin">50</span><span class="tag tag-sasha">САША: 50</span></span>
       <b>Аукцион</b>
       <small>5 игроков, 50 монет. Перебивай ставки и собери пятёрку в лучшей форме прямо сейчас.</small>
+      <em class="limit-note" id="lim-auction"></em>
       <span class="ah-modes"><span class="btn" data-act="auction-bot">Против бота</span><span class="btn sasha" data-act="auction-duo">Вдвоём</span></span>
     </button>
 
@@ -110,7 +120,7 @@
     <h3 class="section-label">Вдвоём на одном телефоне</h3>
     <div class="tiles">
       <button class="tile-card duo wide" data-act="pick-duo">
-        <span class="tile-ico" data-ico="pick-duo"></span><b>Возьмёшь этого или другого?</b><small>Рубрика канала: собери состав легенд</small>
+        <span class="tile-ico" data-ico="pick-duo"></span><b>Возьмёшь этого или другого?</b><small>Рубрика канала: собери состав легенд</small><em class="limit-note" id="lim-pick"></em>
       </button>
       <button class="tile-card duo" data-act="guess-duel">
         <span class="tile-ico" data-ico="guess-duel"></span><b>Дуэль: угадай футболиста</b><small>Кто первый назовёт</small>
@@ -125,10 +135,14 @@
 
     <h3 class="section-label">Скоро в хабе</h3>
     <ul class="soon">
-      <li>Собери состав мечты</li>
-      <li>Самые большие зарплаты</li>
-      <li>Серия пенальти</li>
-      <li>Паки и карточки</li>
+      <li>Состав дня (Missing 11)</li>
+      <li>Сетка на время (Box2Box)</li>
+      <li>Футбольный Wordle</li>
+      <li>Бинго</li>
+      <li>Топ-10</li>
+      <li>Связи</li>
+      <li>Дартс 501</li>
+      <li>VS 100</li>
     </ul>
 
     <footer class="hub-foot">
@@ -145,7 +159,7 @@
       <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
     </header>
     <div class="prof-hero">
-      <div class="prof-badge" id="prof-badge"></div>
+      <div class="prof-badge frame-host" id="prof-badge"></div>
       <div>
         <div class="rank-label">Звание</div>
         <div class="prof-rank" id="prof-rank"></div>
@@ -316,6 +330,40 @@
     <div id="pick-opts" class="opts"></div>
   </section>
 
+  <!-- ===== МАГАЗИН ===== -->
+  <section class="screen" id="shop" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title">Магазин<small>Трать монеты с пользой</small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div id="shop-body"></div>
+  </section>
+
+  <!-- ===== ИГРОК ДНЯ ===== -->
+  <section class="screen" id="dly" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title">Игрок дня<small id="dly-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div class="dly-top">
+      <div class="dly-photo" id="dly-photo"></div>
+      <div class="dly-tries" id="dly-tries" aria-label="Попытки и подсказки"></div>
+    </div>
+    <div class="dly-clues" id="dly-clues"></div>
+    <div id="dly-play">
+      <div class="guess-input">
+        <label for="dly-field" class="sr">Имя футболиста</label>
+        <input id="dly-field" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Кто это? Начни вводить фамилию…">
+        <div class="suggest" id="dly-suggest" hidden></div>
+      </div>
+      <div class="dly-actions"><small class="muted" id="dly-left"></small><button class="btn ghost" id="dly-hint" data-act="dly-hint">Открыть подсказку</button></div>
+    </div>
+    <div class="dly-guesses" id="dly-guesses"></div>
+    <div class="dly-result" id="dly-result" hidden></div>
+  </section>
+
   <!-- ===== ПРОРЫВ К ВОРОТАМ (3D) ===== -->
   <section class="screen runner-screen" id="runner" hidden>
     <button class="runner-back" data-act="home" aria-label="В хаб">← В хаб</button>
@@ -384,6 +432,7 @@
   <!-- ===== НИЖНЕЕ МЕНЮ ===== -->
   <nav class="tabbar" id="tabbar">
     <button data-act="home" class="tab" id="tab-home"><span>⚽</span>Игры</button>
+    <button data-act="shop" class="tab" id="tab-shop"><span>🛒</span>Магазин</button>
     <button data-act="profile" class="tab" id="tab-profile"><span>★</span>Профиль</button>
   </nav>
 
@@ -412,6 +461,7 @@
 <script defer src="js/auction.js"></script>
 <script defer src="js/nationxi.js"></script>
 <script defer src="js/nation.js"></script>
+<script defer src="js/daily.js"></script>
 <script defer src="js/pick.js"></script>
 <script defer src="js/howto.js"></script>
 <script defer src="js/icons.js"></script>
@@ -426,6 +476,7 @@
 <script defer src="js/pz/g2048.js"></script>
 <script defer src="js/pz/popcrests.js"></script>
 <script defer src="js/pz/popit.js"></script>
+<script defer src="js/shop.js"></script>
 <script defer src="js/app.js"></script>
 </body>
 </html>

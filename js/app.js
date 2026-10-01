@@ -24,6 +24,8 @@ const App = (() => {
     ['Головоломщик', 'Пройди 30 уровней головоломок', () => Profile.wins('pz') >= 30],
     ['Неделя с нами', 'Заходи 7 дней подряд', () => Store.d.dailyStreak >= 7],
     ['Сборник', 'Серия 10 в «Угадай сборную»', () => Store.d.nation.best >= 10],
+    ['Игрок дня', 'Угадай игрока дня', () => Store.d.dly.wins >= 1],
+    ['Неделя без промаха', 'Серия 7 в «Игроке дня»', () => Store.d.dly.best >= 7],
     ['Агент', 'Выиграй аукцион', () => Store.d.auction.wins >= 1],
     ['Суперагент', 'Выиграй 10 аукционов', () => Store.d.auction.wins >= 10],
     ['Профи', 'Получи звание «Профи»', () => Store.d.stats.xp >= 800],
@@ -51,6 +53,9 @@ const App = (() => {
     $('#meta-nation').textContent = Store.d.nation.best ? `Рекорд ${Store.d.nation.best}` : `${Nation.count} ${plural(Nation.count, 'сборная', 'сборные', 'сборных')}`;
     $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
     $('#pz-shelf').innerHTML = PZ.shelf();
+    Daily.hubCard();
+    $('#lim-auction').textContent = Limits.label('auction');
+    $('#lim-pick').textContent = Limits.label('pick');
     Icons.fill($('#hub'));
     $('#daily').hidden = Store.d.lastDaily === today();
     $('#wheel-btn').hidden = !Wheel.ready();
@@ -81,6 +86,8 @@ const App = (() => {
       ['Сетки Тики-Така-Тоу', Store.d.ttt.wins],
       ['Рекорд FC 27', Store.d.compare.fcBest],
       ['Рекорд «кто дороже»', Store.d.compare.valBest],
+      ['Игрок дня: угадано', Store.d.dly.wins || 0],
+      ['Игрок дня: лучшая серия', Store.d.dly.best],
     ];
     $('#prof-stats').innerHTML = stats.map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
     $('#prof-achs').innerHTML = ACHIEVEMENTS.map(([name, desc, test]) => {
@@ -136,9 +143,15 @@ const App = (() => {
       Screens.show('runner');
     },
     nation: () => Nation.start(),
+    dly: () => Daily.start(),
+    'dly-hint': () => Daily.hint(),
+    'dly-retry': () => Daily.retry(),
+    'dly-share': () => Daily.share(),
+    'dly-giveup': () => Daily.giveup(),
     'pick-duo': () => Pick.start('duo'),
     'pick-solo': () => Pick.start('solo'),
-    'coins-info': () => toast('Монеты дают за победы. Трать их на подсказки.'),
+    'coins-info': () => Shop.open(),
+    shop: () => Shop.open(),
     daily: () => {
       if (Store.d.lastDaily === today()) return;
       const day = nextDay();
@@ -155,7 +168,7 @@ const App = (() => {
 
   function init() {
     Store.load();
-    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind(); Nation.bind(); Pick.bind();
+    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind(); Nation.bind(); Pick.bind(); Daily.bind(); Shop.bind();
     Howto.addButtons();
     Music.arm();
     document.addEventListener('pointerdown', (e) => { Coins.last = { x: e.clientX, y: e.clientY }; }, true);
@@ -164,7 +177,7 @@ const App = (() => {
       if (el && el.tagName === 'A') e.preventDefault();
       if (el && actions[el.dataset.act]) { actions[el.dataset.act](); Howto.forAct(el.dataset.act); return; }
       const pz = e.target.closest('[data-pz]');
-      if (pz) { PZ.open(pz.dataset.pz); Howto.auto(pz.dataset.pz); }
+      if (pz) { PZ.choose(pz.dataset.pz); Howto.auto(pz.dataset.pz); }
     });
     // Нижнее меню видно только на главной и в профиле
     const orig = Screens.show.bind(Screens);
@@ -172,7 +185,8 @@ const App = (() => {
       if (Screens.current === 'runner' && id !== 'runner') $('#runner-frame').removeAttribute('src');
       orig(id);
       document.body.classList.toggle('in-runner', id === 'runner');
-      $('#tabbar').hidden = !(id === 'hub' || id === 'profile');
+      $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop');
+      $('#tab-shop').classList.toggle('on', id === 'shop');
       $('#tab-home').classList.toggle('on', id === 'hub');
       $('#tab-profile').classList.toggle('on', id === 'profile');
       try { if (TG && TG.BackButton) id === 'hub' ? TG.BackButton.hide() : TG.BackButton.show(); } catch (e) { /* не в Telegram */ }
@@ -182,7 +196,7 @@ const App = (() => {
     } catch (e) { /* не в Telegram */ }
     // Ссылка вида ...#pass открывает игру сразу
     const h = location.hash.replace('#', '');
-    const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile' };
+    const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop' };
     renderHub();
     if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }
     else Screens.show('hub');

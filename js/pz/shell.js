@@ -3,7 +3,10 @@
 
 const PZ = (() => {
   const list = [];
-  let cur = null, level = 1, cleanup = null;
+  let cur = null, level = 1, cleanup = null, ch = 0; // ch — номер испытания из пака (0 — обычный уровень)
+  const PACK = 10;
+  const packLevel = (k) => 30 + k * 5;            // испытания — как поздние уровни, но со своими раскладками
+  const pack = (id) => Store.d.shop.packs[id];
 
   const state = (id) => {
     const S = Store.d.pz || (Store.d.pz = {});
@@ -13,7 +16,7 @@ const PZ = (() => {
   const api = {
     area: () => $('#pz-area'),
     level: () => level,
-    rng: (salt = 0) => mulberry32(level * 7919 + salt * 104729 + 17),
+    rng: (salt = 0) => mulberry32(level * 7919 + salt * 104729 + 17 + (ch ? 99991 * ch : 0)),
     hud(html) { $('#pz-hud').innerHTML = html; },
     sub(text) { $('#pz-sub').textContent = text; },
     actions(btns) {
@@ -34,6 +37,7 @@ const PZ = (() => {
     },
     getBest: () => state(cur.id).best,
     win(stars = 3, text = '') {
+      if (ch) return winPack(stars, text);
       const st = state(cur.id);
       const prev = st.stars[level] || 0;
       let reward = 0;
@@ -61,24 +65,66 @@ const PZ = (() => {
       later(() => Modal.open(
         `<h2>Не вышло</h2><p>${text}</p>`,
         [
-          { label: 'Ещё раз', onClick: () => open(cur.id, level) },
+          { label: 'Ещё раз', onClick: () => open(cur.id, level, ch) },
           { label: 'Все головоломки', cls: 'ghost', onClick: () => App.home('puzzles') },
         ],
       ), 400);
     },
   };
 
+  // Победа в испытании: монеты ×2, после 10-го — бонус за весь пак
+  function winPack(stars, text) {
+    const P = pack(cur.id), k = ch;
+    const prev = P.done[k] || 0;
+    let reward = stars > prev ? (stars - prev) * 10 + (prev ? 0 : 20) : 0;
+    if (stars > prev) P.done[k] = stars;
+    const all = Object.keys(P.done).length >= PACK && !P.bonus;
+    if (all) { P.bonus = true; reward += 100; }
+    Profile.bump('pz', 12);
+    Store.save();
+    Sound.play('goal'); haptic('ok'); confetti();
+    if (reward) later(() => Coins.add(reward), 400);
+    const starsHtml = [1, 2, 3].map((i) => (i <= stars ? '★' : '<span class="off">★</span>')).join('');
+    later(() => Modal.open(
+      `<h2>${all ? 'Пак испытаний пройден!' : `Испытание ${k} из ${PACK}!`}</h2><div class="stars">${starsHtml}</div>
+       ${text ? `<p>${text}</p>` : ''}
+       ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`,
+      [
+        ...(k < PACK ? [{ label: `Испытание ${k + 1} →`, onClick: () => open(cur.id, 0, k + 1) }] : []),
+        { label: 'Переиграть', cls: 'ghost', onClick: () => open(cur.id, 0, k) },
+        { label: 'Все головоломки', cls: 'ghost', onClick: () => App.home('puzzles') },
+      ],
+    ), 500);
+  }
+
   function register(g) { list.push(g); }
 
-  function open(id, lvl) {
+  // Нажатие на головоломку: если куплен пак — выбор между обычными уровнями и испытаниями
+  function choose(id) {
+    const g = list.find((x) => x.id === id), P = pack(id);
+    if (!P || g.endless) { open(id); return; }
+    const next = [...Array(PACK).keys()].map((i) => i + 1).find((k) => !P.done[k]) || 1;
+    Modal.open(
+      `<h2>${g.title}</h2><p>Обычные уровни или пак испытаний?</p>
+       <div class="pack-dots">${[...Array(PACK).keys()].map((i) => `<button class="${P.done[i + 1] ? 'ok' : ''}" data-ch="${i + 1}">${i + 1}</button>`).join('')}</div>`,
+      [
+        { label: `Уровень ${state(id).level} →`, onClick: () => open(id) },
+        { label: `🔥 Испытание ${next} из ${PACK}`, cls: 'gold', onClick: () => open(id, 0, next) },
+      ],
+    );
+    $$('.pack-dots [data-ch]').forEach((b) => b.addEventListener('click', () => open(id, 0, +b.dataset.ch)));
+  }
+
+  function open(id, lvl, k = 0) {
     if (cleanup) { try { cleanup(); } catch (e) { /* ничего */ } cleanup = null; }
     cur = list.find((g) => g.id === id);
     const st = state(id);
-    level = lvl || st.level;
+    ch = k && pack(id) ? k : 0;
+    level = ch ? packLevel(ch) : lvl || st.level;
     Modal.close();
     Screens.show('pz');
     $('#pz-title').textContent = cur.title;
-    $('#pz-sub').textContent = cur.endless ? (cur.sub || '') : `Уровень ${level}`;
+    $('#pz-sub').textContent = cur.endless ? (cur.sub || '') : ch ? `🔥 Испытание ${ch} из ${PACK}` : `Уровень ${level}`;
     $('#pz-hud').innerHTML = '';
     $('#pz-actions').innerHTML = '';
     // Новое поле на каждый запуск: старые обработчики прошлого уровня уходят вместе со старым элементом
@@ -96,13 +142,14 @@ const PZ = (() => {
   function shelf() {
     return list.map((g) => {
       const st = state(g.id);
-      const meta = g.endless ? (st.best ? `Рекорд ${st.best}` : g.metaNew || 'Без конца') : `Уровень ${st.level}`;
+      const P = pack(g.id);
+      const meta = g.endless ? (st.best ? `Рекорд ${st.best}` : g.metaNew || 'Без конца') : `Уровень ${st.level}${P ? ` · 🔥 ${Object.keys(P.done).length}/${PACK}` : ''}`;
       return `<button class="tile-card pz-tile" data-pz="${g.id}" style="--c1:${g.c1};--c2:${g.c2}">
         <span class="tile-ico" data-ico="${g.id}" data-done="1">${Icons.get(g.id) || g.icon}</span><b>${g.title}</b><small>${meta}</small></button>`;
     }).join('');
   }
 
-  return { register, open, leave, shelf, list };
+  return { register, open, choose, leave, shelf, list };
 })();
 
 // Свайп по элементу: cb('up' | 'down' | 'left' | 'right').

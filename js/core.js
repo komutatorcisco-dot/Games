@@ -48,6 +48,9 @@ const Store = {
       stats: { xp: 0, wins: {} },
       music: true,
       duel: { a: 'Данил', b: 'Саша' },
+      dly: { day: '', ev: [], level: 1, done: false, won: false, retry: false, tries: 6, guessed: [], streak: 0, best: 0, lastWin: '', played: 0, wins: 0 },
+      limits: { day: '', auction: 0, pick: 0 },
+      shop: { lives: 0, owned: {}, frame: 'none', cards: 'classic', balls: 'classic', packs: {} },
     };
   },
   load() {
@@ -330,6 +333,32 @@ const Profile = {
     while (i + 1 < RANKS.length && xp >= RANKS[i + 1][0]) i++;
     const next = RANKS[i + 1];
     return { name: RANKS[i][1], xp, from: RANKS[i][0], to: next ? next[0] : null, nextName: next ? next[1] : null };
+  },
+};
+
+// Дневные лимиты: в аукцион и «Возьмёшь этого или другого?» 5 бесплатных игр в день, дальше — за монеты.
+// День меняется в полночь по Москве.
+const Limits = {
+  FREE: 5, COST: 20,
+  NAMES: { auction: 'Аукцион', pick: '«Возьмёшь этого или другого?»' },
+  day: () => new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10),
+  sync() {
+    const L = Store.d.limits;
+    if (L.day !== this.day()) { L.day = this.day(); L.auction = 0; L.pick = 0; Store.save(); }
+    return L;
+  },
+  left(k) { return Math.max(0, this.FREE - this.sync()[k]); },
+  label(k) { const n = this.left(k); return n ? `Бесплатно сегодня: ${n} из ${this.FREE}` : `Сегодня за ${this.COST} монет`; },
+  take(k, go) {
+    const L = this.sync();
+    if (L[k] < this.FREE) { L[k]++; Store.save(); go(); return; }
+    Modal.open(
+      `<h2>Бесплатные игры закончились</h2><p>${this.NAMES[k]}: ${this.FREE} бесплатных игр в день. Новые — в полночь по Москве.</p>`,
+      [
+        { label: `Сыграть за ${this.COST} монет`, onClick: () => { if (Coins.spend(this.COST)) { Modal.close(); go(); } } },
+        { label: 'В меню', cls: 'ghost', onClick: () => App.home() },
+      ],
+    );
   },
 };
 

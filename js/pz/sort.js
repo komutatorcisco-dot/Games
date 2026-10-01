@@ -72,7 +72,7 @@
       function render(dropTo = -1) {
         area.innerHTML = `<div class="tubes" style="--n:${tubes.length}">${tubes.map((t, i) => `
           <button class="tube ${sel === i ? 'sel' : ''} ${t.length === CAP && t.every((c) => c === t[0]) ? 'full' : ''}" data-i="${i}">
-            ${t.map((c, k) => `<i class="sball ${sel === i && k === t.length - 1 ? 'up' : ''} ${dropTo === i && k === t.length - 1 ? 'drop' : ''}" style="--c:${KIT[c]}"></i>`).join('')}
+            ${t.map((c, k) => `<i class="sball ${sel === i && k === t.length - 1 ? 'up' : ''} ${dropTo === i && k === t.length - 1 ? 'drop' : ''}" style="--c:${KIT[c]}${Shop.ballStyle(c)}"></i>`).join('')}
           </button>`).join('')}</div>`;
         api.hud(`<span class="pz-chip">Ходы: <b>${moves}</b></span><span class="pz-chip">Цветов: <b>${start.length - (level > 20 ? 1 : 2)}</b></span>`);
       }

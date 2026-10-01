@@ -4,7 +4,7 @@
 
 const Nation = (() => {
   // составы: NATION_XI (js/nationxi.js) — реальные стартовые одиннадцать сборных
-  let teams = [], cur = null, lives = 3, streak = 0, lock = false, recent = [];
+  let teams = [], cur = null, lives = 3, streak = 0, lock = false, recent = [], revived = false;
 
   function prepare() {
     if (teams.length) return;
@@ -20,7 +20,7 @@ const Nation = (() => {
 
   function start() {
     prepare();
-    lives = 3; streak = 0; recent = [];
+    lives = 3; streak = 0; recent = []; revived = false;
     Screens.show('nation');
     round();
   }
@@ -63,8 +63,18 @@ const Nation = (() => {
       Sound.play('bad'); haptic('bad');
       $('#nation-lives').textContent = '♥'.repeat(lives) + '♡'.repeat(3 - lives);
       bump($('#nation-lives'));
-      later(lives > 0 ? round : end, 1900);
+      later(lives > 0 ? round : lastChance, 1900);
     }
+  }
+
+  // Жизни кончились: один раз за игру можно продолжить запасной жизнью
+  function lastChance() {
+    if (revived || streak < 1) return end();
+    Shop.offerLife(`Серия ${streak} под угрозой!`, 'Жизни закончились. Продолжить с одной жизнью?', () => {
+      revived = true; lives = 1;
+      $('#nation-lives').textContent = '♥'.repeat(lives) + '♡'.repeat(3 - lives);
+      round();
+    }, end);
   }
 
   function end() {

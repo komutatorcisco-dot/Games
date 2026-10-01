@@ -88,6 +88,9 @@ const Pick = (() => {
   }
 
   function begin(c) {
+    if (mode === 'duo') Limits.take('pick', () => play(c)); else play(c);
+  }
+  function play(c) {
     club = c; step = 0; turn = 0; score = 0;
     ROWS.forEach(([k]) => DATA[c][k].forEach((e) => { delete e.used; }));
     rows = ROWS.map(([k]) => shuffle(DATA[c][k], Math.random));

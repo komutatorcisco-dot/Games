@@ -24,7 +24,8 @@ const Auction = (() => {
     }
   }
 
-  function begin() {
+  function begin() { Limits.take('auction', play); }
+  function play() {
     budget = [BUDGET, BUDGET]; team = [[], []]; starter = 0; over = false;
     deck = shuffle(POOL, Math.random);
     Screens.show('auction');
