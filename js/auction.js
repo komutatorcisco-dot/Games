@@ -46,7 +46,7 @@ const Auction = (() => {
       render(true);
       busy = true;
       $('#auction-status').textContent = `${names[taker]} забирает бесплатно`;
-      setTimeout(() => win(taker, 0), 900);
+      later(() => win(taker, 0), 900);
       return;
     }
     turn = starter;
@@ -102,7 +102,7 @@ const Auction = (() => {
     Sound.play('tap'); haptic('tap');
     turn = 1 - turn;
     // соперник не может перебить — лот уходит сразу
-    if (budget[turn] < price + 1) { render(false); busy = true; setTimeout(() => win(leader, price), 700); return; }
+    if (budget[turn] < price + 1) { render(false); busy = true; later(() => win(leader, price), 700); return; }
     render(false);
     maybeBot();
   }
@@ -110,13 +110,13 @@ const Auction = (() => {
   function pass() {
     if (busy || over) return;
     Sound.play('tap');
-    if (leader !== null) { busy = true; render(false); setTimeout(() => win(leader, price), 450); return; }
+    if (leader !== null) { busy = true; render(false); later(() => win(leader, price), 450); return; }
     passes++;
     if (passes >= 2) {
       busy = true;
       $('#auction-status').textContent = 'Никто не взял — игрок уходит';
       render(false);
-      setTimeout(nextLot, 900);
+      later(nextLot, 900);
       return;
     }
     turn = 1 - turn;
@@ -133,7 +133,7 @@ const Auction = (() => {
     card && card.classList.add(i === 0 ? 'to-left' : 'to-right');
     busy = true;
     render(false);
-    setTimeout(nextLot, 900);
+    later(nextLot, 900);
   }
 
   // Бот оценивает игрока по рейтингу и по тому, сколько денег осталось на каждое свободное место.
@@ -142,7 +142,7 @@ const Auction = (() => {
     busy = true;
     $('#auction-status').textContent = `${names[1]} думает…`;
     render(false);
-    setTimeout(() => {
+    later(() => {
       busy = false;
       const ovr = form(lot);
       const left = SLOTS - team[1].length;
@@ -184,8 +184,8 @@ const Auction = (() => {
         { label: 'В меню', cls: 'ghost', onClick: () => App.home() },
       ],
     );
-    $$('.ares-num').forEach((el, k) => setTimeout(() => countUp(el, +el.dataset.to, { dur: 1100 }), 300 + k * 250));
-    if (reward) setTimeout(() => Coins.add(reward), 1500);
+    $$('.ares-num').forEach((el, k) => later(() => countUp(el, +el.dataset.to, { dur: 1100 }), 300 + k * 250));
+    if (reward) later(() => Coins.add(reward), 1500);
   }
 
   function bind() {

@@ -89,7 +89,7 @@
         const go = !g.moved || g.d > g.size * 0.33;
         const tr = go ? `translate(${g.size * g.ln.dx}px, ${g.size * g.ln.dy}px)` : '';
         g.els.forEach((el) => { el.style.transition = 'transform .12s ease-out'; el.style.transform = tr; el.classList.remove('held'); });
-        if (go) setTimeout(() => move(g.p), 120);
+        if (go) later(() => move(g.p), 120);
       };
       area.addEventListener('pointerup', release);
       area.addEventListener('pointercancel', release);

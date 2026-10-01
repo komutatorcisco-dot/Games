@@ -224,7 +224,7 @@ const Guess = (() => {
     G.level = lvl + 1;
     Store.save();
     if (reward) Coins.add(reward);
-    setTimeout(() => Modal.open(
+    later(() => Modal.open(
       `<h2>${won ? 'Угадал!' : 'Не угадал'}</h2>
        <p>${won ? `С ${tries}-й попытки.` : 'Это был:'}</p>
        ${playerCard()}
@@ -250,7 +250,7 @@ const Guess = (() => {
     }
     roundStarter = 1 - roundStarter;
     renderDuel();
-    setTimeout(() => Modal.open(
+    later(() => Modal.open(
       `<h2>${esc(title)}</h2>
        ${playerCard()}
        <div class="scoreboard"><span class="tag tag-danil">${esc(D.a.toUpperCase())}: ${score[0]}</span><span class="tag tag-sasha">${esc(D.b.toUpperCase())}: ${score[1]}</span></div>`,

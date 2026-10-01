@@ -65,7 +65,7 @@ const Club = (() => {
     }
     Store.save();
     if (reward) Coins.add(reward);
-    setTimeout(() => Modal.open(
+    later(() => Modal.open(
       `<h2>${won ? 'Верно!' : 'Не угадал'}</h2>
        <div class="player-card">${crestImg(answer.name, 'xl')}<div class="pname">${answer.flag} ${esc(answer.name)}</div>
        <div class="pmeta">${esc(answer.city)} · ${esc(answer.stadium)} · с ${answer.founded} года</div></div>

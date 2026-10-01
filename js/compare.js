@@ -62,10 +62,10 @@ const Compare = (() => {
           streak++;
           if (streak > S[cfg.key]) { S[cfg.key] = streak; Store.save(); }
           Coins.add(5); Sound.play('kick'); haptic('ok');
-          setTimeout(() => shiftStage($('#compare-stage'), () => { a = b; round(); }), 650);
+          later(() => shiftStage($('#compare-stage'), () => { a = b; round(); }), 650);
         } else {
           Sound.play('bad'); haptic('bad');
-          setTimeout(end, 900);
+          later(end, 900);
         }
       },
     });

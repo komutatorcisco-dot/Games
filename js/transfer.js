@@ -68,11 +68,11 @@ const Transfer = (() => {
     q.innerHTML = crestImg(cur.to, 'xs') + esc(cur.to);
     tc.classList.add(ok ? 'ok' : 'bad');
     if (ok) { streak++; Coins.add(5); Sound.play('kick'); haptic('ok'); }
-    else { lives--; Sound.play('bad'); haptic('bad'); }
+    else { lives--; Sound.play('bad'); haptic('bad'); later(() => bump($('#transfer-lives')), 50); }
     const T = Store.d.transfer;
     if (streak > T.best) { T.best = streak; Store.save(); }
     head();
-    setTimeout(() => (lives <= 0 ? end() : shiftStage($('#transfer-stage'), round)), ok ? 900 : 1400);
+    later(() => (lives <= 0 ? end() : shiftStage($('#transfer-stage'), round)), ok ? 900 : 1400);
   }
 
   function answerHL(dir) {
@@ -90,10 +90,10 @@ const Transfer = (() => {
           const T = Store.d.transfer;
           if (streak > T.hlBest) { T.hlBest = streak; Store.save(); }
           head();
-          setTimeout(() => shiftStage($('#transfer-stage'), () => { prev = cur; round(); }), 650);
+          later(() => shiftStage($('#transfer-stage'), () => { prev = cur; round(); }), 650);
         } else {
           Sound.play('bad'); haptic('bad');
-          setTimeout(end, 900);
+          later(end, 900);
         }
       },
     });

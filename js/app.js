@@ -41,14 +41,14 @@ const App = (() => {
   function renderHub() {
     const P = Store.d.pass, G = Store.d.guess, C = Store.d.career, T = Store.d.transfer;
     $('#meta-pass').textContent = P.unlocked > 1 ? `Уровень ${P.unlocked} · ★ ${Pass.totalStars()}` : 'Начни с уровня 1';
-    $('#meta-guess').textContent = G.level > 1 ? `Уровень ${G.level}` : `${PLAYERS.length} игроков`;
-    $('#meta-career').textContent = C.best ? `Рекорд ${C.best}` : `${Career.count} карьер`;
-    $('#meta-club').textContent = Store.d.club.best ? `Рекорд ${Store.d.club.best}` : `${Club.count} клубов`;
-    $('#meta-transfer').textContent = T.best ? `Рекорд ${T.best}` : `${Transfer.count} трансферов`;
+    $('#meta-guess').textContent = G.level > 1 ? `Уровень ${G.level}` : `${PLAYERS.length} ${plural(PLAYERS.length, 'игрок', 'игрока', 'игроков')}`;
+    $('#meta-career').textContent = C.best ? `Рекорд ${C.best}` : `${Career.count} ${plural(Career.count, 'карьера', 'карьеры', 'карьер')}`;
+    $('#meta-club').textContent = Store.d.club.best ? `Рекорд ${Store.d.club.best}` : `${Club.count} ${plural(Club.count, 'клуб', 'клуба', 'клубов')}`;
+    $('#meta-transfer').textContent = T.best ? `Рекорд ${T.best}` : `${Transfer.count} ${plural(Transfer.count, 'трансфер', 'трансфера', 'трансферов')}`;
     $('#meta-hl').textContent = T.hlBest ? `Рекорд ${T.hlBest}` : 'Сколько стоил?';
-    $('#meta-fc').textContent = Store.d.compare.fcBest ? `Рекорд ${Store.d.compare.fcBest}` : `${Compare.countFc} игроков`;
+    $('#meta-fc').textContent = Store.d.compare.fcBest ? `Рекорд ${Store.d.compare.fcBest}` : `${Compare.countFc} ${plural(Compare.countFc, 'игрок', 'игрока', 'игроков')}`;
     $('#meta-value').textContent = Store.d.compare.valBest ? `Рекорд ${Store.d.compare.valBest}` : 'Transfermarkt';
-    $('#meta-nation').textContent = Store.d.nation.best ? `Рекорд ${Store.d.nation.best}` : `${Nation.count} сборных`;
+    $('#meta-nation').textContent = Store.d.nation.best ? `Рекорд ${Store.d.nation.best}` : `${Nation.count} ${plural(Nation.count, 'сборная', 'сборные', 'сборных')}`;
     $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
     $('#pz-shelf').innerHTML = PZ.shelf();
     Icons.fill($('#hub'));

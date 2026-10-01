@@ -185,7 +185,7 @@ const TTT = (() => {
     Store.save();
     if (reward) Coins.add(reward);
     if (result === 1 || (mode === 'duo' && result !== -1)) { Sound.play('goal'); confetti(); } else Sound.play('lose');
-    setTimeout(() => Modal.open(
+    later(() => Modal.open(
       `<h2>${esc(title)}</h2><p>В пустых клетках показан один из правильных ответов.</p>
        ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`,
       [{ label: 'Новая сетка', onClick: () => begin() }, { label: 'Посмотреть ответы', cls: 'ghost' }, { label: 'В меню', cls: 'ghost', onClick: () => App.home() }],

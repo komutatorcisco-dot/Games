@@ -198,12 +198,33 @@ function shuffle(arr, rnd) {
 
 const Screens = {
   current: 'hub',
+  gen: 0, // растёт при каждой смене экрана: отложенные действия прошлой игры по нему понимают, что устарели
   show(id) {
+    this.gen++;
     $$('.screen').forEach((s) => { s.hidden = s.id !== id; });
+    // плавное появление экрана и каскад карточек
+    const el = document.getElementById(id);
+    if (el) {
+      el.classList.remove('enter'); void el.offsetWidth; el.classList.add('enter');
+      $$('.tile-card, .game-card, .auction-hero, .runner-hero, .wheel-card, .daily, .rank-card, .stat, .ach, .tour, .pick-club', el)
+        .forEach((c, i) => c.style.setProperty('--i', Math.min(i, 14)));
+    }
     this.current = id;
     window.scrollTo(0, 0);
   },
 };
+
+// Встряхнуть элемент (потеря жизни и т.п.)
+function bump(el, cls = 'hit') {
+  if (!el) return;
+  el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls);
+}
+
+// Отложенное действие внутри игры. Если игрок ушёл с экрана или начал заново, оно не сработает.
+function later(fn, ms) {
+  const g = Screens.gen;
+  return setTimeout(() => { if (Screens.gen === g) fn(); }, ms);
+}
 
 let toastTimer = null;
 function toast(text) {
@@ -230,13 +251,22 @@ const Modal = {
       });
       box.appendChild(el);
     });
+    clearTimeout(this.closing);
+    $('#modal').classList.remove('closing');
     $('#modal').hidden = false;
     if (typeof Photos !== 'undefined') Photos.hydrate(card);
     const first = $('button', box); // не фокусируем поле ввода: на iPhone клавиатура ломает окно
     if (first) setTimeout(() => first.focus(), 50);
   },
-  close() { $('#modal').hidden = true; },
-  get isOpen() { return !$('#modal').hidden; },
+  // Закрытие с короткой анимацией. Если сразу открыть новое окно, оно отменит скрытие.
+  close() {
+    const m = $('#modal');
+    if (m.hidden || m.classList.contains('closing')) return;
+    m.classList.add('closing');
+    clearTimeout(this.closing);
+    this.closing = setTimeout(() => { m.hidden = true; m.classList.remove('closing'); }, 170);
+  },
+  get isOpen() { const m = $('#modal'); return !m.hidden && !m.classList.contains('closing'); },
 };
 
 function confetti() {
@@ -347,10 +377,12 @@ function Picker(inputSel, boxSel, items, onPick) {
 function countUp(el, to, { from = 0, dur = 750, fmt = (v) => v, onDone } = {}) {
   if (!el) return;
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const gen = Screens.gen;
   const finish = () => {
     el.textContent = fmt(to);
     el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
-    onDone && onDone();
+    // игрок уже ушёл с экрана — продолжение прошлой игры не запускаем
+    if (onDone && Screens.gen === gen && el.isConnected) onDone();
   };
   if (reduce || to === from) { finish(); return; }
   const t0 = performance.now();

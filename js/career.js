@@ -89,7 +89,7 @@ const Career = (() => {
       Store.save();
       won ? (Sound.play('goal'), confetti()) : Sound.play('lose');
       renderHead();
-      setTimeout(() => Modal.open(
+      later(() => Modal.open(
         `<h2>${who ? esc(who) + ' угадал!' : 'Никто не угадал'}</h2>${card}
          <div class="scoreboard"><span class="tag tag-danil">${esc(D.a.toUpperCase())}: ${score[0]}</span><span class="tag tag-sasha">${esc(D.b.toUpperCase())}: ${score[1]}</span></div>`,
         [{ label: 'Следующий раунд →', onClick: next }, { label: 'Закончить', cls: 'ghost', onClick: () => App.home() }],
@@ -109,7 +109,7 @@ const Career = (() => {
     }
     Store.save();
     if (reward) Coins.add(reward);
-    setTimeout(() => Modal.open(
+    later(() => Modal.open(
       `<h2>${won ? 'Это он!' : 'Не угадал'}</h2>${card}
        <p>${won ? `С ${tries}-й попытки. Серия: ${C.streak}.` : 'Серия обнулилась.'}</p>
        ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}

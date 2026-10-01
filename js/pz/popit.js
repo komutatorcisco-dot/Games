@@ -55,11 +55,11 @@
         // всё лопнуто: переворачиваем лист
         busy = true;
         const sheet = $('#popit');
-        setTimeout(() => {
+        later(() => {
           sheet.classList.remove('enter');
           sheet.classList.add('flip-out');
           Sound.play('kick');
-          setTimeout(() => {
+          later(() => {
             if (side === 0) {
               side = 1;
               $$('.bub', sheet).forEach((x) => x.classList.remove('popped', 'press'));

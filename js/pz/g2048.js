@@ -50,7 +50,7 @@
           const top = Math.max(...g);
           if (score >= 500) Profile.bump('pz', 5);
           Coins.add(Math.floor(score / 200));
-          setTimeout(() => Modal.open(
+          later(() => Modal.open(
             `<h2>Карьера окончена</h2><p>Дошёл до: <b>${STAGES[top]}</b> (${top})</p><p>Очки: <b>${score}</b> · рекорд: ${api.getBest()}</p>`,
             [{ label: 'Новая карьера', onClick: () => PZ.open('g2048') }, { label: 'Все головоломки', cls: 'ghost', onClick: () => App.home('puzzles') }],
           ), 400);

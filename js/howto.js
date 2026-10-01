@@ -123,12 +123,13 @@ const Howto = (() => {
     cur = key;
     const seen = Store.d.howto || (Store.d.howto = {});
     if (seen[key]) return;
-    seen[key] = 1; Store.save();
+    // Отмечаем «видел», только когда плашка реально показалась (игрок мог сразу уйти с экрана)
     const tryShow = (n = 0) => {
-      if (Modal.isOpen) { if (n < 40) setTimeout(() => tryShow(n + 1), 500); return; }
+      if (Modal.isOpen) { if (n < 40) later(() => tryShow(n + 1), 500); return; }
+      seen[key] = 1; Store.save();
       show(key);
     };
-    setTimeout(tryShow, 250);
+    later(tryShow, 250);
   }
 
   function forAct(act) { if (BY_ACT[act]) auto(BY_ACT[act]); }

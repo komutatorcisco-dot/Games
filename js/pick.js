@@ -156,7 +156,7 @@ const Pick = (() => {
     haptic('tap'); Sound.play(take ? 'tap' : 'kick');
     const hidden = $('.pick-card.hidden-card');
     hidden.classList.add('flip');
-    setTimeout(() => {
+    later(() => {
       hidden.classList.remove('hidden-card');
       hidden.innerHTML = `${avatar(offer.hidden[0], 'xl')}<b>${esc(offer.hidden[0])}</b>${crestImg(club, 'xs')}`;
       Photos.hydrate(hidden);
@@ -168,7 +168,7 @@ const Pick = (() => {
       $('.tb').outerHTML = board();
       Photos.hydrate($('.tb'));
     }, 260);
-    setTimeout(() => {
+    later(() => {
       if (turn === 0) turn = 1;
       else { turn = 0; step++; }
       if (step < ROWS.length) deal(); else finishDuo();
@@ -188,18 +188,18 @@ const Pick = (() => {
       countUp($('.pick-apps', c), pair[k][1], { dur: 700, fmt: (v) => `${v} матчей` });
     });
     cards[i].classList.add(ok ? 'ok' : 'bad');
-    setTimeout(() => { step++; step < ROWS.length ? render() : finishSolo(); }, 1700);
+    later(() => { step++; step < ROWS.length ? render() : finishSolo(); }, 1700);
   }
 
   function finishDuo() {
     $('#pick-stage').innerHTML = board(true);
     Photos.hydrate($('#pick-stage'));
     const sum = teams.map((t) => t.reduce((s, e) => s + e[1], 0));
-    $$('.tb-apps').forEach((el, k) => setTimeout(() => countUp(el, +el.dataset.v, { dur: 600 }), k * 120));
+    $$('.tb-apps').forEach((el, k) => later(() => countUp(el, +el.dataset.v, { dur: 600 }), k * 120));
     const [A, B] = names();
     const win = sum[0] === sum[1] ? -1 : sum[0] > sum[1] ? 0 : 1;
     $('#pick-opts').innerHTML = '';
-    setTimeout(() => {
+    later(() => {
       if (win >= 0) confetti();
       Sound.play('goal');
       Store.d.pick.games++; Store.save();

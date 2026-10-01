@@ -142,7 +142,7 @@ const Pass = (() => {
     const P = Store.d.pass;
     const lastTour = tourOf(P.unlocked) + 1;
     let html = '';
-    for (let t = lastTour; t >= 0; t--) {
+    for (let t = 0; t <= lastTour; t++) {
       let stars = 0, cells = '';
       for (let n = t * 10 + 1; n <= t * 10 + 10; n++) {
         const st = P.stars[n] || 0;
@@ -269,7 +269,7 @@ const Pass = (() => {
     let t = 0;
     legs.forEach((l, k) => {
       const ms = 60 + l.length * 70;
-      setTimeout(() => {
+      later(() => {
         const last = l[l.length - 1];
         if (k === legs.length - 1 && r.goal) placeBall(-1, ms);
         else placeBall(last, ms);
@@ -278,7 +278,7 @@ const Pass = (() => {
       t += ms;
     });
     if (!legs.length && r.goal) placeBall(-1, 130);
-    setTimeout(() => {
+    later(() => {
       ball.classList.remove('rolling');
       busy = false;
       if (gained) haptic('ok');
@@ -310,7 +310,7 @@ const Pass = (() => {
 
     const starsHtml = [1, 2, 3].map((i) => (i <= st ? '★' : '<span class="off">★</span>')).join('');
     const msg = st === 3 ? 'Идеальная атака!' : 'Можно забить быстрее — попробуй найти путь короче.';
-    setTimeout(() => {
+    later(() => {
       Modal.open(
         `<h2>${isFinal(n) ? 'Финал взят!' : 'Гол!'}</h2>
          <div class="stars">${starsHtml}</div>

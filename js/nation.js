@@ -59,7 +59,7 @@ const Nation = (() => {
     if (lock) return;
     lock = true;
     const ok = n === cur.nat;
-    $$('#nation-stage .nat-slot').forEach((el, i) => setTimeout(() => el.classList.add('named'), i * 60));
+    $$('#nation-stage .nat-slot').forEach((el, i) => later(() => el.classList.add('named'), i * 60));
     $$('#nation-opts .nat-opt').forEach((b) => {
       b.disabled = true;
       if (b.dataset.nat === cur.nat) b.classList.add('right');
@@ -70,12 +70,13 @@ const Nation = (() => {
       const S = Store.d.nation;
       if (streak > S.best) { S.best = streak; Store.save(); }
       Coins.add(5); Sound.play('kick'); haptic('ok');
-      setTimeout(round, 1600);
+      later(round, 1600);
     } else {
       lives--;
       Sound.play('bad'); haptic('bad');
       $('#nation-lives').textContent = '♥'.repeat(lives) + '♡'.repeat(3 - lives);
-      setTimeout(lives > 0 ? round : end, 1900);
+      bump($('#nation-lives'));
+      later(lives > 0 ? round : end, 1900);
     }
   }
 

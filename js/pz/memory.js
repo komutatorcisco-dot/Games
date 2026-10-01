@@ -29,12 +29,12 @@
         open = [];
         if (deck[a.dataset.i] === deck[b.dataset.i]) {
           found.add(deck[a.dataset.i]);
-          setTimeout(() => { a.classList.add('done'); b.classList.add('done'); Sound.play('coin'); }, 250);
+          later(() => { a.classList.add('done'); b.classList.add('done'); Sound.play('coin'); }, 250);
           hud();
           if (found.size === pairs) api.win(mistakes <= pairs / 2 ? 3 : mistakes <= pairs ? 2 : 1, `Ошибок: ${mistakes}`);
         } else {
           mistakes++; lock = true; hud();
-          setTimeout(() => { a.classList.remove('open'); b.classList.remove('open'); lock = false; }, 750);
+          later(() => { a.classList.remove('open'); b.classList.remove('open'); lock = false; }, 750);
         }
       });
     },

@@ -43,9 +43,9 @@ const PZ = (() => {
       Store.save();
       Sound.play('goal'); haptic('ok');
       if (stars === 3) confetti();
-      if (reward) setTimeout(() => Coins.add(reward), 400);
+      if (reward) later(() => Coins.add(reward), 400);
       const starsHtml = [1, 2, 3].map((i) => (i <= stars ? '★' : '<span class="off">★</span>')).join('');
-      setTimeout(() => Modal.open(
+      later(() => Modal.open(
         `<h2>Уровень ${level} пройден!</h2><div class="stars">${starsHtml}</div>
          ${text ? `<p>${text}</p>` : ''}
          ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`,
@@ -58,7 +58,7 @@ const PZ = (() => {
     },
     lose(text) {
       Sound.play('lose'); haptic('bad');
-      setTimeout(() => Modal.open(
+      later(() => Modal.open(
         `<h2>Не вышло</h2><p>${text}</p>`,
         [
           { label: 'Ещё раз', onClick: () => open(cur.id, level) },
