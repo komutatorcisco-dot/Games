@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jackson Hub</title>
+<meta name="theme-color" content="#1b1340">
+<meta name="description" content="Футбольные мини-игры канала «Старики Джексоны»">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;800&family=Russo+One&display=swap">
+<link rel="stylesheet" href="css/style.css">
+<script defer src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== ХАБ ===== -->
+  <section class="screen" id="hub">
+    <header class="hub-head">
+      <div class="brand">
+        <div class="kicker">игры канала</div>
+        <h1 class="brand-title">Старики<br>Джексоны</h1>
+      </div>
+      <button class="coins" data-act="coins-info" aria-label="Монеты"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></button>
+    </header>
+
+    <div class="versus" aria-hidden="true">
+      <span class="tag tag-danil">ДАНИЛ</span><span class="vs">vs</span><span class="tag tag-sasha">САША</span>
+    </div>
+    <p class="lead">Докажи, что шаришь в футболе лучше Данила и Саши. Проходи уровни, собирай монеты, открывай подсказки.</p>
+
+    <button id="daily" class="daily" data-act="daily" hidden>
+      <span class="coin" aria-hidden="true"></span>
+      <span><b>Бонус дня</b> · забери +50 монет</span>
+    </button>
+
+    <div class="games">
+      <button class="game-card card-pass" data-act="pass-levels">
+        <div class="card-art art-pass" aria-hidden="true">
+          <i class="mini-def" style="--x:1;--y:0"></i><i class="mini-def" style="--x:3;--y:1"></i>
+          <i class="mini-def" style="--x:0;--y:2"></i><i class="mini-ball" style="--x:1;--y:2"></i>
+          <i class="mini-goal" style="--x:3;--y:2"></i>
+        </div>
+        <div class="card-body">
+          <h2>Пас в ворота</h2>
+          <p>Пазл без конца. Мяч катится, пока не упрётся в защитника. Найди путь в сетку за минимум ударов.</p>
+          <span class="card-meta" id="meta-pass"></span>
+        </div>
+      </button>
+
+      <button class="game-card card-guess" data-act="guess-career">
+        <div class="card-art art-guess" aria-hidden="true">
+          <span class="tile hit">🇫🇷</span><span class="tile near">ЛЧ</span><span class="tile miss">27↑</span>
+          <span class="tile hit">ПВ</span><span class="tile near">9↓</span><span class="tile miss">?</span>
+        </div>
+        <div class="card-body">
+          <h2>Угадай футболиста</h2>
+          <p>Нация, лига, клуб, возраст, позиция, номер. Как в наших видео, только угадываешь ты.</p>
+          <span class="card-meta" id="meta-guess"></span>
+        </div>
+      </button>
+
+      <button class="game-card card-duel" data-act="guess-duel">
+        <div class="card-art art-duel" aria-hidden="true">
+          <span class="tag tag-danil">ДАНИЛ: 0</span><span class="tag tag-sasha">САША: 0</span>
+        </div>
+        <div class="card-body">
+          <h2>Дуэль на одном телефоне</h2>
+          <p>Двое угадывают по очереди. Кто первым назовёт игрока, тот забирает раунд.</p>
+          <span class="card-meta">2 игрока</span>
+        </div>
+      </button>
+    </div>
+
+    <h3 class="section-label">Скоро в хабе</h3>
+    <ul class="soon">
+      <li>Собери состав мечты</li>
+      <li>Самые большие зарплаты</li>
+      <li>Серия пенальти</li>
+      <li>Паки и карточки игроков</li>
+    </ul>
+
+    <footer class="hub-foot">
+      <a href="https://t.me/jacksonhubbot" target="_blank" rel="noopener">Все игры в боте · @jacksonhubbot</a>
+      <a href="https://www.tiktok.com/@oldjacksons2" target="_blank" rel="noopener">TikTok · @oldjacksons2</a>
+      <button class="link-btn" data-act="sound" id="sound-btn">Звук: вкл</button>
+    </footer>
+  </section>
+
+  <!-- ===== ПАС В ВОРОТА: УРОВНИ ===== -->
+  <section class="screen" id="pass-levels" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title">Пас в ворота</div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div id="tours"></div>
+  </section>
+
+  <!-- ===== ПАС В ВОРОТА: ИГРА ===== -->
+  <section class="screen" id="pass-game" hidden>
+    <header class="topbar">
+      <button class="back" data-act="pass-levels" aria-label="К уровням">←</button>
+      <div class="topbar-title"><span id="pass-tour"></span><small id="pass-num"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div class="hud">
+      <div class="hud-cell"><span>Удары</span><b id="pass-moves">0</b></div>
+      <div class="hud-cell"><span>На 3 звезды</span><b id="pass-par">0</b></div>
+      <div class="hud-cell"><span>Лучшее</span><b id="pass-best">—</b></div>
+    </div>
+    <div class="board-wrap" id="board-wrap">
+      <div class="board" id="board"></div>
+    </div>
+    <p class="hint-line" id="pass-tip">Свайпай по полю или жми стрелки</p>
+    <div class="pad">
+      <button class="pad-btn" data-dir="up" aria-label="Вверх">▲</button>
+      <button class="pad-btn" data-dir="left" aria-label="Влево">◀</button>
+      <button class="pad-btn" data-dir="down" aria-label="Вниз">▼</button>
+      <button class="pad-btn" data-dir="right" aria-label="Вправо">▶</button>
+    </div>
+    <div class="actions three">
+      <button class="btn ghost" data-act="pass-undo">↶ Отмена</button>
+      <button class="btn ghost" data-act="pass-restart">⟲ Заново</button>
+      <button class="btn gold" data-act="pass-hint">Совет · 15</button>
+    </div>
+  </section>
+
+  <!-- ===== УГАДАЙ ФУТБОЛИСТА ===== -->
+  <section class="screen" id="guess" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title"><span id="guess-title">Угадай футболиста</span><small id="guess-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+
+    <div class="scoreboard" id="duel-board" hidden>
+      <span class="tag tag-danil" id="duel-a"></span>
+      <span class="tag tag-sasha" id="duel-b"></span>
+    </div>
+    <p class="turn" id="duel-turn" hidden></p>
+
+    <div class="mystery">
+      <div class="mystery-face" aria-hidden="true">?</div>
+      <div class="mystery-info">
+        <div class="mystery-label">Загаданный игрок</div>
+        <div class="chips" id="guess-chips"><span class="chip dim">Открой подсказку или сделай первую попытку</span></div>
+      </div>
+    </div>
+
+    <div class="guess-input">
+      <label for="guess-field" class="sr">Имя футболиста</label>
+      <input id="guess-field" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Начни вводить фамилию…">
+      <div class="suggest" id="guess-suggest" hidden></div>
+    </div>
+    <div class="actions tight">
+      <span class="attempts" id="guess-attempts"></span>
+      <button class="btn gold" data-act="guess-hint" id="guess-hint-btn">Подсказка · 25</button>
+    </div>
+
+    <div class="grid-head" aria-hidden="true">
+      <span>Нация</span><span>Лига</span><span>Клуб</span><span>Возраст</span><span>Позиция</span><span>Номер</span>
+    </div>
+    <div id="guess-rows"></div>
+    <p class="legend"><i class="dot hit"></i>совпало <i class="dot near"></i>рядом (континент, линия, ±2 года, ±3 номера) <i class="dot miss"></i>мимо</p>
+  </section>
+
+  <!-- ===== МОДАЛКА / ТОСТ ===== -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" id="modal-card"></div>
+  </div>
+  <div class="toast" id="toast" hidden></div>
+</div>
+
+<script defer src="js/core.js"></script>
+<script defer src="js/players.js"></script>
+<script defer src="js/pass.js"></script>
+<script defer src="js/guess.js"></script>
+<script defer src="js/app.js"></script>
+</body>
+</html>
