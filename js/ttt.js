@@ -50,6 +50,9 @@ const TTT = (() => {
   let gridMode = MODES[0][0];
 
   let rows = [], cols = [], cells = [], sel = -1, used = new Set(), mode = 'solo', lives = 3, turn = 0, over = false, picker = null;
+  // Box2Box: соло на время — 3 минуты, ошибка отнимает 10 секунд, остаток времени идёт в очки
+  const TIME = 180;
+  let timeLeft = 0, timer = 0;
 
   // Есть ли способ заполнить все 9 клеток разными игроками (перебор с возвратом).
   function solvable(r, c) {
@@ -97,8 +100,18 @@ const TTT = (() => {
     if (!g) { toast('Не получилось собрать сетку, попробуй ещё раз'); return; }
     [rows, cols] = g;
     cells = Array(9).fill(null); // {by: 0|1, name}
-    used = new Set(); lives = 3; turn = 0; over = false; sel = -1;
+    used = new Set(); lives = mode === 'timed' ? 99 : 3; turn = 0; over = false; sel = -1;
     Screens.show('ttt');
+    clearInterval(timer);
+    if (mode === 'timed') {
+      timeLeft = TIME;
+      timer = setInterval(() => {
+        if (Screens.current !== 'ttt' || over) { clearInterval(timer); return; }
+        timeLeft--;
+        if (timeLeft <= 0) { timeLeft = 0; clearInterval(timer); finish(0); return; }
+        renderSub();
+      }, 1000);
+    }
     $('#ttt-field').disabled = true;
     picker && picker.clear();
     render();
@@ -106,10 +119,8 @@ const TTT = (() => {
 
   function render() {
     const D = Store.d.duel;
-    $('#ttt-title').textContent = mode === 'duo' ? 'Тики-Така-Тоу вдвоём' : 'Тики-Така-Тоу';
-    $('#ttt-sub').textContent = mode === 'duo'
-      ? (over ? 'Игра окончена' : `Ходит ${turn === 0 ? D.a + ' (✕)' : D.b + ' (○)'}`)
-      : `${gridMode} · ${'♥'.repeat(lives)}${'♡'.repeat(3 - lives)} · ${cells.filter(Boolean).length}/9`;
+    $('#ttt-title').textContent = mode === 'duo' ? 'Тики-Така-Тоу вдвоём' : mode === 'timed' ? 'Box2Box на время' : 'Тики-Така-Тоу';
+    renderSub();
     let html = '<div class="tg-corner"></div>';
     cols.forEach((c) => { html += `<div class="tg-head ${cat(c).t}">${cat(c).html}</div>`; });
     rows.forEach((r, ri) => {
@@ -124,6 +135,15 @@ const TTT = (() => {
     });
     $('#ttt-grid').innerHTML = html;
     $('#ttt-hint').textContent = over ? '' : sel < 0 ? 'Выбери клетку' : `Кто подходит: ${phrase(rows[Math.floor(sel / 3)])} + ${phrase(cols[sel % 3])}?`;
+  }
+
+  function renderSub() {
+    const D = Store.d.duel;
+    const mmss = `${Math.floor(timeLeft / 60)}:${String(timeLeft % 60).padStart(2, '0')}`;
+    $('#ttt-sub').textContent = mode === 'duo'
+      ? (over ? 'Игра окончена' : `Ходит ${turn === 0 ? D.a + ' (✕)' : D.b + ' (○)'}`)
+      : mode === 'timed' ? `⏱ ${mmss} · ${cells.filter(Boolean).length}/9 · ошибка −10 сек`
+        : `${gridMode} · ${'♥'.repeat(lives)}${'♡'.repeat(3 - lives)} · ${cells.filter(Boolean).length}/9`;
   }
 
   const phrase = (id) => (cat(id).t === 'club' ? `играл за ${id}` : cat(id).label);
@@ -150,6 +170,7 @@ const TTT = (() => {
       Sound.play('bad'); haptic('bad');
       toast(used.has(name) ? `${name} уже был` : `${name} не подходит под обе подсказки`);
       if (mode === 'solo') lives--;
+      if (mode === 'timed') { timeLeft = Math.max(1, timeLeft - 10); bump($('#ttt-sub'), 'shake'); }
     }
     sel = -1;
     $('#ttt-field').disabled = true;
@@ -173,6 +194,13 @@ const TTT = (() => {
     let title, reward = 0;
     if (mode === 'duo') {
       title = result === -1 ? 'Ничья' : `${result === 0 ? D.a : D.b} победил!`;
+    } else if (mode === 'timed') {
+      clearInterval(timer);
+      const n = cells.filter(Boolean).length, pts = n * 10 + (result === 1 ? timeLeft : 0);
+      Store.d.ttt.b2bBest = Math.max(Store.d.ttt.b2bBest || 0, pts);
+      title = result === 1 ? `Сетка за ${TIME - timeLeft} сек! ${pts} очков` : `${timeLeft > 0 ? "Сдался" : "Время вышло"}: ${n}/9, ${pts} очков`;
+      reward = Math.round(pts / 3);
+      if (result === 1) Profile.bump('ttt', 30);
     } else if (result === 1) {
       title = 'Вся сетка твоя!';
       reward = 100;
@@ -185,6 +213,7 @@ const TTT = (() => {
     Store.save();
     if (reward) Coins.add(reward);
     if (result === 1 || (mode === 'duo' && result !== -1)) { Sound.play('goal'); confetti(); } else Sound.play('lose');
+    if (mode === 'timed') title += ` · рекорд ${Store.d.ttt.b2bBest}`;
     later(() => Modal.open(
       `<h2>${esc(title)}</h2><p>В пустых клетках показан один из правильных ответов.</p>
        ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`,
@@ -208,5 +237,5 @@ const TTT = (() => {
       submit);
   }
 
-  return { bind, start, skip, clubs: BIG.length };
+  return { bind, start, skip, clubs: BIG.length, cats: CATS, groups: { BIG, NATS, OTHER } };
 })();

@@ -49,13 +49,14 @@ const Daily = (() => {
     const last = p.name.split(' ').slice(-1)[0];
     return `${last[0]}${'•'.repeat(Math.max(0, last.length - 1))} (${last.length} ${plural(last.length, 'буква', 'буквы', 'букв')})`;
   }
+  // Подсказки от сложных к лёгким: сначала цифры, в конце — клуб и первая буква
   function clues(p) {
     const past = careerOf(p);
     return [
-      ['Страна и позиция', `${p.flag} ${esc(p.nat)} · ${esc(p.pos)}`],
       ['Возраст и номер', `${YEAR - p.born} лет · №${p.num}`],
-      ['Лига', esc(p.lg)],
+      ['Позиция и лига', `${esc(p.pos)} · ${esc(p.lg)}`],
       ['Где играл раньше', past.length ? past.map((c) => `<span class="dly-club">${crestImg(c, 'xs')}${esc(c)}</span>`).join('') : 'Всю карьеру в одном клубе'],
+      ['Сборная', `${p.flag} ${esc(p.nat)}`],
       ['Клуб сейчас', `<span class="dly-club">${crestImg(p.club, 'xs')}${esc(p.club)}</span>`],
       ['Фамилия', surnameMask(p)],
     ];

@@ -54,6 +54,7 @@ const App = (() => {
     $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
     $('#pz-shelf').innerHTML = PZ.shelf();
     Daily.hubCard();
+    ['daily', 'brain', 'grid', 'cards'].forEach((g) => { $('#ng-' + g).innerHTML = NG.tiles(g); });
     $('#lim-auction').textContent = Limits.label('auction');
     $('#lim-pick').textContent = Limits.label('pick');
     Icons.fill($('#hub'));
@@ -152,6 +153,7 @@ const App = (() => {
     'pick-solo': () => Pick.start('solo'),
     'coins-info': () => Shop.open(),
     shop: () => Shop.open(),
+    b2b: () => TTT.start('timed'),
     daily: () => {
       if (Store.d.lastDaily === today()) return;
       const day = nextDay();
@@ -176,6 +178,8 @@ const App = (() => {
       const el = e.target.closest('[data-act]');
       if (el && el.tagName === 'A') e.preventDefault();
       if (el && actions[el.dataset.act]) { actions[el.dataset.act](); Howto.forAct(el.dataset.act); return; }
+      const ng = e.target.closest('[data-ng]');
+      if (ng) { NG.open(ng.dataset.ng); Howto.auto('ng-' + ng.dataset.ng); return; }
       const pz = e.target.closest('[data-pz]');
       if (pz) { PZ.choose(pz.dataset.pz); Howto.auto(pz.dataset.pz); }
     });
@@ -183,6 +187,7 @@ const App = (() => {
     const orig = Screens.show.bind(Screens);
     Screens.show = (id) => {
       if (Screens.current === 'runner' && id !== 'runner') $('#runner-frame').removeAttribute('src');
+      if (Screens.current === 'ng' && id !== 'ng') NG.leave();
       orig(id);
       document.body.classList.toggle('in-runner', id === 'runner');
       $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop');
@@ -199,6 +204,7 @@ const App = (() => {
     const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop' };
     renderHub();
     if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }
+    else if (NG.list.some((g) => g.id === h)) { if (h === 'box2box') actions.b2b(); else NG.open(h); Howto.auto('ng-' + h); }
     else Screens.show('hub');
   }
 

@@ -51,6 +51,9 @@
       </span>
     </button>
 
+    <h3 class="section-label">Ежедневные · новые каждый день</h3>
+    <div class="tiles" id="ng-daily"></div>
+
     <a class="runner-hero" href="runner.html" data-act="runner">
       <span class="rh-badge">3D</span>
       <b>Прорыв к воротам</b>
@@ -133,17 +136,14 @@
       </button>
     </div>
 
-    <h3 class="section-label">Скоро в хабе</h3>
-    <ul class="soon">
-      <li>Состав дня (Missing 11)</li>
-      <li>Сетка на время (Box2Box)</li>
-      <li>Футбольный Wordle</li>
-      <li>Бинго</li>
-      <li>Топ-10</li>
-      <li>Связи</li>
-      <li>Дартс 501</li>
-      <li>VS 100</li>
-    </ul>
+    <h3 class="section-label">Для знатоков</h3>
+    <div class="tiles" id="ng-brain"></div>
+
+    <h3 class="section-label">Сетки</h3>
+    <div class="tiles" id="ng-grid"></div>
+
+    <h3 class="section-label">Карты и стратегия</h3>
+    <div class="tiles" id="ng-cards"></div>
 
     <footer class="hub-foot">
       <a href="https://t.me/jacksonhubbot" target="_blank" rel="noopener">Бот канала · @jacksonhubbot</a>
@@ -330,6 +330,16 @@
     <div id="pick-opts" class="opts"></div>
   </section>
 
+  <!-- ===== НОВЫЕ ИГРЫ (общий экран) ===== -->
+  <section class="screen" id="ng" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title"><span id="ng-title"></span><small id="ng-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div id="ng-body" class="ng-body"></div>
+  </section>
+
   <!-- ===== МАГАЗИН ===== -->
   <section class="screen" id="shop" hidden>
     <header class="topbar">
@@ -476,6 +486,23 @@
 <script defer src="js/pz/g2048.js"></script>
 <script defer src="js/pz/popcrests.js"></script>
 <script defer src="js/pz/popit.js"></script>
+<script defer src="js/ng/core.js"></script>
+<script defer src="js/ng/lineup.js"></script>
+<script defer src="js/ng/wordle.js"></script>
+<script defer src="js/ng/treble.js"></script>
+<script defer src="js/ng/false9.js"></script>
+<script defer src="js/ng/connect.js"></script>
+<script defer src="js/ng/top10.js"></script>
+<script defer src="js/ng/context.js"></script>
+<script defer src="js/ng/whoami.js"></script>
+<script defer src="js/ng/linkup.js"></script>
+<script defer src="js/ng/rank.js"></script>
+<script defer src="js/ng/box2box.js"></script>
+<script defer src="js/ng/bingo.js"></script>
+<script defer src="js/ng/draft.js"></script>
+<script defer src="js/ng/trumps.js"></script>
+<script defer src="js/ng/vs100.js"></script>
+<script defer src="js/ng/darts.js"></script>
 <script defer src="js/shop.js"></script>
 <script defer src="js/app.js"></script>
 </body>

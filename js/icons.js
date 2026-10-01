@@ -50,6 +50,27 @@ const Icons = (() => {
     pick: `${face(10535, 'l')}${face(41, 'r')}<b class="ic-vs">?</b>`,
     'pick-duo': `${face(45661, 'l')}${face(13743, 'r')}<b class="ic-vs">VS</b>`,
     'ttt-duo': svg('<path d="M12 12 l13 13 m0 -13 l-13 13" stroke="#1b1240" stroke-width="5" stroke-linecap="round"/><circle cx="37" cy="37" r="8" fill="none" stroke="#fff" stroke-width="5"/>'),
+    // новые игры
+    'ng-lineup': svg('<rect x="6" y="5" width="44" height="46" rx="6" fill="#2fb35a" stroke="#fff" stroke-width="2"/><path d="M6 28 H50" stroke="rgba(255,255,255,.6)" stroke-width="1.5"/><circle cx="28" cy="28" r="6" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.5"/>'
+      + [[28, 45], [13, 37], [23, 37], [33, 37], [43, 37], [17, 24], [28, 22], [39, 24], [14, 12], [28, 10], [42, 12]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.2" fill="#fff"/>`).join('')
+      + '<text x="28" y="34" text-anchor="middle" font-size="9" font-weight="900" fill="#ffcf3a">?</text>'),
+    'ng-wordle': svg([['Г', '#34c46a'], ['О', '#e8b62a'], ['Л', '#463c78']].map(([ch, c], i) => `<rect x="${5 + i * 16}" y="16" width="14" height="16" rx="3" fill="${c}"/><text x="${12 + i * 16}" y="28.5" text-anchor="middle" font-size="11" font-weight="900" fill="#fff">${ch}</text>`).join('')
+      + [0, 1, 2].map((i) => `<rect x="${5 + i * 16}" y="35" width="14" height="10" rx="3" fill="rgba(255,255,255,.25)"/>`).join('')),
+    'ng-treble': '<span class="ic-emo">🏆</span><span class="ic-tag">×3</span>',
+    'ng-false9': '<span class="ic-big">9</span><span class="ic-tag red">ЛОЖЬ</span>',
+    'ng-connect': svg(['#ffcf3a', '#34c46a', '#5b8cff', '#c65bd8'].map((c, i) => `<rect x="${8 + (i % 2) * 21}" y="${8 + Math.floor(i / 2) * 21}" width="19" height="19" rx="5" fill="${c}" stroke="rgba(0,0,0,.2)"/>`).join('')),
+    'ng-top10': '<span class="ic-big">10</span><span class="ic-tag">ТОП</span>',
+    'ng-context': '<span class="ic-emo">🌡</span><span class="ic-tag">№1</span>',
+    'ng-whoami': `${face(192985, 'dim')}<span class="ic-emo sm">👥</span>`,
+    'ng-linkup': '<span class="ic-emo">🔗</span>',
+    'ng-rank': svg('<rect x="21" y="18" width="14" height="30" rx="2" fill="#ffcf3a"/><rect x="6" y="26" width="14" height="22" rx="2" fill="#d9e4f5"/><rect x="36" y="32" width="14" height="16" rx="2" fill="#ff8a2a"/>'
+      + '<text x="28" y="34" text-anchor="middle" font-size="12" font-weight="900" fill="#2a1d00">1</text><text x="13" y="40" text-anchor="middle" font-size="11" font-weight="900" fill="#1b1340">2</text><text x="43" y="44" text-anchor="middle" font-size="10" font-weight="900" fill="#2a1d00">3</text>'),
+    'ng-box2box': svg('<path d="M21 8 V48 M35 8 V48 M8 21 H48 M8 35 H48" stroke="rgba(255,255,255,.85)" stroke-width="2.5" stroke-linecap="round"/>') + '<span class="ic-emo sm">⏱</span>',
+    'ng-bingo': svg([...Array(16).keys()].map((i) => `<circle cx="${12 + (i % 4) * 10.7}" cy="${12 + Math.floor(i / 4) * 10.7}" r="4.3" fill="${[0, 5, 10, 15].includes(i) ? '#ffcf3a' : 'rgba(255,255,255,.35)'}"/>`).join('')),
+    'ng-draft': '<span class="ic-big">11</span><span class="ic-tag">4-3-3</span>',
+    'ng-trumps': '<span class="ic-emo">🃏</span>',
+    'ng-vs100': '<span class="ic-big sm">1:100</span>',
+    'ng-darts': '<span class="ic-emo">🎯</span>',
   };
 
   const get = (id) => MAP[id] || '';

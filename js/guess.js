@@ -5,7 +5,8 @@ const Guess = (() => {
   const LINE = { ГК: 'ГК', ЦЗ: 'ЗАЩ', ЛЗ: 'ЗАЩ', ПЗ: 'ЗАЩ', ЦОП: 'ПЗЩ', ЦП: 'ПЗЩ', ЦАП: 'ПЗЩ', ЛВ: 'АТК', ПВ: 'АТК', ФРВ: 'АТК' };
   const HINT_COST = 25;
   const SHORT = { 'Манчестер Сити': 'Ман Сити', 'Манчестер Юнайтед': 'Ман Юнайтед', 'Атлетик Бильбао': 'Атлетик', 'Лос-Анджелес': 'LAFC', 'Боруссия Д': 'Боруссия' };
-  const HINT_ORDER = ['nat', 'lg', 'pos', 'club', 'age', 'num'];
+  // подсказки от сложных к лёгким
+  const HINT_ORDER = ['num', 'age', 'pos', 'lg', 'nat', 'club'];
   const HINT_LABEL = { nat: 'Нация', lg: 'Лига', pos: 'Позиция', club: 'Клуб', age: 'Возраст', num: 'Номер' };
   const YEAR = new Date().getFullYear();
   const age = (p) => YEAR - p.born;
