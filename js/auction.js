@@ -1,12 +1,13 @@
 // «Аукцион» как в видео канала: у каждого 50 монет и 5 мест в команде.
 // Игроки выходят по одному, ставки по очереди (+1, +2, +5 или «Пас»). Кто перебил — тот забирает.
 // Если у кого-то уже 5 игроков, второй добирает остальных бесплатно.
-// В конце сравниваются суммы рейтингов FC 27: чья команда сильнее.
+// В конце сравнивается сумма текущей формы (FORM в form.js): чья пятёрка сейчас в лучшей форме.
 'use strict';
 
 const Auction = (() => {
   const BUDGET = 50, SLOTS = 5;
-  const POOL = Object.keys(FC27).filter((n) => FACES[n]).length >= 30 ? Object.keys(FC27).filter((n) => FACES[n]) : Object.keys(FC27);
+  const POOL = Object.keys(FORM);
+  const form = (n) => (FORM[n] ? FORM[n][0] : 75);
 
   let vsBot = false, names = ['', ''], budget = [0, 0], team = [[], []], deck = [];
   let lot = null, price = 0, leader = null, turn = 0, starter = 0, passes = 0, busy = false, over = false;
@@ -70,7 +71,8 @@ const Auction = (() => {
     if (newLot) {
       $('#auction-lot').innerHTML = `<div class="alot enter">${avatar(lot, 'xl')}
         <div class="alot-name">${p.flag} ${esc(lot)}</div>
-        <div class="alot-club">${p.club ? crestImg(p.club, 'xs') + esc(p.club) : ''}</div></div>`;
+        <div class="alot-club">${p.club ? crestImg(p.club, 'xs') + esc(p.club) : ''}</div>
+        <div class="alot-form"><b>${form(lot)}</b><span>форма${FORM[lot] && FORM[lot][1] ? ` · ${esc(FORM[lot][1])}` : ''}</span></div></div>`;
       Photos.hydrate($('#auction-lot'));
     }
     $('#auction-price').innerHTML = leader === null
@@ -142,7 +144,7 @@ const Auction = (() => {
     render(false);
     setTimeout(() => {
       busy = false;
-      const ovr = FC27[lot] || 80;
+      const ovr = form(lot);
       const left = SLOTS - team[1].length;
       const perSlot = budget[1] / left;
       const want = Math.max(1, Math.round(((ovr - 80) * 1.4 + 5) * (perSlot / 10) * (0.85 + Math.random() * 0.3)));
@@ -152,7 +154,7 @@ const Auction = (() => {
     }, 700 + Math.random() * 500);
   }
 
-  function strength(i) { return team[i].reduce((s, t) => s + (FC27[t.n] || 0), 0); }
+  function strength(i) { return team[i].reduce((s, t) => s + form(t.n), 0); }
 
   function finish() {
     over = true;
@@ -160,7 +162,7 @@ const Auction = (() => {
     $('#auction-lot').innerHTML = '';
     const s = [strength(0), strength(1)];
     const w = s[0] === s[1] ? -1 : s[0] > s[1] ? 0 : 1;
-    const best = (i) => team[i].slice().sort((a, b) => (FC27[b.n] - b.p) - (FC27[a.n] - a.p))[0];
+    const best = (i) => team[i].slice().sort((a, b) => (form(b.n) - b.p) - (form(a.n) - a.p))[0];
     const row = (i) => `<div class="ares ${i === 0 ? 'danil' : 'sasha'} ${w === i ? 'win' : ''}">
         <span>${esc(names[i])}</span><b class="ares-num" data-to="${s[i]}">0</b>
         <small>лучшая покупка: ${esc(best(i).n)} за ${best(i).p}</small></div>`;
@@ -174,7 +176,7 @@ const Auction = (() => {
     if (w !== -1) confetti();
     Modal.open(
       `<h2>${w === -1 ? 'Ничья!' : esc(names[w]) + ' собрал лучшую команду'}</h2>
-       <p>Сумма рейтингов FC 27 пятёрки</p>
+       <p>Сумма текущей формы пятёрки</p>
        <div class="ares-wrap">${row(0)}${row(1)}</div>
        ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`,
       [

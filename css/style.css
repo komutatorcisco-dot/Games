@@ -858,3 +858,6 @@ a { color: var(--danil); }
 .pick-btns .btn { font-family: var(--font-display); font-weight: 400; font-size: 18px; text-transform: uppercase; }
 .pick-note { grid-column: 1 / -1; margin: 0; align-self: center; text-align: center; color: var(--muted); animation: cardIn .35s ease; }
 .pick-note b { color: var(--gold); }
+.alot-form { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--muted); max-width: 300px; }
+.alot-form b { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; font-family: var(--font-display); font-weight: 400; font-size: 20px;
+  color: var(--night); background: linear-gradient(145deg, #b6ffcf, var(--hit)); box-shadow: 0 3px 0 #1f7a3a; }
