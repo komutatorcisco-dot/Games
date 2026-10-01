@@ -1,20 +1,53 @@
 // «Тики-Така-Тоу» (как на box2box): сетка 3×3, у строк и столбцов — клубы.
-// В клетку нужно вписать игрока, который играл за оба клуба. Каждого игрока можно назвать один раз.
+// В клетку нужно вписать игрока, который подходит под строку и столбец: клуб, сборная, страна чемпионата
+// или особое условие (был в аренде, 6+ клубов). Каждого игрока можно назвать один раз.
 // Соло: заполни все 9 клеток, 3 ошибки — конец. Вдвоём: крестики-нолики, неверный ответ передаёт ход.
 'use strict';
 
 const TTT = (() => {
   const clubOf = (s) => s.replace(' (аренда)', '');
   const NAMES = [...new Set(CAREERS.map((c) => c.name))];
-  // клуб → множество игроков
-  const BY_CLUB = new Map();
-  CAREERS.forEach((c) => c.path.forEach(([club]) => {
-    const k = clubOf(club);
-    if (!BY_CLUB.has(k)) BY_CLUB.set(k, new Set());
-    BY_CLUB.get(k).add(c.name);
-  }));
-  const BIG = [...BY_CLUB.keys()].filter((k) => BY_CLUB.get(k).size >= 4);
-  const both = (a, b) => [...BY_CLUB.get(a)].filter((n) => BY_CLUB.get(b).has(n));
+
+  // Категории: клуб, сборная, страна чемпионата, особые. У каждой — множество подходящих игроков.
+  const CATS = new Map();
+  const add = (id, t, label, html, test) => {
+    const set = new Set(CAREERS.filter(test).map((c) => c.name));
+    CATS.set(id, { id, t, label, html, set });
+  };
+  const clubsOf = (c) => new Set(c.path.map(([k]) => clubOf(k)));
+  new Set(CAREERS.flatMap((c) => [...clubsOf(c)])).forEach((club) =>
+    add(club, 'club', club, `${crestImg(club, 'm')}<span>${esc(club)}</span>`, (c) => clubsOf(c).has(club)));
+  Object.entries(NATION_NAMES).forEach(([flag, nat]) =>
+    add('nat:' + nat, 'nat', `сборная ${nat}`, `<b class="tg-flag">${flag}</b><span>Сборная: ${esc(nat)}</span>`, (c) => c.flag === flag));
+  const COUNTRY_OF = new Map();
+  Object.entries(LEAGUE_COUNTRY).forEach(([where, [flag, list]]) => {
+    const clubs = new Set(list.split(', '));
+    clubs.forEach((k) => COUNTRY_OF.set(k, where));
+    add('cnt:' + where, 'cnt', `играл в ${where}`, `<b class="tg-flag">${flag}</b><span>Играл в ${esc(where)}</span>`,
+      (c) => [...clubsOf(c)].some((k) => clubs.has(k)));
+  });
+  add('loan', 'special', 'был в аренде', '<b class="tg-flag">🔁</b><span>Был в аренде</span>', (c) => c.path.some(([k]) => k.includes('(аренда)')));
+  add('many', 'special', '6+ клубов в карьере', '<b class="tg-flag">🧳</b><span>6+ клубов в карьере</span>', (c) => clubsOf(c).size >= 6);
+
+  const cat = (id) => CATS.get(id);
+  const BIG = [...CATS.values()].filter((k) => k.t === 'club' && k.set.size >= 4).map((k) => k.id);
+  const NATS = [...CATS.values()].filter((k) => k.t === 'nat' && k.set.size >= 5).map((k) => k.id);
+  const OTHER = [...CATS.values()].filter((k) => (k.t === 'cnt' || k.t === 'special') && k.set.size >= 5).map((k) => k.id);
+  const both = (a, b) => [...cat(a).set].filter((n) => cat(b).set.has(n));
+  // Пары, которые не ставим друг против друга: две сборные, две особые, клуб и его же страна.
+  function clash(a, b) {
+    const A = cat(a), B = cat(b);
+    if (a === b || (A.t === B.t && A.t !== 'club' && A.t !== 'cnt')) return true;
+    if (A.t === 'club' && B.t === 'cnt') return COUNTRY_OF.get(a) === b.slice(4);
+    if (B.t === 'club' && A.t === 'cnt') return COUNTRY_OF.get(b) === a.slice(4);
+    return false;
+  }
+  const MODES = [
+    ['Клубы', () => shuffle(BIG, Math.random).slice(0, 6)],
+    ['Клубы и сборные', () => [...shuffle(BIG, Math.random).slice(0, 3), ...shuffle([...NATS, ...BIG], Math.random).slice(0, 3)]],
+    ['Микс', () => [...shuffle(BIG, Math.random).slice(0, 3), ...shuffle([...NATS, ...OTHER, ...BIG.slice(0, 20)], Math.random).slice(0, 3)]],
+  ];
+  let gridMode = MODES[0][0];
 
   let rows = [], cols = [], cells = [], sel = -1, used = new Set(), mode = 'solo', lives = 3, turn = 0, over = false, picker = null;
 
@@ -37,12 +70,18 @@ const TTT = (() => {
   }
 
   function makeGrid() {
-    for (let t = 0; t < 4000; t++) {
-      const six = shuffle(BIG, Math.random).slice(0, 6);
-      const r = six.slice(0, 3), c = six.slice(3);
-      let ok = true;
-      for (const a of r) for (const b of c) if (!both(a, b).length) ok = false;
-      if (ok && solvable(r, c)) return [r, c];
+    const order = shuffle([0, 0, 1, 1, 2, 2, 2], Math.random);
+    for (const mi of order) {
+      for (let t = 0; t < 2500; t++) {
+        const six = MODES[mi][1]();
+        if (new Set(six).size < 6) continue;
+        // в смешанной сетке категории раскладываем по строкам и столбцам случайно
+        const pick = mi === 0 ? six : shuffle(six, Math.random);
+        const r = pick.slice(0, 3), c = pick.slice(3);
+        let ok = true;
+        for (const a of r) for (const b of c) if (clash(a, b) || !both(a, b).length) ok = false;
+        if (ok && solvable(r, c)) { gridMode = MODES[mi][0]; return [r, c]; }
+      }
     }
     return null;
   }
@@ -70,11 +109,11 @@ const TTT = (() => {
     $('#ttt-title').textContent = mode === 'duo' ? 'Тики-Така-Тоу вдвоём' : 'Тики-Така-Тоу';
     $('#ttt-sub').textContent = mode === 'duo'
       ? (over ? 'Игра окончена' : `Ходит ${turn === 0 ? D.a + ' (✕)' : D.b + ' (○)'}`)
-      : `Ошибок осталось: ${lives} · заполнено ${cells.filter(Boolean).length}/9`;
+      : `${gridMode} · ${'♥'.repeat(lives)}${'♡'.repeat(3 - lives)} · ${cells.filter(Boolean).length}/9`;
     let html = '<div class="tg-corner"></div>';
-    cols.forEach((c) => { html += `<div class="tg-head">${crestImg(c, 'm')}<span>${esc(c)}</span></div>`; });
+    cols.forEach((c) => { html += `<div class="tg-head ${cat(c).t}">${cat(c).html}</div>`; });
     rows.forEach((r, ri) => {
-      html += `<div class="tg-head row">${crestImg(r, 'm')}<span>${esc(r)}</span></div>`;
+      html += `<div class="tg-head row ${cat(r).t}">${cat(r).html}</div>`;
       cols.forEach((c, ci) => {
         const i = ri * 3 + ci, v = cells[i];
         const cls = ['tg-cell', v ? `filled p${v.by}` : '', sel === i ? 'sel' : ''].join(' ');
@@ -84,8 +123,10 @@ const TTT = (() => {
       });
     });
     $('#ttt-grid').innerHTML = html;
-    $('#ttt-hint').textContent = over ? '' : sel < 0 ? 'Выбери клетку' : `Кто играл за ${rows[Math.floor(sel / 3)]} и ${cols[sel % 3]}?`;
+    $('#ttt-hint').textContent = over ? '' : sel < 0 ? 'Выбери клетку' : `Кто подходит: ${phrase(rows[Math.floor(sel / 3)])} + ${phrase(cols[sel % 3])}?`;
   }
+
+  const phrase = (id) => (cat(id).t === 'club' ? `играл за ${id}` : cat(id).label);
 
   function choose(i) {
     if (over || cells[i]) return;
@@ -100,14 +141,14 @@ const TTT = (() => {
   function submit(name) {
     if (over || sel < 0) return;
     const r = rows[Math.floor(sel / 3)], c = cols[sel % 3];
-    const ok = !used.has(name) && BY_CLUB.get(r).has(name) && BY_CLUB.get(c).has(name);
+    const ok = !used.has(name) && cat(r).set.has(name) && cat(c).set.has(name);
     if (ok) {
       cells[sel] = { by: turn, name };
       used.add(name);
       Sound.play('kick'); haptic('tap');
     } else {
       Sound.play('bad'); haptic('bad');
-      toast(used.has(name) ? `${name} уже был` : `${name} не играл за оба клуба`);
+      toast(used.has(name) ? `${name} уже был` : `${name} не подходит под обе подсказки`);
       if (mode === 'solo') lives--;
     }
     sel = -1;

@@ -861,3 +861,8 @@ a { color: var(--danil); }
 .alot-form { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 4px; font-size: 12px; color: var(--muted); max-width: 300px; }
 .alot-form b { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; font-family: var(--font-display); font-weight: 400; font-size: 20px;
   color: var(--night); background: linear-gradient(145deg, #b6ffcf, var(--hit)); box-shadow: 0 3px 0 #1f7a3a; }
+.tg-flag { display: block; font-size: 24px; line-height: 1.1; font-weight: 400; }
+.tg-head.nat span, .tg-head.cnt span, .tg-head.special span { font-size: 10px; line-height: 1.15; }
+.tg-head.nat { background: linear-gradient(160deg, rgba(143,216,196,.25), transparent); }
+.tg-head.cnt { background: linear-gradient(160deg, rgba(255,207,58,.22), transparent); }
+.tg-head.special { background: linear-gradient(160deg, rgba(198,91,216,.25), transparent); }
