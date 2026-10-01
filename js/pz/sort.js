@@ -91,15 +91,44 @@
           sel = tubes[i].length ? i : -1; render(); return;
         }
         history.push(tubes.map((t) => t.slice()));
+        // запоминаем, где были верхние мячи, — потом они перелетят по дуге
+        const from = sel;
+        const srcEls = [...$$(`.tube[data-i="${from}"] .sball`, area)].reverse();
         // переносим все одинаковые верхние мячи, сколько поместится
-        while (A.length && A[A.length - 1] === top && B.length < CAP) B.push(A.pop());
+        let k = 0;
+        while (A.length && A[A.length - 1] === top && B.length < CAP) { B.push(A.pop()); k++; }
+        const srcRects = srcEls.slice(0, k).map((el) => el.getBoundingClientRect());
         moves++; sel = -1;
         Sound.play('kick'); haptic('tap');
-        render(i);
+        render();
+        fly(i, srcRects);
         if (tubes.every((t) => !t.length || (t.length === CAP && t.every((c) => c === t[0])))) {
           done = true;
           api.win(undos === 0 ? 3 : undos <= 3 ? 2 : 1, `Ходов: ${moves}`);
         }
+      }
+
+      // Полёт: мяч поднимается над своей пробиркой, по дуге перелетает к новой и падает внутрь с отскоком
+      function fly(to, srcRects) {
+        const dst = [...$$(`.tube[data-i="${to}"] .sball`, area)].slice(-srcRects.length).reverse();
+        const tubeTop = $(`.tube[data-i="${to}"]`, area).getBoundingClientRect().top;
+        dst.forEach((el, j) => {
+          const r = el.getBoundingClientRect(), s0 = srcRects[j];
+          const dx = s0.left - r.left, dy = s0.top - r.top;
+          const peak = Math.min(s0.top, tubeTop) - 46 - r.top;      // высота дуги над пробирками
+          const above = tubeTop - 44 - r.top;                        // над горлышком новой пробирки
+          el.classList.add('flying');
+          const a = el.animate([
+            { transform: `translate(${dx}px, ${dy}px)` },
+            { transform: `translate(${dx * 0.55}px, ${peak}px)`, offset: 0.32 },
+            { transform: `translate(0px, ${above}px)`, offset: 0.58 },
+            { transform: 'translate(0px, 3px) scale(1.06, .92)', offset: 0.86 },
+            { transform: 'translate(0px, -2px)', offset: 0.94 },
+            { transform: 'none' },
+          ], { duration: 520, delay: j * 70, easing: 'cubic-bezier(.45,.05,.35,1)', fill: 'backwards' });
+          a.onfinish = () => el.classList.remove('flying');
+        });
+        later(() => Sound.play('tap'), 430);
       }
 
       area.addEventListener('click', (e) => { const t = e.target.closest('.tube'); if (t) tap(+t.dataset.i); });

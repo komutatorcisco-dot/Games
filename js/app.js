@@ -130,8 +130,12 @@ const App = (() => {
     'ttt-duo': () => TTT.start('duo'),
     'ttt-skip': () => TTT.skip(),
     wheel: () => Wheel.open(),
+    runner: () => {
+      const f = $('#runner-frame');
+      if (!f.getAttribute('src')) f.src = 'runner.html';
+      Screens.show('runner');
+    },
     nation: () => Nation.start(),
-    'nation-hint': () => Nation.hint(),
     'pick-duo': () => Pick.start('duo'),
     'pick-solo': () => Pick.start('solo'),
     'coins-info': () => toast('Монеты дают за победы. Трать их на подсказки.'),
@@ -157,6 +161,7 @@ const App = (() => {
     document.addEventListener('pointerdown', (e) => { Coins.last = { x: e.clientX, y: e.clientY }; }, true);
     document.addEventListener('click', (e) => {
       const el = e.target.closest('[data-act]');
+      if (el && el.tagName === 'A') e.preventDefault();
       if (el && actions[el.dataset.act]) { actions[el.dataset.act](); Howto.forAct(el.dataset.act); return; }
       const pz = e.target.closest('[data-pz]');
       if (pz) { PZ.open(pz.dataset.pz); Howto.auto(pz.dataset.pz); }
@@ -164,7 +169,9 @@ const App = (() => {
     // Нижнее меню видно только на главной и в профиле
     const orig = Screens.show.bind(Screens);
     Screens.show = (id) => {
+      if (Screens.current === 'runner' && id !== 'runner') $('#runner-frame').removeAttribute('src');
       orig(id);
+      document.body.classList.toggle('in-runner', id === 'runner');
       $('#tabbar').hidden = !(id === 'hub' || id === 'profile');
       $('#tab-home').classList.toggle('on', id === 'hub');
       $('#tab-profile').classList.toggle('on', id === 'profile');
@@ -175,7 +182,7 @@ const App = (() => {
     } catch (e) { /* не в Telegram */ }
     // Ссылка вида ...#pass открывает игру сразу
     const h = location.hash.replace('#', '');
-    const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', nation: 'nation', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile' };
+    const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile' };
     renderHub();
     if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }
     else Screens.show('hub');

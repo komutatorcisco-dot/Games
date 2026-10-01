@@ -42,10 +42,10 @@
       <span><b>Колесо удачи</b><small>Крути раз в день — до 250 монет</small></span>
     </button>
 
-    <a class="runner-hero" href="https://claude.ai/artifact/M5ftHU9FQ3Y2jBtWu8W4iS" target="_blank" rel="noopener">
+    <a class="runner-hero" href="runner.html" data-act="runner">
       <span class="rh-badge">3D</span>
       <b>Прорыв к воротам</b>
-      <small>Беги с мячом, обходи защитников, качай скорость и удар, бей пенальти. Отдельная 3D-игра канала.</small>
+      <small>Беги с мячом, обходи защитников, качай скорость и удар, бей пенальти. 3D-игра канала прямо здесь.</small>
       <span class="btn">Играть →</span>
     </a>
 
@@ -316,6 +316,12 @@
     <div id="pick-opts" class="opts"></div>
   </section>
 
+  <!-- ===== ПРОРЫВ К ВОРОТАМ (3D) ===== -->
+  <section class="screen runner-screen" id="runner" hidden>
+    <button class="runner-back" data-act="home" aria-label="В хаб">← В хаб</button>
+    <iframe id="runner-frame" title="Прорыв к воротам" allow="autoplay; fullscreen"></iframe>
+  </section>
+
   <!-- ===== ГОЛОВОЛОМКА С ПОЛКИ ===== -->
   <section class="screen" id="pz" hidden>
     <header class="topbar">
@@ -404,6 +410,7 @@
 <script defer src="js/compare.js"></script>
 <script defer src="js/form.js"></script>
 <script defer src="js/auction.js"></script>
+<script defer src="js/nationxi.js"></script>
 <script defer src="js/nation.js"></script>
 <script defer src="js/pick.js"></script>
 <script defer src="js/howto.js"></script>
