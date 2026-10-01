@@ -580,9 +580,12 @@ const WIKI = {
   'Михаил Мудрик': 'Mykhailo Mudryk', 'Рахим Стерлинг': 'Raheem Sterling', 'Мохамед Салах': 'Mohamed Salah',
 };
 
+// путь к эмблеме (в сборке-артефакте часть эмблем вшита прямо в страницу как data:)
+const crestSrc = (f) => (f.startsWith('data:') ? f : `img/clubs/${f}`);
+
 function crestImg(club, size = 's') {
   const f = CRESTS[club];
-  if (f) return `<img class="crest crest-${size}" src="img/clubs/${f}" alt="${esc(club)}" loading="lazy">`;
+  if (f) return `<img class="crest crest-${size}" src="${crestSrc(f)}" alt="${esc(club)}" loading="lazy">`;
   const ini = club.split(/[\s-]+/).map((w) => w[0]).join('').slice(0, 3).toUpperCase();
   return `<span class="crest crest-${size} crest-none" aria-hidden="true">${esc(ini)}</span>`;
 }

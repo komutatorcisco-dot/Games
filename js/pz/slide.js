@@ -8,9 +8,10 @@
     start(level, api) {
       const rng = api.rng(2);
       const n = level <= 10 ? 3 : level <= 30 ? 4 : 5;
-      const clubs = Object.keys(CRESTS);
+      // клубы из базы игроков — узнаваемые эмблемы, без экзотики
+      const clubs = [...new Set(PLAYERS.map((p) => p.club))].filter((c) => CRESTS[c]).sort();
       const club = clubs[Math.floor(rng() * clubs.length)];
-      const src = `img/clubs/${CRESTS[club]}`;
+      const src = crestSrc(CRESTS[club]);
       const N = n * n;
       let cells = Array.from({ length: N }, (_, i) => i); // cells[pos] = номер кусочка, N-1 — пустая
       let blank = N - 1;
