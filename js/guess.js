@@ -140,7 +140,7 @@ const Guess = (() => {
     }
     who += '</div>';
     row.innerHTML = who + '<div class="row-tiles">' +
-      res.map((c) => `<span class="tile ${c.s} ${c.cls || ''}" ${c.title ? `title="${esc(c.title)}"` : ''}>${esc(c.v)}</span>`).join('') +
+      res.map((c, i) => `<span class="tile ${c.s} ${c.cls || ''}" ${c.title ? `title="${esc(c.title)}"` : ''}>${i === 2 ? crestImg(g.club, 'xs') : ''}${esc(c.v)}</span>`).join('') +
       '</div>';
     $('#guess-rows').prepend(row);
   }
@@ -194,7 +194,7 @@ const Guess = (() => {
   // ---------- конец раунда ----------
   function playerCard() {
     const a = answer;
-    return `<div class="player-card"><div class="pname">${esc(a.name)}</div>
+    return `<div class="player-card">${avatar(a.name, 'xl', a.club)}<div class="pname">${esc(a.name)}</div>
       <div class="pmeta">${a.flag} ${esc(a.nat)} · ${esc(a.club)} (${esc(a.lg)})</div>
       <div class="pmeta">${a.pos} · №${a.num} · ${age(a)} лет</div></div>`;
   }

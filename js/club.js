@@ -10,6 +10,7 @@ const Club = (() => {
     ['fact', 'Факт', (c) => c.fact],
     ['stadium', 'Стадион', (c) => c.stadium],
     ['city', 'Город', (c) => c.city],
+    ['crest', 'Эмблема', null],
   ];
   let answer = null, shown = 2, tries = 0, over = false, order = [], idx = 0, picker = null;
 
@@ -28,7 +29,8 @@ const Club = (() => {
     $('#club-sub').textContent = `Серия: ${S.streak} · рекорд: ${S.best}`;
     $('#club-clues').innerHTML = CLUES.map(([, label, fn], i) => {
       const open = over || i < shown;
-      return `<div class="clue ${open ? 'open' : ''}"><span>${label}</span><b>${open ? esc(fn(answer)) : '• • •'}</b></div>`;
+      const val = !fn ? (CRESTS[answer.name] ? crestImg(answer.name, over ? 'm' : 'm blur') : 'нет картинки') : esc(fn(answer));
+      return `<div class="clue ${open ? 'open' : ''}"><span>${label}</span><b>${open ? val : '• • •'}</b></div>`;
     }).join('');
     $('#club-left').textContent = over ? '' : `Подсказок открыто: ${shown} из ${CLUES.length}`;
   }
@@ -65,7 +67,7 @@ const Club = (() => {
     if (reward) Coins.add(reward);
     setTimeout(() => Modal.open(
       `<h2>${won ? 'Верно!' : 'Не угадал'}</h2>
-       <div class="player-card"><div class="pname">${answer.flag} ${esc(answer.name)}</div>
+       <div class="player-card">${crestImg(answer.name, 'xl')}<div class="pname">${answer.flag} ${esc(answer.name)}</div>
        <div class="pmeta">${esc(answer.city)} · ${esc(answer.stadium)} · с ${answer.founded} года</div></div>
        ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}
        ${quoteHtml(won ? 'win' : 'lose')}`,

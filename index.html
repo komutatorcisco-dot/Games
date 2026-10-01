@@ -69,6 +69,12 @@
       <button class="tile-card" data-act="hl" style="--c1:#ff7a59;--c2:#b23d22">
         <span class="tile-ico">€</span><b>Дороже или дешевле</b><small id="meta-hl"></small>
       </button>
+      <button class="tile-card" data-act="fc" style="--c1:#2fd3e0;--c2:#1a7f9a">
+        <span class="tile-ico">91</span><b>Кто выше в FC 27?</b><small id="meta-fc"></small>
+      </button>
+      <button class="tile-card" data-act="value" style="--c1:#34c46a;--c2:#b98d00">
+        <span class="tile-ico">€м</span><b>Кто дороже?</b><small id="meta-value"></small>
+      </button>
       <button class="tile-card" data-act="ttt" style="--c1:#c65bd8;--c2:#7b2b8a">
         <span class="tile-ico">#</span><b>Тики-Така-Тоу</b><small id="meta-ttt"></small>
       </button>
@@ -246,6 +252,17 @@
     <div id="transfer-opts" class="opts"></div>
   </section>
 
+  <!-- ===== КТО ВЫШЕ / КТО ДОРОЖЕ ===== -->
+  <section class="screen" id="compare" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title"><span id="compare-title"></span><small id="compare-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div id="compare-stage" class="stage"></div>
+    <div id="compare-opts" class="opts"></div>
+  </section>
+
   <!-- ===== ТИКИ-ТАКА-ТОУ ===== -->
   <section class="screen" id="ttt" hidden>
     <header class="topbar">
@@ -282,12 +299,14 @@
 <script defer src="js/players.js"></script>
 <script defer src="js/careers.js"></script>
 <script defer src="js/quizdata.js"></script>
+<script defer src="js/media.js"></script>
 <script defer src="js/pass.js"></script>
 <script defer src="js/guess.js"></script>
 <script defer src="js/career.js"></script>
 <script defer src="js/club.js"></script>
 <script defer src="js/transfer.js"></script>
 <script defer src="js/ttt.js"></script>
+<script defer src="js/compare.js"></script>
 <script defer src="js/app.js"></script>
 </body>
 </html>

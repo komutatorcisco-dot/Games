@@ -14,6 +14,8 @@ const App = (() => {
     ['Трансферный гуру', 'Серия 10 в «Куда перешёл?»', () => Store.d.transfer.best >= 10],
     ['Финансист', 'Серия 10 в «Дороже или дешевле»', () => Store.d.transfer.hlBest >= 10],
     ['Тики-така', 'Заполни всю сетку Тики-Така-Тоу', () => Store.d.ttt.wins >= 1],
+    ['Геймер', 'Серия 10 в «Кто выше в FC 27?»', () => Store.d.compare.fcBest >= 10],
+    ['Скаут-оценщик', 'Серия 10 в «Кто дороже?»', () => Store.d.compare.valBest >= 10],
     ['Богач', 'Накопи 1000 монет', () => Store.d.coins >= 1000],
     ['Профи', 'Получи звание «Профи»', () => Store.d.stats.xp >= 800],
     ['Старик Джексон', 'Высшее звание', () => Store.d.stats.xp >= 4000],
@@ -35,6 +37,8 @@ const App = (() => {
     $('#meta-club').textContent = Store.d.club.best ? `Рекорд ${Store.d.club.best}` : `${Club.count} клубов`;
     $('#meta-transfer').textContent = T.best ? `Рекорд ${T.best}` : `${Transfer.count} трансферов`;
     $('#meta-hl').textContent = T.hlBest ? `Рекорд ${T.hlBest}` : 'Сколько стоил?';
+    $('#meta-fc').textContent = Store.d.compare.fcBest ? `Рекорд ${Store.d.compare.fcBest}` : `${Compare.countFc} игроков`;
+    $('#meta-value').textContent = Store.d.compare.valBest ? `Рекорд ${Store.d.compare.valBest}` : 'Transfermarkt';
     $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
     $('#daily').hidden = Store.d.lastDaily === today();
     rankUi('#hub-rank', '#hub-xp', '#hub-next');
@@ -56,6 +60,8 @@ const App = (() => {
       ['Рекорд трансферов', T.best],
       ['Рекорд «дороже/дешевле»', T.hlBest],
       ['Сетки Тики-Така-Тоу', Store.d.ttt.wins],
+      ['Рекорд FC 27', Store.d.compare.fcBest],
+      ['Рекорд «кто дороже»', Store.d.compare.valBest],
     ];
     $('#prof-stats').innerHTML = stats.map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
     $('#prof-achs').innerHTML = ACHIEVEMENTS.map(([name, desc, test]) => {
@@ -95,6 +101,8 @@ const App = (() => {
     transfer: () => Transfer.start('where'),
     hl: () => Transfer.start('hl'),
     ttt: () => TTT.start('solo'),
+    fc: () => Compare.start('fc'),
+    value: () => Compare.start('value'),
     'ttt-duo': () => TTT.start('duo'),
     'ttt-skip': () => TTT.skip(),
     'coins-info': () => toast('Монеты дают за победы. Трать их на подсказки.'),
@@ -112,7 +120,7 @@ const App = (() => {
 
   function init() {
     Store.load();
-    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind();
+    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind();
     Music.arm();
     document.addEventListener('click', (e) => {
       const el = e.target.closest('[data-act]');
@@ -132,7 +140,7 @@ const App = (() => {
     } catch (e) { /* не в Telegram */ }
     // Ссылка вида ...#pass открывает игру сразу
     const h = location.hash.replace('#', '');
-    const deep = { pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', profile: 'profile' };
+    const deep = { pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', fc: 'fc', value: 'value', profile: 'profile' };
     renderHub();
     if (deep[h]) actions[deep[h]]();
     else Screens.show('hub');

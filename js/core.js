@@ -38,6 +38,7 @@ const Store = {
       club: { streak: 0, best: 0 },
       transfer: { best: 0, hlBest: 0 },
       ttt: { wins: 0 },
+      compare: { fcBest: 0, valBest: 0 },
       stats: { xp: 0, wins: {} },
       music: true,
       duel: { a: 'Данил', b: 'Саша' },
@@ -169,7 +170,8 @@ const Modal = {
       box.appendChild(el);
     });
     $('#modal').hidden = false;
-    const first = $('input', card) || $('button', box);
+    if (typeof Photos !== 'undefined') Photos.hydrate(card);
+    const first = $('button', box); // не фокусируем поле ввода: на iPhone клавиатура ломает окно
     if (first) setTimeout(() => first.focus(), 50);
   },
   close() { $('#modal').hidden = true; },

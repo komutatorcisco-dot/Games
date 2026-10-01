@@ -54,7 +54,7 @@ const Career = (() => {
       const club = row[0].replace(' (аренда)', '');
       return `<div class="step ${open ? 'open' : 'hidden-step'}">
         <span class="yr">${esc(row[1])}</span>
-        <span class="club">${open ? esc(club) : '• • •'}${open && loan ? '<em>аренда</em>' : ''}</span>
+        <span class="club">${open ? crestImg(club, 's') + esc(club) : '• • •'}${open && loan ? '<em>аренда</em>' : ''}</span>
       </div>`;
     }).join('');
     $('#career-hidden').textContent = over ? '' : `Скрыто клубов: ${answer.path.length - shown}`;
@@ -78,7 +78,7 @@ const Career = (() => {
     $('#career-field').disabled = true;
     renderPath();
     const C = Store.d.career, D = Store.d.duel;
-    const card = `<div class="player-card"><div class="pname">${answer.flag} ${esc(answer.name)}</div>
+    const card = `<div class="player-card">${avatar(answer.name, 'xl', answer.path[answer.path.length - 1][0].replace(' (аренда)', ''))}<div class="pname">${answer.flag} ${esc(answer.name)}</div>
       <div class="pmeta">Клубов в карьере: ${answer.path.length}</div></div>`;
     C.idx++;
     if (mode === 'duel') {

@@ -162,7 +162,7 @@ const Pass = (() => {
     b.style.setProperty('--w', lv.w);
     b.style.setProperty('--h', lv.h + 1);
     const cw = 100 / lv.w, ch = 100 / (lv.h + 1);
-    let html = `<div class="field" style="top:${ch}%;height:${100 - ch}%;--rows:${lv.h}"></div>`;
+    let html = `<div class="pitch-field" style="top:${ch}%;height:${100 - ch}%;--rows:${lv.h}"></div>`;
     // штрафная вокруг ворот
     const bx = Math.max(0, lv.goal - 1), bw = Math.min(lv.w, lv.goal + 2) - bx;
     html += `<div class="box" style="left:${bx * cw}%;width:${bw * cw}%;top:${ch}%;height:${ch * 1.4}%"></div>`;

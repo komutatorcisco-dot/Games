@@ -30,8 +30,8 @@ const Transfer = (() => {
 
   function card(t, showFee, showTo, extraCls = '') {
     return `<div class="tcard ${extraCls}">
-      <div class="tplayer">${t.flag} ${esc(t.player)}</div>
-      <div class="troute"><span>${esc(t.from)}</span><i>→</i><span class="${showTo ? '' : 'q'}">${showTo ? esc(t.to) : '?'}</span></div>
+      <div class="tplayer">${avatar(t.player, 'm')}<span>${t.flag} ${esc(t.player)}</span></div>
+      <div class="troute"><span>${crestImg(t.from, 'xs')}${esc(t.from)}</span><i>→</i><span class="${showTo ? '' : 'q'}">${showTo ? crestImg(t.to, 'xs') + esc(t.to) : '?'}</span></div>
       <div class="tmeta"><span>${t.year}</span><b class="tfee">${showFee ? fee(t) : '€ ? млн'}</b></div>
     </div>`;
   }
@@ -43,12 +43,14 @@ const Transfer = (() => {
     if (mode === 'hl') {
       while (cur.id === prev.id) cur = draw();
       $('#transfer-stage').innerHTML = card(prev, true, true, 'known') + '<div class="vs-mid">VS</div>' + card(cur, false, true);
+      Photos.hydrate($('#transfer-stage'));
       $('#transfer-opts').innerHTML = `<button class="btn" data-hl="up">▲ Дороже</button><button class="btn sasha" data-hl="down">▼ Дешевле</button>`;
       return;
     }
     const wrong = shuffle(CLUB_POOL.filter((c) => c !== cur.to && c !== cur.from), Math.random).slice(0, 3);
     const opts = shuffle([cur.to, ...wrong], Math.random);
     $('#transfer-stage').innerHTML = card(cur, true, false);
+    Photos.hydrate($('#transfer-stage'));
     $('#transfer-opts').innerHTML = opts.map((o) => `<button class="btn ghost opt" data-club="${esc(o)}">${esc(o)}</button>`).join('');
   }
 
@@ -61,6 +63,7 @@ const Transfer = (() => {
       else if (b === btn) b.classList.add('wrong');
     });
     $('#transfer-stage').innerHTML = card(cur, true, true, ok ? 'ok' : 'bad');
+    Photos.hydrate($('#transfer-stage'));
     if (ok) { streak++; Coins.add(5); Sound.play('kick'); haptic('ok'); }
     else { lives--; Sound.play('bad'); haptic('bad'); }
     const T = Store.d.transfer;
@@ -76,6 +79,7 @@ const Transfer = (() => {
     const cards = $$('#transfer-stage .tcard');
     cards[1].outerHTML = card(cur, true, true, ok ? 'ok' : 'bad');
     countUp($$('#transfer-stage .tcard')[1].querySelector('.tfee'), cur.fee);
+    Photos.hydrate($('#transfer-stage'));
     if (ok) {
       streak++; Coins.add(5); Sound.play('kick'); haptic('ok');
       const T = Store.d.transfer;

@@ -72,9 +72,9 @@ const TTT = (() => {
       ? (over ? 'Игра окончена' : `Ходит ${turn === 0 ? D.a + ' (✕)' : D.b + ' (○)'}`)
       : `Ошибок осталось: ${lives} · заполнено ${cells.filter(Boolean).length}/9`;
     let html = '<div class="tg-corner"></div>';
-    cols.forEach((c) => { html += `<div class="tg-head">${esc(c)}</div>`; });
+    cols.forEach((c) => { html += `<div class="tg-head">${crestImg(c, 'm')}<span>${esc(c)}</span></div>`; });
     rows.forEach((r, ri) => {
-      html += `<div class="tg-head row">${esc(r)}</div>`;
+      html += `<div class="tg-head row">${crestImg(r, 'm')}<span>${esc(r)}</span></div>`;
       cols.forEach((c, ci) => {
         const i = ri * 3 + ci, v = cells[i];
         const cls = ['tg-cell', v ? `filled p${v.by}` : '', sel === i ? 'sel' : ''].join(' ');

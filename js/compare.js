@@ -1,0 +1,89 @@
+// «Кто выше в FC 27?» и «Кто дороже?» — две карточки игроков, у второй значение скрыто: больше или меньше?
+'use strict';
+
+const Compare = (() => {
+  const MODES = {
+    fc: { title: 'Кто выше в FC 27?', data: FC27, fmt: (v) => `${v}`, unit: 'рейтинг FC 27', up: 'Выше', down: 'Ниже', key: 'fcBest' },
+    value: { title: 'Кто дороже?', data: VALUES, fmt: (v) => `€${v} млн`, unit: 'стоимость', up: 'Дороже', down: 'Дешевле', key: 'valBest' },
+  };
+  let mode = 'fc', cfg = null, a = null, b = null, streak = 0, lock = false, deck = [];
+
+  const playerOf = (name) => PLAYERS.find((p) => p.name === name) || { name, flag: '', club: '' };
+  function draw() {
+    if (!deck.length) deck = shuffle(Object.keys(cfg.data), Math.random);
+    return deck.pop();
+  }
+
+  function start(m) {
+    mode = m; cfg = MODES[m]; streak = 0; lock = false; deck = [];
+    a = draw();
+    Screens.show('compare');
+    $('#compare-title').textContent = cfg.title;
+    round();
+  }
+
+  function card(name, show, extra = '') {
+    const p = playerOf(name);
+    return `<div class="pcard ${extra}">
+      ${avatar(name, 'l', p.club)}
+      <div class="pcard-body">
+        <div class="pname-s">${p.flag} ${esc(name)}</div>
+        <div class="pclub">${p.club ? crestImg(p.club, 'xs') : ''}${esc(p.club || '')}</div>
+      </div>
+      <div class="pval ${mode === 'fc' ? 'ovr' : ''}"><b>${show ? cfg.fmt(cfg.data[name]) : '?'}</b><small>${cfg.unit}</small></div>
+    </div>`;
+  }
+
+  function round() {
+    lock = false;
+    b = draw();
+    while (b === a) b = draw();
+    const S = Store.d.compare;
+    $('#compare-sub').textContent = `Серия: ${streak} · рекорд: ${S[cfg.key]}`;
+    $('#compare-stage').innerHTML = card(a, true, 'known') + '<div class="vs-mid">VS</div>' + card(b, false);
+    $('#compare-opts').innerHTML = `<button class="btn" data-cmp="up">▲ ${cfg.up}</button><button class="btn sasha" data-cmp="down">▼ ${cfg.down}</button>`;
+    Photos.hydrate($('#compare-stage'));
+  }
+
+  function answer(dir) {
+    if (lock) return;
+    lock = true;
+    const va = cfg.data[a], vb = cfg.data[b];
+    const ok = va === vb || (dir === 'up' ? vb > va : vb < va);
+    const cards = $$('#compare-stage .pcard');
+    cards[1].outerHTML = card(b, true, ok ? 'ok' : 'bad');
+    Photos.hydrate($('#compare-stage'));
+    const S = Store.d.compare;
+    if (ok) {
+      streak++;
+      if (streak > S[cfg.key]) { S[cfg.key] = streak; Store.save(); }
+      Coins.add(5); Sound.play('kick'); haptic('ok');
+      setTimeout(() => { a = b; round(); }, 1000);
+    } else {
+      Sound.play('bad'); haptic('bad');
+      setTimeout(end, 1200);
+    }
+  }
+
+  function end() {
+    if (streak >= 5) Profile.bump('compare', streak * 2);
+    const best = Store.d.compare[cfg.key];
+    Sound.play(streak >= 5 ? 'goal' : 'lose');
+    Modal.open(
+      `<h2>Серия: ${streak}</h2>
+       <p>${esc(b)}: <b>${cfg.fmt(cfg.data[b])}</b>, ${esc(a)}: <b>${cfg.fmt(cfg.data[a])}</b></p>
+       <p>${streak >= best && streak > 0 ? 'Это твой новый рекорд!' : `Рекорд: ${best}`}</p>
+       ${quoteHtml(streak >= 5 ? 'win' : 'lose')}`,
+      [{ label: 'Ещё раз', onClick: () => start(mode) }, { label: 'В меню', cls: 'ghost', onClick: () => App.home() }],
+    );
+  }
+
+  function bind() {
+    $('#compare-opts').addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-cmp]');
+      if (btn) answer(btn.dataset.cmp);
+    });
+  }
+
+  return { bind, start, countFc: Object.keys(FC27).length, countVal: Object.keys(VALUES).length };
+})();
