@@ -23,6 +23,7 @@ const App = (() => {
     ['Богач', 'Накопи 1000 монет', () => Store.d.coins >= 1000],
     ['Головоломщик', 'Пройди 30 уровней головоломок', () => Profile.wins('pz') >= 30],
     ['Неделя с нами', 'Заходи 7 дней подряд', () => Store.d.dailyStreak >= 7],
+    ['Сборник', 'Серия 10 в «Угадай сборную»', () => Store.d.nation.best >= 10],
     ['Агент', 'Выиграй аукцион', () => Store.d.auction.wins >= 1],
     ['Суперагент', 'Выиграй 10 аукционов', () => Store.d.auction.wins >= 10],
     ['Профи', 'Получи звание «Профи»', () => Store.d.stats.xp >= 800],
@@ -47,6 +48,7 @@ const App = (() => {
     $('#meta-hl').textContent = T.hlBest ? `Рекорд ${T.hlBest}` : 'Сколько стоил?';
     $('#meta-fc').textContent = Store.d.compare.fcBest ? `Рекорд ${Store.d.compare.fcBest}` : `${Compare.countFc} игроков`;
     $('#meta-value').textContent = Store.d.compare.valBest ? `Рекорд ${Store.d.compare.valBest}` : 'Transfermarkt';
+    $('#meta-nation').textContent = Store.d.nation.best ? `Рекорд ${Store.d.nation.best}` : `${Nation.count} сборных`;
     $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
     $('#pz-shelf').innerHTML = PZ.shelf();
     Icons.fill($('#hub'));
@@ -128,6 +130,10 @@ const App = (() => {
     'ttt-duo': () => TTT.start('duo'),
     'ttt-skip': () => TTT.skip(),
     wheel: () => Wheel.open(),
+    nation: () => Nation.start(),
+    'nation-hint': () => Nation.hint(),
+    'pick-duo': () => Pick.start('duo'),
+    'pick-solo': () => Pick.start('solo'),
     'coins-info': () => toast('Монеты дают за победы. Трать их на подсказки.'),
     daily: () => {
       if (Store.d.lastDaily === today()) return;
@@ -145,14 +151,15 @@ const App = (() => {
 
   function init() {
     Store.load();
-    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind();
+    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind(); Nation.bind(); Pick.bind();
+    Howto.addButtons();
     Music.arm();
     document.addEventListener('pointerdown', (e) => { Coins.last = { x: e.clientX, y: e.clientY }; }, true);
     document.addEventListener('click', (e) => {
       const el = e.target.closest('[data-act]');
-      if (el && actions[el.dataset.act]) { actions[el.dataset.act](); return; }
+      if (el && actions[el.dataset.act]) { actions[el.dataset.act](); Howto.forAct(el.dataset.act); return; }
       const pz = e.target.closest('[data-pz]');
-      if (pz) PZ.open(pz.dataset.pz);
+      if (pz) { PZ.open(pz.dataset.pz); Howto.auto(pz.dataset.pz); }
     });
     // Нижнее меню видно только на главной и в профиле
     const orig = Screens.show.bind(Screens);
@@ -168,9 +175,9 @@ const App = (() => {
     } catch (e) { /* не в Telegram */ }
     // Ссылка вида ...#pass открывает игру сразу
     const h = location.hash.replace('#', '');
-    const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', profile: 'profile' };
+    const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', nation: 'nation', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile' };
     renderHub();
-    if (deep[h]) actions[deep[h]]();
+    if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }
     else Screens.show('hub');
   }
 

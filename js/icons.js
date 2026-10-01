@@ -45,6 +45,10 @@ const Icons = (() => {
       + '<path d="M38 24 l8 8 m0 -8 l-8 8" stroke="#ffcf3a" stroke-width="3" stroke-linecap="round"/>') + crest('barselona', 'mid'),
     'guess-duel': `${face(158023, 'l')}${face(20801, 'r')}<b class="ic-vs">VS</b>`,
     'career-duel': `${crest('barselona', 'l')}${crest('real-madrid', 'r')}<b class="ic-vs">VS</b>`,
+    nation: svg('<rect x="5" y="5" width="46" height="46" rx="6" fill="#34c46a" stroke="#fff" stroke-width="2"/><path d="M5 28 H51 M20 5 v8 h16 v-8" stroke="rgba(255,255,255,.7)" stroke-width="1.5" fill="none"/><circle cx="28" cy="28" r="6" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1.5"/>')
+      + crest('bavariya', 'n1') + crest('real-madrid', 'n2') + crest('liverpul', 'n3') + crest('pszh', 'n4') + '<span class="ic-flag">🏳️</span>',
+    pick: `${face(10535, 'l')}${face(41, 'r')}<b class="ic-vs">?</b>`,
+    'pick-duo': `${face(45661, 'l')}${face(13743, 'r')}<b class="ic-vs">VS</b>`,
     'ttt-duo': svg('<path d="M12 12 l13 13 m0 -13 l-13 13" stroke="#1b1240" stroke-width="5" stroke-linecap="round"/><circle cx="37" cy="37" r="8" fill="none" stroke="#fff" stroke-width="5"/>'),
   };
 

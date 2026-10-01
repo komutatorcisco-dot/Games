@@ -75,6 +75,12 @@
 
     <h3 class="section-label">Угадайки</h3>
     <div class="tiles">
+      <button class="tile-card" data-act="nation" style="--c1:#2fb35a;--c2:#155c32">
+        <span class="tile-ico" data-ico="nation"></span><b>Угадай сборную по клубам</b><small id="meta-nation"></small>
+      </button>
+      <button class="tile-card" data-act="pick-solo" style="--c1:#ffcf3a;--c2:#c98f00">
+        <span class="tile-ico" data-ico="pick"></span><b>Кто легендарнее?</b><small>Матчи за клуб</small>
+      </button>
       <button class="tile-card" data-act="guess-career" style="--c1:#34c46a;--c2:#1f7a3a">
         <span class="tile-ico" data-ico="guess"></span><b>Угадай футболиста</b><small id="meta-guess"></small>
       </button>
@@ -103,6 +109,9 @@
 
     <h3 class="section-label">Вдвоём на одном телефоне</h3>
     <div class="tiles">
+      <button class="tile-card duo wide" data-act="pick-duo">
+        <span class="tile-ico" data-ico="pick-duo"></span><b>Возьмёшь этого или другого?</b><small>Рубрика канала: собери состав легенд</small>
+      </button>
       <button class="tile-card duo" data-act="guess-duel">
         <span class="tile-ico" data-ico="guess-duel"></span><b>Дуэль: угадай футболиста</b><small>Кто первый назовёт</small>
       </button>
@@ -284,6 +293,29 @@
     <div id="compare-opts" class="opts"></div>
   </section>
 
+  <!-- ===== УГАДАЙ СБОРНУЮ ПО КЛУБАМ ===== -->
+  <section class="screen" id="nation" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title">Угадай сборную<small id="nation-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <p class="lives" id="nation-lives"></p>
+    <div id="nation-stage" class="stage"></div>
+    <div id="nation-opts" class="opts"></div>
+  </section>
+
+  <!-- ===== ВОЗЬМЁШЬ ЭТОГО ИЛИ ДРУГОГО ===== -->
+  <section class="screen" id="pick" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title"><span id="pick-title"></span><small id="pick-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div id="pick-stage" class="stage"></div>
+    <div id="pick-opts" class="opts"></div>
+  </section>
+
   <!-- ===== ГОЛОВОЛОМКА С ПОЛКИ ===== -->
   <section class="screen" id="pz" hidden>
     <header class="topbar">
@@ -369,6 +401,9 @@
 <script defer src="js/ttt.js"></script>
 <script defer src="js/compare.js"></script>
 <script defer src="js/auction.js"></script>
+<script defer src="js/nation.js"></script>
+<script defer src="js/pick.js"></script>
+<script defer src="js/howto.js"></script>
 <script defer src="js/icons.js"></script>
 <script defer src="js/wheel.js"></script>
 <script defer src="js/pz/shell.js"></script>
