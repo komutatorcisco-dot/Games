@@ -610,14 +610,19 @@ a { color: var(--danil); }
 
 /* память */
 .mem { display: grid; grid-template-columns: repeat(var(--cols), 1fr); gap: 8px; width: 100%; max-width: 440px; }
-.mem-card { position: relative; aspect-ratio: 3 / 4; max-width: 100%; border: 0; padding: 0; background: none; perspective: 600px; }
-.mem-back, .mem-face { position: absolute; inset: 0; border-radius: 12px; display: grid; place-items: center; backface-visibility: hidden; transition: transform .4s ease; }
-.mem-back { background: repeating-linear-gradient(45deg, var(--night-3) 0 8px, var(--night-2) 8px 16px); box-shadow: inset 0 0 0 2px rgba(255,255,255,.12); color: var(--gold); font-size: 22px; }
-.mem-face { background: linear-gradient(160deg, var(--night-3), var(--night-2)); transform: rotateY(180deg); align-content: center; gap: 4px; padding: 4px; }
+.mem-card { position: relative; display: block; width: 100%; border: 0; padding: 0; background: none; -webkit-tap-highlight-color: transparent; }
+.mem-card::before { content: ""; display: block; padding-top: 133%; } /* высота 3:4 без aspect-ratio — для старых iPhone */
+/* Лица меняются прозрачностью на середине поворота: так переворот работает даже там, где backface-visibility не срабатывает */
+.mem-back, .mem-face { position: absolute; inset: 0; border-radius: 12px; display: grid; place-items: center;
+  -webkit-backface-visibility: hidden; backface-visibility: hidden; transition: transform .4s ease, opacity 0s linear .2s; }
+.mem-back { background: repeating-linear-gradient(45deg, var(--night-3) 0 8px, var(--night-2) 8px 16px); box-shadow: inset 0 0 0 2px rgba(255,255,255,.12); color: var(--gold); font-size: 22px;
+  transform: perspective(600px) rotateY(0); }
+.mem-face { background: linear-gradient(160deg, var(--night-3), var(--night-2)); transform: perspective(600px) rotateY(180deg); opacity: 0; align-content: center; gap: 4px; padding: 4px; }
 .mem-face small { font-size: 10px; font-weight: 700; text-align: center; line-height: 1.1; }
 .mem-face .ava-l { width: 70%; height: auto; aspect-ratio: 1; }
-.mem-card.open .mem-back, .mem-card.done .mem-back { transform: rotateY(180deg); }
-.mem-card.open .mem-face, .mem-card.done .mem-face { transform: rotateY(0); }
+@supports not (aspect-ratio: 1) { .mem-face .ava-l { width: 44px; height: 44px; } }
+.mem-card.open .mem-back, .mem-card.done .mem-back { transform: perspective(600px) rotateY(180deg); opacity: 0; }
+.mem-card.open .mem-face, .mem-card.done .mem-face { transform: perspective(600px) rotateY(0); opacity: 1; }
 .mem-card.done .mem-face { box-shadow: inset 0 0 0 2px var(--hit); animation: numPop .5s ease; }
 
 /* розыгрыш */
