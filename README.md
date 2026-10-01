@@ -23,7 +23,8 @@
 ## Картинки
 
 - Эмблемы клубов лежат в `img/clubs` (набор [football-logos](https://github.com/luukhopman/football-logos)), список в `js/media.js`.
-- Фото игроков браузер подгружает с Википедии во время игры (работает на GitHub Pages и в Telegram). Если фото нет — показываются инициалы.
+- Лица 194 игроков лежат в `img/players` (из набора [FIFA-Player-Faces](https://github.com/saihari/FIFA-Player-Faces), фото времён FIFA 17–22), соответствие «игрок → файл» в `FACES` в `js/media.js`.
+- Для тех, кого нет в наборе (молодые: Ямаль, Кубарси, Дуэ…), браузер пробует взять фото с Википедии (работает на GitHub Pages и в Telegram). Иначе — инициалы.
 
 ## Где править данные
 

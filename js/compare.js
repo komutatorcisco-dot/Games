@@ -25,7 +25,7 @@ const Compare = (() => {
   function card(name, show, extra = '') {
     const p = playerOf(name);
     return `<div class="pcard ${extra}">
-      ${avatar(name, 'l', p.club)}
+      ${avatar(name, 'l')}
       <div class="pcard-body">
         <div class="pname-s">${p.flag} ${esc(name)}</div>
         <div class="pclub">${p.club ? crestImg(p.club, 'xs') : ''}${esc(p.club || '')}</div>
@@ -40,7 +40,8 @@ const Compare = (() => {
     while (b === a) b = draw();
     const S = Store.d.compare;
     $('#compare-sub').textContent = `Серия: ${streak} · рекорд: ${S[cfg.key]}`;
-    $('#compare-stage').innerHTML = card(a, true, 'known') + '<div class="vs-mid">VS</div>' + card(b, false);
+    $('#compare-stage').innerHTML = card(a, true, 'known' + (streak ? ' stay' : '')) + '<div class="vs-mid">VS</div>' + card(b, false, 'enter');
+    if (deck.length) Photos.preload(deck[deck.length - 1]);
     $('#compare-opts').innerHTML = `<button class="btn" data-cmp="up">▲ ${cfg.up}</button><button class="btn sasha" data-cmp="down">▼ ${cfg.down}</button>`;
     Photos.hydrate($('#compare-stage'));
   }
@@ -50,19 +51,24 @@ const Compare = (() => {
     lock = true;
     const va = cfg.data[a], vb = cfg.data[b];
     const ok = va === vb || (dir === 'up' ? vb > va : vb < va);
-    const cards = $$('#compare-stage .pcard');
-    cards[1].outerHTML = card(b, true, ok ? 'ok' : 'bad');
-    Photos.hydrate($('#compare-stage'));
+    const second = $$('#compare-stage .pcard')[1];
+    $$('#compare-opts .btn').forEach((x) => { x.disabled = true; });
     const S = Store.d.compare;
-    if (ok) {
-      streak++;
-      if (streak > S[cfg.key]) { S[cfg.key] = streak; Store.save(); }
-      Coins.add(5); Sound.play('kick'); haptic('ok');
-      setTimeout(() => { a = b; round(); }, 1000);
-    } else {
-      Sound.play('bad'); haptic('bad');
-      setTimeout(end, 1200);
-    }
+    countUp($('.pval b', second), vb, {
+      from: mode === 'fc' ? 60 : 0, dur: 800, fmt: cfg.fmt,
+      onDone: () => {
+        second.classList.add(ok ? 'ok' : 'bad');
+        if (ok) {
+          streak++;
+          if (streak > S[cfg.key]) { S[cfg.key] = streak; Store.save(); }
+          Coins.add(5); Sound.play('kick'); haptic('ok');
+          setTimeout(() => shiftStage($('#compare-stage'), () => { a = b; round(); }), 650);
+        } else {
+          Sound.play('bad'); haptic('bad');
+          setTimeout(end, 900);
+        }
+      },
+    });
   }
 
   function end() {

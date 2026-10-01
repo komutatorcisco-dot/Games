@@ -42,14 +42,14 @@ const Transfer = (() => {
     cur = draw();
     if (mode === 'hl') {
       while (cur.id === prev.id) cur = draw();
-      $('#transfer-stage').innerHTML = card(prev, true, true, 'known') + '<div class="vs-mid">VS</div>' + card(cur, false, true);
+      $('#transfer-stage').innerHTML = card(prev, true, true, 'known' + (streak ? ' stay' : '')) + '<div class="vs-mid">VS</div>' + card(cur, false, true, 'enter');
       Photos.hydrate($('#transfer-stage'));
       $('#transfer-opts').innerHTML = `<button class="btn" data-hl="up">▲ Дороже</button><button class="btn sasha" data-hl="down">▼ Дешевле</button>`;
       return;
     }
     const wrong = shuffle(CLUB_POOL.filter((c) => c !== cur.to && c !== cur.from), Math.random).slice(0, 3);
     const opts = shuffle([cur.to, ...wrong], Math.random);
-    $('#transfer-stage').innerHTML = card(cur, true, false);
+    $('#transfer-stage').innerHTML = card(cur, true, false, 'enter');
     Photos.hydrate($('#transfer-stage'));
     $('#transfer-opts').innerHTML = opts.map((o) => `<button class="btn ghost opt" data-club="${esc(o)}">${esc(o)}</button>`).join('');
   }
@@ -62,45 +62,41 @@ const Transfer = (() => {
       if (b.dataset.club === cur.to) b.classList.add('right');
       else if (b === btn) b.classList.add('wrong');
     });
-    $('#transfer-stage').innerHTML = card(cur, true, true, ok ? 'ok' : 'bad');
-    Photos.hydrate($('#transfer-stage'));
+    const tc = $('#transfer-stage .tcard');
+    const q = $('.troute .q', tc);
+    q.classList.remove('q'); q.classList.add('pop');
+    q.innerHTML = crestImg(cur.to, 'xs') + esc(cur.to);
+    tc.classList.add(ok ? 'ok' : 'bad');
     if (ok) { streak++; Coins.add(5); Sound.play('kick'); haptic('ok'); }
     else { lives--; Sound.play('bad'); haptic('bad'); }
     const T = Store.d.transfer;
     if (streak > T.best) { T.best = streak; Store.save(); }
     head();
-    setTimeout(() => (lives <= 0 ? end() : round()), ok ? 700 : 1300);
+    setTimeout(() => (lives <= 0 ? end() : shiftStage($('#transfer-stage'), round)), ok ? 900 : 1400);
   }
 
   function answerHL(dir) {
     if (lock) return;
     lock = true;
     const ok = cur.fee === prev.fee || (dir === 'up' ? cur.fee > prev.fee : cur.fee < prev.fee);
-    const cards = $$('#transfer-stage .tcard');
-    cards[1].outerHTML = card(cur, true, true, ok ? 'ok' : 'bad');
-    countUp($$('#transfer-stage .tcard')[1].querySelector('.tfee'), cur.fee);
-    Photos.hydrate($('#transfer-stage'));
-    if (ok) {
-      streak++; Coins.add(5); Sound.play('kick'); haptic('ok');
-      const T = Store.d.transfer;
-      if (streak > T.hlBest) { T.hlBest = streak; Store.save(); }
-      head();
-      setTimeout(() => { prev = cur; round(); }, 1100);
-    } else {
-      Sound.play('bad'); haptic('bad');
-      setTimeout(end, 1300);
-    }
-  }
-
-  function countUp(el, to) {
-    if (!el || to === 0) return;
-    const t0 = performance.now();
-    const stepFn = (t) => {
-      const k = Math.min(1, (t - t0) / 600);
-      el.textContent = `€${Math.round(to * k)} млн`;
-      if (k < 1) requestAnimationFrame(stepFn);
-    };
-    requestAnimationFrame(stepFn);
+    const second = $$('#transfer-stage .tcard')[1];
+    $$('#transfer-opts .btn').forEach((x) => { x.disabled = true; });
+    countUp($('.tfee', second), cur.fee, {
+      dur: 800, fmt: (v) => (cur.fee === 0 ? 'бесплатно' : `€${v} млн`),
+      onDone: () => {
+        second.classList.add(ok ? 'ok' : 'bad');
+        if (ok) {
+          streak++; Coins.add(5); Sound.play('kick'); haptic('ok');
+          const T = Store.d.transfer;
+          if (streak > T.hlBest) { T.hlBest = streak; Store.save(); }
+          head();
+          setTimeout(() => shiftStage($('#transfer-stage'), () => { prev = cur; round(); }), 650);
+        } else {
+          Sound.play('bad'); haptic('bad');
+          setTimeout(end, 900);
+        }
+      },
+    });
   }
 
   function end() {

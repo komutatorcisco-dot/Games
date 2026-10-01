@@ -377,7 +377,7 @@ a { color: var(--danil); }
 /* ---------- трансферы ---------- */
 .lives { margin: 0; text-align: center; color: var(--danger); font-size: 22px; letter-spacing: 4px; min-height: 1.2em; }
 .stage { display: flex; flex-direction: column; gap: 10px; }
-.tcard { display: grid; gap: 8px; padding: 16px; border-radius: 18px; background: linear-gradient(160deg, var(--night-3), var(--night-2)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); animation: pop .3s ease; }
+.tcard { display: grid; gap: 8px; padding: 16px; border-radius: 18px; background: linear-gradient(160deg, var(--night-3), var(--night-2)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); }
 .tcard.known { opacity: .85; }
 .tcard.ok { box-shadow: inset 0 0 0 3px var(--hit); }
 .tcard.bad { box-shadow: inset 0 0 0 3px var(--danger); }
@@ -461,9 +461,6 @@ a { color: var(--danil); }
   background: linear-gradient(145deg, var(--night-3), var(--night)); box-shadow: inset 0 0 0 2px rgba(255,255,255,.15);
 }
 .ava b { font-family: var(--font-display); font-weight: 400; color: var(--ink); }
-.ava .crest { position: absolute; right: 4%; bottom: 2%; width: 34%; height: 40%; margin: 0; }
-.ava img:not(.crest) { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
-.ava.has-photo { background: #ddd; }
 .ava-m { width: 40px; height: 40px; } .ava-m b { font-size: 15px; }
 .ava-l { width: 64px; height: 64px; } .ava-l b { font-size: 22px; }
 .ava-xl { width: 96px; height: 96px; margin: 0 auto 6px; } .ava-xl b { font-size: 32px; }
@@ -476,7 +473,7 @@ a { color: var(--danil); }
 .tg-head .crest-m { width: 28px; height: 34px; }
 .player-card { justify-items: center; }
 .pcard { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: center; padding: 14px; border-radius: 18px;
-  background: linear-gradient(160deg, var(--night-3), var(--night-2)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); animation: pop .3s ease; }
+  background: linear-gradient(160deg, var(--night-3), var(--night-2)); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); }
 .pcard.known { opacity: .9; } .pcard.ok { box-shadow: inset 0 0 0 3px var(--hit); } .pcard.bad { box-shadow: inset 0 0 0 3px var(--danger); }
 .pcard-body { min-width: 0; }
 .pname-s { font-family: var(--font-display); font-size: 17px; text-transform: uppercase; line-height: 1.1; }
@@ -492,3 +489,35 @@ a { color: var(--danil); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- лица и анимации ---------- */
+.ava { background: radial-gradient(circle at 50% 30%, #4a3d93, var(--night) 75%); }
+.ava b { transition: opacity .3s ease; }
+.ava img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center top;
+  opacity: 0; transform: scale(1.15); transition: opacity .35s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
+.ava.loaded img { opacity: 1; transform: none; }
+.ava.loaded b { opacity: 0; }
+.ava.instant img, .ava.instant b { transition: none; }
+.ava.loaded { background: radial-gradient(circle at 50% 35%, #8fd8c4 0%, #5a49b8 55%, var(--night) 100%); }
+
+.enter { animation: cardIn .5s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes cardIn { from { opacity: 0; transform: translateY(26px) scale(.96); } }
+.stage { transition: none; }
+.stage.shifting .known { animation: cardOut .38s cubic-bezier(.5,0,.75,0) forwards; }
+.stage.shifting .vs-mid { opacity: 0; transition: opacity .2s; }
+.stage.shifting .known ~ .pcard, .stage.shifting .known ~ .tcard { transition: transform .38s cubic-bezier(.3,.7,.2,1); transform: translateY(calc(-100% - 46px)); }
+.stage.shifting > :only-child { animation: cardSide .38s cubic-bezier(.5,0,.75,0) forwards; }
+@keyframes cardOut { to { opacity: 0; transform: translateY(-30px) scale(.94); } }
+@keyframes cardSide { to { opacity: 0; transform: translateX(-40px); } }
+
+.pcard.ok, .tcard.ok { animation: glowOk .7s ease; box-shadow: inset 0 0 0 3px var(--hit), 0 0 24px rgba(52,196,106,.35); }
+.pcard.bad, .tcard.bad { animation: shakeBad .45s ease; box-shadow: inset 0 0 0 3px var(--danger), 0 0 24px rgba(255,107,107,.3); }
+@keyframes glowOk { 30% { transform: scale(1.03); } }
+@keyframes shakeBad { 20% { transform: translateX(-7px); } 40% { transform: translateX(6px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(2px); } }
+.tfee, .troute span { display: inline-flex; }
+.pop { animation: numPop .45s cubic-bezier(.3,1.6,.5,1); }
+@keyframes numPop { 40% { transform: scale(1.3); } }
+.pval b, .tfee, .coin-count { font-variant-numeric: tabular-nums; display: inline-block; }
+.reward { animation: numPop .6s cubic-bezier(.3,1.6,.5,1) .15s both; }
+.stars span, .stars { display: inline-block; }
+.modal-card .player-card { animation: cardIn .5s cubic-bezier(.2,.8,.2,1) .1s both; }

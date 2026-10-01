@@ -63,7 +63,11 @@ const Store = {
 
 const Coins = {
   render(bump) {
-    $$('.coin-count').forEach((el) => { el.textContent = Store.d.coins; });
+    $$('.coin-count').forEach((el) => {
+      const from = parseInt(el.textContent, 10);
+      if (bump && !Number.isNaN(from) && from !== Store.d.coins) countUp(el, Store.d.coins, { from, dur: 500 });
+      else el.textContent = Store.d.coins;
+    });
     if (bump) $$('.coins').forEach((el) => { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); });
   },
   add(n) {
@@ -280,4 +284,32 @@ function Picker(inputSel, boxSel, items, onPick) {
   });
   document.addEventListener('click', (e) => { if (e.target !== input && !box.contains(e.target)) hide(); });
   return { hide, clear() { input.value = ''; hide(); } };
+}
+
+// Плавная «накрутка» числа: 0 → значение, с замедлением в конце, потом короткий «щелчок».
+function countUp(el, to, { from = 0, dur = 750, fmt = (v) => v, onDone } = {}) {
+  if (!el) return;
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const finish = () => {
+    el.textContent = fmt(to);
+    el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop');
+    onDone && onDone();
+  };
+  if (reduce || to === from) { finish(); return; }
+  const t0 = performance.now();
+  const ease = (k) => 1 - Math.pow(1 - k, 3);
+  const step = (t) => {
+    const k = Math.min(1, (t - t0) / dur);
+    el.textContent = fmt(Math.round(from + (to - from) * ease(k)));
+    if (k < 1) requestAnimationFrame(step); else finish();
+  };
+  requestAnimationFrame(step);
+}
+
+// Смена пары карточек: верхняя уезжает, нижняя поднимается на её место, новая выезжает снизу.
+function shiftStage(stage, render) {
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) { render(); return; }
+  stage.classList.add('shifting');
+  setTimeout(() => { stage.classList.remove('shifting'); render(); }, 380);
 }
