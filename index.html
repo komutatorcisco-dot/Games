@@ -45,7 +45,7 @@
       <span class="ah-modes"><span class="btn" data-act="auction-bot">Против бота</span><span class="btn sasha" data-act="auction-duo">Вдвоём</span></span>
     </button>
 
-    <h3 class="section-label">Головоломка</h3>
+    <h3 class="section-label" id="puzzles">Головоломки · с уровнями</h3>
     <button class="game-card card-pass" data-act="pass-levels">
       <div class="card-art art-pass" aria-hidden="true">
         <i class="mini-goal"></i>
@@ -59,6 +59,7 @@
         <span class="card-meta" id="meta-pass"></span>
       </div>
     </button>
+    <div class="tiles" id="pz-shelf"></div>
 
     <h3 class="section-label">Угадайки</h3>
     <div class="tiles">
@@ -271,6 +272,18 @@
     <div id="compare-opts" class="opts"></div>
   </section>
 
+  <!-- ===== ГОЛОВОЛОМКА С ПОЛКИ ===== -->
+  <section class="screen" id="pz" hidden>
+    <header class="topbar">
+      <button class="back" data-act="puzzles" aria-label="Назад">←</button>
+      <div class="topbar-title"><span id="pz-title"></span><small id="pz-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div class="pz-hud" id="pz-hud"></div>
+    <div class="pz-area" id="pz-area"></div>
+    <div class="actions" id="pz-actions"></div>
+  </section>
+
   <!-- ===== АУКЦИОН ===== -->
   <section class="screen" id="auction" hidden>
     <header class="topbar">
@@ -344,6 +357,15 @@
 <script defer src="js/ttt.js"></script>
 <script defer src="js/compare.js"></script>
 <script defer src="js/auction.js"></script>
+<script defer src="js/pz/shell.js"></script>
+<script defer src="js/pz/sort.js"></script>
+<script defer src="js/pz/pipes.js"></script>
+<script defer src="js/pz/flood.js"></script>
+<script defer src="js/pz/slide.js"></script>
+<script defer src="js/pz/memory.js"></script>
+<script defer src="js/pz/words.js"></script>
+<script defer src="js/pz/g2048.js"></script>
+<script defer src="js/pz/popit.js"></script>
 <script defer src="js/app.js"></script>
 </body>
 </html>

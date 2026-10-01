@@ -21,6 +21,7 @@ const App = (() => {
     ['Геймер', 'Серия 10 в «Кто выше в FC 27?»', () => Store.d.compare.fcBest >= 10],
     ['Скаут-оценщик', 'Серия 10 в «Кто дороже?»', () => Store.d.compare.valBest >= 10],
     ['Богач', 'Накопи 1000 монет', () => Store.d.coins >= 1000],
+    ['Головоломщик', 'Пройди 30 уровней головоломок', () => Profile.wins('pz') >= 30],
     ['Неделя с нами', 'Заходи 7 дней подряд', () => Store.d.dailyStreak >= 7],
     ['Агент', 'Выиграй аукцион', () => Store.d.auction.wins >= 1],
     ['Суперагент', 'Выиграй 10 аукционов', () => Store.d.auction.wins >= 10],
@@ -47,6 +48,7 @@ const App = (() => {
     $('#meta-fc').textContent = Store.d.compare.fcBest ? `Рекорд ${Store.d.compare.fcBest}` : `${Compare.countFc} игроков`;
     $('#meta-value').textContent = Store.d.compare.valBest ? `Рекорд ${Store.d.compare.valBest}` : 'Transfermarkt';
     $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
+    $('#pz-shelf').innerHTML = PZ.shelf();
     $('#daily').hidden = Store.d.lastDaily === today();
     if (!$('#daily').hidden) {
       const day = nextDay();
@@ -86,10 +88,12 @@ const App = (() => {
     Coins.render();
   }
 
-  function home() {
+  function home(anchor) {
     Modal.close();
+    PZ.leave();
     renderHub();
     Screens.show('hub');
+    if (anchor) { const el = document.getElementById(anchor); if (el) el.scrollIntoView({ block: 'start' }); }
   }
 
   function profile() {
@@ -115,6 +119,7 @@ const App = (() => {
     hl: () => Transfer.start('hl'),
     ttt: () => TTT.start('solo'),
     'auction-bot': () => Auction.start(true),
+    puzzles: () => home('puzzles'),
     'auction-duo': () => Auction.start(false),
     fc: () => Compare.start('fc'),
     value: () => Compare.start('value'),
@@ -141,7 +146,9 @@ const App = (() => {
     Music.arm();
     document.addEventListener('click', (e) => {
       const el = e.target.closest('[data-act]');
-      if (el && actions[el.dataset.act]) actions[el.dataset.act]();
+      if (el && actions[el.dataset.act]) { actions[el.dataset.act](); return; }
+      const pz = e.target.closest('[data-pz]');
+      if (pz) PZ.open(pz.dataset.pz);
     });
     // Нижнее меню видно только на главной и в профиле
     const orig = Screens.show.bind(Screens);
@@ -157,7 +164,7 @@ const App = (() => {
     } catch (e) { /* не в Telegram */ }
     // Ссылка вида ...#pass открывает игру сразу
     const h = location.hash.replace('#', '');
-    const deep = { pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', profile: 'profile' };
+    const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', profile: 'profile' };
     renderHub();
     if (deep[h]) actions[deep[h]]();
     else Screens.show('hub');
