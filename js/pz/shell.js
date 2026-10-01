@@ -81,8 +81,10 @@ const PZ = (() => {
     $('#pz-sub').textContent = cur.endless ? (cur.sub || '') : `Уровень ${level}`;
     $('#pz-hud').innerHTML = '';
     $('#pz-actions').innerHTML = '';
-    const area = $('#pz-area');
-    area.innerHTML = '';
+    // Новое поле на каждый запуск: старые обработчики прошлого уровня уходят вместе со старым элементом
+    const oldArea = $('#pz-area');
+    const area = oldArea.cloneNode(false);
+    oldArea.replaceWith(area);
     area.className = 'pz-area pz-' + id;
     cleanup = cur.start(level, api) || null;
   }
