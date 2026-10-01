@@ -1,4 +1,5 @@
-// «Пятнашки»: собери эмблему клуба из перемешанных кусочков. Уровни 1–10 — 3×3, дальше 4×4, с 31-го — 5×5.
+// «Пятнашки»: собери эмблему клуба из перемешанных кусочков. Кусочки можно тянуть пальцем или нажимать,
+// за один ход двигается весь ряд до пустой клетки. Уровни 1–10 — 3×3, дальше 4×4, с 31-го — 5×5.
 'use strict';
 
 (() => {
@@ -35,10 +36,21 @@
         }).join('')}</div>`;
       }
 
+      // Кусочки между p и пустой клеткой (в одной строке или столбце), начиная с ближнего к пустой.
+      function line(p) {
+        const px = p % n, py = Math.floor(p / n), bx = blank % n, by = Math.floor(blank / n);
+        if (p === blank || (px !== bx && py !== by)) return null;
+        const step = px === bx ? (by > py ? n : -n) : (bx > px ? 1 : -1);
+        const list = [];
+        for (let q = blank - step; ; q -= step) { list.push(q); if (q === p) break; }
+        return { list, dx: Math.sign(bx - px), dy: Math.sign(by - py) };
+      }
+
       function move(p) {
-        if (done || !nb(blank).includes(p)) return;
-        [cells[blank], cells[p]] = [cells[p], cells[blank]];
-        blank = p; moves++;
+        const ln = !done && line(p);
+        if (!ln) return;
+        for (const q of ln.list) { [cells[blank], cells[q]] = [cells[q], cells[blank]]; blank = q; }
+        moves++;
         $('#sl-moves').textContent = moves;
         Sound.play('tap'); haptic('tap');
         if (cells.every((t, i) => t === i)) {
@@ -50,7 +62,37 @@
         render();
       }
 
-      area.addEventListener('click', (e) => { const t = e.target.closest('.sl-tile[data-p]'); if (t) move(+t.dataset.p); });
+      // Перетаскивание: кусочки едут за пальцем к пустой клетке. Дотянул больше чем на треть — ход засчитан.
+      let drag = null;
+      area.addEventListener('pointerdown', (e) => {
+        const t = e.target.closest('.sl-tile[data-p]');
+        if (!t || done) return;
+        const ln = line(+t.dataset.p);
+        if (!ln) { t.classList.remove('nope'); void t.offsetWidth; t.classList.add('nope'); return; }
+        const els = ln.list.map((q) => $(`.sl-tile[data-p="${q}"]`, area));
+        const size = ln.dx ? t.offsetWidth + 3 : t.offsetHeight + 3;
+        drag = { p: +t.dataset.p, ln, els, size, sx: e.clientX, sy: e.clientY, d: 0, moved: false };
+        els.forEach((el) => { el.style.transition = 'none'; el.classList.add('held'); });
+        try { t.setPointerCapture(e.pointerId); } catch (err) { /* без захвата */ }
+      });
+      area.addEventListener('pointermove', (e) => {
+        if (!drag) return;
+        const raw = (e.clientX - drag.sx) * drag.ln.dx + (e.clientY - drag.sy) * drag.ln.dy;
+        if (Math.abs(e.clientX - drag.sx) + Math.abs(e.clientY - drag.sy) > 6) drag.moved = true;
+        drag.d = Math.max(0, Math.min(drag.size, raw));
+        const tr = `translate(${drag.d * drag.ln.dx}px, ${drag.d * drag.ln.dy}px)`;
+        drag.els.forEach((el) => { el.style.transform = tr; });
+      });
+      const release = () => {
+        if (!drag) return;
+        const g = drag; drag = null;
+        const go = !g.moved || g.d > g.size * 0.33;
+        const tr = go ? `translate(${g.size * g.ln.dx}px, ${g.size * g.ln.dy}px)` : '';
+        g.els.forEach((el) => { el.style.transition = 'transform .12s ease-out'; el.style.transform = tr; el.classList.remove('held'); });
+        if (go) setTimeout(() => move(g.p), 120);
+      };
+      area.addEventListener('pointerup', release);
+      area.addEventListener('pointercancel', release);
       render();
     },
   });

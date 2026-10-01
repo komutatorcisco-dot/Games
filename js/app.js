@@ -50,6 +50,7 @@ const App = (() => {
     $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
     $('#pz-shelf').innerHTML = PZ.shelf();
     $('#daily').hidden = Store.d.lastDaily === today();
+    $('#wheel-btn').hidden = !Wheel.ready();
     if (!$('#daily').hidden) {
       const day = nextDay();
       $('#daily-text').textContent = `день ${day}, забери +${dailyReward(day)}`;
@@ -125,6 +126,7 @@ const App = (() => {
     value: () => Compare.start('value'),
     'ttt-duo': () => TTT.start('duo'),
     'ttt-skip': () => TTT.skip(),
+    wheel: () => Wheel.open(),
     'coins-info': () => toast('Монеты дают за победы. Трать их на подсказки.'),
     daily: () => {
       if (Store.d.lastDaily === today()) return;
@@ -144,6 +146,7 @@ const App = (() => {
     Store.load();
     Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind();
     Music.arm();
+    document.addEventListener('pointerdown', (e) => { Coins.last = { x: e.clientX, y: e.clientY }; }, true);
     document.addEventListener('click', (e) => {
       const el = e.target.closest('[data-act]');
       if (el && actions[el.dataset.act]) { actions[el.dataset.act](); return; }

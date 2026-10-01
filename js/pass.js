@@ -1,5 +1,7 @@
 // «Пас в ворота»: мяч катится, пока не упрётся в защитника, бровку или не завязнет в луже.
 // Ворота стоят над полем: гол засчитывается, если мяч катится вверх по линии ворот и пересекает лицевую.
+// С 4-го уровня на поле есть партнёры (синие манекены): ворота открываются, только когда мяч побывал у всех.
+// С 8-го — отбойники: мяч отскакивает от них под прямым углом.
 // Уровни генерируются из номера, поэтому у всех уровень N одинаковый, а уровней бесконечно много.
 'use strict';
 
@@ -7,46 +9,57 @@ const Pass = (() => {
   const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   const TOURS = ['Дворовая лига', 'Районный кубок', 'Первая лига', 'Премьер-лига', 'Лига чемпионов', 'Чемпионат мира'];
   const HINT_COST = 15;
-  const EMPTY = 0, DEF = 1, MUD = 2;
+  const EMPTY = 0, DEF = 1, MUD = 2, MATE = 3, DL = 4, DR = 5; // DL = «/», DR = «\»
   const cache = new Map();
 
   const tourOf = (n) => Math.floor((n - 1) / 10);
   const tourName = (t) => (t < TOURS.length ? TOURS[t] : `Легенда ${t - TOURS.length + 1}`);
   const isFinal = (n) => n % 10 === 0;
 
-  // Один удар. Возвращает конечную клетку, путь и признак гола.
-  function slide(lv, from, dir) {
-    const [dx, dy] = DIRS[dir];
-    let x = from % lv.w, y = Math.floor(from / lv.w);
+  // Один удар. mask — у каких партнёров мяч уже побывал.
+  // Возвращает конечную клетку, путь, новую маску, гол и колонку, где мяч ушёл за лицевую (exit).
+  function slide(lv, from, dir, mask = 0) {
+    let [dx, dy] = DIRS[dir];
+    let x = from % lv.w, y = Math.floor(from / lv.w), m = mask, guard = 0, exit = -1;
     const path = [];
     for (;;) {
+      if (++guard > 300) return { to: from, path: [], steps: 0, goal: false, mask, exit: -1 }; // мяч зациклился
       const nx = x + dx, ny = y + dy;
-      if (ny < 0 && dir === 'up' && x === lv.goal) return { to: -1, path, steps: path.length + 1, goal: true };
+      if (ny < 0 && dy === -1) {
+        exit = x;
+        if (x === lv.goal && m === lv.full) return { to: -1, path, steps: path.length + 1, goal: true, mask: m, exit };
+        break;
+      }
       if (nx < 0 || ny < 0 || nx >= lv.w || ny >= lv.h) break;
-      const i = ny * lv.w + nx;
-      if (lv.cells[i] === DEF) break;
+      const i = ny * lv.w + nx, c = lv.cells[i];
+      if (c === DEF) break;
       x = nx; y = ny;
       path.push(i);
-      if (lv.cells[i] === MUD) break;
+      if (c === MATE) m |= lv.bit[i];
+      if (c === MUD) break;
+      if (c === DL) [dx, dy] = [-dy, -dx];
+      else if (c === DR) [dx, dy] = [dy, dx];
     }
-    return { to: y * lv.w + x, path, steps: path.length, goal: false };
+    return { to: y * lv.w + x, path, steps: path.length, goal: false, mask: m, exit };
   }
 
-  // Кратчайшее решение из позиции (поиск в ширину): список направлений.
-  function solve(lv, from) {
-    const prev = new Map([[from, null]]);
-    const q = [from];
+  // Кратчайшее решение (поиск в ширину по «клетка + партнёры»): список направлений.
+  function solve(lv, from, mask = 0) {
+    const key = (p, m) => p * 16 + m;
+    const prev = new Map([[key(from, mask), null]]);
+    const q = [[from, mask]];
     while (q.length) {
-      const s = q.shift();
+      const [s, sm] = q.shift();
       for (const d of Object.keys(DIRS)) {
-        const r = slide(lv, s, d);
+        const r = slide(lv, s, d, sm);
         if (r.steps === 0) continue;
         if (r.goal) {
           const out = [d];
-          for (let c = s; prev.get(c); c = prev.get(c).s) out.unshift(prev.get(c).d);
+          for (let k = key(s, sm); prev.get(k); k = prev.get(k).k) out.unshift(prev.get(k).d);
           return out;
         }
-        if (!prev.has(r.to)) { prev.set(r.to, { s, d }); q.push(r.to); }
+        const k2 = key(r.to, r.mask);
+        if (!prev.has(k2)) { prev.set(k2, { k: key(s, sm), d }); q.push([r.to, r.mask]); }
       }
     }
     return null;
@@ -55,42 +68,55 @@ const Pass = (() => {
   function generate(n) {
     if (cache.has(n)) return cache.get(n);
     const rnd = mulberry32(n * 7919 + 4242);
-    const w = Math.min(5 + Math.floor(n / 15), 8);
-    const h = Math.min(6 + Math.floor(n / 8), 10);
-    let target = Math.min(2 + Math.floor(n / 4), 14);
-    if (isFinal(n)) target += 2;
-    const mudRate = n >= 16 ? Math.min(0.03 + (n - 16) * 0.002, 0.08) : 0;
+    const w = Math.min(5 + Math.floor(n / 10), 8);
+    const h = Math.min(7 + Math.floor(n / 6), 11);
+    let target = Math.min(3 + Math.floor(n / 3), 18);
+    if (isFinal(n)) target += 3;
+    const mates = n >= 4 ? Math.min(1 + Math.floor((n - 4) / 8), 3) : 0;
+    const defl = n >= 8 ? Math.min(1 + Math.floor((n - 8) / 6), 5) : 0;
+    const mudRate = n >= 16 ? Math.min(0.03 + (n - 16) * 0.002, 0.07) : 0;
     let best = null;
 
-    for (let attempt = 0; attempt < 500; attempt++) {
-      const dens = 0.1 + Math.min(0.12, n * 0.003) + rnd() * 0.07;
+    for (let attempt = 0; attempt < 400; attempt++) {
+      const dens = 0.1 + Math.min(0.1, n * 0.003) + rnd() * 0.06;
       const cells = Array.from({ length: w * h }, () => {
         const r = rnd();
         return r < dens ? DEF : r < dens + mudRate ? MUD : EMPTY;
       });
-      // мяч стартует в своей половине поля
-      const starts = [];
-      cells.forEach((c, i) => { if (c === EMPTY && Math.floor(i / w) >= Math.floor(h * 0.6)) starts.push(i); });
+      const empties = () => cells.map((c, i) => (c === EMPTY ? i : -1)).filter((i) => i >= 0);
+      const starts = empties().filter((i) => Math.floor(i / w) >= Math.floor(h * 0.6));
       if (!starts.length) continue;
       const start = pick(starts, rnd);
-      const probe = { w, h, cells, goal: -99 };
+      const bit = {};
+      let ok = true;
+      for (let k = 0; k < mates; k++) {
+        const e = empties().filter((i) => i !== start && Math.floor(i / w) < h - 1);
+        if (!e.length) { ok = false; break; }
+        const i = pick(e, rnd); cells[i] = MATE; bit[i] = 1 << k;
+      }
+      for (let k = 0; k < defl; k++) {
+        const e = empties().filter((i) => i !== start);
+        if (!e.length) break;
+        cells[pick(e, rnd)] = rnd() < 0.5 ? DL : DR;
+      }
+      if (!ok) continue;
+      const full = (1 << mates) - 1;
+      const probe = { w, h, cells, bit, full, goal: -99 };
 
-      // Для каждой колонки: за сколько ударов мяч может уйти за лицевую по этой колонке.
-      const depth = new Map([[start, 0]]);
+      // Один обход: для каждой колонки — за сколько ударов можно уйти за лицевую, собрав всех партнёров.
+      const key = (p, m) => p * 16 + m;
+      const depth = new Map([[key(start, 0), 0]]);
       const colDepth = new Array(w).fill(Infinity);
-      const q = [start];
+      const q = [[start, 0]];
       while (q.length) {
-        const s = q.shift();
-        const k = depth.get(s);
+        const [s, sm] = q.shift();
+        const k = depth.get(key(s, sm));
         for (const d of Object.keys(DIRS)) {
-          const r = slide(probe, s, d);
-          if (d === 'up') {
-            const x = s % w;
-            const end = r.steps ? r.to : s;
-            const blocked = r.path.some((i) => cells[i] === MUD);
-            if (Math.floor(end / w) === 0 && !blocked && colDepth[x] > k + 1) colDepth[x] = k + 1;
-          }
-          if (r.steps && !depth.has(r.to)) { depth.set(r.to, k + 1); q.push(r.to); }
+          const r = slide(probe, s, d, sm);
+          if (r.exit >= 0 && r.mask === full && colDepth[r.exit] > k + 1) colDepth[r.exit] = k + 1;
+          if (!r.steps) continue;
+          const k2 = key(r.to, r.mask);
+          if (!depth.has(k2)) { depth.set(k2, k + 1); q.push([r.to, r.mask]); }
         }
       }
       const depths = colDepth.filter((d) => d !== Infinity);
@@ -99,15 +125,14 @@ const Pass = (() => {
       const want = under.length ? Math.max(...under) : Math.min(...depths);
       const cols = [];
       colDepth.forEach((d, x) => { if (d === want) cols.push(x); });
-      cols.sort((a, b) => Math.abs(a - (w - 1) / 2) - Math.abs(b - (w - 1) / 2)); // ворота ближе к центру
-      const lv = { n, w, h, cells, start, goal: pick(cols.slice(0, 2), rnd), par: want };
+      cols.sort((a, b) => Math.abs(a - (w - 1) / 2) - Math.abs(b - (w - 1) / 2));
+      const lv = { n, w, h, cells, start, bit, full, mates, goal: pick(cols.slice(0, 2), rnd), par: want };
       lv.score = Math.min(want, target) * 10 - Math.abs(lv.goal - (w - 1) / 2) * 3;
       if (!best || lv.score > best.score) best = lv;
       if (want >= target && Math.abs(lv.goal - (w - 1) / 2) <= 1) break;
     }
     const sol = solve(best, best.start);
     best.par = sol ? sol.length : best.par;
-    best.shirts = best.cells.map(() => 2 + Math.floor(rnd() * 22));
     cache.set(n, best);
     return best;
   }
@@ -133,7 +158,7 @@ const Pass = (() => {
   }
 
   // ---------- игра ----------
-  let lv = null, pos = 0, moves = 0, busy = false, done = false, history = [], hinted = false, hintDir = null;
+  let lv = null, pos = 0, mask = 0, moves = 0, busy = false, done = false, history = [], hinted = false, hintDir = null;
 
   // координаты в процентах: строка 0 — зона ворот, поле начинается со строки 1
   const cx = (x) => (x * 100) / lv.w;
@@ -142,17 +167,18 @@ const Pass = (() => {
 
   function start(n) {
     lv = generate(n);
-    pos = lv.start; moves = 0; busy = false; done = false; history = []; hinted = false; hintDir = null;
+    pos = lv.start; mask = 0; moves = 0; busy = false; done = false; history = []; hinted = false; hintDir = null;
     Screens.show('pass-game');
     $('#pass-tour').textContent = tourName(tourOf(n));
     $('#pass-num').textContent = `Уровень ${n}${isFinal(n) ? ' · финал тура' : ''}`;
-    $('#pass-par').textContent = lv.par;
     const best = Store.d.pass.best[n];
     $('#pass-best').textContent = best || '—';
-    const hasMud = lv.cells.includes(MUD);
+    const has = (c) => lv.cells.includes(c);
     $('#pass-tip').textContent = n <= 2
       ? 'Тапни по жёлтой точке или свайпни. Мяч катится до упора. Забей вверх в ворота.'
-      : hasMud && n <= 18 ? 'Новое: в луже мяч вязнет и останавливается.' : '';
+      : n <= 6 && has(MATE) ? 'Новое: сначала отдай пас каждому синему партнёру — потом откроются ворота.'
+        : n <= 10 && (has(DL) || has(DR)) ? 'Новое: отбойник поворачивает мяч на 90°.'
+          : n <= 18 && has(MUD) ? 'Новое: в луже мяч вязнет и останавливается.' : '';
     drawBoard();
     update();
   }
@@ -171,6 +197,8 @@ const Pass = (() => {
     lv.cells.forEach((c, i) => {
       if (c === DEF) html += `<div class="piece def" style="${at(i)}"></div>`;
       if (c === MUD) html += '<div class="piece mud" style="' + at(i) + '"></div>';
+      if (c === MATE) html += `<div class="piece mate" data-i="${i}" style="${at(i)}"></div>`;
+      if (c === DL || c === DR) html += `<div class="piece defl ${c === DL ? 'dl' : 'dr'}" style="${at(i)}"><i></i></div>`;
     });
     html += '<div class="marks" id="marks"></div><div class="piece ball" id="ball"></div>';
     b.innerHTML = html;
@@ -190,7 +218,7 @@ const Pass = (() => {
     if (done) { box.innerHTML = ''; return; }
     let html = '';
     for (const d of Object.keys(DIRS)) {
-      const r = slide(lv, pos, d);
+      const r = slide(lv, pos, d, mask);
       if (!r.steps) continue;
       r.path.slice(0, -1).forEach((i) => { html += `<i class="trail" style="${at(i)}"></i>`; });
       const end = r.goal ? `left:${cx(lv.goal)}%;top:0%` : at(r.to);
@@ -202,33 +230,61 @@ const Pass = (() => {
 
   function update() {
     $('#pass-moves').textContent = moves;
+    const got = lv.mates ? [...Array(lv.mates).keys()].filter((k) => mask & (1 << k)).length : 0;
+    $('#pass-mates').textContent = lv.mates ? `${got}/${lv.mates}` : '—';
+    $$('#board .mate').forEach((el) => el.classList.toggle('got', !!(mask & lv.bit[el.dataset.i])));
+    const g = $('#board .goal');
+    if (g) g.classList.toggle('locked', mask !== lv.full);
     drawMarks();
   }
 
   function move(dir) {
     if (!lv || busy || done || Modal.isOpen) return;
-    const r = slide(lv, pos, dir);
+    const r = slide(lv, pos, dir, mask);
     if (r.steps === 0) {
       const b = $('#board');
       b.classList.remove('shake'); void b.offsetWidth; b.classList.add('shake');
       Sound.play('bad'); haptic('tap');
       return;
     }
-    history.push(pos);
-    pos = r.to; moves++; busy = true; hintDir = null;
+    history.push([pos, mask]);
+    const gained = r.mask !== mask;
+    pos = r.to; mask = r.mask; moves++; busy = true; hintDir = null;
     $('#marks').innerHTML = '';
-    const ms = 70 + r.steps * 70;
     const ball = $('#ball');
     ball.classList.add('rolling');
-    placeBall(pos, ms);
     Sound.play('kick'); haptic('tap');
     $('#pass-moves').textContent = moves;
+    // делим путь на прямые отрезки (повороты на отбойниках) и катим мяч по ним
+    const pts = r.path.slice();
+    const legs = [];
+    let prev = history[history.length - 1][0];
+    let seg = [];
+    pts.forEach((i) => {
+      seg.push(i);
+      if (lv.cells[i] === DL || lv.cells[i] === DR) { legs.push(seg); seg = []; }
+    });
+    if (seg.length) legs.push(seg);
+    const total = legs.reduce((t, l) => t + 60 + l.length * 70, 0);
+    let t = 0;
+    legs.forEach((l, k) => {
+      const ms = 60 + l.length * 70;
+      setTimeout(() => {
+        const last = l[l.length - 1];
+        if (k === legs.length - 1 && r.goal) placeBall(-1, ms);
+        else placeBall(last, ms);
+        if (lv.cells[last] === MATE) { Sound.play('coin'); }
+      }, t);
+      t += ms;
+    });
+    if (!legs.length && r.goal) placeBall(-1, 130);
     setTimeout(() => {
       ball.classList.remove('rolling');
       busy = false;
+      if (gained) haptic('ok');
       if (r.goal) win();
       else update();
-    }, ms + 20);
+    }, Math.max(total, 130) + 20);
   }
 
   const starsFor = (m) => (m <= lv.par ? 3 : m <= lv.par + 2 ? 2 : 1);
@@ -253,7 +309,7 @@ const Pass = (() => {
     update();
 
     const starsHtml = [1, 2, 3].map((i) => (i <= st ? '★' : '<span class="off">★</span>')).join('');
-    const msg = st === 3 ? 'Идеальная атака!' : `На 3 звезды хватит ${lv.par} ${plural(lv.par, 'удара', 'ударов', 'ударов')}`;
+    const msg = st === 3 ? 'Идеальная атака!' : 'Можно забить быстрее — попробуй найти путь короче.';
     setTimeout(() => {
       Modal.open(
         `<h2>${isFinal(n) ? 'Финал взят!' : 'Гол!'}</h2>
@@ -272,7 +328,7 @@ const Pass = (() => {
 
   function undo() {
     if (busy || done || !history.length) return;
-    pos = history.pop();
+    [pos, mask] = history.pop();
     moves--;
     hintDir = null;
     placeBall(pos, 150);
@@ -281,13 +337,13 @@ const Pass = (() => {
 
   function hint() {
     if (busy || done) return;
-    const sol = solve(lv, pos);
+    const sol = solve(lv, pos, mask);
     if (!sol) { toast('Отсюда не забить. Нажми «Заново».'); return; }
     if (!hinted && !Coins.spend(HINT_COST)) return;
     hinted = true; // на этом уровне дальше подсказки бесплатные
     hintDir = sol[0];
     drawMarks();
-    $('#pass-tip').textContent = `Подсказка: бей по мигающей точке. До гола ${sol.length} ${plural(sol.length, 'удар', 'удара', 'ударов')}.`;
+    $('#pass-tip').textContent = 'Подсказка: бей по мигающей точке.';
   }
 
   function openLevels() {

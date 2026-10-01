@@ -16,9 +16,9 @@ function haptic(kind) {
     if (h && TG.platform && TG.platform !== 'unknown') {
       if (kind === 'ok') h.notificationOccurred('success');
       else if (kind === 'bad') h.notificationOccurred('error');
-      else h.impactOccurred('light');
+      else h.impactOccurred(kind === 'pop' ? 'rigid' : 'light');
     } else if (navigator.vibrate) {
-      navigator.vibrate(kind === 'ok' ? [20, 40, 20] : kind === 'bad' ? 40 : 8);
+      navigator.vibrate(kind === 'ok' ? [20, 40, 20] : kind === 'bad' ? 40 : kind === 'pop' ? 14 : 8);
     }
   } catch (e) { /* без вибрации */ }
 }
@@ -32,6 +32,7 @@ const Store = {
       coins: 100,
       sound: true,
       lastDaily: '',
+      lastWheel: '',
       pass: { unlocked: 1, stars: {}, best: {} },
       guess: { level: 1, results: {} },
       career: { idx: 0, solved: {}, streak: 0, best: 0 },
@@ -75,8 +76,31 @@ const Coins = {
   add(n) {
     Store.d.coins += n;
     Store.save();
-    this.render(true);
-    Sound.play('coin');
+    const flew = this.fly(n);
+    setTimeout(() => { this.render(true); Sound.play('coin'); }, flew ? 650 : 0);
+  },
+  // Монетки летят от места последнего нажатия к кошельку на текущем экране.
+  last: { x: innerWidth / 2, y: innerHeight / 2 },
+  fly(n) {
+    const wallet = $$('.coins').find((el) => el.offsetParent);
+    if (!wallet || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return false;
+    const r = wallet.getBoundingClientRect();
+    const tx = r.left + 18, ty = r.top + r.height / 2;
+    const count = Math.min(8, 2 + Math.ceil(n / 15));
+    for (let i = 0; i < count; i++) {
+      const c = document.createElement('span');
+      c.className = 'coin fly-coin';
+      const x = this.last.x + (Math.random() - 0.5) * 50, y = this.last.y + (Math.random() - 0.5) * 30;
+      c.style.left = x + 'px'; c.style.top = y + 'px';
+      document.body.appendChild(c);
+      const a = c.animate([
+        { transform: 'translate(-50%,-50%) scale(.4)', opacity: 0 },
+        { transform: `translate(calc(-50% + ${(Math.random() - 0.5) * 40}px), calc(-50% - 40px)) scale(1.1)`, opacity: 1, offset: 0.3 },
+        { transform: `translate(calc(-50% + ${tx - x}px), calc(-50% + ${ty - y}px)) scale(.6)`, opacity: 1 },
+      ], { duration: 520 + i * 50, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'forwards' });
+      a.onfinish = () => c.remove();
+    }
+    return true;
   },
   spend(n) {
     if (Store.d.coins < n) {
@@ -119,6 +143,34 @@ const Sound = {
         o.start(t + at);
         o.stop(t + at + dur + .02);
       }
+    } catch (e) { /* звук недоступен */ }
+  },  // Звук пузырька поп-ита: сухой щелчок (короткий шум) и глухой «чпок» с падающей высотой.
+  pop(v = 1) {
+    if (!Store.d || !Store.d.sound) return;
+    try {
+      this.ctx = this.ctx || new (window.AudioContext || window.webkitAudioContext)();
+      const c = this.ctx, t = c.currentTime;
+      if (!this.noise) {
+        const len = Math.floor(c.sampleRate * 0.03);
+        this.noise = c.createBuffer(1, len, c.sampleRate);
+        const d = this.noise.getChannelData(0);
+        for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 4);
+      }
+      const n = c.createBufferSource(), bp = c.createBiquadFilter(), g1 = c.createGain();
+      n.buffer = this.noise;
+      bp.type = 'bandpass'; bp.frequency.value = 2200 * v; bp.Q.value = 1.4;
+      g1.gain.value = 0.18;
+      n.connect(bp).connect(g1).connect(c.destination);
+      n.start(t);
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(380 * v, t);
+      o.frequency.exponentialRampToValueAtTime(120 * v, t + 0.08);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.16, t + 0.004);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1);
+      o.connect(g).connect(c.destination);
+      o.start(t); o.stop(t + 0.12);
     } catch (e) { /* звук недоступен */ }
   },
 };

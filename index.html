@@ -37,6 +37,18 @@
       <span class="days" id="daily-days"></span>
     </button>
 
+    <button id="wheel-btn" class="wheel-card" data-act="wheel" hidden>
+      <span class="wheel-mini" aria-hidden="true"></span>
+      <span><b>Колесо удачи</b><small>Крути раз в день — до 250 монет</small></span>
+    </button>
+
+    <a class="runner-hero" href="https://claude.ai/artifact/M5ftHU9FQ3Y2jBtWu8W4iS" target="_blank" rel="noopener">
+      <span class="rh-badge">3D</span>
+      <b>Прорыв к воротам</b>
+      <small>Беги с мячом, обходи защитников, качай скорость и удар, бей пенальти. Отдельная 3D-игра канала.</small>
+      <span class="btn">Играть →</span>
+    </a>
+
     <h3 class="section-label">Рубрика канала</h3>
     <button class="auction-hero" data-act="auction-bot">
       <span class="ah-top"><span class="tag tag-danil">ДАНИЛ: 50</span><span class="ah-coin">50</span><span class="tag tag-sasha">САША: 50</span></span>
@@ -162,7 +174,7 @@
     </header>
     <div class="hud">
       <div class="hud-cell"><span>Удары</span><b id="pass-moves">0</b></div>
-      <div class="hud-cell"><span>На 3 звезды</span><b id="pass-par">0</b></div>
+      <div class="hud-cell"><span>Передачи</span><b id="pass-mates">—</b></div>
       <div class="hud-cell"><span>Лучшее</span><b id="pass-best">—</b></div>
     </div>
     <div class="board-wrap" id="board-wrap">
@@ -357,6 +369,7 @@
 <script defer src="js/ttt.js"></script>
 <script defer src="js/compare.js"></script>
 <script defer src="js/auction.js"></script>
+<script defer src="js/wheel.js"></script>
 <script defer src="js/pz/shell.js"></script>
 <script defer src="js/pz/sort.js"></script>
 <script defer src="js/pz/pipes.js"></script>
@@ -365,6 +378,7 @@
 <script defer src="js/pz/memory.js"></script>
 <script defer src="js/pz/words.js"></script>
 <script defer src="js/pz/g2048.js"></script>
+<script defer src="js/pz/popcrests.js"></script>
 <script defer src="js/pz/popit.js"></script>
 <script defer src="js/app.js"></script>
 </body>
