@@ -166,9 +166,10 @@ const Pass = (() => {
     // штрафная вокруг ворот
     const bx = Math.max(0, lv.goal - 1), bw = Math.min(lv.w, lv.goal + 2) - bx;
     html += `<div class="box" style="left:${bx * cw}%;width:${bw * cw}%;top:${ch}%;height:${ch * 1.4}%"></div>`;
-    html += `<div class="goal" style="left:${lv.goal * cw}%;top:0;width:${cw}%;height:${ch}%"></div>`;
+    // картинка ворот шире клетки: ставим её по центру колонки ворот
+    html += `<div class="goal" style="left:${(lv.goal - 0.45) * cw}%;top:${-ch * 0.15}%;width:${cw * 1.9}%;height:${ch * 1.15}%"></div>`;
     lv.cells.forEach((c, i) => {
-      if (c === DEF) html += `<div class="piece def" style="${at(i)}" data-n="${lv.shirts[i]}"></div>`;
+      if (c === DEF) html += `<div class="piece def" style="${at(i)}"></div>`;
       if (c === MUD) html += '<div class="piece mud" style="' + at(i) + '"></div>';
     });
     html += '<div class="marks" id="marks"></div><div class="piece ball" id="ball"></div>';
