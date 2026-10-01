@@ -25,62 +25,65 @@
       <button class="coins" data-act="coins-info" aria-label="Монеты"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></button>
     </header>
 
-    <div class="versus" aria-hidden="true">
-      <span class="tag tag-danil">ДАНИЛ</span><span class="vs">vs</span><span class="tag tag-sasha">САША</span>
-    </div>
-    <p class="lead">Докажи, что шаришь в футболе лучше Данила и Саши. Проходи уровни, собирай монеты, открывай подсказки.</p>
+    <button class="rank-card" data-act="profile">
+      <span class="rank-label">Звание</span>
+      <b class="rank-name" id="hub-rank"></b>
+      <span class="xpbar"><i id="hub-xp"></i></span>
+      <small id="hub-next"></small>
+    </button>
 
     <button id="daily" class="daily" data-act="daily" hidden>
       <span class="coin" aria-hidden="true"></span>
       <span><b>Бонус дня</b> · забери +50 монет</span>
     </button>
 
-    <div class="games">
-      <button class="game-card card-pass" data-act="pass-levels">
-        <div class="card-art art-pass" aria-hidden="true">
-          <i class="mini-def" style="--x:1;--y:0"></i><i class="mini-def" style="--x:3;--y:1"></i>
-          <i class="mini-def" style="--x:0;--y:2"></i><i class="mini-ball" style="--x:1;--y:2"></i>
-          <i class="mini-goal" style="--x:3;--y:2"></i>
-        </div>
-        <div class="card-body">
-          <h2>Пас в ворота</h2>
-          <p>Пазл без конца. Мяч катится, пока не упрётся в защитника. Найди путь в сетку за минимум ударов.</p>
-          <span class="card-meta" id="meta-pass"></span>
-        </div>
-      </button>
+    <h3 class="section-label">Головоломка</h3>
+    <button class="game-card card-pass" data-act="pass-levels">
+      <div class="card-art art-pass" aria-hidden="true">
+        <i class="mini-goal"></i>
+        <i class="mini-def" style="--x:0;--y:1"></i><i class="mini-def" style="--x:3;--y:2"></i>
+        <i class="mini-dot" style="--x:1;--y:1"></i><i class="mini-dot" style="--x:1;--y:2"></i>
+        <i class="mini-ball" style="--x:1;--y:3"></i>
+      </div>
+      <div class="card-body">
+        <h2>Пас в ворота</h2>
+        <p>Бесконечный пазл. Мяч катится до упора, обведи защитников и забей вверх в ворота.</p>
+        <span class="card-meta" id="meta-pass"></span>
+      </div>
+    </button>
 
-      <button class="game-card card-guess" data-act="guess-career">
-        <div class="card-art art-guess" aria-hidden="true">
-          <span class="tile hit">🇫🇷</span><span class="tile near">ЛЧ</span><span class="tile miss">27↑</span>
-          <span class="tile hit">ПВ</span><span class="tile near">9↓</span><span class="tile miss">?</span>
-        </div>
-        <div class="card-body">
-          <h2>Угадай футболиста</h2>
-          <p>Нация, лига, клуб, возраст, позиция, номер. Как в наших видео, только угадываешь ты.</p>
-          <span class="card-meta" id="meta-guess"></span>
-        </div>
+    <h3 class="section-label">Угадайки</h3>
+    <div class="tiles">
+      <button class="tile-card" data-act="guess-career" style="--c1:#34c46a;--c2:#1f7a3a">
+        <span class="tile-ico">?</span><b>Угадай футболиста</b><small id="meta-guess"></small>
       </button>
-
-      <button class="game-card card-career" data-act="career">
-        <div class="card-art art-career" aria-hidden="true">
-          <span class="step-mini">Монако</span><span class="step-mini">ПСЖ</span><span class="step-mini q">?????</span>
-        </div>
-        <div class="card-body">
-          <h2>Угадай карьеру</h2>
-          <p>Клубы игрока по годам открываются по одному. Кто это? Угадай с меньшего числа подсказок.</p>
-          <span class="card-meta" id="meta-career"></span>
-        </div>
+      <button class="tile-card" data-act="career" style="--c1:#8fd8c4;--c2:#3a8f7c">
+        <span class="tile-ico">↗</span><b>Угадай карьеру</b><small id="meta-career"></small>
       </button>
+      <button class="tile-card" data-act="club" style="--c1:#5b8cff;--c2:#2c4bb0">
+        <span class="tile-ico">◆</span><b>Угадай клуб</b><small id="meta-club"></small>
+      </button>
+      <button class="tile-card" data-act="transfer" style="--c1:#ffcf3a;--c2:#b98d00">
+        <span class="tile-ico">→</span><b>Куда перешёл?</b><small id="meta-transfer"></small>
+      </button>
+      <button class="tile-card" data-act="hl" style="--c1:#ff7a59;--c2:#b23d22">
+        <span class="tile-ico">€</span><b>Дороже или дешевле</b><small id="meta-hl"></small>
+      </button>
+      <button class="tile-card" data-act="ttt" style="--c1:#c65bd8;--c2:#7b2b8a">
+        <span class="tile-ico">#</span><b>Тики-Така-Тоу</b><small id="meta-ttt"></small>
+      </button>
+    </div>
 
-      <button class="game-card card-duel" data-act="guess-duel">
-        <div class="card-art art-duel" aria-hidden="true">
-          <span class="tag tag-danil">ДАНИЛ: 0</span><span class="tag tag-sasha">САША: 0</span>
-        </div>
-        <div class="card-body">
-          <h2>Дуэль на одном телефоне</h2>
-          <p>Двое угадывают по очереди. Кто первым назовёт игрока, тот забирает раунд.</p>
-          <span class="card-meta">2 игрока</span>
-        </div>
+    <h3 class="section-label">Вдвоём на одном телефоне</h3>
+    <div class="tiles">
+      <button class="tile-card duo" data-act="guess-duel">
+        <span class="tile-ico">VS</span><b>Дуэль: угадай футболиста</b><small>Кто первый назовёт</small>
+      </button>
+      <button class="tile-card duo" data-act="career-duel">
+        <span class="tile-ico">VS</span><b>Карьера с другом</b><small>По очереди</small>
+      </button>
+      <button class="tile-card duo wide" data-act="ttt-duo">
+        <span class="tile-ico">✕○</span><b>Тики-Така-Тоу вдвоём</b><small>Крестики-нолики на футболистах</small>
       </button>
     </div>
 
@@ -89,14 +92,40 @@
       <li>Собери состав мечты</li>
       <li>Самые большие зарплаты</li>
       <li>Серия пенальти</li>
-      <li>Паки и карточки игроков</li>
+      <li>Паки и карточки</li>
     </ul>
 
     <footer class="hub-foot">
-      <a href="https://t.me/jacksonhubbot" target="_blank" rel="noopener">Все игры в боте · @jacksonhubbot</a>
+      <a href="https://t.me/jacksonhubbot" target="_blank" rel="noopener">Бот канала · @jacksonhubbot</a>
       <a href="https://www.tiktok.com/@oldjacksons2" target="_blank" rel="noopener">TikTok · @oldjacksons2</a>
-      <button class="link-btn" data-act="sound" id="sound-btn">Звук: вкл</button>
     </footer>
+  </section>
+
+  <!-- ===== ПРОФИЛЬ ===== -->
+  <section class="screen" id="profile" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title">Профиль</div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div class="prof-hero">
+      <div class="prof-badge" id="prof-badge"></div>
+      <div>
+        <div class="rank-label">Звание</div>
+        <div class="prof-rank" id="prof-rank"></div>
+        <span class="xpbar"><i id="prof-xp"></i></span>
+        <small class="muted" id="prof-next"></small>
+      </div>
+    </div>
+    <h3 class="section-label">Статистика</h3>
+    <div class="stats" id="prof-stats"></div>
+    <h3 class="section-label">Достижения</h3>
+    <div class="achs" id="prof-achs"></div>
+    <h3 class="section-label">Настройки</h3>
+    <div class="settings">
+      <button class="set-row" data-act="music"><span>Фоновая музыка</span><b id="set-music"></b></button>
+      <button class="set-row" data-act="sound"><span>Звуки в играх</span><b id="set-sound"></b></button>
+    </div>
   </section>
 
   <!-- ===== ПАС В ВОРОТА: УРОВНИ ===== -->
@@ -124,13 +153,7 @@
     <div class="board-wrap" id="board-wrap">
       <div class="board" id="board"></div>
     </div>
-    <p class="hint-line" id="pass-tip">Свайпай по полю или жми стрелки</p>
-    <div class="pad">
-      <button class="pad-btn" data-dir="up" aria-label="Вверх">▲</button>
-      <button class="pad-btn" data-dir="left" aria-label="Влево">◀</button>
-      <button class="pad-btn" data-dir="down" aria-label="Вниз">▼</button>
-      <button class="pad-btn" data-dir="right" aria-label="Вправо">▶</button>
-    </div>
+    <p class="hint-line" id="pass-tip"></p>
     <div class="actions three">
       <button class="btn ghost" data-act="pass-undo">↶ Отмена</button>
       <button class="btn ghost" data-act="pass-restart">⟲ Заново</button>
@@ -145,21 +168,18 @@
       <div class="topbar-title"><span id="guess-title">Угадай футболиста</span><small id="guess-sub"></small></div>
       <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
     </header>
-
     <div class="scoreboard" id="duel-board" hidden>
       <span class="tag tag-danil" id="duel-a"></span>
       <span class="tag tag-sasha" id="duel-b"></span>
     </div>
     <p class="turn" id="duel-turn" hidden></p>
-
     <div class="mystery">
       <div class="mystery-face" aria-hidden="true">?</div>
       <div class="mystery-info">
         <div class="mystery-label">Загаданный игрок</div>
-        <div class="chips" id="guess-chips"><span class="chip dim">Открой подсказку или сделай первую попытку</span></div>
+        <div class="chips" id="guess-chips"></div>
       </div>
     </div>
-
     <div class="guess-input">
       <label for="guess-field" class="sr">Имя футболиста</label>
       <input id="guess-field" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Начни вводить фамилию…">
@@ -169,7 +189,6 @@
       <span class="attempts" id="guess-attempts"></span>
       <button class="btn gold" data-act="guess-hint" id="guess-hint-btn">Подсказка · 25</button>
     </div>
-
     <div class="grid-head" aria-hidden="true">
       <span>Нация</span><span>Лига</span><span>Клуб</span><span>Возраст</span><span>Позиция</span><span>Номер</span>
     </div>
@@ -181,10 +200,14 @@
   <section class="screen" id="career" hidden>
     <header class="topbar">
       <button class="back" data-act="home" aria-label="Назад">←</button>
-      <div class="topbar-title">Угадай карьеру<small id="career-sub"></small></div>
+      <div class="topbar-title"><span id="career-title">Угадай карьеру</span><small id="career-sub"></small></div>
       <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
     </header>
-    <p class="career-lead">Это путь одного футболиста по клубам. Назови его.</p>
+    <div class="scoreboard" id="career-board" hidden>
+      <span class="tag tag-danil" id="career-a"></span>
+      <span class="tag tag-sasha" id="career-b"></span>
+    </div>
+    <p class="career-lead">Путь футболиста по клубам. Каждая ошибка открывает следующий клуб.</p>
     <div id="career-path"></div>
     <p class="hint-line" id="career-hidden"></p>
     <div class="guess-input">
@@ -192,12 +215,62 @@
       <input id="career-field" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Кто это?">
       <div class="suggest" id="career-suggest" hidden></div>
     </div>
-    <div class="actions tight">
-      <span class="attempts" id="career-tries"></span>
+    <p class="attempts" id="career-tries"></p>
+  </section>
+
+  <!-- ===== УГАДАЙ КЛУБ ===== -->
+  <section class="screen" id="club" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title">Угадай клуб<small id="club-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div id="club-clues" class="clues"></div>
+    <p class="hint-line" id="club-left"></p>
+    <div class="guess-input">
+      <label for="club-field" class="sr">Название клуба</label>
+      <input id="club-field" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Какой это клуб?">
+      <div class="suggest" id="club-suggest" hidden></div>
     </div>
   </section>
 
-  <!-- ===== МОДАЛКА / ТОСТ ===== -->
+  <!-- ===== ТРАНСФЕРЫ ===== -->
+  <section class="screen" id="transfer" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title"><span id="transfer-title"></span><small id="transfer-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <p class="lives" id="transfer-lives"></p>
+    <div id="transfer-stage" class="stage"></div>
+    <div id="transfer-opts" class="opts"></div>
+  </section>
+
+  <!-- ===== ТИКИ-ТАКА-ТОУ ===== -->
+  <section class="screen" id="ttt" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title"><span id="ttt-title">Тики-Така-Тоу</span><small id="ttt-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div class="ttt-grid" id="ttt-grid"></div>
+    <p class="hint-line" id="ttt-hint"></p>
+    <div class="guess-input">
+      <label for="ttt-field" class="sr">Имя футболиста</label>
+      <input id="ttt-field" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Игрок, который играл за оба клуба">
+      <div class="suggest" id="ttt-suggest" hidden></div>
+    </div>
+    <div class="actions">
+      <button class="btn ghost" data-act="ttt-skip">Пропустить / сдаться</button>
+    </div>
+  </section>
+
+  <!-- ===== НИЖНЕЕ МЕНЮ ===== -->
+  <nav class="tabbar" id="tabbar">
+    <button data-act="home" class="tab" id="tab-home"><span>⚽</span>Игры</button>
+    <button data-act="profile" class="tab" id="tab-profile"><span>★</span>Профиль</button>
+  </nav>
+
   <div class="modal" id="modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" id="modal-card"></div>
   </div>
@@ -205,11 +278,16 @@
 </div>
 
 <script defer src="js/core.js"></script>
+<script defer src="js/music.js"></script>
 <script defer src="js/players.js"></script>
-<script defer src="js/pass.js"></script>
 <script defer src="js/careers.js"></script>
-<script defer src="js/career.js"></script>
+<script defer src="js/quizdata.js"></script>
+<script defer src="js/pass.js"></script>
 <script defer src="js/guess.js"></script>
+<script defer src="js/career.js"></script>
+<script defer src="js/club.js"></script>
+<script defer src="js/transfer.js"></script>
+<script defer src="js/ttt.js"></script>
 <script defer src="js/app.js"></script>
 </body>
 </html>

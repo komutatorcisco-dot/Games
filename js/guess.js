@@ -215,6 +215,7 @@ const Guess = (() => {
     if (won) {
       reward = 10 + (maxTries - tries) * 5;
       G.results[lvl] = tries;
+      Profile.bump('guess');
       Sound.play('goal'); haptic('ok'); confetti();
     } else {
       G.results[lvl] = 0;
@@ -241,6 +242,7 @@ const Guess = (() => {
     let title = 'Никто не угадал';
     if (won) {
       score[turn]++;
+      Profile.bump('duel', 5);
       title = `${turn === 0 ? D.a : D.b} забирает раунд!`;
       Sound.play('goal'); haptic('ok'); confetti();
     } else {

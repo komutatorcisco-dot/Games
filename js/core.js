@@ -35,6 +35,11 @@ const Store = {
       pass: { unlocked: 1, stars: {}, best: {} },
       guess: { level: 1, results: {} },
       career: { idx: 0, solved: {}, streak: 0, best: 0 },
+      club: { streak: 0, best: 0 },
+      transfer: { best: 0, hlBest: 0 },
+      ttt: { wins: 0 },
+      stats: { xp: 0, wins: {} },
+      music: true,
       duel: { a: 'Данил', b: 'Саша' },
     };
   },
@@ -208,4 +213,69 @@ const QUOTES = {
 function quoteHtml(kind) {
   const [cls, name, text] = pick(QUOTES[kind]);
   return `<div class="quote ${cls}"><b>${name}:</b>${esc(text)}</div>`;
+}
+
+// Профиль игрока: опыт, звания, победы по играм.
+const RANKS = [
+  [0, 'Новичок'], [60, 'Дворовый игрок'], [180, 'Любитель'], [400, 'Полупрофи'],
+  [800, 'Профи'], [1400, 'Звезда'], [2400, 'Легенда'], [4000, 'Старик Джексон'],
+];
+const Profile = {
+  bump(game, xp = 10) {
+    const S = Store.d.stats;
+    S.wins[game] = (S.wins[game] || 0) + 1;
+    const before = this.rank().name;
+    S.xp += xp;
+    Store.save();
+    const after = this.rank().name;
+    if (after !== before) setTimeout(() => toast(`Новое звание: ${after}!`), 900);
+  },
+  wins: (game) => Store.d.stats.wins[game] || 0,
+  rank() {
+    const xp = Store.d.stats.xp;
+    let i = 0;
+    while (i + 1 < RANKS.length && xp >= RANKS[i + 1][0]) i++;
+    const next = RANKS[i + 1];
+    return { name: RANKS[i][1], xp, from: RANKS[i][0], to: next ? next[0] : null, nextName: next ? next[1] : null };
+  },
+};
+
+// Поле ввода с подсказками: имена футболистов или клубов.
+// items(q) возвращает [{key, label, sub}], onPick(key) вызывается при выборе.
+function Picker(inputSel, boxSel, items, onPick) {
+  const norm = (s) => s.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9 ]/g, '');
+  const input = $(inputSel), box = $(boxSel);
+  let list = [], sel = 0;
+  const hide = () => { box.hidden = true; list = []; };
+  function render() {
+    const q = norm(input.value.trim());
+    if (q.length < 2) { hide(); return; }
+    list = items(q, norm).slice(0, 6);
+    if (!list.length) { box.innerHTML = '<button type="button" disabled>Нет в базе</button>'; box.hidden = false; return; }
+    sel = 0;
+    box.innerHTML = list.map((it, i) => `<button type="button" data-i="${i}" class="${i ? '' : 'sel'}"><span>${esc(it.label)}</span>${it.sub ? `<small>${esc(it.sub)}</small>` : ''}</button>`).join('');
+    box.hidden = false;
+  }
+  function choose(it) {
+    if (!it) return;
+    hide();
+    input.value = '';
+    onPick(it.key);
+  }
+  input.addEventListener('input', render);
+  input.addEventListener('keydown', (e) => {
+    if (box.hidden || !list.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length;
+      $$('button', box).forEach((b, i) => b.classList.toggle('sel', i === sel));
+    } else if (e.key === 'Enter') { e.preventDefault(); choose(list[sel]); }
+    else if (e.key === 'Escape') hide();
+  });
+  box.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-i]');
+    if (b) choose(list[+b.dataset.i]);
+  });
+  document.addEventListener('click', (e) => { if (e.target !== input && !box.contains(e.target)) hide(); });
+  return { hide, clear() { input.value = ''; hide(); } };
 }
