@@ -34,6 +34,7 @@ const Store = {
       lastDaily: '',
       pass: { unlocked: 1, stars: {}, best: {} },
       guess: { level: 1, results: {} },
+      career: { idx: 0, solved: {}, streak: 0, best: 0 },
       duel: { a: 'Данил', b: 'Саша' },
     };
   },

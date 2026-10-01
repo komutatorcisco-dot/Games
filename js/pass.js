@@ -153,6 +153,7 @@ const Pass = (() => {
       if (i === lv.goal) html += '<div class="goal-cell"></div>';
       html += '</div>';
     }
+    html += '<div class="lines"><i class="top"></i><i class="bot"></i></div>';
     html += '<div class="ball" id="ball"></div>';
     b.innerHTML = html;
     placeBall(pos, 0);

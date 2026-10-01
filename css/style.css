@@ -110,6 +110,9 @@ a { color: var(--danil); }
 .mini-goal { border: 2px solid var(--chalk); border-radius: 4px; background: repeating-linear-gradient(45deg, transparent 0 3px, rgba(255,255,255,.45) 3px 4px); }
 .art-guess { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 8px; background: var(--night-3); }
 .art-guess .tile { font-size: 12px; border-radius: 6px; }
+.art-career { display: flex; flex-direction: column; justify-content: center; gap: 5px; padding: 10px; background: var(--night-3); }
+.step-mini { background: var(--pitch); color: #fff; border-radius: 6px; padding: 4px 6px; font-size: 11px; font-weight: 700; text-align: center; }
+.step-mini.q { background: var(--miss); color: var(--muted); }
 .art-duel { display: grid; place-content: center; gap: 8px; background: linear-gradient(135deg, var(--danil) 0 50%, var(--sasha) 50% 100%); }
 .art-duel .tag { font-size: 11px; padding: 4px 8px; background: var(--night); color: var(--ink); }
 
@@ -161,7 +164,18 @@ a { color: var(--danil); }
 }
 .board.shake { animation: shake .25s; }
 @keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
-.cell { position: relative; }
+.lines { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+.lines::before { /* центральная линия + круг */
+  content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 0; border-top: 2px solid rgba(255,255,255,.35);
+}
+.lines::after {
+  content: ""; position: absolute; left: 50%; top: 50%; width: 26%; aspect-ratio: 1; transform: translate(-50%, -50%);
+  border: 2px solid rgba(255,255,255,.35); border-radius: 50%;
+}
+.lines i { position: absolute; left: 26%; right: 26%; height: 11%; border: 2px solid rgba(255,255,255,.35); }
+.lines i.top { top: 0; border-top: 0; border-radius: 0 0 8px 8px; }
+.lines i.bot { bottom: 0; border-bottom: 0; border-radius: 8px 8px 0 0; }
+.cell { position: relative; z-index: 1; }
 .cell.alt { background: var(--pitch-2); }
 .def { position: absolute; inset: 12%; }
 .def::before { /* голова */
@@ -282,6 +296,20 @@ a { color: var(--danil); }
 .g-row.new .tile:nth-child(4) { animation-delay: .21s; } .g-row.new .tile:nth-child(5) { animation-delay: .28s; }
 .g-row.new .tile:nth-child(6) { animation-delay: .35s; }
 @keyframes flip { from { transform: rotateX(90deg); } to { transform: rotateX(0); } }
+/* ---------- угадай карьеру ---------- */
+.career-lead { margin: 0; color: var(--muted); }
+#career-path { display: flex; flex-direction: column; gap: 8px; }
+.step {
+  display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 12px; background: var(--night-2);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+}
+.step .yr { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.step .club { font-family: var(--font-display); font-weight: 400; font-size: 18px; text-transform: uppercase; line-height: 1.05; }
+.step.hidden-step .club { color: var(--miss); letter-spacing: 3px; }
+.step.open { animation: flip .4s ease both; }
+.step.open .club { color: var(--ink); }
+.step.last { box-shadow: inset 0 0 0 2px var(--gold); }
 .legend { margin: 0; font-size: 12px; color: var(--muted); }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin: 0 3px 0 8px; }
 .dot:first-child { margin-left: 0; }

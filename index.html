@@ -61,6 +61,17 @@
         </div>
       </button>
 
+      <button class="game-card card-career" data-act="career">
+        <div class="card-art art-career" aria-hidden="true">
+          <span class="step-mini">Монако</span><span class="step-mini">ПСЖ</span><span class="step-mini q">?????</span>
+        </div>
+        <div class="card-body">
+          <h2>Угадай карьеру</h2>
+          <p>Клубы игрока по годам открываются по одному. Кто это? Угадай с меньшего числа подсказок.</p>
+          <span class="card-meta" id="meta-career"></span>
+        </div>
+      </button>
+
       <button class="game-card card-duel" data-act="guess-duel">
         <div class="card-art art-duel" aria-hidden="true">
           <span class="tag tag-danil">ДАНИЛ: 0</span><span class="tag tag-sasha">САША: 0</span>
@@ -166,6 +177,26 @@
     <p class="legend"><i class="dot hit"></i>совпало <i class="dot near"></i>рядом (континент, линия, ±2 года, ±3 номера) <i class="dot miss"></i>мимо</p>
   </section>
 
+  <!-- ===== УГАДАЙ КАРЬЕРУ ===== -->
+  <section class="screen" id="career" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title">Угадай карьеру<small id="career-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <p class="career-lead">Это путь одного футболиста по клубам. Назови его.</p>
+    <div id="career-path"></div>
+    <p class="hint-line" id="career-hidden"></p>
+    <div class="guess-input">
+      <label for="career-field" class="sr">Имя футболиста</label>
+      <input id="career-field" type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Кто это?">
+      <div class="suggest" id="career-suggest" hidden></div>
+    </div>
+    <div class="actions tight">
+      <span class="attempts" id="career-tries"></span>
+    </div>
+  </section>
+
   <!-- ===== МОДАЛКА / ТОСТ ===== -->
   <div class="modal" id="modal" hidden>
     <div class="modal-card" role="dialog" aria-modal="true" id="modal-card"></div>
@@ -176,6 +207,8 @@
 <script defer src="js/core.js"></script>
 <script defer src="js/players.js"></script>
 <script defer src="js/pass.js"></script>
+<script defer src="js/careers.js"></script>
+<script defer src="js/career.js"></script>
 <script defer src="js/guess.js"></script>
 <script defer src="js/app.js"></script>
 </body>

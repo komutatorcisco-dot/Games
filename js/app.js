@@ -13,6 +13,10 @@ const App = (() => {
     $('#meta-guess').textContent = G.level > 1
       ? `Угадано ${Guess.solvedCount()} · уровень ${G.level}`
       : `${Guess.total} игроков в базе`;
+    const C = Store.d.career;
+    $('#meta-career').textContent = (C && C.best)
+      ? `Рекорд серии: ${C.best} · ${Career.count} карьер`
+      : `${Career.count} карьер в базе`;
     $('#daily').hidden = Store.d.lastDaily === today();
     $('#sound-btn').textContent = `Звук: ${Store.d.sound ? 'вкл' : 'выкл'}`;
     Coins.render();
@@ -31,6 +35,7 @@ const App = (() => {
     'pass-restart': () => Pass.restart(),
     'pass-hint': () => Pass.hint(),
     'guess-career': () => Guess.startCareer(),
+    career: () => Career.start(),
     'guess-duel': () => { Screens.show('guess'); Guess.askDuelNames(); },
     'guess-hint': () => Guess.hint(),
     'coins-info': () => toast('Монеты дают за победы. Трать их на подсказки.'),
@@ -54,6 +59,7 @@ const App = (() => {
     Store.load();
     Pass.bind();
     Guess.bind();
+    Career.bind();
     document.addEventListener('click', (e) => {
       const el = e.target.closest('[data-act]');
       if (el && actions[el.dataset.act]) actions[el.dataset.act]();
@@ -71,6 +77,7 @@ const App = (() => {
     if (h === 'pass') Pass.openLevels();
     else if (h === 'guess') Guess.startCareer();
     else if (h === 'duel') actions['guess-duel']();
+    else if (h === 'career') Career.start();
     renderHub();
   }
 
