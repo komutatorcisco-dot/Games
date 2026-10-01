@@ -3,6 +3,10 @@
 
 const App = (() => {
   const today = () => new Date().toISOString().slice(0, 10);
+  const yesterday = () => new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  // Серия входов: 1-й день 40 монет, каждый следующий +10, на 7-й — 150, дальше снова с начала.
+  const dailyReward = (d) => (d >= 7 ? 150 : 30 + d * 10);
+  const nextDay = () => (Store.d.lastDaily === yesterday() ? (Store.d.dailyStreak % 7) + 1 : 1);
 
   const ACHIEVEMENTS = [
     ['Первый гол', 'Пройди уровень в «Пас в ворота»', () => Store.d.pass.unlocked > 1],
@@ -17,6 +21,9 @@ const App = (() => {
     ['Геймер', 'Серия 10 в «Кто выше в FC 27?»', () => Store.d.compare.fcBest >= 10],
     ['Скаут-оценщик', 'Серия 10 в «Кто дороже?»', () => Store.d.compare.valBest >= 10],
     ['Богач', 'Накопи 1000 монет', () => Store.d.coins >= 1000],
+    ['Неделя с нами', 'Заходи 7 дней подряд', () => Store.d.dailyStreak >= 7],
+    ['Агент', 'Выиграй аукцион', () => Store.d.auction.wins >= 1],
+    ['Суперагент', 'Выиграй 10 аукционов', () => Store.d.auction.wins >= 10],
     ['Профи', 'Получи звание «Профи»', () => Store.d.stats.xp >= 800],
     ['Старик Джексон', 'Высшее звание', () => Store.d.stats.xp >= 4000],
   ];
@@ -41,6 +48,12 @@ const App = (() => {
     $('#meta-value').textContent = Store.d.compare.valBest ? `Рекорд ${Store.d.compare.valBest}` : 'Transfermarkt';
     $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
     $('#daily').hidden = Store.d.lastDaily === today();
+    if (!$('#daily').hidden) {
+      const day = nextDay();
+      $('#daily-text').textContent = `день ${day}, забери +${dailyReward(day)}`;
+      $('#daily-days').innerHTML = [1, 2, 3, 4, 5, 6, 7].map((d) =>
+        `<i class="${d < day ? 'got' : d === day ? 'now' : ''}"><small>${d}</small>${dailyReward(d)}</i>`).join('');
+    }
     rankUi('#hub-rank', '#hub-xp', '#hub-next');
     Coins.render();
   }
@@ -101,6 +114,8 @@ const App = (() => {
     transfer: () => Transfer.start('where'),
     hl: () => Transfer.start('hl'),
     ttt: () => TTT.start('solo'),
+    'auction-bot': () => Auction.start(true),
+    'auction-duo': () => Auction.start(false),
     fc: () => Compare.start('fc'),
     value: () => Compare.start('value'),
     'ttt-duo': () => TTT.start('duo'),
@@ -108,10 +123,12 @@ const App = (() => {
     'coins-info': () => toast('Монеты дают за победы. Трать их на подсказки.'),
     daily: () => {
       if (Store.d.lastDaily === today()) return;
+      const day = nextDay();
+      Store.d.dailyStreak = day;
       Store.d.lastDaily = today();
       Store.save();
-      Coins.add(50);
-      toast('+50 монет. Заходи завтра за новым бонусом');
+      Coins.add(dailyReward(day));
+      toast(`День ${day}: +${dailyReward(day)} монет. Заходи завтра — будет больше`);
       renderHub();
     },
     music: () => { Music.toggle(); renderProfile(); },
@@ -120,7 +137,7 @@ const App = (() => {
 
   function init() {
     Store.load();
-    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind();
+    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind();
     Music.arm();
     document.addEventListener('click', (e) => {
       const el = e.target.closest('[data-act]');
@@ -140,7 +157,7 @@ const App = (() => {
     } catch (e) { /* не в Telegram */ }
     // Ссылка вида ...#pass открывает игру сразу
     const h = location.hash.replace('#', '');
-    const deep = { pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', fc: 'fc', value: 'value', profile: 'profile' };
+    const deep = { pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', profile: 'profile' };
     renderHub();
     if (deep[h]) actions[deep[h]]();
     else Screens.show('hub');

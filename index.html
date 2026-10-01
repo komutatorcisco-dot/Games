@@ -33,8 +33,16 @@
     </button>
 
     <button id="daily" class="daily" data-act="daily" hidden>
-      <span class="coin" aria-hidden="true"></span>
-      <span><b>Бонус дня</b> · забери +50 монет</span>
+      <span class="daily-top"><span class="coin" aria-hidden="true"></span><span><b>Бонус за вход</b> · <span id="daily-text"></span></span></span>
+      <span class="days" id="daily-days"></span>
+    </button>
+
+    <h3 class="section-label">Рубрика канала</h3>
+    <button class="auction-hero" data-act="auction-bot">
+      <span class="ah-top"><span class="tag tag-danil">ДАНИЛ: 50</span><span class="ah-coin">50</span><span class="tag tag-sasha">САША: 50</span></span>
+      <b>Аукцион</b>
+      <small>5 игроков, 50 монет. Перебивай ставки и собери самую сильную пятёрку по FC 27.</small>
+      <span class="ah-modes"><span class="btn" data-act="auction-bot">Против бота</span><span class="btn sasha" data-act="auction-duo">Вдвоём</span></span>
     </button>
 
     <h3 class="section-label">Головоломка</h3>
@@ -263,6 +271,34 @@
     <div id="compare-opts" class="opts"></div>
   </section>
 
+  <!-- ===== АУКЦИОН ===== -->
+  <section class="screen" id="auction" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title"><span id="auction-title">Аукцион</span><small>Сила команды = сумма рейтингов FC 27</small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div class="auction-stage">
+      <div id="auction-lot" class="auction-lot"></div>
+      <div class="auction-price" id="auction-price"></div>
+      <div class="auction-teams" id="auction-teams">
+        <div class="ateam danil" id="auction-team-0"></div>
+        <div class="ateam sasha" id="auction-team-1"></div>
+      </div>
+      <div class="auction-tags">
+        <span class="tag tag-danil" id="auction-tag-0"></span>
+        <span class="tag tag-sasha" id="auction-tag-1"></span>
+      </div>
+    </div>
+    <p class="hint-line" id="auction-status"></p>
+    <div class="auction-ctrl" id="auction-ctrl">
+      <button class="btn" data-bid="1">+1</button>
+      <button class="btn" data-bid="2">+2</button>
+      <button class="btn" data-bid="5">+5</button>
+      <button class="btn ghost" id="auction-pass">Пас</button>
+    </div>
+  </section>
+
   <!-- ===== ТИКИ-ТАКА-ТОУ ===== -->
   <section class="screen" id="ttt" hidden>
     <header class="topbar">
@@ -307,6 +343,7 @@
 <script defer src="js/transfer.js"></script>
 <script defer src="js/ttt.js"></script>
 <script defer src="js/compare.js"></script>
+<script defer src="js/auction.js"></script>
 <script defer src="js/app.js"></script>
 </body>
 </html>

@@ -39,6 +39,8 @@ const Store = {
       transfer: { best: 0, hlBest: 0 },
       ttt: { wins: 0 },
       compare: { fcBest: 0, valBest: 0 },
+      auction: { wins: 0 },
+      dailyStreak: 0,
       stats: { xp: 0, wins: {} },
       music: true,
       duel: { a: 'Данил', b: 'Саша' },
