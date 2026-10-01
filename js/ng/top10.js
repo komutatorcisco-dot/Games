@@ -48,20 +48,28 @@
       b.innerHTML = `<h3 class="ng-q">${list.club ? crestImg(list.club, 's') : ''}${esc(list.title)}</h3><div class="t10-lives"></div><div class="ng-in"></div><ol class="t10-list"></ol>
         <div class="ng-row"><button class="btn ghost" data-a="give">Сдаться</button><button class="btn ghost" data-a="next">Другой список</button></div>`;
       const inp = NG.input($('.ng-in', b), { placeholder: list.ordered || list.club ? 'Фамилия игрока' : 'Твой ответ', button: 'Ввод', onPick: guess });
+      const FLAGS = { Бразилия: '🇧🇷', Германия: '🇩🇪', Италия: '🇮🇹', Аргентина: '🇦🇷', Франция: '🇫🇷', Уругвай: '🇺🇾', Англия: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', Испания: '🇪🇸', СССР: '🚩',
+        Чехословакия: '🇨🇿', Нидерланды: '🇳🇱', Дания: '🇩🇰', Греция: '🇬🇷', Португалия: '🇵🇹', США: '🇺🇸', Япония: '🇯🇵', 'Южная Корея': '🇰🇷', ЮАР: '🇿🇦', Россия: '🇷🇺', Катар: '🇶🇦', Канада: '🇨🇦', Мексика: '🇲🇽' };
+      const pic = (n) => (FLAGS[n] ? `<span class="t10-flag">${FLAGS[n]}</span>` : CRESTS[n] ? crestImg(n, 's') : avatar(n, 's'));
+      let fresh = -1;
       function render() {
         api.sub(`Найдено ${found.size} из ${list.ans.length}`);
-        $('.t10-lives', b).textContent = `Промахи: ${'✖'.repeat(LIVES - lives)}${'·'.repeat(lives)}`;
+        const pct = found.size / list.ans.length;
+        $('.t10-lives', b).innerHTML = `<span class="t10-ring" style="--p:${pct}"><b>${found.size}</b><small>/${list.ans.length}</small></span>
+          <span class="t10-miss">${[...Array(LIVES).keys()].map((i) => `<i class="${i < LIVES - lives ? 'x' : ''}">✖</i>`).join('')}<small>промахи</small></span>`;
         $('.t10-list', b).innerHTML = list.ans.map((a, i) => {
-          const ok = found.has(i);
-          return `<li class="${ok ? 'ok' : over ? 'miss' : ''}"><b>${ok || over ? esc(a[0]) : '• • •'}</b>${(ok || over) && list.extra ? `<small>${esc(list.extra[i])}</small>` : ''}</li>`;
+          const ok = found.has(i), show = ok || over;
+          return `<li class="${ok ? 'ok' : over ? 'miss' : ''} ${i === fresh ? 'just' : ''}">${show ? pic(a[0]) : '<span class="t10-hole"></span>'}<div><b>${show ? esc(a[0]) : '• • •'}</b>${show && list.extra ? `<small>${esc(list.extra[i])}</small>` : ''}</div></li>`;
         }).join('');
+        if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(b);
+        fresh = -1;
       }
       function guess(text) {
         if (over) return;
         const i = list.ans.findIndex((a) => a.some((v) => nameMatch(text, v)));
-        if (i >= 0 && !found.has(i)) { found.add(i); Sound.play('kick'); haptic('ok'); if (found.size === list.ans.length) return finish(); }
+        if (i >= 0 && !found.has(i)) { found.add(i); fresh = i; Sound.play('kick'); haptic('ok'); if (found.size === list.ans.length) return finish(); }
         else if (i >= 0) toast('Уже есть');
-        else { lives--; Sound.play('bad'); haptic('bad'); toast(`«${text}» — нет в списке`); if (lives <= 0) return finish(); }
+        else { lives--; Sound.play('bad'); haptic('bad'); toast(`«${text}» — нет в списке`); NG.flash($('.t10-lives', b), false); if (lives <= 0) return finish(); }
         render();
       }
       function finish() {
@@ -69,7 +77,7 @@
         const pct = Math.round((found.size / list.ans.length) * 100);
         s.best = Math.max(s.best || 0, pct); api.save();
         if (pct === 100) Profile.bump('top10', 15);
-        NG.end({ title: pct === 100 ? 'Весь список!' : `${found.size} из ${list.ans.length}`, win: pct === 100, reward: found.size * 4 + (pct === 100 ? 30 : 0),
+        NG.end({ title: pct === 100 ? 'Весь список!' : pct >= 60 ? 'Хороший результат' : 'Есть куда расти', win: pct === 100, big: `${found.size}/${list.ans.length}`, reward: found.size * 4 + (pct === 100 ? 30 : 0),
           html: '<p>Ответы открыты на экране.</p>', again: { label: 'Следующий список', fn: () => NG.open('top10') } });
       }
       b.addEventListener('click', (e) => {

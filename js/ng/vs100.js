@@ -26,11 +26,11 @@
     meta: (s) => (s.best ? `Рекорд: обошёл ${s.best}` : '100 соперников'),
     start(api) {
       const all = shuffle(cats(), Math.random);
-      let rivals = 100, round = 0, cat = null, over = false, last = '';
+      let rivals = 100, prevRivals = 100, round = 0, cat = null, over = false, last = '';
       const b = api.body;
       function nextRound() {
         cat = all[round % all.length]; round++;
-        b.innerHTML = `<div class="vs-count"><b>${rivals}</b><span>соперников осталось</span></div>
+        b.innerHTML = `<div class="vs-count"><b>${rivals}</b><span>соперников осталось</span><div class="vs-dots">${[...Array(100).keys()].map((i) => `<i class="${i < rivals ? 'on' : i < prevRivals ? 'out' : ''}"></i>`).join('')}</div></div>
           <h3 class="ng-q">Раунд ${round}: ${esc(cat.label)}</h3><p class="ng-lead">Назови игрока под категорию. Самый популярный ответ толпы вылетает!</p>
           <div class="ng-in"></div><div class="vs-res">${last}</div>`;
         NG.input($('.ng-in', b), { items: (q) => NG.playerItems(q), onPick: answer }).focus();
@@ -53,9 +53,12 @@
         const top = [...votes.entries()].sort((a, c) => c[1] - a[1]);
         const [topName, topCnt] = top[0] || ['', 0];
         const out = (topCnt || 0) + wrong;
+        prevRivals = rivals;
         rivals = Math.max(0, rivals - out);
         const mine = votes.get(name) || 0;
-        last = `<p>Толпа чаще всего называла: ${top.slice(0, 4).map(([n, c]) => `<b>${esc(surname(n))}</b> ${c}`).join(' · ')}</p><p>Вылетело: ${out} (${topCnt} за «${esc(surname(topName))}», ${wrong} ошиблись)</p>`;
+        const mx = top.length ? top[0][1] : 1;
+        last = `<div class="vs-chart"><small>Что называла толпа в прошлом раунде</small>${top.slice(0, 5).map(([n, c], i) => `<div class="vs-b ${i === 0 ? 'out' : ''} ${n === name ? 'me' : ''}"><span>${esc(surname(n))}${n === name ? ' (ты)' : ''}</span><i style="width:${(c / mx) * 100}%"></i><b>${c}</b></div>`).join('')}
+          <p>Вылетело ${out}: ${topCnt} за «${esc(surname(topName))}» и ${wrong} ошиблись</p></div>`;
         if (!ok) return finish(false, `${name} не подходит под «${cat.label}»`);
         if (name === topName) return finish(false, `${surname(name)} — самый популярный ответ, ты вылетел вместе с толпой`);
         Sound.play('kick'); haptic('ok');
@@ -68,7 +71,7 @@
         const beaten = 100 - rivals, s = api.st();
         s.best = Math.max(s.best || 0, beaten); api.save();
         if (won) Profile.bump('vs100', 20);
-        NG.end({ title: won ? 'Победа! 1 против 100' : `Вылет. Обошёл ${beaten} из 100`, win: won, reward: Math.round(beaten / 2) + (won ? 40 : 0),
+        NG.end({ title: won ? 'Победа! 1 против 100' : 'Вылет', big: `${beaten}/100`, stats: [['Раундов', round], ['Рекорд', s.best]], win: won, reward: Math.round(beaten / 2) + (won ? 40 : 0),
           html: `<p>${esc(why)}</p>${last}`, again: { label: 'Ещё раз', fn: () => NG.open('vs100') } });
       }
       nextRound();

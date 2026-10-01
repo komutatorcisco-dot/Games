@@ -25,11 +25,12 @@
       let chain = [g.a], lives = LIVES, over = false;
       const b = api.body;
       b.innerHTML = `<p class="ng-lead">Соедини <b>${esc(g.a)}</b> и <b>${esc(g.z)}</b>: назови игрока, который играл с последним в цепочке. Когда дойдёшь до одноклубника ${esc(surname(g.z))} — связка готова.</p>
-        <div class="lu-chain"></div><div class="ng-in"></div><div class="ng-row"><button class="btn ghost" data-a="undo">Убрать последнего</button><button class="btn ghost" data-a="give">Показать ответ</button></div>`;
+        <div class="lu-chain"></div><div class="ng-in"></div><div class="ng-row"><button class="btn ghost" data-a="undo">↶ Убрать</button><button class="btn ghost" data-a="hint">💡 Подсказка</button><button class="btn ghost" data-a="give">Ответ</button></div>`;
+      let hinted = false;
       const inp = NG.input($('.ng-in', b), { items: (q) => NG.careerItems(q, new Set(chain)), onPick: add });
       function link(x, y) { const k = Mates.of(x).get(y); return k ? `<span class="lu-link">${crestImg(k, 'xs')}${esc(k)}</span>` : '<span class="lu-link">…</span>'; }
       function render() {
-        api.sub(`Звеньев: ${chain.length - 1}/${MAXLINKS} · жизни: ${'♥'.repeat(lives)}`);
+        api.sub(`Звеньев: ${chain.length - 1}/${MAXLINKS} · лучшая связка: ${g.best.length - 1} · ${'♥'.repeat(lives)}${'♡'.repeat(LIVES - lives)}`);
         const all = over && chain[chain.length - 1] === g.z ? chain : chain;
         let html = '';
         all.forEach((n, i) => { if (i) html += link(all[i - 1], n); html += `<div class="lu-node ${i === 0 ? 'start' : ''}">${avatar(n, 's')}<b>${esc(n)}</b></div>`; });
@@ -54,14 +55,20 @@
         over = true; inp.disable(true); render();
         const links = chain.length - 1, s = api.st();
         if (won) { s.wins = (s.wins || 0) + 1; api.save(); Profile.bump('linkup', 12); }
-        NG.end({ title: won ? `Связка за ${links} ${plural(links, 'звено', 'звена', 'звеньев')}!` : 'Связка не сложилась', win: won,
-          reward: won ? Math.max(10, 50 - (links - (g.best.length - 1)) * 10) : 0,
+        NG.end({ title: won ? 'Связка готова!' : 'Связка не сложилась', win: won, big: won ? `${links} ${plural(links, 'звено', 'звена', 'звеньев')}` : '', stats: [['Лучшая', g.best.length - 1], ['Подсказка', hinted ? 'да' : 'нет']],
+          reward: won ? Math.max(10, 50 - (links - (g.best.length - 1)) * 10 - (hinted ? 15 : 0)) : 0,
           html: `<p>Кратчайшая: ${g.best.map(esc).join(' → ')}</p>`, again: { label: 'Новая связка', fn: () => NG.open('linkup') } });
       }
       b.addEventListener('click', (e) => {
         const a = e.target.closest('[data-a]');
         if (!a || over) return;
         if (a.dataset.a === 'give') return finish(false);
+        if (a.dataset.a === 'hint') {
+          if (hinted) return toast('Подсказка уже была');
+          const p = Mates.path(chain[chain.length - 1], g.z, 4);
+          if (!p || p.length < 3) return toast('Отсюда не дотянуться — убери последнего');
+          hinted = true; toast(`Попробуй: ${p[1]} (${Mates.of(chain[chain.length - 1]).get(p[1])})`); return;
+        }
         if (chain.length > 1) { chain.pop(); render(); }
       });
       render();

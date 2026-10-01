@@ -32,14 +32,16 @@
       if (!g) { toast('Не получилось, попробуй ещё'); return; }
       let open = 1, tries = [], over = false;
       const b = api.body;
-      b.innerHTML = `<p class="ng-lead">Я играл в одной команде с этими футболистами. Кто я?</p><div class="wa-list"></div><div class="ng-in"></div>
+      b.innerHTML = `<div class="wa-hero"><span class="wa-mystery">?</span><div><b>Кто я?</b><small>Я играл в одной команде с этими футболистами. Сначала — партнёры из начала карьеры.</small></div></div>
+        <div class="wa-pts"></div><div class="wa-list"></div><div class="ng-in"></div>
         <div class="ng-row"><button class="btn ghost" data-a="more">Ещё одноклубник</button><button class="btn ghost" data-a="give">Сдаться</button></div><div class="wa-tries"></div>`;
       const inp = NG.input($('.ng-in', b), { items: (q) => NG.careerItems(q, new Set([...tries, ...g.clues])), onPick: guess });
       function render() {
         api.sub(`Подсказок: ${open}/${MAX} · очки: ${MAX + 1 - open}`);
         $('.wa-list', b).innerHTML = g.clues.map((n, i) => (i < open || over
-          ? `<div class="wa-mate" style="--i:${i}">${avatar(n, 's')}<b>${esc(n)}</b>${over ? `<small>${esc(g.mates.get(n))}</small>` : ''}</div>`
+          ? `<div class="wa-mate" style="--i:${i}">${avatar(n, 's')}<div><b>${esc(n)}</b><small>${crestImg(g.mates.get(n), 'xs')} ${esc(g.mates.get(n))}</small></div></div>`
           : `<div class="wa-mate locked"><span class="ava ava-s"><b>?</b></span><b>Одноклубник ${i + 1}</b></div>`)).join('');
+        $('.wa-pts', b).innerHTML = `<small>Очки за угадывание</small>${[...Array(MAX).keys()].map((i) => `<i class="${i < MAX + 1 - open ? 'on' : ''}">⚽</i>`).join('')}`;
         $('.wa-tries', b).innerHTML = tries.map((t) => `<span class="wa-no">✖ ${esc(t)}</span>`).join('');
         if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(b);
       }
@@ -55,7 +57,7 @@
         const s = api.st();
         if (won) { s.wins = (s.wins || 0) + 1; api.save(); Profile.bump('whoami', 12); }
         const path = g.c.path.map(([k]) => k).join(' → ');
-        NG.end({ title: won ? `Угадал по ${open} ${plural(open, 'подсказке', 'подсказкам', 'подсказкам')}!` : 'Не угадал', win: won,
+        NG.end({ title: won ? 'Угадал!' : 'Не угадал', win: won, big: won ? `${MAX + 1 - open}/${MAX}` : '', stats: [['Подсказок', open], ['Ошибок', tries.length]],
           reward: won ? (MAX + 1 - open) * 8 : 0,
           html: `<div class="player-card">${avatar(g.name, 'xl')}<div class="pname">${esc(g.name)}</div><div class="pmeta">${esc(path)}</div></div>`,
           again: { label: 'Следующий', fn: () => NG.open('whoami') } });

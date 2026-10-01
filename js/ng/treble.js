@@ -29,7 +29,10 @@
       const qs = build(practice ? Math.random : Day.rng('treble'));
       const st = practice ? { res: [], done: false } : api.today(() => ({ res: [] }));
       const b = api.body;
-      const cups = () => `<div class="tb-cups">${[0, 1, 2].map((i) => `<i class="${st.res[i] === true ? 'win' : st.res[i] === false ? 'lose' : ''}">🏆</i>`).join('')}</div>`;
+      const CUPS = [['🏆', 'Лига'], ['🥇', 'Кубок'], ['⭐', 'ЛЧ']];
+      const TIME = 15000;
+      let token = 0;
+      const cups = () => `<div class="tb-cups">${CUPS.map(([ic, n], i) => `<span class="${st.res[i] === true ? 'win' : st.res[i] === false ? 'lose' : i === st.res.length ? 'now' : ''}"><i>${ic}</i><small>${n}</small></span>`).join('')}</div>`;
 
       function render() {
         api.sub(practice ? 'Тренировка' : `#${Day.num()}`);
@@ -39,21 +42,33 @@
         const title = ['Чья это эмблема?', 'Куда перешёл?', 'У кого выше рейтинг в FC 27?'][i];
         let stage = '';
         if (q.kind === 'crest') stage = `<div class="tb-crest">${crestImg(q.club, 'xl')}</div>`;
-        if (q.kind === 'transfer') stage = `<div class="tb-tr"><b>${q.t[1]} ${esc(q.t[0])}</b><span>${crestImg(q.t[2], 's')}${esc(q.t[2])} → ?</span><small>${q.t[4]} год · ${q.t[5] ? q.t[5] + ' млн €' : 'бесплатно'}</small></div>`;
-        b.innerHTML = `${cups()}<h3 class="ng-q">${i + 1}/3 · ${title}</h3>${stage}
-          <div class="opts ${q.kind === 'fc' ? 'tb-two' : ''}">${q.opts.map((o) => `<button class="btn ghost ng-opt" data-o="${esc(o)}">${q.kind === 'fc' ? `${avatar(o, 'l')}<span>${esc(o)}</span>` : `${q.kind === 'transfer' ? crestImg(o, 'xs') : ''}${esc(o)}`}</button>`).join('')}</div>`;
+        if (q.kind === 'transfer') stage = `<div class="tb-tr">${avatar(q.t[0], 'l')}<b>${q.t[1]} ${esc(q.t[0])}</b>
+          <span class="tb-route">${crestImg(q.t[2], 'm')}<i class="tb-arrow">➜</i><span class="tb-q">?</span></span><small>${q.t[4]} год · ${q.t[5] ? q.t[5] + ' млн €' : 'бесплатно'}</small></div>`;
+        const opts = q.kind === 'fc'
+          ? q.opts.map((o) => `<button class="ng-opt tb-fut" data-o="${esc(o)}"><em class="tb-r">??</em>${avatar(o, 'l')}<b>${esc(o)}</b></button>`).join('')
+          : q.opts.map((o) => `<button class="btn ghost ng-opt" data-o="${esc(o)}">${q.kind === 'transfer' ? crestImg(o, 'xs') : ''}${esc(o)}</button>`).join('');
+        b.innerHTML = `${cups()}<h3 class="ng-q">${title}</h3><div class="tb-timer"><i></i></div>${stage}
+          <div class="opts ${q.kind === 'fc' ? 'tb-two' : ''}">${opts}</div>`;
         if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(b);
+        // таймер: не успел — вопрос проигран
+        const my = ++token;
+        later(() => { if (my === token && st.res.length === i && !st.done) { toast('Время вышло!'); answer('', null); } }, TIME);
       }
       function answer(o, btn) {
         const i = st.res.length, q = qs[i];
         if (i >= 3) return;
+        token++;
         const ok = o === q.ans;
         st.res.push(ok); api.save();
+        $('.tb-timer', b).classList.add('stop');
         $$('.ng-opt', b).forEach((x) => { x.disabled = true; if (x.dataset.o === q.ans) x.classList.add('right'); });
-        if (!ok) btn.classList.add('wrong');
-        if (q.kind === 'fc') $$('.ng-opt', b).forEach((x) => x.insertAdjacentHTML('beforeend', `<em class="tb-r">${FC27[x.dataset.o]}</em>`));
+        if (!ok && btn) btn.classList.add('wrong');
+        if (q.kind === 'fc') $$('.tb-fut', b).forEach((x) => { const r = $('.tb-r', x); r.textContent = FC27[x.dataset.o]; r.classList.add('show'); });
+        if (q.kind === 'transfer') { const qq = $('.tb-q', b); qq.innerHTML = crestImg(q.ans, 'm'); qq.classList.add('show'); }
+        if (q.kind === 'crest') $('.tb-crest', b).classList.add('show');
+        $('.tb-cups', b).outerHTML = cups();
         Sound.play(ok ? 'kick' : 'bad'); haptic(ok ? 'ok' : 'bad');
-        later(() => (st.res.length >= 3 ? finish() : render()), 1300);
+        later(() => (st.res.length >= 3 ? finish() : render()), 1600);
       }
       function finish() {
         st.done = true; api.save();
@@ -62,7 +77,7 @@
         if (!practice) { if (n === 3) api.streakWin(); else api.streakLose(); }
         if (n === 3) Profile.bump('treble', 15);
         NG.end({
-          title: n === 3 ? 'Требл!' : n === 2 ? 'Дубль' : `${n} из 3`, win: n === 3,
+          title: n === 3 ? 'Требл!' : n === 2 ? 'Дубль' : n === 1 ? 'Один трофей' : 'Сезон без трофеев', win: n === 3, big: `${n}/3`,
           reward: practice ? n * 3 : n * 20 + (n === 3 ? 30 : 0),
           shareText: practice ? '' : `🏆 Требл дня #${Day.num()} — ${n}/3\n${st.res.map((x) => (x ? '🟩' : '🟥')).join('')}\nСтарики Джексоны`,
           again: { label: 'Тренировка', fn: () => NG.open('treble', { practice: true }) },

@@ -27,7 +27,7 @@
     id: 'rank', group: 'brain', title: 'Рейтинг', c1: '#34c46a', c2: '#b98d00', tag: 'Расставь по порядку',
     meta: (s) => (s.best ? `Рекорд ${s.best}/25` : '5 раундов'),
     start(api) {
-      let round = 0, total = 0, cur = null, order = [], checked = false;
+      let round = 0, total = 0, cur = null, order = [], checked = false, roundPts = [];
       const b = api.body;
       function next() {
         if (round >= ROUNDS) return finish();
@@ -39,7 +39,8 @@
       function render() {
         api.sub(`Раунд ${round}/${ROUNDS} · очки: ${total}`);
         const correct = [...cur.items].sort((a, c) => c.v - a.v).map((x) => x.key);
-        b.innerHTML = `<h3 class="ng-q">${esc(cur.title)}</h3><p class="ng-lead">Нажимай по порядку: первый — №1.</p>
+        b.innerHTML = `<div class="rk-rounds">${[...Array(ROUNDS).keys()].map((i) => `<i class="${i < roundPts.length ? 'done' : i === round - 1 ? 'now' : ''}">${i < roundPts.length ? roundPts[i] : i + 1}</i>`).join('')}<b>${total} очк.</b></div>
+          <h3 class="ng-q">${esc(cur.title)}</h3><p class="ng-lead">${checked ? `Раунд: <b>${roundPts[roundPts.length - 1]}/5</b> на своих местах` : 'Нажимай по порядку: первый — №1. Нажми ещё раз, чтобы убрать.'}</p>
           <div class="rk-list">${cur.items.map((it) => {
             const pos = order.indexOf(it.key);
             const st = checked ? (correct.indexOf(it.key) === pos ? 'ok' : 'bad') : '';
@@ -51,7 +52,7 @@
       function check() {
         const correct = [...cur.items].sort((a, c) => c.v - a.v).map((x) => x.key);
         const pts = order.filter((k, i) => correct[i] === k).length;
-        total += pts; checked = true;
+        total += pts; checked = true; roundPts.push(pts);
         Sound.play(pts >= 3 ? 'kick' : 'bad'); haptic(pts >= 3 ? 'ok' : 'bad');
         if (pts === 5) toast('Идеально! 5 из 5');
         render();
@@ -60,7 +61,7 @@
         const s = api.st();
         s.best = Math.max(s.best || 0, total); api.save();
         if (total >= 18) Profile.bump('rank', 12);
-        NG.end({ title: `${total} из ${ROUNDS * 5}`, win: total >= 18, reward: total * 2, again: { label: 'Ещё раз', fn: () => NG.open('rank') } });
+        NG.end({ title: total >= 18 ? 'Знаток!' : total >= 12 ? 'Неплохо' : 'Можно лучше', big: `${total}/${ROUNDS * 5}`, stats: [['Раунды', roundPts.join(' · ')]], win: total >= 18, reward: total * 2, again: { label: 'Ещё раз', fn: () => NG.open('rank') } });
       }
       b.addEventListener('click', (e) => {
         const it = e.target.closest('.rk-item');

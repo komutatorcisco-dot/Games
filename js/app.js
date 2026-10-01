@@ -55,6 +55,7 @@ const App = (() => {
     $('#pz-shelf').innerHTML = PZ.shelf();
     Daily.hubCard();
     ['daily', 'brain', 'grid', 'cards'].forEach((g) => { $('#ng-' + g).innerHTML = NG.tiles(g); });
+    renderDailyProgress();
     $('#lim-auction').textContent = Limits.label('auction');
     $('#lim-pick').textContent = Limits.label('pick');
     Icons.fill($('#hub'));
@@ -68,6 +69,18 @@ const App = (() => {
     }
     rankUi('#hub-rank', '#hub-xp', '#hub-next');
     Coins.render();
+  }
+
+  // Ежедневные задания: прогресс и сундук за все пять
+  const CHEST = 150;
+  function renderDailyProgress() {
+    const st = NG.dailyStatus(), done = st.filter(([, d]) => d).length, all = done === st.length;
+    const claimed = (Store.d.ng.chest || '') === Day.key();
+    $('#dly-progress').innerHTML = `<div class="dp-head"><b>Ежедневные</b><span>${done}/${st.length} сегодня</span></div>
+      <div class="dp-bar"><i style="width:${(done / st.length) * 100}%"></i></div>
+      <div class="dp-items">${st.map(([n, d]) => `<span class="${d ? 'ok' : ''}">${d ? '✓' : '○'} ${esc(n)}</span>`).join('')}</div>
+      ${all && !claimed ? `<button class="btn gold dp-chest" data-act="chest">🎁 Все задания сделаны — забрать сундук +${CHEST}</button>`
+        : `<small class="dp-note">${claimed ? 'Сундук получен ✓ Новые задания в полночь по МСК' : `Пройди все ${st.length} — получишь сундук +${CHEST} монет`}</small>`}`;
   }
 
   function renderProfile() {
@@ -153,6 +166,13 @@ const App = (() => {
     'pick-solo': () => Pick.start('solo'),
     'coins-info': () => Shop.open(),
     shop: () => Shop.open(),
+    chest: () => {
+      if ((Store.d.ng.chest || '') === Day.key() || NG.dailyStatus().some(([, d]) => !d)) return;
+      Store.d.ng.chest = Day.key(); Store.save();
+      Coins.add(CHEST); confetti(); Sound.play('goal');
+      toast(`Сундук открыт: +${CHEST} монет!`);
+      renderDailyProgress();
+    },
     b2b: () => TTT.start('timed'),
     daily: () => {
       if (Store.d.lastDaily === today()) return;

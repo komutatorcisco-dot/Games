@@ -35,16 +35,19 @@
       const ans = practice ? pick(P) : P[Math.floor(Day.rng('wordle')() * P.length)];
       const L = ans.w.length;
       const st = practice ? { rows: [], done: false } : api.today(() => ({ rows: [] }));
-      let cur = '';
+      let cur = '', fresh = -1, bad = false;
       const b = api.body;
       b.innerHTML = `<p class="ng-lead">Фамилия из <b>${L}</b> ${plural(L, 'буквы', 'букв', 'букв')}</p><div class="wd-grid" style="--l:${L}"></div><p class="ng-clue"></p><div class="wd-kb"></div>`;
 
       function render() {
         api.sub(practice ? 'Тренировка' : `#${Day.num()}`);
-        const rows = st.rows.map((g) => { const r = score(g, ans.w); return [...g].map((ch, i) => `<i class="${r[i]}">${ch}</i>`).join(''); });
+        // только что отправленный ряд переворачивается по одной букве
+        const rows = st.rows.map((g, ri) => { const r = score(g, ans.w); return [...g].map((ch, i) => `<i class="${r[i]} ${ri === fresh ? 'flip' : 'done'}" style="--d:${i * 110}ms">${ch}</i>`).join(''); });
+        const curRow = rows.length;
         if (!st.done && rows.length < TRIES) rows.push([...cur.padEnd(L)].map((ch) => `<i class="${ch.trim() ? 'typed' : ''}">${ch.trim()}</i>`).join(''));
         while (rows.length < TRIES) rows.push('<i></i>'.repeat(L));
-        $('.wd-grid', b).innerHTML = rows.map((r) => `<div class="wd-row">${r}</div>`).join('');
+        $('.wd-grid', b).innerHTML = rows.map((r, i) => `<div class="wd-row ${i === curRow && bad ? 'ng-bad' : ''} ${st.won && i === st.rows.length - 1 && fresh === i ? 'win' : ''}">${r}</div>`).join('');
+        fresh = -1; bad = false;
         const miss = st.rows.length - (st.won ? 1 : 0);
         $('.ng-clue', b).innerHTML = [miss >= 3 ? `Сборная: ${ans.flag} ${esc(ans.nat || '')}` : '', miss >= 5 ? `Клуб: ${esc(ans.club)}` : ''].filter(Boolean).join(' · ') || 'После 3-го промаха — сборная, после 5-го — клуб';
         const keyState = {};
@@ -52,28 +55,28 @@
         $('.wd-kb', b).innerHTML = KB.map((r, ri) => `<div>${ri === 2 ? '<button data-k="enter" class="wide">ВВОД</button>' : ''}${[...r].map((ch) => `<button data-k="${ch}" class="${keyState[ch] || ''}">${ch}</button>`).join('')}${ri === 2 ? '<button data-k="del" class="wide">⌫</button>' : ''}</div>`).join('');
       }
       function key(k) {
-        if (st.done) return;
+        if (st.done || st.won || st.rows.length >= TRIES) return;
         if (k === 'del') cur = cur.slice(0, -1);
         else if (k === 'enter') {
-          if (cur.length < L) { toast(`Нужно ${L} букв`); return; }
-          st.rows.push(cur); cur = '';
-          if (st.rows[st.rows.length - 1] === ans.w) { st.won = true; return finish(); }
+          if (cur.length < L) { toast(`Нужно ${L} ${plural(L, 'буква', 'буквы', 'букв')}`); bad = true; haptic('bad'); render(); return; }
+          st.rows.push(cur); cur = ''; fresh = st.rows.length - 1;
+          if (st.rows[st.rows.length - 1] === ans.w) { st.won = true; render(); return later(finish, L * 110 + 400); }
           Sound.play('tap');
-          if (st.rows.length >= TRIES) return finish();
+          if (st.rows.length >= TRIES) { render(); return later(finish, L * 110 + 400); }
           api.save();
         } else if (cur.length < L) { cur += k; Sound.play('tap'); }
         render();
       }
       function finish() {
-        st.done = true; api.save(); render();
+        st.done = true; api.save(); fresh = -2; render();
         const n = st.rows.length;
         const reward = st.won ? (practice ? 10 : [0, 120, 90, 70, 50, 35, 25][n]) : 0;
         if (!practice) { if (st.won) api.streakWin(); else api.streakLose(); }
         if (st.won) Profile.bump('wordle', 10);
         const sq = st.rows.map((g) => score(g, ans.w).map((s) => ({ hit: '🟩', near: '🟨', miss: '⬛' }[s])).join('')).join('\n');
         NG.end({
-          title: st.won ? `Угадал с ${n}-й попытки!` : 'Не угадал', win: st.won, reward,
-          html: `<p>Это <b>${esc(ans.name)}</b> ${ans.flag}</p>`,
+          title: st.won ? 'Угадал!' : 'Не угадал', win: st.won, reward, big: `${st.won ? n : 'X'}/6`,
+          html: `<div class="player-card">${avatar(ans.name, 'xl')}<div class="pname">${esc(ans.name)}</div><div class="pmeta">${ans.flag} ${esc(ans.club)}</div></div>`,
           shareText: practice ? '' : `⚽ Футбольный Wordle #${Day.num()} — ${st.won ? n : 'X'}/6\n${sq}\nСтарики Джексоны`,
           again: { label: 'Тренировка: другое слово', fn: () => NG.open('wordle', { practice: true }) },
         });

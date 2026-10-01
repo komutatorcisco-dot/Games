@@ -19,7 +19,7 @@
     meta: (s) => (s.best ? `Лучший финиш: ${s.best} дрот.` : 'Сбей 170 до нуля'),
     start(api) {
       const C = cats();
-      let score = START, darts = 0, cat = null, log = [], over = false, used = new Set();
+      let score = START, prev = START, darts = 0, cat = null, log = [], over = false, used = new Set(), hit = 0;
       const b = api.body;
       function newCat() {
         // категория, в которой есть хотя бы один игрок с номером не больше остатка
@@ -28,11 +28,14 @@
       }
       function render() {
         api.sub(`Дротик ${Math.min(darts + 1, DARTS)}/${DARTS}`);
-        b.innerHTML = `<div class="dt-board"><b>${score}</b><span>осталось</span></div>
+        b.innerHTML = `<div class="dt-board ${hit ? 'hit' : ''}"><b>${prev}</b><span>осталось</span>${hit ? `<em class="dt-pop">−${hit}</em>` : ''}</div>
+          <div class="dt-darts">${[...Array(DARTS).keys()].map((i) => `<i class="${i < darts ? 'used' : ''}">➶</i>`).join('')}</div>
           <h3 class="ng-q">${esc(cat.label)}</h3><p class="ng-lead">Назови игрока — вычтем его номер. Финиш ровно в 0.</p>
           <div class="ng-in"></div><div class="dt-log">${log.map((l) => `<span class="${l.c}">${l.t}</span>`).join('')}</div>
           <div class="ng-row"><button class="btn ghost" data-a="skip">Сменить категорию (−1 дротик)</button></div>`;
         NG.input($('.ng-in', b), { items: (q) => NG.playerItems(q, used), onPick: throwDart }).focus();
+        if (prev !== score) countUp($('.dt-board b', b), score, { from: prev, dur: 600 });
+        prev = score; hit = 0;
       }
       function throwDart(name) {
         if (over) return;
@@ -40,7 +43,7 @@
         darts++;
         if (!cat.test(p)) { log.unshift({ c: 'miss', t: `✖ ${surname(name)} — не подходит` }); Sound.play('bad'); }
         else if (p.num > score) { log.unshift({ c: 'bust', t: `💥 ${surname(name)} №${p.num} — перебор` }); Sound.play('bad'); used.add(name); }
-        else { score -= p.num; used.add(name); log.unshift({ c: 'hit', t: `🎯 ${surname(name)} −${p.num}` }); Sound.play('kick'); haptic('tap'); }
+        else { score -= p.num; hit = p.num; used.add(name); log.unshift({ c: 'hit', t: `🎯 ${surname(name)} −${p.num}` }); Sound.play('kick'); haptic('tap'); }
         if (score === 0) return finish(true);
         if (darts >= DARTS) return finish(false);
         newCat(); render();
@@ -49,7 +52,7 @@
         over = true;
         const s = api.st();
         if (won) { s.best = s.best ? Math.min(s.best, darts) : darts; api.save(); Profile.bump('darts', 15); }
-        NG.end({ title: won ? `Финиш за ${darts} ${plural(darts, 'дротик', 'дротика', 'дротиков')}!` : `Не добил: осталось ${score}`, win: won,
+        NG.end({ title: won ? 'Чек-аут!' : `Не добил: осталось ${score}`, big: won ? `${darts} ${plural(darts, 'дротик', 'дротика', 'дротиков')}` : `${score}`, stats: [['Лучший', s.best ? `${s.best} дрот.` : '—']], win: won,
           reward: won ? 20 + (DARTS - darts) * 6 : Math.max(0, Math.round((START - score) / 10)),
           html: `<div class="dt-log">${log.map((l) => `<span class="${l.c}">${l.t}</span>`).join('')}</div>`, again: { label: 'Ещё лег', fn: () => NG.open('darts') } });
       }

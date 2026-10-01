@@ -31,11 +31,13 @@
       const b = api.body;
       const groupOf = (n) => groups.findIndex((g) => g.names.includes(n));
       function render() {
-        api.sub(`Ошибок осталось: ${MISTAKES - mistakes}`);
-        b.innerHTML = `<p class="ng-lead">Найди 4 группы по 4 игрока. Что их объединяет — клуб, сборная или страна?</p>
-          ${solved.map((gi) => `<div class="cn-solved" style="--c:${COLORS[gi]}"><b>${esc(groups[gi].label)}</b><span>${groups[gi].names.map(esc).join(', ')}</span></div>`).join('')}
-          <div class="cn-grid">${left.map((n) => `<button class="cn-tile ${sel.has(n) ? 'on' : ''}" data-n="${esc(n)}">${esc(n)}</button>`).join('')}</div>
-          <div class="ng-row"><button class="btn ghost" data-a="mix">Перемешать</button><button class="btn ghost" data-a="clear">Сбросить</button><button class="btn gold" data-a="check" ${sel.size === 4 ? '' : 'disabled'}>Проверить</button></div>`;
+        api.sub(`Найдено групп: ${solved.length}/4`);
+        b.innerHTML = `<p class="ng-lead">Найди 4 группы по 4 игрока: общий клуб, сборная или страна.</p>
+          ${solved.map((gi) => `<div class="cn-solved" style="--c:${COLORS[gi]}"><b>${esc(groups[gi].label)}</b><div class="cn-faces">${groups[gi].names.map((n) => `<span>${avatar(n, 's')}<small>${esc(surname(n))}</small></span>`).join('')}</div></div>`).join('')}
+          <div class="cn-grid">${left.map((n) => `<button class="cn-tile ${sel.has(n) ? 'on' : ''}" data-n="${esc(n)}">${avatar(n, 's')}<span>${esc(n)}</span></button>`).join('')}</div>
+          <div class="cn-mist"><small>Ошибки</small>${[...Array(MISTAKES).keys()].map((i) => `<i class="${i < MISTAKES - mistakes ? 'on' : ''}"></i>`).join('')}<small class="cn-sel">Выбрано: ${sel.size}/4</small></div>
+          <div class="ng-row"><button class="btn ghost" data-a="mix">🔀 Перемешать</button><button class="btn ghost" data-a="clear">Сбросить</button><button class="btn gold" data-a="check" ${sel.size === 4 ? '' : 'disabled'}>Проверить</button></div>`;
+        if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(b);
       }
       function check() {
         const arr = [...sel], gs = arr.map(groupOf);
@@ -60,7 +62,7 @@
         left = []; render();
         const s = api.st();
         if (won) { s.wins = (s.wins || 0) + 1; api.save(); Profile.bump('connect', 15); }
-        NG.end({ title: won ? 'Все связи найдены!' : 'Ошибки закончились', win: won, reward: won ? 40 - mistakes * 8 : solved.length * 2,
+        NG.end({ title: won ? 'Все связи найдены!' : 'Ошибки закончились', win: won, big: won ? '4/4' : '', stats: [['Ошибки', `${mistakes}/${MISTAKES}`]], reward: won ? 40 - mistakes * 8 : solved.length * 2,
           html: '<p>Все группы открыты на экране.</p>', again: { label: 'Новые связи', fn: () => NG.open('connect') } });
       }
       b.addEventListener('click', (e) => {

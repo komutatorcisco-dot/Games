@@ -25,12 +25,14 @@
       let me = deck.slice(0, 10), bot = deck.slice(10), round = 1, myTurn = true, reveal = null, over = false;
       const b = api.body;
       function render() {
-        api.sub(`Раунд ${round}/${ROUNDS} · у тебя ${me.length} · у бота ${bot.length}`);
-        const ask = myTurn ? 'Твой ход: выбери характеристику' : 'Ход бота';
-        b.innerHTML = `<div class="tr-table"><div><small>Ты</small>${card(me[0], true, reveal && reveal.k)}</div><div><small>Бот</small>${card(bot[0], !!reveal, reveal && reveal.k)}</div></div>
+        api.sub(`Раунд ${round}/${ROUNDS}`);
+        const ask = myTurn ? 'Твой ход: выбери, чем бьёшь' : 'Ход бота';
+        const tot = me.length + bot.length;
+        b.innerHTML = `<div class="tr-score"><span>Ты <b>${me.length}</b></span><div class="tr-bar"><i style="width:${(me.length / tot) * 100}%"></i></div><span><b>${bot.length}</b> Бот</span></div>
+          <div class="tr-table ${reveal ? 'shown ' + reveal.res : ''}"><div class="tr-me">${card(me[0], true, reveal && reveal.k)}</div><div class="tr-bot">${reveal ? card(bot[0], true, reveal.k) : card(bot[0], false)}</div></div>
           ${reveal ? `<p class="ng-lead tr-res ${reveal.res}">${reveal.text}</p><div class="ng-row"><button class="btn gold" data-a="next">Дальше →</button></div>`
-            : myTurn ? `<p class="ng-lead">${ask}</p><div class="tr-pick">${STATS.map(([k, l]) => `<button class="btn ghost" data-k="${k}">${l}</button>`).join('')}</div>`
-              : `<p class="ng-lead">${ask}…</p>`}`;
+            : myTurn ? `<p class="ng-lead">${ask}</p><div class="tr-pick">${STATS.map(([k, l, f]) => `<button class="btn ghost" data-k="${k}"><span>${l}</span><b>${f(me[0])}</b></button>`).join('')}</div>`
+              : `<p class="ng-lead tr-think">${ask}<i>.</i><i>.</i><i>.</i></p>`}`;
         if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(b);
       }
       // бот выбирает характеристику, где его карта сильнее всего относительно средней
@@ -65,7 +67,7 @@
         over = true;
         const won = me.length > bot.length, s = api.st();
         if (won) { s.wins = (s.wins || 0) + 1; api.save(); Profile.bump('trumps', 12); }
-        NG.end({ title: won ? `Победа ${me.length}:${bot.length}!` : me.length === bot.length ? 'Ничья' : `Бот выиграл ${bot.length}:${me.length}`,
+        NG.end({ title: won ? 'Победа!' : me.length === bot.length ? 'Ничья' : 'Бот оказался сильнее', big: `${me.length}:${bot.length}`,
           win: won, reward: won ? 30 + me.length : 5, again: { label: 'Новая раздача', fn: () => NG.open('trumps') } });
       }
       b.addEventListener('click', (e) => {

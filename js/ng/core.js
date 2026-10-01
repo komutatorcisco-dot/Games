@@ -63,6 +63,11 @@ const NG = (() => {
 
   function register(g) { list.push(g); }
 
+  // Список подсказок закрывается при нажатии в любом другом месте
+  document.addEventListener('pointerdown', (e) => {
+    $$('.ng-input .suggest').forEach((box) => { if (!box.hidden && !box.parentNode.contains(e.target)) box.hidden = true; });
+  }, true);
+
   function open(id, opts) {
     leave();
     cur = list.find((g) => g.id === id);
@@ -84,8 +89,9 @@ const NG = (() => {
     return list.filter((g) => g.group === group).map((g) => {
       const s = store(g.id);
       const meta = g.meta ? g.meta(s) : '';
+      const doneToday = g.group === 'daily' && s.daily && s.daily.day === Day.key() && s.daily.done;
       return `<button class="tile-card ${g.wide ? 'wide' : ''}" ${g.act ? `data-act="${g.act}"` : `data-ng="${g.id}"`} style="--c1:${g.c1};--c2:${g.c2}">
-        <span class="tile-ico" data-ico="ng-${g.id}"></span><b>${g.title}</b><small>${meta || g.tag || ''}</small></button>`;
+        ${doneToday ? '<i class="tile-done">✓</i>' : ''}<span class="tile-ico" data-ico="ng-${g.id}"></span><b>${g.title}</b><small>${meta || g.tag || ''}</small></button>`;
     }).join('');
   }
 
@@ -146,14 +152,38 @@ const NG = (() => {
   }
 
   // Окно конца игры
-  function end({ title, html = '', reward = 0, again, shareText, win = false }) {
+  // Окно конца игры: иконка игры, большая цифра, плашки статистики, квадратики для «Поделиться»
+  function end({ title, html = '', reward = 0, again, shareText, win = false, big = '', stats = [] }) {
+    const g = cur, s = store(g.id);
     if (reward) later(() => Coins.add(reward), 300);
     if (win) { Sound.play('goal'); haptic('ok'); confetti(); } else Sound.play('lose');
     const btns = [];
-    if (shareText) btns.push({ label: 'Поделиться', cls: 'gold', keepOpen: true, onClick: () => share(shareText) });
+    if (shareText) btns.push({ label: '📤 Поделиться', cls: 'gold', keepOpen: true, onClick: () => share(shareText) });
     if (again) btns.push({ label: again.label || 'Ещё раз', onClick: again.fn });
     btns.push({ label: 'В меню', cls: 'ghost', onClick: () => App.home() });
-    later(() => Modal.open(`<h2>${title}</h2>${html}${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`, btns), 500);
+    const sq = shareText ? (shareText.match(/[🟩🟨🟥⬛⬜]+/gu) || []).join('\n') : '';
+    if (s.streak > 1 && !stats.some(([k]) => k === 'Серия')) stats = [...stats, ['Серия', `${s.streak} 🔥`]];
+    later(() => Modal.open(`<div class="ng-res ${win ? 'win' : 'lose'}">
+        <span class="tile-ico ng-res-ico" style="--c1:${g.c1};--c2:${g.c2}">${Icons.get('ng-' + g.id)}</span>
+        ${big ? `<div class="ng-res-big">${big}</div>` : ''}<h2>${title}</h2>
+        ${stats.length ? `<div class="ng-res-stats">${stats.map(([k, v]) => `<span><b>${v}</b><small>${k}</small></span>`).join('')}</div>` : ''}
+        ${sq ? `<pre class="ng-res-sq">${sq}</pre>` : ''}${html}
+        ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}</div>`, btns), 500);
+  }
+
+  // Короткая подсветка элемента: верно / неверно
+  function flash(el, ok) {
+    if (!el) return;
+    el.classList.remove('ng-ok', 'ng-bad'); void el.offsetWidth;
+    el.classList.add(ok ? 'ng-ok' : 'ng-bad');
+  }
+
+  // Ежедневные задания на сегодня: [название, сделано?]
+  function dailyStatus() {
+    const dly = Store.d.dly;
+    const out = [['Игрок дня', dly.day === Day.key() && dly.done]];
+    list.filter((g) => g.group === 'daily').forEach((g) => { const d = store(g.id).daily; out.push([g.title, !!(d && d.day === Day.key() && d.done)]); });
+    return out;
   }
 
   // Время до следующего ежедневного задания
@@ -163,7 +193,7 @@ const NG = (() => {
     return `${Math.floor(left / 36e5)} ч ${Math.floor((left % 36e5) / 6e4)} мин`;
   }
 
-  return { register, open, leave, tiles, input, playerItems, careerItems, careerNames, share, end, untilTomorrow, list };
+  return { register, open, leave, tiles, input, playerItems, careerItems, careerNames, share, end, flash, dailyStatus, untilTomorrow, list };
 })();
 
 // Одноклубники по карьерам: два игрока пересекались в одном клубе в одни и те же годы

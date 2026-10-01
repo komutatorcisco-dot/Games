@@ -21,17 +21,22 @@
       const st = practice ? { g: [], hints: 0, done: false } : api.today(() => ({ g: [], hints: 0 }));
       const b = api.body;
       b.innerHTML = `<p class="ng-lead">Загадан футболист из базы (${PLAYERS.length} игроков). Чем меньше номер у догадки — тем теплее. №1 — победа.</p>
-        <div class="ng-in"></div><div class="ng-row"><button class="btn ghost" data-a="hint">Подсказка</button><button class="btn ghost" data-a="give">Сдаться</button></div><div class="cx-list"></div>`;
+        <div class="cx-thermo"></div><div class="ng-in"></div><div class="ng-row"><button class="btn ghost" data-a="hint">💡 Подсказка</button><button class="btn ghost" data-a="give">Сдаться</button></div><div class="cx-list"></div>`;
       const inp = NG.input($('.ng-in', b), { items: (q) => NG.playerItems(q, new Set(st.g)), onPick: guess });
       const heat = (r) => (r === 1 ? 'win' : r <= 10 ? 'hot' : r <= 40 ? 'warm' : r <= 120 ? 'cool' : 'cold');
+      const WORD = { win: 'Он!', hot: 'Горячо 🔥', warm: 'Тепло', cool: 'Прохладно', cold: 'Лёд 🧊' };
       function render() {
         api.sub(`${practice ? 'Тренировка · ' : `#${Day.num()} · `}догадок: ${st.g.length}`);
         const sorted = [...st.g].sort((x, y) => rank.get(x) - rank.get(y));
         const last = st.g[st.g.length - 1];
-        $('.cx-list', b).innerHTML = sorted.map((n) => {
+        const best = st.g.length ? Math.min(...st.g.map((n) => rank.get(n))) : PLAYERS.length;
+        const bw = Math.max(3, 100 - Math.log2(best) * 12.5);
+        $('.cx-thermo', b).innerHTML = `<div class="cx-bar"><i class="${heat(best)}" style="width:${bw}%"></i></div><div class="cx-tl"><span>🧊</span><b>${st.g.length ? `Лучшая догадка: №${best} · ${WORD[heat(best)]}` : 'Назови любого игрока'}</b><span>🔥</span></div>`;
+        $('.cx-list', b).innerHTML = (last ? [last] : []).concat(sorted.filter((n) => n !== last)).map((n, k) => {
           const r = rank.get(n), w = Math.max(4, 100 - Math.log2(r) * 12);
-          return `<div class="cx-row ${heat(r)} ${n === last ? 'last' : ''}"><i style="width:${w}%"></i><b>${esc(n)}</b><span>№${r}</span></div>`;
+          return `<div class="cx-row ${heat(r)} ${n === last ? 'last' : ''}">${k === 1 ? '' : ''}<i style="width:${w}%"></i>${avatar(n, 's')}<b>${esc(n)}</b><span>${WORD[heat(r)]} · №${r}</span></div>`;
         }).join('');
+        if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(b);
         inp.disable(!!st.done);
       }
       function guess(name) {
@@ -57,7 +62,7 @@
         if (won) Profile.bump('context', 12);
         const n = st.g.length;
         NG.end({
-          title: won ? `Угадал за ${n} ${plural(n, 'догадку', 'догадки', 'догадок')}!` : 'Сдался', win: won,
+          title: won ? 'Нашёл!' : 'Сдался', win: won, big: won ? `${n}` : '', stats: won ? [['Догадок', n], ['Подсказок', st.hints]] : [],
           reward: won ? Math.max(10, (practice ? 30 : 110) - n * 4 - st.hints * 10) : 0,
           html: `<div class="player-card">${avatar(secret.name, 'xl')}<div class="pname">${esc(secret.name)}</div><div class="pmeta">${secret.flag} ${esc(secret.club)}</div></div>`,
           shareText: practice || !won ? '' : `🌡 Тепло-холодно #${Day.num()} — угадал за ${n}${st.hints ? ` (подсказок: ${st.hints})` : ''}\nСтарики Джексоны`,

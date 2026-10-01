@@ -55,19 +55,31 @@
       const cards = build(practice ? Math.random : Day.rng('false9'));
       const st = practice ? { open: [], wrong: 0, done: false } : api.today(() => ({ open: [], wrong: 0 }));
       const b = api.body;
+      // Картинка к утверждению: лицо игрока или эмблема клуба
+      const pic = (c) => {
+        const p = PLAYERS.find((x) => c.text.startsWith(x.name)) || CAREERS.find((x) => c.text.startsWith(x.name));
+        if (p) return avatar(p.name, 's');
+        const m = c.text.match(/«([^»]+)»/);
+        return m && CRESTS[m[1]] ? crestImg(m[1], 's') : '<span class="f9-q">?</span>';
+      };
+      let last = -1;
       function render() {
         api.sub(practice ? 'Тренировка' : `#${Day.num()}`);
         const found = st.open.filter((i) => cards[i].lie).length;
-        b.innerHTML = `<p class="ng-lead">Три утверждения — ложь. Нажми на них. Ошибок можно: <b>${LIVES - st.wrong}</b> · найдено <b>${found}/3</b></p>
+        b.innerHTML = `<div class="f9-head"><div class="f9-lies">${[0, 1, 2].map((i) => `<i class="${i < found ? 'on' : ''}">🕵️</i>`).join('')}<small>лжи найдено</small></div>
+            <div class="f9-lives">${[...Array(LIVES).keys()].map((i) => `<i class="${i < LIVES - st.wrong ? 'on' : ''}">♥</i>`).join('')}<small>ошибок можно</small></div></div>
+          <p class="ng-lead">Три утверждения — ложь. Найди их!</p>
           <div class="f9-grid">${cards.map((c, i) => {
             const shown = st.open.includes(i) || st.done;
             const cls = shown ? (c.lie ? 'lie' : 'truth') : '';
-            return `<button class="f9-card ${cls}" data-i="${i}" ${shown ? 'disabled' : ''}><span>${esc(c.text)}</span>${shown && c.lie ? `<small>${esc(c.fix)}</small>` : shown ? '<small>Правда</small>' : ''}</button>`;
+            return `<button class="f9-card ${cls} ${i === last ? 'just' : ''}" data-i="${i}" ${shown ? 'disabled' : ''}>${pic(c)}<span>${esc(c.text)}</span>${shown ? `<small>${c.lie ? `✖ Ложь. ${esc(c.fix)}` : '✓ Правда'}</small>` : ''}</button>`;
           }).join('')}</div>`;
+        if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(b);
+        last = -1;
       }
       function tap(i) {
         if (st.done || st.open.includes(i)) return;
-        st.open.push(i);
+        st.open.push(i); last = i;
         if (cards[i].lie) { Sound.play('kick'); haptic('ok'); } else { st.wrong++; Sound.play('bad'); haptic('bad'); }
         const found = st.open.filter((k) => cards[k].lie).length;
         if (found === 3 || st.wrong >= LIVES) { st.done = true; st.won = found === 3; finish(found); }
@@ -77,7 +89,7 @@
         if (!practice) { if (st.won) api.streakWin(); else api.streakLose(); }
         if (st.won) Profile.bump('false9', 12);
         NG.end({
-          title: st.won ? 'Все три лжи найдены!' : `Найдено ${found} из 3`, win: st.won,
+          title: st.won ? 'Все три лжи найдены!' : 'Ложь ускользнула', win: st.won, big: `${found}/3`, stats: [['Ошибки', `${st.wrong}/${LIVES}`]],
           reward: st.won ? (practice ? 10 : 60 - st.wrong * 15) : found * 5,
           shareText: practice ? '' : `🕵️ Ложная девятка #${Day.num()} — ${st.won ? '✓' : '✗'} (${found}/3, ошибок ${st.wrong})\n${st.open.map((k) => (cards[k].lie ? '🟩' : '🟥')).join('')}\nСтарики Джексоны`,
           again: { label: 'Тренировка', fn: () => NG.open('false9', { practice: true }) },

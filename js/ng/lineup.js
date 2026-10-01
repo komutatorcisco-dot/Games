@@ -20,38 +20,47 @@
       const practice = !!opts.practice;
       const team = parse(practice ? pick(NATION_XI) : NATION_XI[Math.floor(Day.rng('lineup')() * NATION_XI.length)]);
       const st = practice ? { found: [], misses: 0, hints: 0, open: {}, done: false } : api.today(() => ({ found: [], misses: 0, hints: 0, open: {} }));
-      let sel = -1;
+      let sel = -1, lastHit = -1;
       const b = api.body;
-      b.innerHTML = `<p class="ng-lead">${team.flag} <b>Сборная: ${esc(team.nat)}</b> · ЧМ-2026 · схема ${team.scheme}</p>
+      b.innerHTML = `<div class="lu-banner"><span class="lu-flag">${team.flag}</span><div><b>${esc(team.nat)}</b><small>Стартовый состав · ЧМ-2026 · ${team.scheme}</small></div><span class="lu-count"></span></div>
         <div class="nat-pitch ng-pitch"></div><div class="ng-misses"></div><div class="ng-in"></div>
-        <div class="ng-row"><button class="btn ghost" data-a="hint">Открыть букву</button><button class="btn ghost" data-a="give">Сдаться</button></div>`;
+        <div class="ng-row"><button class="btn ghost" data-a="hint"></button><button class="btn ghost" data-a="give">Сдаться</button></div>`;
       const inp = NG.input($('.ng-in', b), { placeholder: 'Впиши фамилию и нажми Enter', button: 'Ввод', onPick: guess });
 
+      // Фамилия клеточками: открытые подсказкой буквы видны
       function blanks(p) {
         const shown = st.open[p.i] || 0;
         let n = 0;
-        return [...p.name].map((ch) => (ch === ' ' || ch === '-' ? ch : n++ < shown ? ch : '_')).join('');
+        return [...p.name].map((ch) => (ch === ' ' || ch === '-' ? '<i class="gap"></i>' : `<i>${n++ < shown ? esc(ch) : ''}</i>`)).join('');
       }
       function render() {
         api.sub(practice ? 'Тренировка' : `#${Day.num()} · найдено ${st.found.length}/11`);
         $('.ng-pitch', b).innerHTML = [...team.rows].reverse().map((r) => `<div class="nat-row">${r.map((p) => {
           const ok = st.found.includes(p.i) || st.done;
-          return `<button class="nat-slot ng-slot ${st.found.includes(p.i) ? 'ok' : st.done ? 'miss' : ''} ${sel === p.i ? 'sel' : ''}" data-i="${p.i}">${crestImg(p.club, 'm')}
-            <small>${esc(p.club)}</small><b class="ng-name">${ok ? esc(p.name) : esc(blanks(p))}</b></button>`;
+          return `<button class="nat-slot ng-slot ${st.found.includes(p.i) ? 'ok' : st.done ? 'miss' : ''} ${sel === p.i ? 'sel' : ''} ${lastHit === p.i ? 'pop' : ''}" data-i="${p.i}">${crestImg(p.club, 'm')}
+            <small>${esc(p.club)}</small>${ok ? `<b class="ng-name">${esc(p.name)}</b>` : `<span class="ng-tiles">${blanks(p)}</span>`}</button>`;
         }).join('')}</div>`).join('');
-        $('.ng-misses', b).innerHTML = `Промахи: ${'✖'.repeat(st.misses)}${'·'.repeat(MISSES - st.misses)} · подсказок: ${HINTS - st.hints}`;
+        $('.ng-misses', b).innerHTML = `<span>Промахи</span>${[...Array(MISSES).keys()].map((i) => `<i class="${i < st.misses ? 'x' : ''}"></i>`).join('')}`;
+        $('.lu-count', b).innerHTML = `<b>${st.found.length}</b>/11`;
+        $('[data-a="hint"]', b).textContent = `🔤 Буква · ${HINTS - st.hints}`;
+        $('[data-a="hint"]', b).disabled = st.done || st.hints >= HINTS;
         inp.disable(st.done);
+        lastHit = -1;
       }
       function guess(text) {
         if (st.done) return;
-        const hit = team.ps.find((p) => !st.found.includes(p.i) && variants(p.name).some((v) => nameMatch(text, v)));
+        // сначала проверяем выбранного игрока, потом остальных
+        const cand = [...team.ps].sort((x, y) => (y.i === sel) - (x.i === sel));
+        const hit = cand.find((p) => !st.found.includes(p.i) && variants(p.name).some((v) => nameMatch(text, v)));
         if (hit) {
-          st.found.push(hit.i); Sound.play('kick'); haptic('ok');
+          st.found.push(hit.i); lastHit = hit.i; Sound.play('kick'); haptic('ok');
+          if (sel === hit.i) sel = -1;
           if (st.found.length === 11) return finish();
         } else if (team.ps.some((p) => variants(p.name).some((v) => nameMatch(text, v)))) {
           toast('Этот игрок уже на поле');
         } else {
           st.misses++; Sound.play('bad'); haptic('bad'); toast(`«${text}» нет в этом составе`);
+          NG.flash($('.ng-misses', b), false);
           if (st.misses >= MISSES) return finish();
         }
         api.save(); render();
@@ -64,7 +73,8 @@
         if (n >= 6) Profile.bump('lineup', n * 2);
         const grid = [...team.rows].reverse().map((r) => r.map((p) => (st.found.includes(p.i) ? '🟩' : '⬜')).join('')).join('\n');
         NG.end({
-          title: n === 11 ? 'Весь состав!' : `Найдено ${n} из 11`, win: n >= 8, reward,
+          title: n === 11 ? 'Весь состав!' : n >= 8 ? 'Отличный результат' : 'Можно лучше', win: n >= 8, reward, big: `${n}/11`,
+          stats: [['Промахи', `${st.misses}/${MISSES}`], ['Подсказки', `${st.hints}/${HINTS}`]],
           html: `<p>${team.flag} ${esc(team.nat)}: ${team.ps.map((p) => esc(p.name)).join(', ')}</p>`,
           shareText: practice ? '' : `⚽ Состав дня #${Day.num()} — ${n}/11\n${grid}\nСтарики Джексоны`,
           again: { label: 'Тренировка: другой состав', fn: () => NG.open('lineup', { practice: true }) },
