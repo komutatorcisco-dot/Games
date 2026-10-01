@@ -49,6 +49,7 @@ const App = (() => {
     $('#meta-value').textContent = Store.d.compare.valBest ? `Рекорд ${Store.d.compare.valBest}` : 'Transfermarkt';
     $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
     $('#pz-shelf').innerHTML = PZ.shelf();
+    Icons.fill($('#hub'));
     $('#daily').hidden = Store.d.lastDaily === today();
     $('#wheel-btn').hidden = !Wheel.ready();
     if (!$('#daily').hidden) {

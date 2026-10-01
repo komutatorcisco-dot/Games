@@ -96,7 +96,7 @@ const PZ = (() => {
       const st = state(g.id);
       const meta = g.endless ? (st.best ? `Рекорд ${st.best}` : g.metaNew || 'Без конца') : `Уровень ${st.level}`;
       return `<button class="tile-card pz-tile" data-pz="${g.id}" style="--c1:${g.c1};--c2:${g.c2}">
-        <span class="tile-ico">${g.icon}</span><b>${g.title}</b><small>${meta}</small></button>`;
+        <span class="tile-ico" data-ico="${g.id}" data-done="1">${Icons.get(g.id) || g.icon}</span><b>${g.title}</b><small>${meta}</small></button>`;
     }).join('');
   }
 

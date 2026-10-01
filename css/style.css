@@ -583,6 +583,51 @@ a { color: var(--danil); }
 .pz-area { display: flex; flex-direction: column; align-items: center; gap: 12px; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .pz-tile .tile-ico { font-size: 18px; }
 
+/* ---------- иконки игр ---------- */
+.tile-ico { position: relative; width: 56px; height: 56px; border-radius: 16px; overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -3px 0 rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.3); }
+.tile-ico::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(160deg, rgba(255,255,255,.28) 0 30%, transparent 55%); }
+.tile-ico svg { position: absolute; inset: 0; width: 100%; height: 100%; font-family: system-ui, sans-serif; }
+.ic-face, .ic-crest { position: absolute; object-fit: contain; }
+.ic-face { width: 100%; height: 100%; inset: 0; object-fit: cover; object-position: center 20%; }
+.ic-face.dim { filter: brightness(0) opacity(.45); transform: scale(1.1) translateY(6%); }
+.tile-ico .ic-q { position: absolute; inset: 0; display: grid; place-items: center; font-size: 34px; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.3), 0 0 12px rgba(0,0,0,.35); }
+.ic-crest.blur { inset: 8%; width: 84%; height: 84%; filter: blur(3px) saturate(1.3); }
+.ic-slide { position: absolute; inset: 6px; border-radius: 8px; overflow: hidden; background: #fff; }
+.ic-slide .ic-crest { inset: 0; width: 100%; height: 100%; }
+.ic-slide i { position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent calc(33.3% - 1px), rgba(30,20,70,.9) 0 calc(33.3% + 1px), transparent 0 calc(66.6% - 1px), rgba(30,20,70,.9) 0 calc(66.6% + 1px), transparent 0),
+              linear-gradient(transparent calc(33.3% - 1px), rgba(30,20,70,.9) 0 calc(33.3% + 1px), transparent 0 calc(66.6% - 1px), rgba(30,20,70,.9) 0 calc(66.6% + 1px), transparent 0); }
+.ic-slide i::after { content: ""; position: absolute; right: 0; bottom: 0; width: 33.3%; height: 33.3%; background: #2c4bb0; box-shadow: inset 2px 2px 4px rgba(0,0,0,.4); }
+.ic-card { position: absolute; width: 27px; height: 36px; top: 10px; border-radius: 5px; box-shadow: 0 2px 4px rgba(0,0,0,.35); overflow: hidden; }
+.ic-card.back { left: 7px; transform: rotate(-12deg); border: 2px solid #fff; background: repeating-linear-gradient(45deg, #2a1f5c 0 4px, #3a2b7a 4px 8px); }
+.ic-card.front { right: 7px; transform: rotate(10deg); border: 2px solid #fff; background: #3a8f7c; }
+.ic-card .ic-face { object-position: center 15%; }
+.ic-2048 { position: absolute; inset: 7px; display: grid; place-content: center; border-radius: 10px; text-align: center;
+  background: radial-gradient(circle at 40% 30%, #fff6c4, #ffcf3a 55%, #c98f00); box-shadow: 0 0 10px rgba(255,207,58,.7); }
+.tile-ico .ic-2048 b { font-family: var(--font-display); font-weight: 400; font-size: 15px; color: #3a2600; line-height: 1; text-shadow: none; }
+.ic-2048 small { font-size: 9px; color: #7a5200; }
+.ic-path .ic-crest { width: 23px; height: 29px; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.ic-path .c1 { left: 2px; bottom: 2px; } .ic-path .c2 { left: 16px; top: 13px; } .ic-path .c3 { right: 2px; top: 1px; }
+.ic-crest.from { width: 24px; height: 31px; left: 3px; top: 12px; transform: rotate(-8deg); }
+.ic-crest.to { width: 24px; height: 31px; right: 3px; top: 12px; transform: rotate(8deg); }
+.tile-ico svg + .ic-crest, .ic-crest.mid { width: 15px; height: 19px; left: 21px; top: 19px; }
+.ic-fut { position: absolute; left: 11px; top: 4px; width: 34px; height: 48px; border-radius: 6px 6px 14px 14px; overflow: hidden;
+  background: linear-gradient(160deg, #fff3b0, #e9b928 60%, #b8860b); box-shadow: 0 2px 4px rgba(0,0,0,.35); }
+.ic-fut .ic-face { inset: auto 0 0 4px; width: 34px; height: 34px; }
+.tile-ico .ic-fut b { position: absolute; z-index: 1; left: 3px; top: 2px; font-family: var(--font-display); font-weight: 400; font-size: 13px; color: #3a2600; line-height: 1; }
+.ic-fut small { position: absolute; z-index: 1; left: 4px; top: 15px; font-size: 6px; font-weight: 900; color: #3a2600; }
+.ic-face.big { object-position: center 10%; transform: scale(1.15) translateY(8%); }
+.ic-coin { position: absolute; right: 3px; bottom: 3px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-weight: 900; font-size: 13px; color: #3a2600;
+  background: radial-gradient(circle at 35% 30%, #fff6c4 0 18%, var(--gold) 19% 62%, #c98f00 63%); box-shadow: inset 0 0 0 2px #b77f00, 0 2px 3px rgba(0,0,0,.4); }
+.ic-face.l, .ic-face.r, .ic-crest.l, .ic-crest.r { width: 30px; height: 30px; top: auto; }
+.ic-face.l { left: -2px; top: 0; } .ic-face.r { right: -2px; left: auto; bottom: 0; top: auto; }
+.ic-crest.l { left: 3px; top: 4px; width: 24px; height: 31px; } .ic-crest.r { right: 3px; bottom: 4px; width: 24px; height: 31px; }
+.tile-ico .ic-vs { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(-10deg); font-family: var(--font-display); font-weight: 400; font-size: 17px;
+  color: #ffcf3a; text-shadow: 0 2px 0 #1b1240, 0 0 6px rgba(0,0,0,.6); }
+
+
 /* сортировка */
 .tubes { display: grid; grid-template-columns: repeat(min(var(--n), 6), 1fr); gap: 14px 10px; width: 100%; max-width: 420px; justify-items: center; padding-top: 30px; }
 .tube { position: relative; width: 52px; height: 200px; padding: 6px 0; border: 0; border-radius: 6px 6px 28px 28px; display: flex; flex-direction: column-reverse; align-items: center; gap: 4px;
