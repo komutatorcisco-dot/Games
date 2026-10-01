@@ -20,7 +20,7 @@ const Daily = (() => {
 
   // Узнаваемые игроки, у которых есть своё фото: иначе вместо фото были бы инициалы — это подсказка
   function poolList() {
-    if (!pool) pool = PLAYERS.filter((p) => FACES[p.name] && p.tier <= 2).sort((a, b) => a.id - b.id);
+    if (!pool) pool = PLAYERS.filter((p) => FACES[p.name] && p.tier <= 2 && p.num > 0).sort((a, b) => a.id - b.id);
     return pool;
   }
   function playerOf(n) {
@@ -75,7 +75,7 @@ const Daily = (() => {
     const lvl = s.done ? MAX : s.level;
     $('#dly-sub').textContent = `#${dayNum()} · серия ${s.streak}${s.streak ? ' 🔥' : ''}`;
     $('#dly-photo').style.setProperty('--b', (s.done ? 0 : BLUR[lvl]) + 'px');
-    $('#dly-photo').innerHTML = `<img src="img/players/${FACES[p.name]}.webp" alt="">`;
+    $('#dly-photo').innerHTML = `<img src="${faceSrc(FACES[p.name])}" alt="">`;
     $('#dly-clues').innerHTML = clues(p).map(([k, v], i) => (i < lvl
       ? `<div class="dly-clue open" style="--i:${i}"><span>${k}</span><b>${v}</b></div>`
       : `<div class="dly-clue"><span>${k}</span><b>🔒 Подсказка ${i + 1}</b></div>`)).join('');
@@ -105,7 +105,7 @@ const Daily = (() => {
     const box = $('#dly-result');
     if (s.done) {
       box.innerHTML = `
-        <div class="player-card"><img class="dly-face" src="img/players/${FACES[p.name]}.webp" alt=""><div class="pname">${esc(p.name)}</div>
+        <div class="player-card"><img class="dly-face" src="${faceSrc(FACES[p.name])}" alt=""><div class="pname">${esc(p.name)}</div>
           <div class="pmeta">${p.flag} ${esc(p.nat)} · ${esc(p.club)}</div></div>
         <p class="dly-verdict">${s.won ? `Угадал с ${s.level}-й подсказки! +${REWARD[s.level]} монет` : 'Сегодня не вышло.'}</p>
         <div class="dly-share-row">${shareSquares()}</div>

@@ -7,7 +7,7 @@
   const LINE = { ГК: 'Вратарь', ЦЗ: 'Защитник', ЛЗ: 'Защитник', ПЗ: 'Защитник', ЦОП: 'Полузащитник', ЦП: 'Полузащитник', ЦАП: 'Полузащитник', ЛВ: 'Нападающий', ПВ: 'Нападающий', ФРВ: 'Нападающий' };
   function cats() {
     const out = [];
-    const add = (label, test) => { const ps = PLAYERS.filter(test); if (ps.length >= 6) out.push({ label, test, ps }); };
+    const add = (label, test) => { const ps = PLAYERS.filter((p) => p.num > 0 && test(p)); if (ps.length >= 6) out.push({ label, test, ps }); };
     [...new Set(PLAYERS.map((p) => p.lg))].forEach((l) => add(`Лига: ${l}`, (p) => p.lg === l));
     [...new Set(PLAYERS.map((p) => p.nat))].forEach((n) => add(`Сборная: ${n}`, (p) => p.nat === n));
     ['Вратарь', 'Защитник', 'Полузащитник', 'Нападающий'].forEach((l) => add(l, (p) => LINE[p.pos] === l));
@@ -33,7 +33,7 @@
           <h3 class="ng-q">${esc(cat.label)}</h3><p class="ng-lead">Назови игрока — вычтем его номер. Финиш ровно в 0.</p>
           <div class="ng-in"></div><div class="dt-log">${log.map((l) => `<span class="${l.c}">${l.t}</span>`).join('')}</div>
           <div class="ng-row"><button class="btn ghost" data-a="skip">Сменить категорию (−1 дротик)</button></div>`;
-        NG.input($('.ng-in', b), { items: (q) => NG.playerItems(q, used), onPick: throwDart }).focus();
+        NG.input($('.ng-in', b), { items: (q) => NG.playerItems(q, new Set([...used, ...PLAYERS.filter((p) => !p.num).map((p) => p.name)])), onPick: throwDart }).focus();
         if (prev !== score) countUp($('.dt-board b', b), score, { from: prev, dur: 600 });
         prev = score; hit = 0;
       }

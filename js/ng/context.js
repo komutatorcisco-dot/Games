@@ -7,7 +7,7 @@
   function sim(p, s) {
     if (p === s) return 1e9;
     return (p.club === s.club ? 50 : 0) + (p.nat === s.nat ? 28 : p.cont === s.cont ? 6 : 0) + (p.lg === s.lg ? 16 : 0)
-      + (p.pos === s.pos ? 12 : LINE[p.pos] === LINE[s.pos] ? 6 : 0) + Math.max(0, 10 - Math.abs(p.born - s.born) * 2) + (p.num === s.num ? 3 : 0);
+      + (p.pos === s.pos ? 12 : LINE[p.pos] === LINE[s.pos] ? 6 : 0) + Math.max(0, 10 - Math.abs(p.born - s.born) * 2) + (p.num && p.num === s.num ? 3 : 0);
   }
 
   NG.register({

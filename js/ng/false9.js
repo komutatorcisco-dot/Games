@@ -18,7 +18,7 @@
         return { text: `${p.name} выступает за сборную: ${n}`, fix: `${p.name} — ${p.nat}`, ok: !lie || !n }; },
       (lie) => { const p = r(known); const y = lie ? p.born + r([-3, -2, 2, 3]) : p.born;
         return { text: `${p.name} родился в ${y} году`, fix: `${p.name} — ${p.born} г.р.` }; },
-      (lie) => { const p = r(known); const n = lie ? other([1, 4, 5, 7, 8, 9, 10, 11, 14, 17, 19, 20, 22, 23], p.num) : p.num;
+      (lie) => { const p = r(known.filter((x) => x.num > 0)); const n = lie ? other([1, 4, 5, 7, 8, 9, 10, 11, 14, 17, 19, 20, 22, 23], p.num) : p.num;
         return { text: `${p.name} играет под номером ${n}`, fix: `${p.name} — №${p.num}` }; },
       (lie) => { const p = r(known); const l = lie ? other(['вратарь', 'защитник', 'полузащитник', 'нападающий'], LINE[p.pos]) : LINE[p.pos];
         return { text: `${p.name} — ${l}`, fix: `${p.name} — ${LINE[p.pos]}` }; },

@@ -14,7 +14,8 @@ const Guess = (() => {
   // Порядок уровней: сначала суперзвёзды, потом звёзды, потом игроки для знатоков.
   const ORDER = (() => {
     const rnd = mulberry32(2024);
-    return [1, 2, 3].flatMap((t) => shuffle(PLAYERS.filter((p) => p.tier === t), rnd));
+    // загадываем только игроков с известным номером: иначе одна колонка подсказок пустая
+    return [1, 2, 3].flatMap((t) => shuffle(PLAYERS.filter((p) => p.tier === t && p.num > 0), rnd));
   })();
 
   const norm = (s) => s.toLowerCase().replace(/ё/g, 'е').replace(/[^a-zа-я0-9 ]/g, '');
@@ -30,7 +31,7 @@ const Guess = (() => {
       { v: SHORT[g.club] || g.club, title: g.club, cls: 'club', s: g.club === a.club ? 'hit' : 'miss' },
       { v: age(g) + arrow(age(g), age(a)), s: g.born === a.born ? 'hit' : Math.abs(g.born - a.born) <= 2 ? 'near' : 'miss' },
       { v: g.pos, s: g.pos === a.pos ? 'hit' : LINE[g.pos] === LINE[a.pos] ? 'near' : 'miss' },
-      { v: g.num + arrow(g.num, a.num), s: g.num === a.num ? 'hit' : Math.abs(g.num - a.num) <= 3 ? 'near' : 'miss' },
+      g.num ? { v: g.num + arrow(g.num, a.num), s: g.num === a.num ? 'hit' : Math.abs(g.num - a.num) <= 3 ? 'near' : 'miss' } : { v: '—', s: 'miss', title: 'Номер неизвестен' },
     ];
   }
 
@@ -45,7 +46,7 @@ const Guess = (() => {
   function startCareer() {
     mode = 'career';
     const lvl = Store.d.guess.level;
-    answer = lvl <= ORDER.length ? ORDER[lvl - 1] : pick(PLAYERS);
+    answer = lvl <= ORDER.length ? ORDER[lvl - 1] : pick(PLAYERS.filter((p) => p.num > 0));
     maxTries = 8;
     reset();
     $('#guess-title').textContent = 'Угадай футболиста';

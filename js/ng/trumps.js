@@ -21,7 +21,7 @@
     id: 'trumps', group: 'cards', title: 'Козыри', c1: '#ffcf3a', c2: '#2a2a35', tag: 'Карты против бота',
     meta: (s) => (s.wins ? `Побед: ${s.wins}` : 'Карты против бота'),
     start(api) {
-      const deck = shuffle(PLAYERS.filter((p) => p.tier <= 2), Math.random).slice(0, 20);
+      const deck = shuffle(PLAYERS.filter((p) => p.tier <= 2 && p.num > 0), Math.random).slice(0, 20);
       let me = deck.slice(0, 10), bot = deck.slice(10), round = 1, myTurn = true, reveal = null, over = false;
       const b = api.body;
       function render() {
