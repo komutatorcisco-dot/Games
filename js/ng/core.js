@@ -85,8 +85,10 @@ const NG = (() => {
     if (cleanup) { try { cleanup(); } catch (e) { /* ничего */ } cleanup = null; }
   }
 
+  // Плитки игр: группа ('brain') или список id
   function tiles(group) {
-    return list.filter((g) => g.group === group).map((g) => {
+    const games = Array.isArray(group) ? group.map((id) => list.find((g) => g.id === id)).filter(Boolean) : list.filter((g) => g.group === group);
+    return games.map((g) => {
       const s = store(g.id);
       const meta = g.meta ? g.meta(s) : '';
       const doneToday = g.group === 'daily' && s.daily && s.daily.day === Day.key() && s.daily.done;

@@ -55,6 +55,17 @@ const App = (() => {
     $('#pz-shelf').innerHTML = PZ.shelf();
     Daily.hubCard();
     ['daily', 'brain', 'grid', 'cards', 'hist'].forEach((g) => { $('#ng-' + g).innerHTML = NG.tiles(g); });
+    $('#featured').innerHTML = NG.tiles(featured());
+    const dh = (Store.d.fduel && Store.d.fduel.hist) || [];
+    $('#duel-stat').textContent = dh.length ? `Сыграно дуэлей: ${dh.length} · побед: ${dh.filter((x) => x.res === 'win').length}` : '';
+    if (!cat) cat = (Store.d.ui && Store.d.ui.cat) || 'guess';
+    $$('#cat-nav [data-cat]').forEach((c) => {
+      const n = $$(`.cat[data-cat="${c.dataset.cat}"] :is(.tile-card, .game-card, .auction-hero)`).length;
+      c.dataset.n = n;
+    });
+    const total = $$('#panel-games :is(.tile-card, .game-card, .auction-hero)').length + $$('#panel-friends .tile-card').length + 1;
+    $('#all-count').textContent = `${total} ${plural(total, 'игра', 'игры', 'игр')} по разделам`;
+    setCat(cat, false);
     renderDailyProgress();
     $('#lim-auction').textContent = Limits.label('auction');
     $('#lim-pick').textContent = Limits.label('pick');
@@ -115,13 +126,78 @@ const App = (() => {
     User.render();
   }
 
-  function home(anchor) {
+  // Главная разбита на вкладки: «Главная», «Игры» (по разделам) и «С другом»
+  const PANELS = ['home', 'games', 'friends'];
+  const CATS = ['guess', 'hist', 'brain', 'puzzles', 'grid', 'cards', 'channel'];
+  let panel = 'home', cat = null; // раздел игр берём из сохранения после Store.load()
+  const scrollMem = {};
+
+  // Подборка дня: 4 игры, у всех одинаковые, меняются в полночь МСК
+  function featured() {
+    const pool = NG.list.filter((g) => ['brain', 'grid', 'cards', 'hist'].includes(g.group)).map((g) => g.id);
+    return shuffle(pool, Day.rng('featured')).slice(0, 4);
+  }
+
+  function showPanel(name, animate = true) {
+    if (!PANELS.includes(name)) name = 'home';
+    const from = PANELS.indexOf(panel), to = PANELS.indexOf(name);
+    panel = name;
+    PANELS.forEach((p) => {
+      const el = $('#panel-' + p);
+      el.hidden = p !== name;
+      if (p === name && animate && from !== to) {
+        el.classList.remove('slide-l', 'slide-r'); void el.offsetWidth;
+        el.classList.add(to > from ? 'slide-l' : 'slide-r');
+        $$('.tile-card, .game-card, .auction-hero, .runner-hero, .rank-card, .friends-teaser, .all-games', el).forEach((c, i) => c.style.setProperty('--i', Math.min(i, 12)));
+      }
+    });
+    tabs();
+  }
+
+  function setCat(c, animate = true) {
+    if (!CATS.includes(c)) c = 'guess';
+    cat = c;
+    (Store.d.ui || (Store.d.ui = {})).cat = c; Store.save();
+    $$('#cat-nav [data-cat]').forEach((b) => b.classList.toggle('on', b.dataset.cat === c));
+    $$('#panel-games .cat').forEach((el) => {
+      el.hidden = el.dataset.cat !== c;
+      if (!el.hidden && animate) {
+        el.classList.remove('cat-in'); void el.offsetWidth; el.classList.add('cat-in');
+        $$('.tile-card, .game-card, .auction-hero', el).forEach((t, i) => t.style.setProperty('--i', Math.min(i, 12)));
+      }
+    });
+    const on = $('#cat-nav .on');
+    if (on && animate) on.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
+  }
+
+  function tabs() {
+    const id = Screens.current;
+    $('#tab-home').classList.toggle('on', id === 'hub' && panel === 'home');
+    $('#tab-games').classList.toggle('on', id === 'hub' && panel === 'games');
+    $('#tab-friends').classList.toggle('on', id === 'hub' && panel === 'friends');
+    $('#tab-shop').classList.toggle('on', id === 'shop');
+    $('#tab-profile').classList.toggle('on', id === 'profile');
+  }
+
+  // where: вкладка ('games'), раздел игр ('puzzles') или ничего — вернуться туда, где был
+  function home(where) {
     Modal.close();
     PZ.leave();
     renderHub();
     Screens.show('hub');
-    if (anchor) { const el = document.getElementById(anchor); if (el) el.scrollIntoView({ block: 'start' }); }
+    if (CATS.includes(where)) { showPanel('games', false); setCat(where, false); }
+    else if (PANELS.includes(where)) showPanel(where, false);
+    else { showPanel(panel, false); if (scrollMem[panel]) window.scrollTo(0, scrollMem[panel]); }
     if (!Store.d.user.nick) later(() => User.ensure(), 250);
+  }
+
+  // нажатие на вкладку внизу: на главной просто листаем панели
+  function tab(name) {
+    if (Screens.current !== 'hub') return home(name);
+    if (panel === name) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    scrollMem[panel] = scrollY;
+    showPanel(name);
+    window.scrollTo(0, 0);
   }
 
   function profile() {
@@ -131,7 +207,12 @@ const App = (() => {
   }
 
   const actions = {
-    home,
+    home: () => tab('home'),
+    games: () => tab('games'),
+    friends: () => tab('friends'),
+    'duel-live': () => NG.open('duel', { mode: 'live' }),
+    'duel-link': () => NG.open('duel', { mode: 'link' }),
+    'duel-hot': () => NG.open('duel', { mode: 'hot' }),
     profile,
     nick: () => User.edit(false),
     donate: () => Donate.open(),
@@ -198,12 +279,19 @@ const App = (() => {
     Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind(); Nation.bind(); Pick.bind(); Daily.bind(); Shop.bind();
     Howto.addButtons();
     Music.arm();
-    document.addEventListener('pointerdown', (e) => { Coins.last = { x: e.clientX, y: e.clientY }; }, true);
+    document.addEventListener('pointerdown', (e) => {
+      Coins.last = { x: e.clientX, y: e.clientY };
+      // блик плитки из точки касания
+      const t = e.target.closest && e.target.closest('.tile-card');
+      if (t) { const r = t.getBoundingClientRect(); t.style.setProperty('--px', `${e.clientX - r.left}px`); t.style.setProperty('--py', `${e.clientY - r.top}px`); }
+    }, true);
     document.addEventListener('click', (e) => {
-      const jump = e.target.closest('[data-jump]');
-      if (jump) { const t = document.getElementById(jump.dataset.jump); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 64, behavior: 'smooth' }); return; }
+      const tb = e.target.closest('[data-tab]');
+      if (tb) { Sound.play('tap'); tab(tb.dataset.tab); return; }
+      const ct = e.target.closest('#cat-nav [data-cat]');
+      if (ct) { Sound.play('tap'); haptic('tap'); setCat(ct.dataset.cat); return; }
       const tile = e.target.closest('.tile-card, .card, .recent-tile, .runner-hero');
-      if (tile) User.remember(tile);
+      if (tile) { User.remember(tile); if (Screens.current === 'hub') scrollMem[panel] = scrollY; }
       const el = e.target.closest('[data-act]');
       if (el && el.tagName === 'A') e.preventDefault();
       if (el && actions[el.dataset.act]) { actions[el.dataset.act](); Howto.forAct(el.dataset.act); return; }
@@ -220,9 +308,7 @@ const App = (() => {
       orig(id);
       document.body.classList.toggle('in-runner', id === 'runner');
       $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop');
-      $('#tab-shop').classList.toggle('on', id === 'shop');
-      $('#tab-home').classList.toggle('on', id === 'hub');
-      $('#tab-profile').classList.toggle('on', id === 'profile');
+      tabs();
       try { if (TG && TG.BackButton) id === 'hub' ? TG.BackButton.hide() : TG.BackButton.show(); } catch (e) { /* не в Telegram */ }
     };
     try {
@@ -233,7 +319,9 @@ const App = (() => {
     try { if (TG && TG.initDataUnsafe && TG.initDataUnsafe.start_param) h = TG.initDataUnsafe.start_param; } catch (e) { /* не в Telegram */ }
     const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop' };
     renderHub();
-    if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }
+    if (Duel.deep(h)) { /* вызов на дуэль или комната */ }
+    else if (h !== 'puzzles' && (PANELS.includes(h) || CATS.includes(h))) { home(h); }
+    else if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }
     else if (NG.list.some((g) => g.id === h)) { if (h === 'box2box') actions.b2b(); else NG.open(h); Howto.auto('ng-' + h); }
     else { Screens.show('hub'); User.ensure(); }
   }

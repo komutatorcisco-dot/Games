@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;800&family=Russo+One&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261002g">
+<link rel="stylesheet" href="css/style.css?v=20261002h">
 <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -25,111 +25,154 @@
       <button class="coins" data-act="coins-info" aria-label="Монеты"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></button>
     </header>
 
-    <nav class="hub-nav" id="hub-nav">
-      <button data-jump="sec-today">Сегодня</button><button data-jump="sec-guess">Угадайки</button><button data-jump="sec-hist">История</button>
-      <button data-jump="sec-brain">Знатокам</button><button data-jump="puzzles">Головоломки</button><button data-jump="sec-duo">Вдвоём</button>
-      <button data-jump="sec-grid">Сетки</button><button data-jump="sec-cards">Карты</button><button data-jump="sec-channel">Рубрика</button>
-    </nav>
+    <div class="hub-panel" id="panel-home">
+      <div class="recent-wrap" hidden><h3 class="section-label">Продолжить</h3><div class="recent" id="recent"></div></div>
 
-    <div class="recent-wrap" hidden><h3 class="section-label">Недавние</h3><div class="recent" id="recent"></div></div>
+      <button class="rank-card" data-act="profile">
+        <span class="rank-label">Звание</span>
+        <b class="rank-name" id="hub-rank"></b>
+        <span class="xpbar"><i id="hub-xp"></i></span>
+        <small id="hub-next"></small>
+      </button>
 
-    <button class="rank-card" data-act="profile">
-      <span class="rank-label">Звание</span>
-      <b class="rank-name" id="hub-rank"></b>
-      <span class="xpbar"><i id="hub-xp"></i></span>
-      <small id="hub-next"></small>
-    </button>
+      <button id="daily" class="daily" data-act="daily" hidden>
+        <span class="daily-top"><span class="coin" aria-hidden="true"></span><span><b>Бонус за вход</b> · <span id="daily-text"></span></span></span>
+        <span class="days" id="daily-days"></span>
+      </button>
 
-    <button id="daily" class="daily" data-act="daily" hidden>
-      <span class="daily-top"><span class="coin" aria-hidden="true"></span><span><b>Бонус за вход</b> · <span id="daily-text"></span></span></span>
-      <span class="days" id="daily-days"></span>
-    </button>
+      <button id="wheel-btn" class="wheel-card" data-act="wheel" hidden>
+        <span class="wheel-mini" aria-hidden="true"></span>
+        <span><b>Колесо удачи</b><small>Крути раз в день — до 150 монет</small></span>
+      </button>
 
-    <button id="wheel-btn" class="wheel-card" data-act="wheel" hidden>
-      <span class="wheel-mini" aria-hidden="true"></span>
-      <span><b>Колесо удачи</b><small>Крути раз в день — до 150 монет</small></span>
-    </button>
+      <h3 class="section-label">Сегодня</h3>
+      <button id="dly-card" class="dly-card" data-act="dly">
+        <span class="dly-card-photo" aria-hidden="true"><i>?</i></span>
+        <span class="dly-card-body">
+          <span class="dly-card-top"><span class="tag">ИГРОК ДНЯ</span><b id="dly-card-num"></b><em id="dly-card-streak"></em></span>
+          <b class="dly-card-title">Кто этот футболист?</b>
+          <small id="dly-card-state"></small>
+        </span>
+      </button>
 
-    <span class="jump-anchor" id="sec-today"></span>
-    <button id="dly-card" class="dly-card" data-act="dly">
-      <span class="dly-card-photo" aria-hidden="true"><i>?</i></span>
-      <span class="dly-card-body">
-        <span class="dly-card-top"><span class="tag">ИГРОК ДНЯ</span><b id="dly-card-num"></b><em id="dly-card-streak"></em></span>
-        <b class="dly-card-title">Кто этот футболист?</b>
-        <small id="dly-card-state"></small>
-      </span>
-    </button>
+      <div class="dly-progress" id="dly-progress"></div>
+      <div class="tiles" id="ng-daily"></div>
 
-    <div class="dly-progress" id="dly-progress"></div>
-    <div class="tiles" id="ng-daily"></div>
+      <h3 class="section-label">Подборка дня</h3>
+      <div class="tiles" id="featured"></div>
+      <button class="all-games" data-tab="games"><span>🎮</span><b>Все игры</b><small id="all-count"></small><i>→</i></button>
 
-    <a class="runner-hero" href="runner.html" data-act="runner">
-      <span class="rh-badge">3D</span>
-      <b>Прорыв к воротам</b>
-      <small>Беги с мячом, обходи защитников, качай скорость и удар, бей пенальти. 3D-игра канала прямо здесь.</small>
-      <span class="btn">Играть →</span>
-    </a>
+      <button class="friends-teaser" data-tab="friends">
+        <span class="ft-vs"><span>⚽</span><i>VS</i><span>🙂</span></span>
+        <span><b>Сыграй с другом</b><small>Онлайн по ссылке или на одном телефоне</small></span>
+      </button>
 
-    <h3 class="section-label" id="sec-channel">Рубрика канала</h3>
-    <button class="auction-hero" data-act="auction-bot">
-      <span class="ah-top"><span class="tag tag-danil">ДАНИЛ: 50</span><span class="ah-coin">50</span><span class="tag tag-sasha">САША: 50</span></span>
-      <b>Аукцион</b>
-      <small>5 игроков, 50 монет. Перебивай ставки и собери пятёрку в лучшей форме прямо сейчас.</small>
-      <em class="limit-note" id="lim-auction"></em>
-      <span class="ah-modes"><span class="btn" data-act="auction-bot">Против бота</span><span class="btn sasha" data-act="auction-duo">Вдвоём</span></span>
-    </button>
+      <a class="runner-hero" href="runner.html" data-act="runner">
+        <span class="rh-badge">3D</span>
+        <b>Прорыв к воротам</b>
+        <small>Беги с мячом, обходи защитников, качай скорость и удар, бей пенальти. 3D-игра канала прямо здесь.</small>
+        <span class="btn">Играть →</span>
+      </a>
 
-    <h3 class="section-label" id="puzzles">Головоломки · с уровнями</h3>
-    <button class="game-card card-pass" data-act="pass-levels">
-      <div class="card-art art-pass" aria-hidden="true">
-        <i class="mini-goal"></i>
-        <i class="mini-def" style="--x:0;--y:1"></i><i class="mini-def" style="--x:3;--y:2"></i>
-        <i class="mini-dot" style="--x:1;--y:1"></i><i class="mini-dot" style="--x:1;--y:2"></i>
-        <i class="mini-ball" style="--x:1;--y:3"></i>
-      </div>
-      <div class="card-body">
-        <h2>Пас в ворота</h2>
-        <p>Бесконечный пазл. Мяч катится до упора, обведи защитников и забей вверх в ворота.</p>
-        <span class="card-meta" id="meta-pass"></span>
-      </div>
-    </button>
-    <div class="tiles" id="pz-shelf"></div>
-
-    <h3 class="section-label" id="sec-guess">Угадайки</h3>
-    <div class="tiles">
-      <button class="tile-card" data-act="nation" style="--c1:#2fb35a;--c2:#155c32">
-        <span class="tile-ico" data-ico="nation"></span><b>Угадай сборную по клубам</b><small id="meta-nation"></small>
-      </button>
-      <button class="tile-card" data-act="pick-solo" style="--c1:#ffcf3a;--c2:#c98f00">
-        <span class="tile-ico" data-ico="pick"></span><b>Кто легендарнее?</b><small>Матчи за клуб</small>
-      </button>
-      <button class="tile-card" data-act="guess-career" style="--c1:#34c46a;--c2:#1f7a3a">
-        <span class="tile-ico" data-ico="guess"></span><b>Угадай футболиста</b><small id="meta-guess"></small>
-      </button>
-      <button class="tile-card" data-act="career" style="--c1:#8fd8c4;--c2:#3a8f7c">
-        <span class="tile-ico" data-ico="career"></span><b>Угадай карьеру</b><small id="meta-career"></small>
-      </button>
-      <button class="tile-card" data-act="club" style="--c1:#5b8cff;--c2:#2c4bb0">
-        <span class="tile-ico" data-ico="club"></span><b>Угадай клуб</b><small id="meta-club"></small>
-      </button>
-      <button class="tile-card" data-act="transfer" style="--c1:#ffcf3a;--c2:#b98d00">
-        <span class="tile-ico" data-ico="transfer"></span><b>Куда перешёл?</b><small id="meta-transfer"></small>
-      </button>
-      <button class="tile-card" data-act="hl" style="--c1:#ff7a59;--c2:#b23d22">
-        <span class="tile-ico" data-ico="hl"></span><b>Дороже или дешевле</b><small id="meta-hl"></small>
-      </button>
-      <button class="tile-card" data-act="fc" style="--c1:#2fd3e0;--c2:#1a7f9a">
-        <span class="tile-ico" data-ico="fc"></span><b>Кто выше в FC 27?</b><small id="meta-fc"></small>
-      </button>
-      <button class="tile-card" data-act="value" style="--c1:#34c46a;--c2:#b98d00">
-        <span class="tile-ico" data-ico="value"></span><b>Кто дороже?</b><small id="meta-value"></small>
-      </button>
-      <button class="tile-card" data-act="ttt" style="--c1:#c65bd8;--c2:#7b2b8a">
-        <span class="tile-ico" data-ico="ttt"></span><b>Тики-Така-Тоу</b><small id="meta-ttt"></small>
-      </button>
+      <button class="donate-card donate-entry" data-act="donate" hidden><span class="don-star">⭐</span><span><b>Поддержать канал</b><small>Звёздами Telegram · рамка «Спонсор»</small></span></button>
     </div>
 
-    <h3 class="section-label" id="sec-duo">Вдвоём на одном телефоне</h3>
+    <div class="hub-panel" id="panel-games" hidden>
+      <nav class="cat-nav" id="cat-nav">
+        <button data-cat="guess">🔎 Угадайки</button><button data-cat="hist">📜 История</button><button data-cat="brain">🧠 Знатокам</button>
+        <button data-cat="puzzles">🧩 Головоломки</button><button data-cat="grid">▦ Сетки</button><button data-cat="cards">🃏 Карты</button><button data-cat="channel">📺 Рубрика</button>
+      </nav>
+      <div class="cat" data-cat="guess">
+        <p class="cat-lead">Угадай футболиста, клуб, карьеру или трансфер.</p>
+      <div class="tiles">
+        <button class="tile-card" data-act="nation" style="--c1:#2fb35a;--c2:#155c32">
+          <span class="tile-ico" data-ico="nation"></span><b>Угадай сборную по клубам</b><small id="meta-nation"></small>
+        </button>
+        <button class="tile-card" data-act="pick-solo" style="--c1:#ffcf3a;--c2:#c98f00">
+          <span class="tile-ico" data-ico="pick"></span><b>Кто легендарнее?</b><small>Матчи за клуб</small>
+        </button>
+        <button class="tile-card" data-act="guess-career" style="--c1:#34c46a;--c2:#1f7a3a">
+          <span class="tile-ico" data-ico="guess"></span><b>Угадай футболиста</b><small id="meta-guess"></small>
+        </button>
+        <button class="tile-card" data-act="career" style="--c1:#8fd8c4;--c2:#3a8f7c">
+          <span class="tile-ico" data-ico="career"></span><b>Угадай карьеру</b><small id="meta-career"></small>
+        </button>
+        <button class="tile-card" data-act="club" style="--c1:#5b8cff;--c2:#2c4bb0">
+          <span class="tile-ico" data-ico="club"></span><b>Угадай клуб</b><small id="meta-club"></small>
+        </button>
+        <button class="tile-card" data-act="transfer" style="--c1:#ffcf3a;--c2:#b98d00">
+          <span class="tile-ico" data-ico="transfer"></span><b>Куда перешёл?</b><small id="meta-transfer"></small>
+        </button>
+        <button class="tile-card" data-act="hl" style="--c1:#ff7a59;--c2:#b23d22">
+          <span class="tile-ico" data-ico="hl"></span><b>Дороже или дешевле</b><small id="meta-hl"></small>
+        </button>
+        <button class="tile-card" data-act="fc" style="--c1:#2fd3e0;--c2:#1a7f9a">
+          <span class="tile-ico" data-ico="fc"></span><b>Кто выше в FC 27?</b><small id="meta-fc"></small>
+        </button>
+        <button class="tile-card" data-act="value" style="--c1:#34c46a;--c2:#b98d00">
+          <span class="tile-ico" data-ico="value"></span><b>Кто дороже?</b><small id="meta-value"></small>
+        </button>
+        <button class="tile-card" data-act="ttt" style="--c1:#c65bd8;--c2:#7b2b8a">
+          <span class="tile-ico" data-ico="ttt"></span><b>Тики-Така-Тоу</b><small id="meta-ttt"></small>
+        </button>
+      </div>
+      </div>
+      <div class="cat" data-cat="hist" hidden>
+        <p class="cat-lead">Голы, матчи и великие команды прошлого.</p>
+        <div class="tiles" id="ng-hist"></div>
+      </div>
+      <div class="cat" data-cat="brain" hidden>
+        <p class="cat-lead">Вопросы посложнее — для тех, кто следит за футболом.</p>
+        <div class="tiles" id="ng-brain"></div>
+      </div>
+      <div class="cat" data-cat="puzzles" hidden>
+        <p class="cat-lead">Пазлы с уровнями: проходи по одному, собирай звёзды.</p>
+      <button class="game-card card-pass" data-act="pass-levels">
+        <div class="card-art art-pass" aria-hidden="true">
+          <i class="mini-goal"></i>
+          <i class="mini-def" style="--x:0;--y:1"></i><i class="mini-def" style="--x:3;--y:2"></i>
+          <i class="mini-dot" style="--x:1;--y:1"></i><i class="mini-dot" style="--x:1;--y:2"></i>
+          <i class="mini-ball" style="--x:1;--y:3"></i>
+        </div>
+        <div class="card-body">
+          <h2>Пас в ворота</h2>
+          <p>Бесконечный пазл. Мяч катится до упора, обведи защитников и забей вверх в ворота.</p>
+          <span class="card-meta" id="meta-pass"></span>
+        </div>
+      </button>
+        <div class="tiles" id="pz-shelf"></div>
+      </div>
+      <div class="cat" data-cat="grid" hidden>
+        <p class="cat-lead">Заполни сетку футболистами по условиям.</p>
+        <div class="tiles" id="ng-grid"></div>
+      </div>
+      <div class="cat" data-cat="cards" hidden>
+        <p class="cat-lead">Карточные игры и стратегия.</p>
+        <div class="tiles" id="ng-cards"></div>
+      </div>
+      <div class="cat" data-cat="channel" hidden>
+        <p class="cat-lead">Рубрики канала «Старики Джексоны».</p>
+      <button class="auction-hero" data-act="auction-bot">
+        <span class="ah-top"><span class="tag tag-danil">ДАНИЛ: 50</span><span class="ah-coin">50</span><span class="tag tag-sasha">САША: 50</span></span>
+        <b>Аукцион</b>
+        <small>5 игроков, 50 монет. Перебивай ставки и собери пятёрку в лучшей форме прямо сейчас.</small>
+        <em class="limit-note" id="lim-auction"></em>
+        <span class="ah-modes"><span class="btn" data-act="auction-bot">Против бота</span><span class="btn sasha" data-act="auction-duo">Вдвоём</span></span>
+      </button>
+      </div>
+    </div>
+
+    <div class="hub-panel" id="panel-friends" hidden>
+      <div class="duel-hero">
+        <div class="dh-top"><span class="dh-ico">⚔️</span><div><b>Футбольная дуэль</b><small>8 вопросов: лица, клубы, голы, счёт матчей. Быстрее ответ — больше очков</small></div></div>
+        <div class="dh-modes">
+          <button data-act="duel-live" style="--i:0"><span>⚡</span><b>Онлайн</b><small>Одновременно</small></button>
+          <button data-act="duel-link" style="--i:1"><span>🔗</span><b>Вызов</b><small>По ссылке</small></button>
+          <button data-act="duel-hot" style="--i:2"><span>📱</span><b>Рядом</b><small>Один телефон</small></button>
+        </div>
+        <small class="dh-stat" id="duel-stat"></small>
+      </div>
+      <h3 class="section-label">На одном телефоне</h3>
     <div class="tiles">
       <button class="tile-card duo wide" data-act="pick-duo">
         <span class="tile-ico" data-ico="pick-duo"></span><b>Возьмёшь этого или другого?</b><small>Рубрика канала: собери состав легенд</small><em class="limit-note" id="lim-pick"></em>
@@ -143,21 +186,11 @@
       <button class="tile-card duo wide" data-act="ttt-duo">
         <span class="tile-ico" data-ico="ttt-duo"></span><b>Тики-Така-Тоу вдвоём</b><small>Крестики-нолики на футболистах</small>
       </button>
+      <button class="tile-card duo wide" data-act="auction-duo" style="--c1:#ff5f6d;--c2:#7b2b8a">
+        <span class="tile-ico" data-ico="auction"></span><b>Аукцион вдвоём</b><small>Данил против Саши: перебивайте ставки</small>
+      </button>
     </div>
-
-    <h3 class="section-label" id="sec-brain">Для знатоков</h3>
-    <div class="tiles" id="ng-brain"></div>
-
-    <h3 class="section-label" id="sec-grid">Сетки</h3>
-    <div class="tiles" id="ng-grid"></div>
-
-    <h3 class="section-label" id="sec-cards">Карты и стратегия</h3>
-    <div class="tiles" id="ng-cards"></div>
-
-    <h3 class="section-label" id="sec-hist">История футбола</h3>
-    <div class="tiles" id="ng-hist"></div>
-
-    <button class="donate-card donate-entry" data-act="donate" hidden><span class="don-star">⭐</span><span><b>Поддержать канал</b><small>Звёздами Telegram · рамка «Спонсор»</small></span></button>
+    </div>
 
     <footer class="hub-foot">
       <a href="https://t.me/JacksonGamesbot" target="_blank" rel="noopener">Бот с играми · @JacksonGamesbot</a>
@@ -457,7 +490,9 @@
 
   <!-- ===== НИЖНЕЕ МЕНЮ ===== -->
   <nav class="tabbar" id="tabbar">
-    <button data-act="home" class="tab" id="tab-home"><span>⚽</span>Игры</button>
+    <button data-act="home" class="tab" id="tab-home"><span>🏠</span>Главная</button>
+    <button data-act="games" class="tab" id="tab-games"><span>🎮</span>Игры</button>
+    <button data-act="friends" class="tab" id="tab-friends"><span>⚔️</span>С другом</button>
     <button data-act="shop" class="tab" id="tab-shop"><span>🛒</span>Магазин</button>
     <button data-act="profile" class="tab" id="tab-profile"><span>★</span>Профиль</button>
   </nav>
@@ -468,71 +503,72 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script defer src="js/core.js?v=20261002g"></script>
-<script defer src="js/music.js?v=20261002g"></script>
-<script defer src="js/players.js?v=20261002g"></script>
-<script defer src="js/careers.js?v=20261002g"></script>
-<script defer src="js/careers2.js?v=20261002g"></script>
-<script defer src="js/tttcats.js?v=20261002g"></script>
-<script defer src="js/quizdata.js?v=20261002g"></script>
-<script defer src="js/media.js?v=20261002g"></script>
-<script defer src="js/pass.js?v=20261002g"></script>
-<script defer src="js/guess.js?v=20261002g"></script>
-<script defer src="js/career.js?v=20261002g"></script>
-<script defer src="js/club.js?v=20261002g"></script>
-<script defer src="js/transfer.js?v=20261002g"></script>
-<script defer src="js/ttt.js?v=20261002g"></script>
-<script defer src="js/compare.js?v=20261002g"></script>
-<script defer src="js/form.js?v=20261002g"></script>
-<script defer src="js/auction.js?v=20261002g"></script>
-<script defer src="js/nationxi.js?v=20261002g"></script>
-<script defer src="js/nation.js?v=20261002g"></script>
-<script defer src="js/daily.js?v=20261002g"></script>
-<script defer src="js/pick.js?v=20261002g"></script>
-<script defer src="js/howto.js?v=20261002g"></script>
-<script defer src="js/icons.js?v=20261002g"></script>
-<script defer src="js/wheel.js?v=20261002g"></script>
-<script defer src="js/pz/shell.js?v=20261002g"></script>
-<script defer src="js/pz/sort.js?v=20261002g"></script>
-<script defer src="js/pz/pipes.js?v=20261002g"></script>
-<script defer src="js/pz/flood.js?v=20261002g"></script>
-<script defer src="js/pz/slide.js?v=20261002g"></script>
-<script defer src="js/pz/memory.js?v=20261002g"></script>
-<script defer src="js/pz/words.js?v=20261002g"></script>
-<script defer src="js/pz/g2048.js?v=20261002g"></script>
-<script defer src="js/pz/popcrests.js?v=20261002g"></script>
-<script defer src="js/pz/popit.js?v=20261002g"></script>
-<script defer src="js/ng/core.js?v=20261002g"></script>
-<script defer src="js/ng/lineup.js?v=20261002g"></script>
-<script defer src="js/ng/wordle.js?v=20261002g"></script>
-<script defer src="js/ng/treble.js?v=20261002g"></script>
-<script defer src="js/ng/false9.js?v=20261002g"></script>
-<script defer src="js/ng/connect.js?v=20261002g"></script>
-<script defer src="js/data/lists.js?v=20261002g"></script>
-<script defer src="js/ng/top10.js?v=20261002g"></script>
-<script defer src="js/ng/context.js?v=20261002g"></script>
-<script defer src="js/ng/whoami.js?v=20261002g"></script>
-<script defer src="js/ng/linkup.js?v=20261002g"></script>
-<script defer src="js/ng/rank.js?v=20261002g"></script>
-<script defer src="js/data/goals.js?v=20261002g"></script>
-<script defer src="js/ng/replay.js?v=20261002g"></script>
-<script defer src="js/data/wcmatches.js?v=20261002g"></script>
-<script defer src="js/ng/score.js?v=20261002g"></script>
-<script defer src="js/data/numhist.js?v=20261002g"></script>
-<script defer src="js/ng/numhist.js?v=20261002g"></script>
-<script defer src="js/data/elohist.js?v=20261002g"></script>
-<script defer src="js/ng/timemachine.js?v=20261002g"></script>
-<script defer src="js/ng/box2box.js?v=20261002g"></script>
-<script defer src="js/ng/bingo.js?v=20261002g"></script>
-<script defer src="js/ng/draft.js?v=20261002g"></script>
-<script defer src="js/ng/trumps.js?v=20261002g"></script>
-<script defer src="js/data/pop.js?v=20261002g"></script>
-<script defer src="js/ng/vs100.js?v=20261002g"></script>
-<script defer src="js/ng/darts.js?v=20261002g"></script>
-<script defer src="js/shop.js?v=20261002g"></script>
-<script defer src="js/config.js?v=20261002g"></script>
-<script defer src="js/donate.js?v=20261002g"></script>
-<script defer src="js/user.js?v=20261002g"></script>
-<script defer src="js/app.js?v=20261002g"></script>
+<script defer src="js/core.js?v=20261002h"></script>
+<script defer src="js/music.js?v=20261002h"></script>
+<script defer src="js/players.js?v=20261002h"></script>
+<script defer src="js/careers.js?v=20261002h"></script>
+<script defer src="js/careers2.js?v=20261002h"></script>
+<script defer src="js/tttcats.js?v=20261002h"></script>
+<script defer src="js/quizdata.js?v=20261002h"></script>
+<script defer src="js/media.js?v=20261002h"></script>
+<script defer src="js/pass.js?v=20261002h"></script>
+<script defer src="js/guess.js?v=20261002h"></script>
+<script defer src="js/career.js?v=20261002h"></script>
+<script defer src="js/club.js?v=20261002h"></script>
+<script defer src="js/transfer.js?v=20261002h"></script>
+<script defer src="js/ttt.js?v=20261002h"></script>
+<script defer src="js/compare.js?v=20261002h"></script>
+<script defer src="js/form.js?v=20261002h"></script>
+<script defer src="js/auction.js?v=20261002h"></script>
+<script defer src="js/nationxi.js?v=20261002h"></script>
+<script defer src="js/nation.js?v=20261002h"></script>
+<script defer src="js/daily.js?v=20261002h"></script>
+<script defer src="js/pick.js?v=20261002h"></script>
+<script defer src="js/howto.js?v=20261002h"></script>
+<script defer src="js/icons.js?v=20261002h"></script>
+<script defer src="js/wheel.js?v=20261002h"></script>
+<script defer src="js/pz/shell.js?v=20261002h"></script>
+<script defer src="js/pz/sort.js?v=20261002h"></script>
+<script defer src="js/pz/pipes.js?v=20261002h"></script>
+<script defer src="js/pz/flood.js?v=20261002h"></script>
+<script defer src="js/pz/slide.js?v=20261002h"></script>
+<script defer src="js/pz/memory.js?v=20261002h"></script>
+<script defer src="js/pz/words.js?v=20261002h"></script>
+<script defer src="js/pz/g2048.js?v=20261002h"></script>
+<script defer src="js/pz/popcrests.js?v=20261002h"></script>
+<script defer src="js/pz/popit.js?v=20261002h"></script>
+<script defer src="js/ng/core.js?v=20261002h"></script>
+<script defer src="js/ng/lineup.js?v=20261002h"></script>
+<script defer src="js/ng/wordle.js?v=20261002h"></script>
+<script defer src="js/ng/treble.js?v=20261002h"></script>
+<script defer src="js/ng/false9.js?v=20261002h"></script>
+<script defer src="js/ng/connect.js?v=20261002h"></script>
+<script defer src="js/data/lists.js?v=20261002h"></script>
+<script defer src="js/ng/top10.js?v=20261002h"></script>
+<script defer src="js/ng/context.js?v=20261002h"></script>
+<script defer src="js/ng/whoami.js?v=20261002h"></script>
+<script defer src="js/ng/linkup.js?v=20261002h"></script>
+<script defer src="js/ng/rank.js?v=20261002h"></script>
+<script defer src="js/data/goals.js?v=20261002h"></script>
+<script defer src="js/ng/replay.js?v=20261002h"></script>
+<script defer src="js/data/wcmatches.js?v=20261002h"></script>
+<script defer src="js/ng/score.js?v=20261002h"></script>
+<script defer src="js/data/numhist.js?v=20261002h"></script>
+<script defer src="js/ng/numhist.js?v=20261002h"></script>
+<script defer src="js/data/elohist.js?v=20261002h"></script>
+<script defer src="js/ng/timemachine.js?v=20261002h"></script>
+<script defer src="js/ng/box2box.js?v=20261002h"></script>
+<script defer src="js/ng/bingo.js?v=20261002h"></script>
+<script defer src="js/ng/draft.js?v=20261002h"></script>
+<script defer src="js/ng/trumps.js?v=20261002h"></script>
+<script defer src="js/data/pop.js?v=20261002h"></script>
+<script defer src="js/ng/vs100.js?v=20261002h"></script>
+<script defer src="js/ng/darts.js?v=20261002h"></script>
+<script defer src="js/shop.js?v=20261002h"></script>
+<script defer src="js/config.js?v=20261002h"></script>
+<script defer src="js/donate.js?v=20261002h"></script>
+<script defer src="js/user.js?v=20261002h"></script>
+<script defer src="js/duel.js?v=20261002h"></script>
+<script defer src="js/app.js?v=20261002h"></script>
 </body>
 </html>

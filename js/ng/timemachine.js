@@ -32,13 +32,15 @@
         const card = (x, i) => `<button class="tm-card ${shown ? (i === win ? 'win' : 'lose') : ''} ${i === picked ? 'picked' : ''}" data-i="${i}" ${shown ? 'disabled' : ''}>
             ${crestImg(x[0], 'xl')}<b>${esc(x[0])}</b><span class="tm-year">сезон ${season(x[1])}</span>
             ${shown ? `<em class="tm-elo">${x[2]}</em>` : ''}</button>`;
-        b.innerHTML = `<h3 class="ng-q tm-ask">Какая команда была сильнее?</h3>
+        b.innerHTML = `<h3 class="ng-q tm-ask ${shown ? '' : 'tm-new'}">Какая команда была сильнее?</h3>
           <div class="tm-duel">${card(cur[0], 0)}<i class="tm-vs">VS</i>${card(cur[1], 1)}</div>
           ${shown ? `<p class="ng-lead tm-res">${picked === win ? '✅ Верно!' : '❌ Нет'} Разница — ${Math.abs(cur[0][2] - cur[1][2])} очков Эло</p>`
             : '<p class="ng-lead tm-hint">Нажми на команду. Сила — рейтинг Эло на конец сезона: он растёт за победы над сильными соперниками.</p>'}`;
       }
       function choose(i) {
         picked = i; render();
+        // рейтинги «набегают» до настоящих значений
+        $$('.tm-elo', b).forEach((el, k) => countUp(el, cur[k][2], { from: 1500, dur: 700 }));
         const ok = i === (cur[0][2] > cur[1][2] ? 0 : 1);
         Sound.play(ok ? 'kick' : 'bad'); haptic(ok ? 'ok' : 'bad');
         if (!ok) return later(finish, 1600);
