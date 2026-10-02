@@ -29,7 +29,7 @@
     out.push({ title: 'Самые дорогие трансферы в истории (по игроку, топ-10)', ans: top.map((t) => [t[0], surname(t[0])]), extra: top.map((t) => `${t[5]} млн € · ${t[2]} → ${t[3]}`), ordered: true });
     // составы клубов 2026/27
     const by = {};
-    PLAYERS.forEach((p) => { (by[p.club] = by[p.club] || []).push(p); });
+    PLAYERS.forEach((p) => { if (p.tier <= 3) (by[p.club] = by[p.club] || []).push(p); });
     Object.entries(by).filter(([, ps]) => ps.length >= 8).forEach(([club, ps]) => out.push({
       title: `Игроки «${club}» в сезоне 2026/27`, club, ans: ps.map((p) => [p.name, surname(p.name)]), extra: ps.map((p) => `${p.flag} ${p.pos}`), ordered: false,
     }));

@@ -39,9 +39,9 @@
       function options(i) {
         const [, poss] = SLOTS[i];
         const LINE = { ГК: 0, ЦЗ: 1, ЛЗ: 1, ПЗ: 1, ЦОП: 2, ЦП: 2, ЦАП: 2, ЛВ: 3, ПВ: 3, ФРВ: 3 };
-        let pool = shuffle(PLAYERS.filter((p) => poss.includes(p.pos) && !used.has(p.name)), Math.random);
+        let pool = shuffle(PLAYERS.filter((p) => p.tier <= 3 && poss.includes(p.pos) && !used.has(p.name)), Math.random);
         // мало игроков на позиции — добираем с той же линии
-        if (pool.length < 3) pool = pool.concat(shuffle(PLAYERS.filter((p) => LINE[p.pos] === LINE[poss[0]] && !poss.includes(p.pos) && !used.has(p.name)), Math.random));
+        if (pool.length < 3) pool = pool.concat(shuffle(PLAYERS.filter((p) => p.tier <= 3 && LINE[p.pos] === LINE[poss[0]] && !poss.includes(p.pos) && !used.has(p.name)), Math.random));
         return pool.slice(0, 3);
       }
       // связь двух игроков: 3 — общий клуб, 2 — сборная, 1 — лига

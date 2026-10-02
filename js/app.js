@@ -68,7 +68,7 @@ const App = (() => {
         `<i class="${d < day ? 'got' : d === day ? 'now' : ''}"><small>${d}</small>${dailyReward(d)}</i>`).join('');
     }
     rankUi('#hub-rank', '#hub-xp', '#hub-next');
-    User.render();
+    User.render(); Donate.render();
     Coins.render();
   }
 
@@ -134,6 +134,7 @@ const App = (() => {
     home,
     profile,
     nick: () => User.edit(false),
+    donate: () => Donate.open(),
     'pass-levels': () => Pass.openLevels(),
     'pass-undo': () => Pass.undo(),
     'pass-restart': () => Pass.restart(),

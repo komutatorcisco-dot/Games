@@ -5,7 +5,7 @@ const Shop = (() => {
   const LIFE_COST = 50, PACK_COST = 250;
   const FRAMES = [
     ['none', 'Без рамки', 0], ['gold', 'Золото', 400], ['fire', 'Огонь', 600],
-    ['neon', 'Неон', 600], ['rainbow', 'Радуга', 900], ['diamond', 'Алмаз', 1500],
+    ['neon', 'Неон', 600], ['rainbow', 'Радуга', 900], ['diamond', 'Алмаз', 1500], ['sponsor', 'Спонсор', -1],
   ];
   const CARDS = [
     ['classic', 'Классика', 0], ['night', 'Ночной матч', 400], ['grass', 'Газон', 400],
@@ -19,6 +19,8 @@ const Shop = (() => {
 
   const S = () => Store.d.shop;
   const owned = (kind, id, price) => price === 0 || !!S().owned[`${kind}:${id}`];
+  // рамка «Спонсор» не продаётся за монеты
+
 
   // ---------- применение косметики ----------
   function apply() {
@@ -49,6 +51,7 @@ const Shop = (() => {
     const have = owned(kind, id, price);
     const btn = on ? '<span class="shop-on">Выбрано</span>'
       : have ? `<button class="btn ghost" data-shop="${kind}:${id}">Выбрать</button>`
+        : price < 0 ? '<span class="shop-on don-only">за донат ⭐</span>'
         : `<button class="btn gold" data-shop="${kind}:${id}" data-price="${price}"><span class="coin"></span>${price}</button>`;
     return `<div class="shop-item ${on ? 'on' : ''}">${preview}<b>${name}</b>${btn}</div>`;
   }

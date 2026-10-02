@@ -133,8 +133,10 @@ const NG = (() => {
   }
 
   // Подборки игроков для поля ввода
-  const playerItems = (q, skip = new Set()) => PLAYERS.filter((p) => !skip.has(p.name) && (normName(p.name).includes(q) || normName(p.alt).includes(q)))
-    .sort((x, y) => (normName(x.name).startsWith(q) ? 0 : 1) - (normName(y.name).startsWith(q) ? 0 : 1))
+  const nn = (p) => p._n || (p._n = normName(p.name)), na = (p) => p._a || (p._a = normName(p.alt));
+  // сначала совпадение с начала имени, потом известные игроки (уровень 1–3), потом остальные
+  const playerItems = (q, skip = new Set()) => PLAYERS.filter((p) => !skip.has(p.name) && (nn(p).includes(q) || na(p).includes(q)))
+    .sort((x, y) => (nn(x).startsWith(q) ? 0 : 2) + (x.tier > 3 ? 1 : 0) - (nn(y).startsWith(q) ? 0 : 2) - (y.tier > 3 ? 1 : 0))
     .map((p) => ({ key: p.name, label: p.name, sub: `${p.flag} ${p.club}` }));
   const careerNames = () => [...new Set(CAREERS.map((c) => c.name))];
   const careerItems = (q, skip = new Set()) => careerNames().filter((n) => !skip.has(n) && normName(n).includes(q))

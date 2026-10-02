@@ -46,7 +46,7 @@ const Guess = (() => {
   function startCareer() {
     mode = 'career';
     const lvl = Store.d.guess.level;
-    answer = lvl <= ORDER.length ? ORDER[lvl - 1] : pick(PLAYERS.filter((p) => p.num > 0));
+    answer = lvl <= ORDER.length ? ORDER[lvl - 1] : pick(PLAYERS.filter((p) => p.num > 0 && p.tier <= 3));
     maxTries = 8;
     reset();
     $('#guess-title').textContent = 'Угадай футболиста';
@@ -155,7 +155,7 @@ const Guess = (() => {
     if (q.length < 2) { hideSuggest(); return; }
     const used = new Set(guesses.map((g) => g.id));
     suggestions = PLAYERS.filter((p) => !used.has(p.id) && (norm(p.name).includes(q) || norm(p.alt).includes(q)))
-      .sort((x, y) => (norm(x.name).startsWith(q) ? 0 : 1) - (norm(y.name).startsWith(q) ? 0 : 1))
+      .sort((x, y) => (norm(x.name).startsWith(q) ? 0 : 2) + (x.tier > 3 ? 1 : 0) - (norm(y.name).startsWith(q) ? 0 : 2) - (y.tier > 3 ? 1 : 0))
       .slice(0, 6);
     const box = $('#guess-suggest');
     if (!suggestions.length) {

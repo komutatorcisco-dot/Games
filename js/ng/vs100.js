@@ -7,7 +7,7 @@
   const YEAR = new Date().getFullYear();
   function cats() {
     const out = [];
-    const add = (label, test) => { const ps = PLAYERS.filter(test); if (ps.length >= 8) out.push({ label, ps }); };
+    const add = (label, test) => { const ps = PLAYERS.filter((p) => p.tier <= 3 && test(p)); if (ps.length >= 8) out.push({ label, ps, test }); };
     [...new Set(PLAYERS.map((p) => p.lg))].forEach((l) => add(`Играет в лиге: ${l}`, (p) => p.lg === l));
     [...new Set(PLAYERS.map((p) => p.nat))].forEach((n) => add(`Сборная: ${n}`, (p) => p.nat === n));
     [...new Set(PLAYERS.map((p) => p.club))].forEach((c) => add(`Играет за «${c}»`, (p) => p.club === c));
@@ -39,7 +39,7 @@
       function answer(name) {
         if (over) return;
         const p = PLAYERS.find((x) => x.name === name);
-        const ok = cat.ps.includes(p);
+        const ok = cat.test(p);
         // толпа: каждый оставшийся соперник называет игрока пропорционально популярности, ~5% ошибаются
         const w = cat.ps.map(pop), sum = w.reduce((a, x) => a + x, 0), votes = new Map();
         let wrong = 0;

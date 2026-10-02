@@ -12,7 +12,7 @@
     const known = PLAYERS.filter((p) => p.tier <= 2);
     const other = (arr, x) => r(arr.filter((y) => y !== x));
     return [
-      (lie) => { const p = r(known); const c = lie ? other([...new Set(PLAYERS.filter((q) => q.lg === p.lg).map((q) => q.club))], p.club) : p.club;
+      (lie) => { const p = r(known); const c = lie ? other([...new Set(PLAYERS.filter((q) => q.tier <= 3 && q.lg === p.lg).map((q) => q.club))], p.club) : p.club;
         return { text: `${p.name} играет в клубе «${c}»`, fix: `${p.name} — «${p.club}»`, ok: !lie || !c }; },
       (lie) => { const p = r(known); const n = lie ? other([...new Set(PLAYERS.filter((q) => q.cont === p.cont).map((q) => q.nat))], p.nat) : p.nat;
         return { text: `${p.name} выступает за сборную: ${n}`, fix: `${p.name} — ${p.nat}`, ok: !lie || !n }; },
