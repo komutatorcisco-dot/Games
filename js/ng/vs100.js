@@ -18,8 +18,8 @@
     add('Играет под номером 7', (p) => p.num === 7);
     return out;
   }
-  // популярность у «толпы»: звёзды называют чаще
-  const pop = (p) => ({ 1: 100, 2: 30, 3: 8 }[p.tier] || 5) + (FC27[p.name] ? (FC27[p.name] - 80) * 4 : 0);
+  // популярность у «толпы»: по реальной популярности игроков (POP, поиски на Sofascore), иначе по звёздности
+  const pop = (p) => (typeof POP !== 'undefined' && POP[p.name] ? 2 + Math.pow(POP[p.name] / 10, 2.4) : ({ 1: 60, 2: 15, 3: 3 }[p.tier] || 3));
 
   NG.register({
     id: 'vs100', group: 'cards', title: 'VS 100', c1: '#e2384d', c2: '#2a2a35', tag: 'Не будь как все',

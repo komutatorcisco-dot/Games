@@ -21,6 +21,8 @@
 
   function lists() {
     const out = FIXED.map(([title, ans]) => ({ title, ans, ordered: false }));
+    // списки из присланных данных: ЧМ-2026, FPL, история ЧМ
+    if (typeof DATA_LISTS !== 'undefined') DATA_LISTS.forEach(([title, ans, extra]) => out.push({ title, ans, extra, ordered: false }));
     // самые дорогие трансферы из нашей базы
     const seen = new Set(), top = [];
     [...TR()].sort((a, b) => b[5] - a[5]).forEach((t) => { if (!seen.has(t[0]) && top.length < 10) { seen.add(t[0]); top.push(t); } });

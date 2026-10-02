@@ -54,7 +54,7 @@ const App = (() => {
     $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
     $('#pz-shelf').innerHTML = PZ.shelf();
     Daily.hubCard();
-    ['daily', 'brain', 'grid', 'cards'].forEach((g) => { $('#ng-' + g).innerHTML = NG.tiles(g); });
+    ['daily', 'brain', 'grid', 'cards', 'hist'].forEach((g) => { $('#ng-' + g).innerHTML = NG.tiles(g); });
     renderDailyProgress();
     $('#lim-auction').textContent = Limits.label('auction');
     $('#lim-pick').textContent = Limits.label('pick');
