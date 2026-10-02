@@ -56,7 +56,7 @@
 
 - Эмблемы 299 клубов лежат в `img/clubs`: Европа — из набора [luukhopman/football-logos](https://github.com/luukhopman/football-logos), Бразилия, Аргентина, MLS, Саудовская лига, Япония, Мексика и др. — из [JoseArroyave/football-logos](https://github.com/JoseArroyave/football-logos) (SVG, переведены в webp). Список в `CRESTS` в `js/media.js`.
 - Флаги-эмодзи рисует шрифт `fonts/TwemojiCountryFlags.woff2` ([country-flag-emoji-polyfill](https://github.com/talkjs/country-flag-emoji-polyfill)) — без него Windows показывает буквы «PT», «NL».
-- Лица 1288 игроков лежат в `img/players` (из набора [FIFA-Player-Faces](https://github.com/saihari/FIFA-Player-Faces), фото времён FIFA 17–22), соответствие «игрок → файл» в `FACES` в `js/media.js`.
+- Лица 3449 игроков (из них 2161 — новые игроки уровня 4) лежат в `img/players` (из набора [FIFA-Player-Faces](https://github.com/saihari/FIFA-Player-Faces), фото времён FIFA 17–22), соответствие «игрок → файл» в `FACES` в `js/media.js`.
 - Сетки поп-ита в форме эмблем (`js/pz/popcrests.js`) нарезаны из этих же картинок: 10×12 клеток, по 4 цвета.
 - Для тех, кого нет в наборе (молодые: Ямаль, Кубарси, Дуэ…), браузер пробует взять фото с Википедии (работает на GitHub Pages и в Telegram). Иначе — инициалы.
 
