@@ -63,7 +63,7 @@
         const n = st.g.length;
         NG.end({
           title: won ? 'Нашёл!' : 'Сдался', win: won, big: won ? `${n}` : '', stats: won ? [['Догадок', n], ['Подсказок', st.hints]] : [],
-          reward: won ? Math.max(10, (practice ? 30 : 110) - n * 4 - st.hints * 10) : 0,
+          reward: won ? Math.max(10, (practice ? 25 : 70) - n * 3 - st.hints * 10) : 0, daily: !practice,
           html: `<div class="player-card">${avatar(secret.name, 'xl')}<div class="pname">${esc(secret.name)}</div><div class="pmeta">${secret.flag} ${esc(secret.club)}</div></div>`,
           shareText: practice || !won ? '' : `🌡 Тепло-холодно #${Day.num()} — угадал за ${n}${st.hints ? ` (подсказок: ${st.hints})` : ''}\nСтарики Джексоны`,
           again: { label: 'Тренировка', fn: () => NG.open('context', { practice: true }) },

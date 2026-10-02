@@ -54,7 +54,7 @@ const Club = (() => {
     const S = Store.d.club;
     let reward = 0;
     if (won) {
-      reward = Math.max(10, 60 - (shown - 2) * 10);
+      reward = Math.max(5, 35 - (shown - 2) * 6);
       S.streak++;
       S.best = Math.max(S.best, S.streak);
       Profile.bump('club');
@@ -64,7 +64,7 @@ const Club = (() => {
       Sound.play('lose'); haptic('bad');
     }
     Store.save();
-    if (reward) Coins.add(reward);
+    reward = Econ.play(reward);
     later(() => Modal.open(
       `<h2>${won ? 'Верно!' : 'Не угадал'}</h2>
        <div class="player-card">${crestImg(answer.name, 'xl')}<div class="pname">${answer.flag} ${esc(answer.name)}</div>

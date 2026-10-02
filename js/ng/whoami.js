@@ -58,7 +58,7 @@
         if (won) { s.wins = (s.wins || 0) + 1; api.save(); Profile.bump('whoami', 12); }
         const path = g.c.path.map(([k]) => k).join(' → ');
         NG.end({ title: won ? 'Угадал!' : 'Не угадал', win: won, big: won ? `${MAX + 1 - open}/${MAX}` : '', stats: [['Подсказок', open], ['Ошибок', tries.length]],
-          reward: won ? (MAX + 1 - open) * 8 : 0,
+          reward: won ? (MAX + 1 - open) * 5 : 0,
           html: `<div class="player-card">${avatar(g.name, 'xl')}<div class="pname">${esc(g.name)}</div><div class="pmeta">${esc(path)}</div></div>`,
           again: { label: 'Следующий', fn: () => NG.open('whoami') } });
       }

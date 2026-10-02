@@ -2,7 +2,7 @@
 'use strict';
 
 const Wheel = (() => {
-  const PRIZES = [10, 50, 20, 100, 15, 30, 250, 25];
+  const PRIZES = [10, 40, 20, 80, 15, 30, 150, 25];
   const WEIGHTS = [18, 10, 16, 5, 18, 12, 2, 14];
   const COLORS = ['#8fd8c4', '#c65bd8', '#5b8cff', '#ffcf3a', '#8fd8c4', '#c65bd8', '#e2384d', '#5b8cff'];
   const today = () => new Date().toISOString().slice(0, 10);
@@ -23,7 +23,7 @@ const Wheel = (() => {
 
   function open() {
     if (!ready()) { toast('Колесо уже крутили сегодня. Приходи завтра!'); return; }
-    Modal.open(`<h2>Колесо удачи</h2><p>Раз в день. Джекпот — 250 монет.</p>
+    Modal.open(`<h2>Колесо удачи</h2><p>Раз в день. Джекпот — 150 монет.</p>
       <div class="wheel"><i class="wheel-pin"></i>${svg()}</div>`, [
       { label: 'Крутить!', keepOpen: true, onClick: spin },
     ]);

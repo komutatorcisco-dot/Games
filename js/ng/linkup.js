@@ -56,7 +56,7 @@
         const links = chain.length - 1, s = api.st();
         if (won) { s.wins = (s.wins || 0) + 1; api.save(); Profile.bump('linkup', 12); }
         NG.end({ title: won ? 'Связка готова!' : 'Связка не сложилась', win: won, big: won ? `${links} ${plural(links, 'звено', 'звена', 'звеньев')}` : '', stats: [['Лучшая', g.best.length - 1], ['Подсказка', hinted ? 'да' : 'нет']],
-          reward: won ? Math.max(10, 50 - (links - (g.best.length - 1)) * 10 - (hinted ? 15 : 0)) : 0,
+          reward: won ? Math.max(10, 40 - (links - (g.best.length - 1)) * 10 - (hinted ? 15 : 0)) : 0,
           html: `<p>Кратчайшая: ${g.best.map(esc).join(' → ')}</p>`, again: { label: 'Новая связка', fn: () => NG.open('linkup') } });
       }
       b.addEventListener('click', (e) => {

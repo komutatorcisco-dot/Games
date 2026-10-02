@@ -53,7 +53,7 @@
         const s = api.st();
         if (won) { s.best = s.best ? Math.min(s.best, darts) : darts; api.save(); Profile.bump('darts', 15); }
         NG.end({ title: won ? 'Чек-аут!' : `Не добил: осталось ${score}`, big: won ? `${darts} ${plural(darts, 'дротик', 'дротика', 'дротиков')}` : `${score}`, stats: [['Лучший', s.best ? `${s.best} дрот.` : '—']], win: won,
-          reward: won ? 20 + (DARTS - darts) * 6 : Math.max(0, Math.round((START - score) / 10)),
+          reward: won ? 15 + (DARTS - darts) * 4 : Math.max(0, Math.round((START - score) / 20)),
           html: `<div class="dt-log">${log.map((l) => `<span class="${l.c}">${l.t}</span>`).join('')}</div>`, again: { label: 'Ещё лег', fn: () => NG.open('darts') } });
       }
       b.addEventListener('click', (e) => {

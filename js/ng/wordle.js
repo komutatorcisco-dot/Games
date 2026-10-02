@@ -70,12 +70,12 @@
       function finish() {
         st.done = true; api.save(); fresh = -2; render();
         const n = st.rows.length;
-        const reward = st.won ? (practice ? 10 : [0, 120, 90, 70, 50, 35, 25][n]) : 0;
+        const reward = st.won ? (practice ? 10 : [0, 60, 50, 40, 30, 22, 15][n]) : 0;
         if (!practice) { if (st.won) api.streakWin(); else api.streakLose(); }
         if (st.won) Profile.bump('wordle', 10);
         const sq = st.rows.map((g) => score(g, ans.w).map((s) => ({ hit: '🟩', near: '🟨', miss: '⬛' }[s])).join('')).join('\n');
         NG.end({
-          title: st.won ? 'Угадал!' : 'Не угадал', win: st.won, reward, big: `${st.won ? n : 'X'}/6`,
+          title: st.won ? 'Угадал!' : 'Не угадал', win: st.won, reward, daily: !practice, big: `${st.won ? n : 'X'}/6`,
           html: `<div class="player-card">${avatar(ans.name, 'xl')}<div class="pname">${esc(ans.name)}</div><div class="pmeta">${ans.flag} ${esc(ans.club)}</div></div>`,
           shareText: practice ? '' : `⚽ Футбольный Wordle #${Day.num()} — ${st.won ? n : 'X'}/6\n${sq}\nСтарики Джексоны`,
           again: { label: 'Тренировка: другое слово', fn: () => NG.open('wordle', { practice: true }) },

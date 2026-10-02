@@ -50,6 +50,7 @@ const Store = {
       duel: { a: 'Данил', b: 'Саша' },
       dly: { day: '', ev: [], level: 1, done: false, won: false, retry: false, tries: 6, guessed: [], streak: 0, best: 0, lastWin: '', played: 0, wins: 0 },
       limits: { day: '', auction: 0, pick: 0 },
+      econ: { day: '', earned: 0 },
       ng: {},
       shop: { lives: 0, owned: {}, frame: 'none', cards: 'classic', balls: 'classic', packs: {} },
     };
@@ -361,6 +362,39 @@ const Limits = {
       ],
     );
   },
+};
+
+// Экономика монет. Ежедневное (вход, колесо, сундук, игры дня, первые звёзды уровней) платится полностью.
+// Повторяемые игры платят полностью первые 200 монет за день, следующие 200 — наполовину, дальше — 10%.
+// Так монеты нельзя бесконечно фармить одной быстрой игрой, а косметика остаётся целью на недели.
+const Econ = {
+  TIERS: [[200, 1], [400, 0.5], [Infinity, 0.1]],
+  sync() {
+    const e = Store.d.econ;
+    if (e.day !== Limits.day()) { e.day = Limits.day(); e.earned = 0; }
+    return e;
+  },
+  // Сколько реально начислить за повторяемую игру с наградой n (без начисления)
+  quote(n) {
+    let left = n, at = this.sync().earned, out = 0;
+    for (const [to, k] of this.TIERS) {
+      const take = Math.min(left, Math.max(0, to - at));
+      out += take * k; left -= take; at += take;
+    }
+    return Math.max(n > 0 ? 1 : 0, Math.round(out));
+  },
+  // Начисляет награду за повторяемую игру и возвращает фактическую сумму
+  play(n) {
+    if (!n) return 0;
+    const e = this.sync(), was = this.mult(), got = this.quote(n);
+    e.earned += n; Store.save();
+    Coins.add(got);
+    const now = this.mult();
+    if (now < was) later(() => toast(now === 0.5 ? 'За игры сегодня уже 200 монет: дальше награда вполовину. Игры дня платят полностью' : 'Дневной запас монет за игры исчерпан: дальше 10% награды. Новый день — в полночь по МСК'), 1200);
+    return got;
+  },
+  mult() { const at = this.sync().earned; return this.TIERS.find(([to]) => at < to)[1]; },
+  left() { return Math.max(0, this.TIERS[0][0] - this.sync().earned); },
 };
 
 // Поле ввода с подсказками: имена футболистов или клубов.

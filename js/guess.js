@@ -3,7 +3,7 @@
 
 const Guess = (() => {
   const LINE = { ГК: 'ГК', ЦЗ: 'ЗАЩ', ЛЗ: 'ЗАЩ', ПЗ: 'ЗАЩ', ЦОП: 'ПЗЩ', ЦП: 'ПЗЩ', ЦАП: 'ПЗЩ', ЛВ: 'АТК', ПВ: 'АТК', ФРВ: 'АТК' };
-  const HINT_COST = 25;
+  const HINT_COST = 15;
   const SHORT = { 'Манчестер Сити': 'Ман Сити', 'Манчестер Юнайтед': 'Ман Юнайтед', 'Атлетик Бильбао': 'Атлетик', 'Лос-Анджелес': 'LAFC', 'Боруссия Д': 'Боруссия' };
   // подсказки от сложных к лёгким
   const HINT_ORDER = ['num', 'age', 'pos', 'lg', 'nat', 'club'];
@@ -225,7 +225,7 @@ const Guess = (() => {
     const tries = guesses.length;
     let reward = 0;
     if (won) {
-      reward = 10 + (maxTries - tries) * 5;
+      reward = 5 + (maxTries - tries) * 4;
       G.results[lvl] = tries;
       Profile.bump('guess');
       Sound.play('goal'); haptic('ok'); confetti();
@@ -235,7 +235,7 @@ const Guess = (() => {
     }
     G.level = lvl + 1;
     Store.save();
-    if (reward) Coins.add(reward);
+    reward = Econ.play(reward);
     later(() => Modal.open(
       `<h2>${won ? 'Угадал!' : 'Не угадал'}</h2>
        <p>${won ? `С ${tries}-й попытки.` : 'Это был:'}</p>

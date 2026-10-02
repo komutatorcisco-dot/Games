@@ -199,19 +199,19 @@ const TTT = (() => {
       const n = cells.filter(Boolean).length, pts = n * 10 + (result === 1 ? timeLeft : 0);
       Store.d.ttt.b2bBest = Math.max(Store.d.ttt.b2bBest || 0, pts);
       title = result === 1 ? `Сетка за ${TIME - timeLeft} сек! ${pts} очков` : `${timeLeft > 0 ? "Сдался" : "Время вышло"}: ${n}/9, ${pts} очков`;
-      reward = Math.round(pts / 3);
+      reward = Math.round(pts / 4);
       if (result === 1) Profile.bump('ttt', 30);
     } else if (result === 1) {
       title = 'Вся сетка твоя!';
-      reward = 100;
+      reward = 50;
       Store.d.ttt.wins++;
       Profile.bump('ttt', 30);
     } else {
       title = `Заполнено ${cells.filter(Boolean).length} из 9`;
-      reward = cells.filter(Boolean).length * 5;
+      reward = cells.filter(Boolean).length * 3;
     }
     Store.save();
-    if (reward) Coins.add(reward);
+    reward = Econ.play(reward);
     if (result === 1 || (mode === 'duo' && result !== -1)) { Sound.play('goal'); confetti(); } else Sound.play('lose');
     if (mode === 'timed') title += ` · рекорд ${Store.d.ttt.b2bBest}`;
     later(() => Modal.open(

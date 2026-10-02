@@ -221,8 +221,7 @@ const Pick = (() => {
 
   function finishSolo() {
     $('#pick-stage').innerHTML = `<p class="pick-score">Угадано: <b>${score}</b> из ${ROWS.length}</p>`;
-    const reward = score * 5;
-    if (reward) Coins.add(reward);
+    const reward = Econ.play(score * 3);
     if (score === 4) confetti();
     Profile.bump('pick', score * 2);
     Sound.play(score >= 3 ? 'goal' : 'lose');

@@ -153,9 +153,9 @@ const NG = (() => {
 
   // Окно конца игры
   // Окно конца игры: иконка игры, большая цифра, плашки статистики, квадратики для «Поделиться»
-  function end({ title, html = '', reward = 0, again, shareText, win = false, big = '', stats = [] }) {
+  function end({ title, html = '', reward = 0, again, shareText, win = false, big = '', stats = [], daily = false }) {
     const g = cur, s = store(g.id);
-    if (reward) later(() => Coins.add(reward), 300);
+    if (daily) { if (reward) later(() => Coins.add(reward), 300); } else reward = Econ.play(reward);
     if (win) { Sound.play('goal'); haptic('ok'); confetti(); } else Sound.play('lose');
     const btns = [];
     if (shareText) btns.push({ label: '📤 Поделиться', cls: 'gold', keepOpen: true, onClick: () => share(shareText) });

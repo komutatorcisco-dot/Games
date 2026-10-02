@@ -68,7 +68,7 @@
         const won = me.length > bot.length, s = api.st();
         if (won) { s.wins = (s.wins || 0) + 1; api.save(); Profile.bump('trumps', 12); }
         NG.end({ title: won ? 'Победа!' : me.length === bot.length ? 'Ничья' : 'Бот оказался сильнее', big: `${me.length}:${bot.length}`,
-          win: won, reward: won ? 30 + me.length : 5, again: { label: 'Новая раздача', fn: () => NG.open('trumps') } });
+          win: won, reward: won ? 20 + Math.floor(me.length / 2) : 3, again: { label: 'Новая раздача', fn: () => NG.open('trumps') } });
       }
       b.addEventListener('click', (e) => {
         if (over) return;

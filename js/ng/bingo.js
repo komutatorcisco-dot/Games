@@ -74,7 +74,7 @@
         s.best = Math.max(s.best || 0, n); api.save();
         if (n === 16) Profile.bump('bingo', 25);
         NG.end({ title: n === 16 ? 'БИНГО! Вся карточка!' : lines() ? `Линий: ${lines()}` : 'Без линии', big: `${n}/16`, stats: [['Линии', lines()], ['Жизни', lives]], win: n === 16 || lines() >= 2,
-          reward: n * 2 + lines() * 8 + (n === 16 ? 50 : 0), again: { label: 'Новая карточка', fn: () => NG.open('bingo') } });
+          reward: n + lines() * 5 + (n === 16 ? 20 : 0), again: { label: 'Новая карточка', fn: () => NG.open('bingo') } });
       }
       b.addEventListener('click', (e) => {
         const c = e.target.closest('.bg-cell');

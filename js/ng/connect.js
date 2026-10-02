@@ -62,7 +62,7 @@
         left = []; render();
         const s = api.st();
         if (won) { s.wins = (s.wins || 0) + 1; api.save(); Profile.bump('connect', 15); }
-        NG.end({ title: won ? 'Все связи найдены!' : 'Ошибки закончились', win: won, big: won ? '4/4' : '', stats: [['Ошибки', `${mistakes}/${MISTAKES}`]], reward: won ? 40 - mistakes * 8 : solved.length * 2,
+        NG.end({ title: won ? 'Все связи найдены!' : 'Ошибки закончились', win: won, big: won ? '4/4' : '', stats: [['Ошибки', `${mistakes}/${MISTAKES}`]], reward: won ? 30 - mistakes * 6 : solved.length * 2,
           html: '<p>Все группы открыты на экране.</p>', again: { label: 'Новые связи', fn: () => NG.open('connect') } });
       }
       b.addEventListener('click', (e) => {

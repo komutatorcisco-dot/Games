@@ -98,7 +98,7 @@ const Career = (() => {
     }
     let reward = 0;
     if (won) {
-      reward = Math.max(10, 70 - (tries - 1) * 12);
+      reward = Math.max(5, 40 - (tries - 1) * 8);
       C.streak++;
       C.best = Math.max(C.best, C.streak);
       Profile.bump('career');
@@ -108,7 +108,7 @@ const Career = (() => {
       Sound.play('lose'); haptic('bad');
     }
     Store.save();
-    if (reward) Coins.add(reward);
+    reward = Econ.play(reward);
     later(() => Modal.open(
       `<h2>${won ? 'Это он!' : 'Не угадал'}</h2>${card}
        <p>${won ? `С ${tries}-й попытки. Серия: ${C.streak}.` : 'Серия обнулилась.'}</p>

@@ -78,7 +78,7 @@
         if (n === 3) Profile.bump('treble', 15);
         NG.end({
           title: n === 3 ? 'Требл!' : n === 2 ? 'Дубль' : n === 1 ? 'Один трофей' : 'Сезон без трофеев', win: n === 3, big: `${n}/3`,
-          reward: practice ? n * 3 : n * 20 + (n === 3 ? 30 : 0),
+          reward: practice ? n * 2 : n * 12 + (n === 3 ? 14 : 0), daily: !practice,
           shareText: practice ? '' : `🏆 Требл дня #${Day.num()} — ${n}/3\n${st.res.map((x) => (x ? '🟩' : '🟥')).join('')}\nСтарики Джексоны`,
           again: { label: 'Тренировка', fn: () => NG.open('treble', { practice: true }) },
         });

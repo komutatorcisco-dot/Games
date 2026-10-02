@@ -77,7 +77,7 @@
         const pct = Math.round((found.size / list.ans.length) * 100);
         s.best = Math.max(s.best || 0, pct); api.save();
         if (pct === 100) Profile.bump('top10', 15);
-        NG.end({ title: pct === 100 ? 'Весь список!' : pct >= 60 ? 'Хороший результат' : 'Есть куда расти', win: pct === 100, big: `${found.size}/${list.ans.length}`, reward: found.size * 4 + (pct === 100 ? 30 : 0),
+        NG.end({ title: pct === 100 ? 'Весь список!' : pct >= 60 ? 'Хороший результат' : 'Есть куда расти', win: pct === 100, big: `${found.size}/${list.ans.length}`, reward: found.size * 3 + (pct === 100 ? 15 : 0),
           html: '<p>Ответы открыты на экране.</p>', again: { label: 'Следующий список', fn: () => NG.open('top10') } });
       }
       b.addEventListener('click', (e) => {

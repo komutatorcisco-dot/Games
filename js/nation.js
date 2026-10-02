@@ -56,7 +56,7 @@ const Nation = (() => {
       streak++;
       const S = Store.d.nation;
       if (streak > S.best) { S.best = streak; Store.save(); }
-      Coins.add(5); Sound.play('kick'); haptic('ok');
+      Econ.play(3); Sound.play('kick'); haptic('ok');
       later(round, 1600);
     } else {
       lives--;

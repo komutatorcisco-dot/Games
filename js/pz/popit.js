@@ -69,7 +69,7 @@
             } else {
               side = 0; k++; sheets++;
               api.best(sheets);
-              Coins.add(5);
+              Econ.play(2);
               render();
             }
             busy = false; last = null;

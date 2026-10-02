@@ -168,7 +168,7 @@ const Auction = (() => {
         <span>${esc(names[i])}</span><b class="ares-num" data-to="${s[i]}">0</b>
         <small>лучшая покупка: ${esc(best(i).n)} за ${best(i).p}</small></div>`;
     let reward = 0;
-    if (vsBot && w === 0) { reward = 80; Profile.bump('auction', 25); }
+    if (vsBot && w === 0) { reward = Econ.quote(40); Profile.bump('auction', 25); }
     if (!vsBot && w !== -1) Profile.bump('auction', 10);
     Store.d.auction = Store.d.auction || { wins: 0 };
     if (w === 0 || (!vsBot && w !== -1)) Store.d.auction.wins++;
@@ -186,7 +186,7 @@ const Auction = (() => {
       ],
     );
     $$('.ares-num').forEach((el, k) => later(() => countUp(el, +el.dataset.to, { dur: 1100 }), 300 + k * 250));
-    if (reward) later(() => Coins.add(reward), 1500);
+    if (reward) later(() => Econ.play(40), 1500);
   }
 
   function bind() {

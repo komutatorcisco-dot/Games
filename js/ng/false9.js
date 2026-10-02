@@ -90,7 +90,7 @@
         if (st.won) Profile.bump('false9', 12);
         NG.end({
           title: st.won ? 'Все три лжи найдены!' : 'Ложь ускользнула', win: st.won, big: `${found}/3`, stats: [['Ошибки', `${st.wrong}/${LIVES}`]],
-          reward: st.won ? (practice ? 10 : 60 - st.wrong * 15) : found * 5,
+          reward: st.won ? (practice ? 10 : 50 - st.wrong * 12) : found * 3, daily: !practice,
           shareText: practice ? '' : `🕵️ Ложная девятка #${Day.num()} — ${st.won ? '✓' : '✗'} (${found}/3, ошибок ${st.wrong})\n${st.open.map((k) => (cards[k].lie ? '🟩' : '🟥')).join('')}\nСтарики Джексоны`,
           again: { label: 'Тренировка', fn: () => NG.open('false9', { practice: true }) },
         });

@@ -68,12 +68,12 @@
       function finish() {
         st.done = true; api.save(); render();
         const n = st.found.length;
-        const reward = practice ? Math.floor(n / 2) * 2 : n * 8 + (n === 11 ? 40 : 0);
+        const reward = practice ? Math.floor(n / 2) * 2 : n * 4 + (n === 11 ? 20 : 0);
         if (!practice) { if (n >= 8) api.streakWin(); else api.streakLose(); }
         if (n >= 6) Profile.bump('lineup', n * 2);
         const grid = [...team.rows].reverse().map((r) => r.map((p) => (st.found.includes(p.i) ? '🟩' : '⬜')).join('')).join('\n');
         NG.end({
-          title: n === 11 ? 'Весь состав!' : n >= 8 ? 'Отличный результат' : 'Можно лучше', win: n >= 8, reward, big: `${n}/11`,
+          title: n === 11 ? 'Весь состав!' : n >= 8 ? 'Отличный результат' : 'Можно лучше', win: n >= 8, reward, daily: !practice, big: `${n}/11`,
           stats: [['Промахи', `${st.misses}/${MISSES}`], ['Подсказки', `${st.hints}/${HINTS}`]],
           html: `<p>${team.flag} ${esc(team.nat)}: ${team.ps.map((p) => esc(p.name)).join(', ')}</p>`,
           shareText: practice ? '' : `⚽ Состав дня #${Day.num()} — ${n}/11\n${grid}\nСтарики Джексоны`,

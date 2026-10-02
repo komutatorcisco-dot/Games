@@ -71,7 +71,7 @@
         const beaten = 100 - rivals, s = api.st();
         s.best = Math.max(s.best || 0, beaten); api.save();
         if (won) Profile.bump('vs100', 20);
-        NG.end({ title: won ? 'Победа! 1 против 100' : 'Вылет', big: `${beaten}/100`, stats: [['Раундов', round], ['Рекорд', s.best]], win: won, reward: Math.round(beaten / 2) + (won ? 40 : 0),
+        NG.end({ title: won ? 'Победа! 1 против 100' : 'Вылет', big: `${beaten}/100`, stats: [['Раундов', round], ['Рекорд', s.best]], win: won, reward: Math.round(beaten / 3) + (won ? 20 : 0),
           html: `<p>${esc(why)}</p>${last}`, again: { label: 'Ещё раз', fn: () => NG.open('vs100') } });
       }
       nextRound();

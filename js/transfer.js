@@ -67,7 +67,7 @@ const Transfer = (() => {
     q.classList.remove('q'); q.classList.add('pop');
     q.innerHTML = crestImg(cur.to, 'xs') + esc(cur.to);
     tc.classList.add(ok ? 'ok' : 'bad');
-    if (ok) { streak++; Coins.add(5); Sound.play('kick'); haptic('ok'); }
+    if (ok) { streak++; Econ.play(3); Sound.play('kick'); haptic('ok'); }
     else { lives--; Sound.play('bad'); haptic('bad'); later(() => bump($('#transfer-lives')), 50); }
     const T = Store.d.transfer;
     if (streak > T.best) { T.best = streak; Store.save(); }
@@ -86,7 +86,7 @@ const Transfer = (() => {
       onDone: () => {
         second.classList.add(ok ? 'ok' : 'bad');
         if (ok) {
-          streak++; Coins.add(5); Sound.play('kick'); haptic('ok');
+          streak++; Econ.play(3); Sound.play('kick'); haptic('ok');
           const T = Store.d.transfer;
           if (streak > T.hlBest) { T.hlBest = streak; Store.save(); }
           head();

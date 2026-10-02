@@ -6,7 +6,7 @@ const Daily = (() => {
   const START = '2026-10-01';           // день №1
   const MAX = 6;                         // ступеней подсказок и попыток
   const RETRY_COST = 50, RETRY_TRIES = 3;
-  const REWARD = [0, 120, 90, 70, 50, 35, 20];
+  const REWARD = [0, 80, 60, 45, 35, 25, 15];
   const BLUR = [0, 26, 20, 15, 10, 6, 3];
   const LINE = { ГК: 0, ЦЗ: 1, ЛЗ: 1, ПЗ: 1, ЦОП: 2, ЦП: 2, ЦАП: 2, ЛВ: 3, ПВ: 3, ФРВ: 3 };
   const YEAR = new Date().getFullYear();

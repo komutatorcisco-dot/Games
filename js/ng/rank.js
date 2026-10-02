@@ -61,7 +61,7 @@
         const s = api.st();
         s.best = Math.max(s.best || 0, total); api.save();
         if (total >= 18) Profile.bump('rank', 12);
-        NG.end({ title: total >= 18 ? 'Знаток!' : total >= 12 ? 'Неплохо' : 'Можно лучше', big: `${total}/${ROUNDS * 5}`, stats: [['Раунды', roundPts.join(' · ')]], win: total >= 18, reward: total * 2, again: { label: 'Ещё раз', fn: () => NG.open('rank') } });
+        NG.end({ title: total >= 18 ? 'Знаток!' : total >= 12 ? 'Неплохо' : 'Можно лучше', big: `${total}/${ROUNDS * 5}`, stats: [['Раунды', roundPts.join(' · ')]], win: total >= 18, reward: Math.round(total * 1.5), again: { label: 'Ещё раз', fn: () => NG.open('rank') } });
       }
       b.addEventListener('click', (e) => {
         const it = e.target.closest('.rk-item');

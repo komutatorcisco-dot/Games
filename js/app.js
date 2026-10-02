@@ -4,8 +4,8 @@
 const App = (() => {
   const today = () => new Date().toISOString().slice(0, 10);
   const yesterday = () => new Date(Date.now() - 864e5).toISOString().slice(0, 10);
-  // Серия входов: 1-й день 40 монет, каждый следующий +10, на 7-й — 150, дальше снова с начала.
-  const dailyReward = (d) => (d >= 7 ? 150 : 30 + d * 10);
+  // Серия входов: 1-й день 30 монет, каждый следующий +10, на 7-й — 100, дальше снова с начала.
+  const dailyReward = (d) => (d >= 7 ? 100 : 20 + d * 10);
   const nextDay = () => (Store.d.lastDaily === yesterday() ? (Store.d.dailyStreak % 7) + 1 : 1);
 
   const ACHIEVEMENTS = [
@@ -72,7 +72,7 @@ const App = (() => {
   }
 
   // Ежедневные задания: прогресс и сундук за все пять
-  const CHEST = 150;
+  const CHEST = 100;
   function renderDailyProgress() {
     const st = NG.dailyStatus(), done = st.filter(([, d]) => d).length, all = done === st.length;
     const claimed = (Store.d.ng.chest || '') === Day.key();
