@@ -220,7 +220,8 @@ const App = (() => {
       if (TG && TG.BackButton) TG.BackButton.onClick(() => (Screens.current === 'pass-game' ? Pass.openLevels() : home()));
     } catch (e) { /* не в Telegram */ }
     // Ссылка вида ...#pass открывает игру сразу
-    const h = location.hash.replace('#', '');
+    let h = location.hash.replace('#', '');
+    try { if (TG && TG.initDataUnsafe && TG.initDataUnsafe.start_param) h = TG.initDataUnsafe.start_param; } catch (e) { /* не в Telegram */ }
     const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop' };
     renderHub();
     if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }

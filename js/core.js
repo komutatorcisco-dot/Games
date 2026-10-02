@@ -7,8 +7,12 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 const pick = (arr, rnd = Math.random) => arr[Math.floor(rnd() * arr.length)];
 
 // Telegram Mini App: если игра открыта внутри Telegram, разворачиваем на весь экран.
-const TG = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== undefined) ? window.Telegram.WebApp : null;
+// В обычном браузере скрипт Telegram тоже создаёт WebApp, но с пустым initData — тогда считаем, что мы не в Telegram.
+const TG = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) ? window.Telegram.WebApp : null;
 try { if (TG) { TG.ready(); TG.expand(); } } catch (e) { /* открыто не в Telegram */ }
+// Ссылка на игры в боте: открывает Mini App прямо в Telegram. start — экран, который откроется сразу (как #daily).
+const APP_LINK = 'https://t.me/JacksonGamesbot/games';
+const appLink = (start) => APP_LINK + (start ? `?startapp=${start}` : '');
 
 function haptic(kind) {
   try {

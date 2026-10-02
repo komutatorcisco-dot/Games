@@ -210,7 +210,7 @@ const Daily = (() => {
     return `⚽ Игрок дня #${dayNum()} — ${res}\n${shareSquares()}${s.streak > 1 ? `\n🔥 Серия: ${s.streak}` : ''}\nСтарики Джексоны · угадаешь быстрее?`;
   }
   function share() {
-    const text = shareText(), url = location.href.split('#')[0] + '#daily';
+    const text = shareText(), url = appLink('daily');
     try {
       if (TG && TG.openTelegramLink) { TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`); return; }
     } catch (e) { /* не в Telegram */ }

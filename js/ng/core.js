@@ -142,7 +142,7 @@ const NG = (() => {
     .map((n) => { const c = CAREERS.find((k) => k.name === n); return { key: n, label: n, sub: `${c.flag} ${c.path[c.path.length - 1][0]}` }; });
 
   function share(text) {
-    const url = location.href.split('#')[0];
+    const url = appLink(cur && cur.id);
     try {
       if (TG && TG.openTelegramLink) { TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`); return; }
     } catch (e) { /* не в Telegram */ }
