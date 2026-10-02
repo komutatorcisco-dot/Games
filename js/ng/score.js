@@ -16,7 +16,7 @@
 
   NG.register({
     id: 'score', group: 'hist', title: 'Угадай счёт', c1: '#e2384d', c2: '#1b1340', tag: 'Матчи чемпионатов мира',
-    meta: (s) => (s.best ? `Рекорд ${s.best}/${ROUNDS * 3}` : `${WC_MATCHES.length} матчей с 1930 года`),
+    meta: (s) => (s.best ? `Рекорд ${s.best}/${ROUNDS * 3}` : 'Легендарные матчи ЧМ'),
     start(api) {
       const used = new Set();
       let round = 0, total = 0, m = null, h = 1, a = 1, hint = false, done = false, results = [];

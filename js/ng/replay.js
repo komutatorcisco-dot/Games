@@ -18,8 +18,10 @@
     <rect x="120" y="36" width="2.2" height="8" fill="rgba(255,255,255,.85)"/><rect x="-2.2" y="36" width="2.2" height="8" fill="rgba(255,255,255,.5)"/>`;
 
   function makeRound(used) {
-    let i, g;
-    do { i = Math.floor(Math.random() * GOALS.length); g = GOALS[i]; } while (used.has(i));
+    // чаще — голы ЧМ, Евро и ЛЧ, реже — голы звёзд в больших матчах лиг
+    const tour = Math.random() < 0.6;
+    let i, g, t = 0;
+    do { i = Math.floor(Math.random() * GOALS.length); g = GOALS[i]; t++; } while ((used.has(i) || (t < 60 && !!g[14] !== tour)) && t < 400);
     used.add(i);
     const ans = GOAL_SCORERS[g[9]];
     // обманки: авторы голов того же турнира и сезона, потом того же турнира, потом любые
@@ -32,7 +34,7 @@
 
   NG.register({
     id: 'replay', group: 'hist', title: 'Повтор гола', c1: '#1f7a3a', c2: '#ffcf3a', tag: 'Угадай автора по атаке', wide: true,
-    meta: (s) => (s.best ? `Рекорд ${s.best}/${ROUNDS * 3}` : `${GOALS.length} голов из истории`),
+    meta: (s) => (s.best ? `Рекорд ${s.best}/${ROUNDS * 3}` : 'Голы ЧМ, Евро и звёзд'),
     start(api) {
       const used = new Set();
       let round = 0, total = 0, cur = null, hints = 0, answered = false, raf = 0, results = [];
