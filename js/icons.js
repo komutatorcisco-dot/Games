@@ -75,7 +75,6 @@ const Icons = (() => {
     'ng-score': svg('<rect x="6" y="14" width="44" height="28" rx="6" fill="#1b1340" stroke="#fff" stroke-width="2"/><text x="28" y="34" text-anchor="middle" font-size="15" font-weight="900" fill="#ffcf3a">7:1</text>') + '<span class="ic-tag">ЧМ</span>',
     'ng-numhist': '<span class="ic-big">№</span><span class="ic-tag">2012</span>',
     'ng-timemachine': '<span class="ic-emo">⏳</span><span class="ic-tag">ЭЛО</span>',
-    'ng-fantasy': '<span class="ic-big sm">FPL</span><span class="ic-tag">5</span>',
     'ng-replay': svg('<rect x="5" y="9" width="46" height="38" rx="4" fill="#1f7a3a" stroke="#fff" stroke-width="2"/><path d="M28 9 V47" stroke="rgba(255,255,255,.5)" stroke-width="1.2"/><rect x="43" y="20" width="8" height="16" fill="none" stroke="rgba(255,255,255,.6)" stroke-width="1.2"/>'
       + '<path d="M11 38 L22 30 L30 35 L44 26" fill="none" stroke="#ffcf3a" stroke-width="2.4" stroke-dasharray="3 2" stroke-linecap="round"/><circle cx="11" cy="38" r="2.6" fill="#fff"/><circle cx="22" cy="30" r="2.6" fill="#fff"/><circle cx="30" cy="35" r="2.6" fill="#fff"/><circle cx="46" cy="25" r="3.2" fill="#fff" stroke="#1b1240" stroke-width="1"/>'),
   };
