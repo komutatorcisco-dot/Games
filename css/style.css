@@ -1448,3 +1448,28 @@ body[data-balls="crests"] .sball, .shop-balls[data-balls="crests"] .sball {
 .fp-card.bot::after { content: '🤖'; position: absolute; top: 2px; left: 4px; font-size: 11px; }
 .fp-pts { position: absolute; top: 2px; right: 4px; padding: 0 5px; border-radius: 8px; background: var(--gold); color: #2a1d00; font-weight: 900; font-size: 11px; }
 .fp-line { margin: 4px 0; font-size: 12px; text-align: left; }
+
+/* приветствие, лента разделов, недавние */
+.hub-emo { font-family: var(--font-display); font-size: 1.1em; }
+#hub-hello b { color: var(--gold); font-weight: 800; }
+.hub-nav { position: sticky; top: 0; z-index: 20; display: flex; gap: 6px; margin: 6px -16px 10px; padding: 8px 16px; overflow-x: auto; scrollbar-width: none;
+  background: linear-gradient(var(--night) 70%, rgba(27,19,64,0)); -webkit-overflow-scrolling: touch; }
+.hub-nav::-webkit-scrollbar { display: none; }
+.hub-nav button { flex: none; padding: 8px 14px; border: 0; border-radius: 999px; background: var(--night-3); color: var(--ink); font: 700 13px var(--font, inherit); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.hub-nav button:active { transform: scale(.95); background: var(--gold); color: #2a1d00; }
+.jump-anchor { display: block; height: 0; }
+.recent { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
+.recent-tile { display: grid; justify-items: center; gap: 6px; padding: 10px 4px; border: 0; border-radius: 16px; background: linear-gradient(160deg, var(--c1), var(--c2)); color: #fff; cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,.25); }
+.recent-tile .tile-ico { width: 40px; height: 40px; }
+.recent-tile b { font-size: 11px; line-height: 1.15; text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,.4); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.recent-tile:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,.25); }
+
+/* ник */
+.nick-input { width: 100%; box-sizing: border-box; margin: 8px 0 10px; padding: 14px 16px; border: 0; border-radius: 14px; background: var(--night); color: var(--ink); font: 700 18px inherit; text-align: center; box-shadow: inset 0 0 0 2px var(--night-3); }
+.nick-input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--gold); }
+.nick-emoji { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin-bottom: 4px; }
+.nick-emoji button { aspect-ratio: 1; border: 0; border-radius: 12px; background: var(--night); font-size: 22px; cursor: pointer; }
+.nick-emoji button.on { background: var(--gold); transform: scale(1.06); }
+.prof-user { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 10px; padding: 12px 14px; border-radius: 16px; background: var(--night-2); }
+.prof-user #prof-nick { display: grid; font-size: 18px; } .prof-user small { color: var(--muted); font-size: 12px; font-weight: 400; }
+.prof-user .btn { flex: none; padding: 8px 14px; }

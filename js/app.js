@@ -68,6 +68,7 @@ const App = (() => {
         `<i class="${d < day ? 'got' : d === day ? 'now' : ''}"><small>${d}</small>${dailyReward(d)}</i>`).join('');
     }
     rankUi('#hub-rank', '#hub-xp', '#hub-next');
+    User.render();
     Coins.render();
   }
 
@@ -111,6 +112,7 @@ const App = (() => {
     $('#set-music').textContent = Store.d.music ? 'Вкл' : 'Выкл';
     $('#set-sound').textContent = Store.d.sound ? 'Вкл' : 'Выкл';
     Coins.render();
+    User.render();
   }
 
   function home(anchor) {
@@ -119,6 +121,7 @@ const App = (() => {
     renderHub();
     Screens.show('hub');
     if (anchor) { const el = document.getElementById(anchor); if (el) el.scrollIntoView({ block: 'start' }); }
+    if (!Store.d.user.nick) later(() => User.ensure(), 250);
   }
 
   function profile() {
@@ -130,6 +133,7 @@ const App = (() => {
   const actions = {
     home,
     profile,
+    nick: () => User.edit(false),
     'pass-levels': () => Pass.openLevels(),
     'pass-undo': () => Pass.undo(),
     'pass-restart': () => Pass.restart(),
@@ -195,6 +199,10 @@ const App = (() => {
     Music.arm();
     document.addEventListener('pointerdown', (e) => { Coins.last = { x: e.clientX, y: e.clientY }; }, true);
     document.addEventListener('click', (e) => {
+      const jump = e.target.closest('[data-jump]');
+      if (jump) { const t = document.getElementById(jump.dataset.jump); if (t) window.scrollTo({ top: t.getBoundingClientRect().top + scrollY - 64, behavior: 'smooth' }); return; }
+      const tile = e.target.closest('.tile-card, .card, .recent-tile, .runner-hero');
+      if (tile) User.remember(tile);
       const el = e.target.closest('[data-act]');
       if (el && el.tagName === 'A') e.preventDefault();
       if (el && actions[el.dataset.act]) { actions[el.dataset.act](); Howto.forAct(el.dataset.act); return; }
@@ -226,7 +234,7 @@ const App = (() => {
     renderHub();
     if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }
     else if (NG.list.some((g) => g.id === h)) { if (h === 'box2box') actions.b2b(); else NG.open(h); Howto.auto('ng-' + h); }
-    else Screens.show('hub');
+    else { Screens.show('hub'); User.ensure(); }
   }
 
   return { init, home };

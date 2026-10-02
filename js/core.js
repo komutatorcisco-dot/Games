@@ -55,6 +55,8 @@ const Store = {
       dly: { day: '', ev: [], level: 1, done: false, won: false, retry: false, tries: 6, guessed: [], streak: 0, best: 0, lastWin: '', played: 0, wins: 0 },
       limits: { day: '', auction: 0, pick: 0 },
       econ: { day: '', earned: 0 },
+      user: { nick: '', emoji: '⚽', since: '' },
+      recent: [],
       ng: {},
       shop: { lives: 0, owned: {}, frame: 'none', cards: 'classic', balls: 'classic', packs: {} },
     };
