@@ -83,7 +83,11 @@ const App = (() => {
       $('#daily-days').innerHTML = [1, 2, 3, 4, 5, 6, 7].map((d) =>
         `<i class="${d < day ? 'got' : d === day ? 'now' : ''}"><small>${d}</small>${dailyReward(d)}</i>`).join('');
     }
-    rankUi('#hub-rank', '#hub-xp', '#hub-next');
+    // шапка: звание и опыт коротко (подробно — в профиле)
+    const rk = Profile.rank();
+    $('#hub-rank').textContent = rk.name;
+    $('#hub-next').textContent = rk.to ? `${rk.xp}/${rk.to}` : `${rk.xp}`;
+    $('#hub-xp').style.width = `${rk.to ? Math.round(((rk.xp - rk.from) / (rk.to - rk.from)) * 100) : 100}%`;
     User.render(); Donate.render();
     Coins.render();
   }
@@ -93,11 +97,15 @@ const App = (() => {
   function renderDailyProgress() {
     const st = NG.dailyStatus(), done = st.filter(([, d]) => d).length, all = done === st.length;
     const claimed = (Store.d.ng.chest || '') === Day.key();
-    $('#dly-progress').innerHTML = `<div class="dp-head"><b>Ежедневные</b><span>${done}/${st.length} сегодня</span></div>
-      <div class="dp-bar"><i style="width:${(done / st.length) * 100}%"></i></div>
-      <div class="dp-items">${st.map(([n, d]) => `<span class="${d ? 'ok' : ''}">${d ? '✓' : '○'} ${esc(n)}</span>`).join('')}</div>
+    // ежедневные игры — ряд маленьких плиток с галочкой; «Игрок дня» стоит отдельной карточкой выше
+    const games = NG.list.filter((g) => g.group === 'daily');
+    const doneOf = (g) => { const d = (Store.d.ng[g.id] || {}).daily; return !!(d && d.day === Day.key() && d.done); };
+    $('#dly-progress').innerHTML = `<div class="dp-row">${games.map((g) => `<button class="dp-game ${doneOf(g) ? 'ok' : ''}" data-ng="${g.id}" style="--c1:${g.c1};--c2:${g.c2}">
+        <span class="tile-ico" data-ico="ng-${g.id}"></span><b>${esc(g.title.replace(/ дня$/, '').replace('Футбольный ', ''))}</b>${doneOf(g) ? '<i>✓</i>' : ''}</button>`).join('')}</div>
+      <div class="dp-foot"><div class="dp-bar"><i style="width:${(done / st.length) * 100}%"></i></div><span>${done}/${st.length}</span></div>
       ${all && !claimed ? `<button class="btn gold dp-chest" data-act="chest">🎁 Все задания сделаны — забрать сундук +${CHEST}</button>`
-        : `<small class="dp-note">${claimed ? 'Сундук получен ✓ Новые задания в полночь по МСК' : `Пройди все ${st.length} — получишь сундук +${CHEST} монет`}</small>`}`;
+        : `<small class="dp-note">${claimed ? 'Сундук получен ✓ Новые задания в полночь по МСК' : `Сделай все ${st.length} задания дня — сундук +${CHEST} монет`}</small>`}`;
+    Icons.fill($('#dly-progress'));
   }
 
   function renderProfile() {

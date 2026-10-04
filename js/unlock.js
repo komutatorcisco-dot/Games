@@ -54,7 +54,8 @@ const Unlock = (() => {
       const open = isOpen(key);
       el.classList.toggle('locked', !open);
       el.querySelectorAll('.lock-note, .new-badge').forEach((x) => x.remove());
-      if (!open) el.insertAdjacentHTML('beforeend', `<em class="lock-note">🔒 ещё ${NEED[i] - s.played} ${plural(NEED[i] - s.played, 'игра', 'игры', 'игр')} · или ${price(i)} 🪙</em>`);
+      // в списке игр видно коротко «🔒 400 🪙», в карусели — полностью
+      if (!open) el.insertAdjacentHTML('beforeend', `<em class="lock-note">🔒 <span class="ln-long">ещё ${NEED[i] - s.played} ${plural(NEED[i] - s.played, 'игра', 'игры', 'игр')} · или </span>${price(i)} 🪙</em>`);
       else if (s.fresh[key]) el.insertAdjacentHTML('beforeend', '<em class="new-badge">НОВОЕ</em>');
     });
   }

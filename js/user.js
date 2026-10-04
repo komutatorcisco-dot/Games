@@ -52,7 +52,9 @@ const User = (() => {
   function render() {
     const u = U();
     const hi = $('#hub-hello');
-    if (hi) hi.innerHTML = u.nick ? `<span class="hub-emo">${u.emoji}</span> Привет, <b>${esc(u.nick)}</b>` : 'игры канала';
+    if (hi) hi.textContent = u.nick || 'Игрок';
+    const av = $('#hub-ava');
+    if (av) av.textContent = u.emoji || '⚽';
     const pn = $('#prof-nick');
     if (pn) pn.innerHTML = u.nick ? `<span class="hub-emo">${u.emoji}</span> <b>${esc(u.nick)}</b>${u.since ? `<small>в игре с ${u.since.split('-').reverse().join('.')}</small>` : ''}` : '';
     const box = $('#recent');

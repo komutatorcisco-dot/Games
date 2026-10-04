@@ -1886,3 +1886,94 @@ button.tc-st:active { transform: scale(.92); }
 .dt-n { font: 400 12px var(--font-display); fill: #ffcf3a; paint-order: stroke; stroke: #000; stroke-width: 3px; }
 .dt-dart.bad { opacity: .75; }
 .dt-wrap .dt-pop { top: 4px; right: 4px; animation-delay: .35s; }
+
+/* =====================================================================
+   ГЛАВНАЯ v2: компактная шапка, короткая главная, игры списком, спокойные заголовки
+   ===================================================================== */
+/* шапка: аватар, ник, звание с тонкой полоской опыта и монеты */
+.hub-head { position: sticky; top: 0; z-index: 25; align-items: center; margin: 0 -16px; padding: 8px 16px 10px;
+  background: linear-gradient(var(--night) 80%, rgba(27,19,64,0)); }
+.me-chip { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0; border: 0; background: none; color: var(--ink); text-align: left; cursor: pointer; }
+.me-ava { display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 50%; font-size: 24px;
+  background: radial-gradient(circle at 40% 30%, #4a3d93, var(--night-2)); box-shadow: inset 0 0 0 2px rgba(255,207,58,.6); }
+.me-txt { display: grid; gap: 2px; min-width: 0; }
+.me-txt b { font-size: 16px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.me-txt small { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.me-txt small span:first-child { color: var(--gold); font-weight: 700; }
+.me-txt .xpbar { width: 120px; height: 4px; }
+.hub-head .coins { flex: none; }
+.cat-nav { top: 62px; }
+
+/* бонус и колесо — две маленькие плашки в ряд */
+.perks { display: flex; gap: 8px; }
+.perks:not(:has(.perk:not([hidden]))) { display: none; }
+.perk { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 10px 12px; border: 0; border-radius: 14px; color: var(--ink); text-align: left; cursor: pointer;
+  background: linear-gradient(135deg, rgba(255,207,58,.22), var(--night-2)); box-shadow: inset 0 0 0 1px rgba(255,207,58,.45); animation: rise .4s ease both; }
+.perk-wheel { background: linear-gradient(135deg, rgba(198,91,216,.3), var(--night-2)); box-shadow: inset 0 0 0 1px rgba(198,91,216,.5); }
+.perk:active { transform: scale(.97); }
+.perk b { display: block; font-size: 14px; font-weight: 800; }
+.perk small { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.perk-ico { font-size: 26px; animation: icoFloat 2.2s ease-in-out infinite; }
+.perk .wheel-mini { width: 32px; height: 32px; border-width: 2px; }
+
+/* «Игрок дня» и задания дня */
+.dly-card-title { font-family: var(--font-body); font-weight: 800; font-size: 19px; text-transform: none; }
+.dly-progress { gap: 10px; padding: 10px; }
+.dp-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.dp-game { position: relative; display: grid; justify-items: center; gap: 6px; padding: 10px 4px 8px; border: 0; border-radius: 14px; background: var(--night-2); color: var(--ink); cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); transition: transform .2s; }
+.dp-game:active { transform: scale(.95); }
+.dp-game .tile-ico { width: 40px; height: 40px; margin: 0; border-radius: 11px; font-size: 16px; }
+.dp-game b { font-size: 11px; font-weight: 800; line-height: 1.15; text-align: center; }
+.dp-game.ok { background: rgba(52,196,106,.16); box-shadow: inset 0 0 0 1px rgba(52,196,106,.5); }
+.dp-game.ok .tile-ico { opacity: .55; }
+.dp-game i { position: absolute; top: 4px; right: 4px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--hit); color: #06210f; font-style: normal; font-weight: 900; font-size: 11px; }
+.dp-foot { display: flex; align-items: center; gap: 8px; }
+.dp-foot .dp-bar { flex: 1; }
+.dp-foot span { font-size: 12px; font-weight: 800; color: var(--gold); }
+.dp-note { text-align: center; color: var(--muted); font-size: 12px; }
+
+/* подборка дня — карусель */
+.featured { display: flex; gap: 10px; margin: 0 -16px; padding: 2px 16px 8px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.featured::-webkit-scrollbar { display: none; }
+.featured .tile-card { flex: 0 0 148px; scroll-snap-align: start; min-height: 150px; }
+
+/* спокойные заголовки плиток: обычный жирный шрифт вместо капса */
+.tile-card b { font-family: var(--font-body); font-weight: 800; font-size: 15px; line-height: 1.2; text-transform: none; letter-spacing: 0; }
+.tile-card small { font-size: 12px; }
+.section-label { margin-top: 14px; }
+
+/* «Игры» и «С другом»: список строками — иконка, название, подпись, справа замок или стрелка */
+#panel-games .cat .tiles, #panel-friends > .tiles { grid-template-columns: 1fr; gap: 8px; }
+#panel-games .cat .tile-card, #panel-friends > .tiles .tile-card {
+  display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: 12px; row-gap: 1px;
+  align-items: center; min-height: 68px; padding: 10px 12px; border-radius: 16px; }
+#panel-games .cat .tile-card .tile-ico, #panel-friends > .tiles .tile-card .tile-ico { grid-row: 1 / 3; width: 48px; height: 48px; margin: 0; border-radius: 13px; }
+#panel-games .cat .tile-card > b, #panel-friends > .tiles .tile-card > b { grid-column: 2; align-self: end; }
+#panel-games .cat .tile-card > small, #panel-friends > .tiles .tile-card > small { grid-column: 2; align-self: start; color: var(--muted); font-weight: 600; }
+#panel-games .cat .tile-card > .limit-note, #panel-friends > .tiles .tile-card > .limit-note { grid-column: 3; grid-row: 1 / 3; }
+#panel-games .cat .tile-card::after, #panel-friends > .tiles .tile-card::after { inset: 0; }
+#panel-games .cat .tile-card:not(.locked) > b::after { content: ''; }
+#panel-games .cat .tile-card:not(.locked)::before, #panel-friends > .tiles .tile-card::before {
+  content: '›'; grid-column: 3; grid-row: 1 / 3; justify-self: end; font-size: 26px; line-height: 1; color: var(--muted); position: static; }
+#panel-games .cat .tile-card.locked::before { content: none; }
+#panel-games .cat .tile-card .lock-note { grid-column: 3; grid-row: 1 / 3; margin: 0; padding: 5px 9px; border-radius: 99px; background: var(--night-3); color: var(--gold); font-size: 12px; white-space: nowrap; }
+#panel-games .cat .tile-card .lock-note .ln-long { display: none; }
+#panel-games .cat .tile-card .new-badge { position: static; grid-column: 3; grid-row: 1 / 3; }
+#panel-games .cat .tile-card .tile-done { position: static; grid-column: 3; grid-row: 1 / 3; }
+#panel-games .cat .tile-card.locked { filter: none; opacity: .72; }
+#panel-games .cat .tile-card.locked .tile-ico { filter: grayscale(.9); }
+.tile-card.locked::before { content: none; }
+
+/* герои пониже и спокойнее */
+.runner-hero { padding: 14px; }
+.runner-hero b { font-size: 22px; }
+.runner-hero small { max-width: 62%; }
+.friends-teaser b, .all-games b { font-family: var(--font-body); font-weight: 800; text-transform: none; font-size: 16px; }
+.wheel-card b { font-family: var(--font-body); font-weight: 800; text-transform: none; font-size: 16px; }
+.perk b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+#panel-games .cat .tile-card > .limit-note, #panel-friends > .tiles .tile-card > .limit-note { grid-column: 2; grid-row: 3; justify-self: start; margin-top: 2px; }
+#panel-games .cat .tile-card, #panel-friends > .tiles .tile-card { grid-template-rows: auto auto auto; }
+#panel-games .cat .tile-card .tile-ico, #panel-friends > .tiles .tile-card .tile-ico { grid-row: 1 / 4; }
+#panel-games .cat .tile-card:not(.locked)::before, #panel-friends > .tiles .tile-card::before, #panel-games .cat .tile-card .lock-note,
+#panel-games .cat .tile-card .new-badge, #panel-games .cat .tile-card .tile-done { grid-row: 1 / 4; }
