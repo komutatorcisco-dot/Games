@@ -3,7 +3,7 @@
 // Пока пусто, вкладка «Рейтинг» пишет, что рейтинг скоро запустится, а кнопка доната скрыта.
 // donateApi — старое имя того же адреса (можно оставить пустым). donateUrl — запасная ссылка на донат (Boosty и т.п.).
 const CONFIG = {
-  api: '',
+  api: 'https://jackson-games.komutatorcisco.workers.dev',
   donateApi: '',
   donateUrl: '',
 };
