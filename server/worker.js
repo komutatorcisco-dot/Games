@@ -25,12 +25,29 @@ function cors(res, request, env) {
 }
 const json = (data, status = 200) => Response.json(data, { status });
 
-// ---------- время по Москве: неделя с понедельника, день с полуночи ----------
+// ---------- время ----------
+// «Игрок дня» меняется в полночь по Москве. Рейтинг недели обнуляется в понедельник в 10:00 по центральноевропейскому
+// времени (Берлин, Париж, Мадрид; летнее время учитывается).
 const msk = (t = Date.now()) => new Date(t + 3 * 3600e3);
 const dayKey = (t) => msk(t).toISOString().slice(0, 10);
-function weekKey(t) {
-  const d = msk(t), wd = (d.getUTCDay() + 6) % 7; // 0 = понедельник
+const WEEK_TZ = 'Europe/Berlin', WEEK_HOUR = 10;
+// на сколько часы в Европе впереди UTC в момент t
+function tzOffset(t) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: WEEK_TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    .formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(t / 1000) * 1000;
+}
+// неделя = дата её понедельника; новая неделя начинается в понедельник в 10:00 по Европе
+function weekKey(t = Date.now()) {
+  const d = new Date(t + tzOffset(t) - WEEK_HOUR * 3600e3), wd = (d.getUTCDay() + 6) % 7; // 0 = понедельник
   return new Date(d.getTime() - wd * 864e5).toISOString().slice(0, 10);
+}
+// когда закончится текущая неделя (момент в UTC)
+function weekEnd(t = Date.now()) {
+  const local = Date.parse(weekKey(t)) + 7 * 864e5 + WEEK_HOUR * 3600e3; // понедельник 10:00 по часам Европы
+  let end = local - tzOffset(local);
+  end = local - tzOffset(end); // поправка, если между ними был переход на летнее/зимнее время
+  return end;
 }
 
 // ---------- проверка подписи Telegram (https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app) ----------
@@ -39,6 +56,7 @@ const hmac = async (key, data) => {
   const k = await crypto.subtle.importKey('raw', typeof key === 'string' ? enc.encode(key) : key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   return crypto.subtle.sign('HMAC', k, enc.encode(data));
 };
+export { weekKey, weekEnd };
 export async function verifyInit(initData, token, maxAgeSec = 7 * 86400) {
   if (!initData || !token) return null;
   const p = new URLSearchParams(initData), hash = p.get('hash');
@@ -134,8 +152,7 @@ async function top(env, user, scope) {
     const mine = await db.prepare('SELECT xp FROM users WHERE id = ?').bind(id).first();
     if (mine && mine.xp > 0) me = { place: (await db.prepare('SELECT COUNT(*) AS n FROM users WHERE xp > ?').bind(mine.xp).first()).n + 1, score: mine.xp };
   }
-  const weekEnd = new Date(Date.parse(weekKey(now)) + 7 * 864e5 - 3 * 3600e3).getTime();
-  return { rows: rows.map((r) => ({ nick: r.nick, emoji: r.emoji, score: r.score, me: r.id === id })), me, total, weekEnd };
+  return { rows: rows.map((r) => ({ nick: r.nick, emoji: r.emoji, score: r.score, me: r.id === id })), me, total, weekEnd: weekEnd(now) };
 }
 
 export default {

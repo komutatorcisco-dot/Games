@@ -47,7 +47,7 @@ const Board = (() => {
     }
     if (!data) { box.innerHTML = `${tabs}<div class="bd-empty"><div class="bd-spin"></div><p>Загружаем таблицу…</p></div>`; return; }
     if (data.error) { box.innerHTML = `${tabs}<div class="bd-empty"><span>📡</span><h3>Не удалось загрузить</h3><p>Проверь интернет и попробуй ещё раз.</p><button class="btn gold" data-bd="${scope}">Обновить</button></div>`; return; }
-    const head = scope === 'week' ? `Неделя закончится через ${left(data.weekEnd)}. Очки — опыт за победы с понедельника.`
+    const head = scope === 'week' ? `Неделя закончится через ${left(data.weekEnd)}. Очки — опыт за победы с понедельника 10:00 (по Европе).`
       : scope === 'day' ? 'Кто быстрее всех угадал сегодняшнего «Игрока дня». Подсказки тоже считаются попыткой.'
         : 'Весь опыт за победы во всех играх.';
     const rows = data.rows.map((r, i) => `<div class="bd-row ${r.me ? 'me' : ''} ${i < 3 ? 'top' : ''}" style="--i:${Math.min(i, 15)}">
