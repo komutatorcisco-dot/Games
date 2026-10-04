@@ -1693,8 +1693,8 @@ body[data-balls="crests"] .sball, .shop-balls[data-balls="crests"] .sball {
    ===================================================================== */
 #app > .screen:not(#hub):not(#profile):not(#shop):not(#runner) { min-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)) - 30px); }
 /* центрирование: автоматические отступы у шапки и у невидимого «хвоста» делят свободное место поровну */
-#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner):not(#pass-levels):not(#guess) > .topbar { margin-bottom: auto; }
-#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner):not(#pass-levels):not(#guess)::after { content: ''; margin-top: auto; }
+#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner):not(#pass-levels):not(#guess):not(#board) > .topbar { margin-bottom: auto; }
+#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner):not(#pass-levels):not(#guess):not(#board)::after { content: ''; margin-top: auto; }
 /* игры, где список растёт по ходу, оставляем сверху, чтобы поле ввода не «уезжало» */
 #ng:has(.ng-top10, .ng-context, .ng-linkup) > .topbar { margin-bottom: 0; }
 #ng:has(.ng-top10, .ng-context, .ng-linkup)::after { display: none; }
@@ -1761,3 +1761,30 @@ body[data-balls="crests"] .sball, .shop-balls[data-balls="crests"] .sball {
 .unlock-next { margin: 10px 2px 0; color: var(--muted); font-size: 13px; text-align: center; }
 .unlock-next b { color: var(--ink); }
 .unlock-next:empty { display: none; }
+
+/* ---------- рейтинг ---------- */
+.bd-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border-radius: 14px; background: var(--night-2); }
+.bd-tabs button { padding: 10px 4px; border: 0; border-radius: 10px; background: none; color: var(--muted); font: 700 13px var(--font-body); transition: background .25s, color .25s; }
+.bd-tabs button.on { background: var(--gold); color: #2a1d00; }
+.bd-head { margin: 10px 2px 4px; color: var(--muted); font-size: 12px; text-align: center; }
+.bd-you { margin: 6px 0 10px; text-align: center; font-size: 16px; }
+.bd-you b { color: var(--gold); font-family: var(--font-display); font-weight: 400; font-size: 22px; }
+.bd-you.muted { color: var(--muted); font-size: 13px; }
+.bd-list { display: grid; gap: 6px; }
+.bd-row { display: grid; grid-template-columns: 36px 30px 1fr auto; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px; background: var(--night-2);
+  animation: rise .4s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 30ms); }
+.bd-row.top { background: linear-gradient(100deg, rgba(255,207,58,.18), var(--night-2) 60%); }
+.bd-row.me { box-shadow: inset 0 0 0 2px var(--gold); }
+.bd-row.pinned { position: sticky; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); margin-top: 10px; background: #3a2c80; box-shadow: inset 0 0 0 2px var(--gold), 0 8px 24px rgba(0,0,0,.5); }
+.bd-place { font: 400 18px var(--font-display); text-align: center; color: var(--muted); }
+.bd-row.top .bd-place { font-size: 24px; }
+.bd-emo { font-size: 22px; text-align: center; }
+.bd-nick { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.bd-row em { font-style: normal; font-weight: 800; color: var(--gold); font-size: 13px; white-space: nowrap; }
+.bd-empty { display: grid; justify-items: center; gap: 8px; padding: 40px 16px; text-align: center; color: var(--muted); }
+.bd-empty span { font-size: 56px; animation: popin .5s cubic-bezier(.3,1.5,.5,1); }
+.bd-empty h3 { margin: 0; color: var(--ink); }
+.bd-empty p { margin: 0; max-width: 320px; }
+.bd-spin { width: 40px; height: 40px; border-radius: 50%; border: 4px solid var(--night-3); border-top-color: var(--gold); animation: spin 0.8s linear infinite; }
+.board-teaser { width: 100%; margin-top: 12px; padding: 12px 14px; border: 0; border-radius: 14px; background: linear-gradient(100deg, rgba(255,207,58,.22), var(--night-2) 70%); color: var(--ink); font-size: 14px; text-align: left; box-shadow: inset 0 0 0 1px rgba(255,207,58,.35); }
+.board-teaser b { color: var(--gold); }

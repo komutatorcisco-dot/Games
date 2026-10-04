@@ -67,6 +67,8 @@ const App = (() => {
     $('#all-count').textContent = `${total} ${plural(total, 'игра', 'игры', 'игр')} по разделам`;
     setCat(cat, false);
     Unlock.decorate();
+    const bt = Board.teaser();
+    $('#board-teaser').hidden = !bt; $('#board-teaser').innerHTML = bt;
     const nx = Unlock.next();
     $('#unlock-next').innerHTML = nx ? `🔒 Следующая игра — <b>«${esc(nx.title)}»</b> — откроется через ${nx.left} ${plural(nx.left, 'игру', 'игры', 'игр')}` : '';
     renderDailyProgress();
@@ -178,7 +180,7 @@ const App = (() => {
     $('#tab-home').classList.toggle('on', id === 'hub' && panel === 'home');
     $('#tab-games').classList.toggle('on', id === 'hub' && panel === 'games');
     $('#tab-friends').classList.toggle('on', id === 'hub' && panel === 'friends');
-    $('#tab-shop').classList.toggle('on', id === 'shop');
+    $('#tab-board').classList.toggle('on', id === 'board');
     $('#tab-profile').classList.toggle('on', id === 'profile');
   }
 
@@ -213,6 +215,7 @@ const App = (() => {
     home: () => tab('home'),
     games: () => tab('games'),
     friends: () => tab('friends'),
+    board: () => Board.open(),
     'duel-live': () => NG.open('duel', { mode: 'live' }),
     'duel-link': () => NG.open('duel', { mode: 'link' }),
     'duel-hot': () => NG.open('duel', { mode: 'hot' }),
@@ -279,7 +282,7 @@ const App = (() => {
 
   function init() {
     Store.load();
-    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind(); Nation.bind(); Pick.bind(); Daily.bind(); Shop.bind();
+    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind(); Nation.bind(); Pick.bind(); Daily.bind(); Shop.bind(); Board.bind();
     Howto.addButtons();
     Music.arm();
     document.addEventListener('pointerdown', (e) => {
@@ -312,7 +315,7 @@ const App = (() => {
       if (Screens.current === 'ng' && id !== 'ng') NG.leave();
       orig(id);
       document.body.classList.toggle('in-runner', id === 'runner');
-      $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop');
+      $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop' || id === 'board');
       tabs();
       try { if (TG && TG.BackButton) id === 'hub' ? TG.BackButton.hide() : TG.BackButton.show(); } catch (e) { /* не в Telegram */ }
     };
@@ -322,7 +325,7 @@ const App = (() => {
     // Ссылка вида ...#pass открывает игру сразу
     let h = location.hash.replace('#', '');
     try { if (TG && TG.initDataUnsafe && TG.initDataUnsafe.start_param) h = TG.initDataUnsafe.start_param; } catch (e) { /* не в Telegram */ }
-    const deep = { puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop' };
+    const deep = { board: 'board', top: 'board', puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop' };
     renderHub();
     if (Duel.deep(h)) { /* вызов на дуэль или комната */ }
     else if (h !== 'puzzles' && (PANELS.includes(h) || CATS.includes(h))) { home(h); }
@@ -331,6 +334,7 @@ const App = (() => {
     else { Screens.show('hub'); User.ensure(); }
     // облако Telegram: если там сохранение новее (зашёл с другого устройства) — подхватываем его
     Cloud.pull().then((got) => {
+      Board.submit();
       if (!got) return;
       Shop.apply(); Coins.render();
       if (Screens.current === 'hub') { renderHub(); if (Store.d.user.nick && $('#nick-in')) Modal.close(); }

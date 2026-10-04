@@ -387,6 +387,7 @@ function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '
   }
   const icon = ico ? Icons.get(ico) : '';
   if (typeof Unlock !== 'undefined') Unlock.count(); // каждая сыгранная игра приближает открытие следующей
+  if (typeof Board !== 'undefined') Board.submit(); // и отправляет опыт в рейтинг канала
   return `<div class="ng-res ${win ? 'win' : 'lose'}">
     ${icon ? `<span class="tile-ico ng-res-ico" style="${c1 ? `--c1:${c1};--c2:${c2}` : ''}">${icon}</span>` : ''}
     ${big !== '' ? `<div class="ng-res-big">${big}</div>` : ''}${record ? '<span class="res-record">🏅 Новый рекорд!</span>' : ''}

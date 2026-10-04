@@ -1,10 +1,10 @@
-// Донат звёздами Telegram (Stars). Счёт создаёт наш сервер (server/donate-worker.js), игра открывает его в Telegram.
+// Донат звёздами Telegram (Stars). Счёт создаёт наш сервер (server/worker.js), игра открывает его в Telegram.
 // За донат — рамка «Спонсор» и спасибо от бота. Пока сервер не подключён (CONFIG.donateApi пуст), кнопки не показываются.
 'use strict';
 
 const Donate = (() => {
   const AMOUNTS = [50, 100, 250, 500];
-  const ready = () => !!(CONFIG.donateApi || CONFIG.donateUrl);
+  const ready = () => !!(CONFIG.donateApi || CONFIG.api || CONFIG.donateUrl);
 
   function thank(stars) {
     const u = Store.d.user;
@@ -18,10 +18,11 @@ const Donate = (() => {
   }
 
   async function pay(stars) {
-    if (CONFIG.donateApi && TG && TG.openInvoice) {
+    const base = CONFIG.donateApi || CONFIG.api;
+    if (base && TG && TG.openInvoice) {
       try {
         const nick = encodeURIComponent((Store.d.user && Store.d.user.nick) || '');
-        const r = await fetch(`${CONFIG.donateApi}/invoice?stars=${stars}&nick=${nick}`).then((x) => x.json());
+        const r = await fetch(`${base}/invoice?stars=${stars}&nick=${nick}`).then((x) => x.json());
         if (!r.ok) throw new Error(r.error || 'invoice');
         TG.openInvoice(r.link, (status) => {
           if (status === 'paid') thank(stars);

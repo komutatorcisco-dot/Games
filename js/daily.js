@@ -231,6 +231,7 @@ const Daily = (() => {
       Sound.play('lose');
     }
     Store.save();
+    Board.submit(); // результат дня — в рейтинг «Игрок дня»
     render();
   }
 
