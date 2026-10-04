@@ -1977,3 +1977,16 @@ button.tc-st:active { transform: scale(.92); }
 #panel-games .cat .tile-card .tile-ico, #panel-friends > .tiles .tile-card .tile-ico { grid-row: 1 / 4; }
 #panel-games .cat .tile-card:not(.locked)::before, #panel-friends > .tiles .tile-card::before, #panel-games .cat .tile-card .lock-note,
 #panel-games .cat .tile-card .new-badge, #panel-games .cat .tile-card .tile-done { grid-row: 1 / 4; }
+
+/* иконки игр v2: белая фигура с золотым акцентом, мягкая тень, блик сверху */
+.tile-ico { background: linear-gradient(150deg, var(--c1, #5b8cff), var(--c2, #2c4bb0)) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -3px 0 rgba(0,0,0,.18), 0 4px 10px rgba(0,0,0,.25); }
+.tile-ico::after { background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,0) 45%) !important; }
+.tile-ico svg { filter: drop-shadow(0 1.5px 1.5px rgba(0,0,0,.28)); }
+.tile-ico .ic-t { font-family: var(--font-display); font-weight: 400; }
+.tile-card.duo .tile-ico { --c1: #ff5f9e; --c2: #6a3cc4; }
+.tab span { display: grid; place-items: center; height: 24px; }
+.tab span svg { width: 24px; height: 24px; }
+.tab.on span svg { color: var(--gold); }
+.dh-modes span { display: grid; place-items: center; height: 30px; color: var(--gold); }
+.dh-modes span svg { width: 28px; height: 28px; }
+.dh-ico.tile-ico { width: 56px; height: 56px; margin: 0; animation: none; }
