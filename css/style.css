@@ -1872,3 +1872,17 @@ button.tc-st:active { transform: scale(.92); }
 .tc-side { grid-template-rows: auto 1fr; }
 .tc-card { min-height: 262px; align-content: start; }
 .tc-card.back { display: grid; justify-items: center; align-content: center; gap: 8px; min-height: 262px; height: 100%; box-sizing: border-box; }
+
+/* Дартс: мишень и дротики */
+.dt-wrap { position: relative; width: min(64vw, 250px); margin: 0 auto; }
+.dt-svg { display: block; width: 100%; height: auto; filter: drop-shadow(0 10px 22px rgba(0,0,0,.5)); }
+.dt-score { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; pointer-events: none; }
+.dt-score b { font: 400 46px/1 var(--font-display); color: #fff; text-shadow: 0 0 6px #000, 0 3px 12px #000; }
+.dt-score span { font-size: 11px; font-weight: 800; color: #fff; text-shadow: 0 1px 4px #000; }
+.dt-wrap.hit .dt-svg { animation: dtShake .35s ease .35s; }
+@keyframes dtShake { 30% { transform: rotate(1.5deg); } 70% { transform: rotate(-1deg); } }
+.dt-dart.fresh { animation: dtFly .45s cubic-bezier(.3,.1,.4,1) both; }
+@keyframes dtFly { from { transform: translate(calc(var(--x) + 60px), calc(var(--y) + 160px)) scale(2.4); opacity: 0; } 60% { opacity: 1; } }
+.dt-n { font: 400 12px var(--font-display); fill: #ffcf3a; paint-order: stroke; stroke: #000; stroke-width: 3px; }
+.dt-dart.bad { opacity: .75; }
+.dt-wrap .dt-pop { top: 4px; right: 4px; animation-delay: .35s; }
