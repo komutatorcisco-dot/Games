@@ -1750,3 +1750,14 @@ body[data-balls="crests"] .sball, .shop-balls[data-balls="crests"] .sball {
 .sc-st button { width: 44px; height: 44px; font-size: 22px; }
 #compare .player-card, #transfer .player-card { padding: 18px 14px; }
 .nh-card { min-height: 160px; }
+
+/* закрытые игры */
+.tile-card.locked, .game-card.locked { filter: saturate(.25) brightness(.8); }
+.tile-card.locked .tile-ico, .game-card.locked .card-art { opacity: .55; }
+.tile-card.locked::before { content: '🔒'; position: absolute; top: 10px; right: 10px; font-size: 18px; }
+.lock-note { display: block; margin-top: 2px; font-style: normal; font-size: 11px; font-weight: 700; color: var(--muted); }
+.new-badge { position: absolute; top: 10px; right: 10px; padding: 2px 8px; border-radius: 99px; background: var(--gold); color: #2a1d00; font-style: normal; font-size: 10px; font-weight: 900; letter-spacing: .05em; animation: popin .5s cubic-bezier(.3,1.5,.5,1), pulseGlow 1.8s ease-in-out .5s infinite; }
+.lock-big { font-size: 56px; animation: popin .5s cubic-bezier(.3,1.5,.5,1); }
+.unlock-next { margin: 10px 2px 0; color: var(--muted); font-size: 13px; text-align: center; }
+.unlock-next b { color: var(--ink); }
+.unlock-next:empty { display: none; }

@@ -66,6 +66,9 @@ const App = (() => {
     const total = $$('#panel-games :is(.tile-card, .game-card, .auction-hero)').length + $$('#panel-friends .tile-card').length + 1;
     $('#all-count').textContent = `${total} ${plural(total, 'игра', 'игры', 'игр')} по разделам`;
     setCat(cat, false);
+    Unlock.decorate();
+    const nx = Unlock.next();
+    $('#unlock-next').innerHTML = nx ? `🔒 Следующая игра — <b>«${esc(nx.title)}»</b> — откроется через ${nx.left} ${plural(nx.left, 'игру', 'игры', 'игр')}` : '';
     renderDailyProgress();
     $('#lim-auction').textContent = Limits.label('auction');
     $('#lim-pick').textContent = Limits.label('pick');
@@ -134,7 +137,7 @@ const App = (() => {
 
   // Подборка дня: 4 игры, у всех одинаковые, меняются в полночь МСК
   function featured() {
-    const pool = NG.list.filter((g) => ['brain', 'grid', 'cards', 'hist'].includes(g.group)).map((g) => g.id);
+    const pool = NG.list.filter((g) => ['brain', 'grid', 'cards', 'hist'].includes(g.group) && Unlock.isOpen(g.act ? 'act:' + g.act : 'ng:' + g.id)).map((g) => g.id);
     return shuffle(pool, Day.rng('featured')).slice(0, 4);
   }
 
@@ -290,8 +293,10 @@ const App = (() => {
       if (tb) { Sound.play('tap'); tab(tb.dataset.tab); return; }
       const ct = e.target.closest('#cat-nav [data-cat]');
       if (ct) { Sound.play('tap'); haptic('tap'); setCat(ct.dataset.cat); return; }
+      const lockedTile = e.target.closest('.locked');
+      if (lockedTile) { Sound.play('tap'); Unlock.ask(Unlock.keyOf(lockedTile), renderHub); return; }
       const tile = e.target.closest('.tile-card, .card, .recent-tile, .runner-hero');
-      if (tile) { User.remember(tile); if (Screens.current === 'hub') scrollMem[panel] = scrollY; }
+      if (tile) { Unlock.seen(tile); User.remember(tile); if (Screens.current === 'hub') scrollMem[panel] = scrollY; }
       const el = e.target.closest('[data-act]');
       if (el && el.tagName === 'A') e.preventDefault();
       if (el && actions[el.dataset.act]) { actions[el.dataset.act](); Howto.forAct(el.dataset.act); return; }

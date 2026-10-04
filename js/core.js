@@ -386,6 +386,7 @@ function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '
     if (t) { c1 = t.style.getPropertyValue('--c1'); c2 = t.style.getPropertyValue('--c2'); }
   }
   const icon = ico ? Icons.get(ico) : '';
+  if (typeof Unlock !== 'undefined') Unlock.count(); // каждая сыгранная игра приближает открытие следующей
   return `<div class="ng-res ${win ? 'win' : 'lose'}">
     ${icon ? `<span class="tile-ico ng-res-ico" style="${c1 ? `--c1:${c1};--c2:${c2}` : ''}">${icon}</span>` : ''}
     ${big !== '' ? `<div class="ng-res-big">${big}</div>` : ''}${record ? '<span class="res-record">🏅 Новый рекорд!</span>' : ''}
