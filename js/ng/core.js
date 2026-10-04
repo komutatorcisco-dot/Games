@@ -237,9 +237,10 @@ const Mates = (() => {
   return { of, path, build };
 })();
 
-// Сила игрока для драфта и козырей: рейтинг FC 27, а у кого его нет — оценка по известности и возрасту
+// Сила игрока для драфта и козырей: рейтинг FC 27 (база из архива), а у кого его нет — оценка по известности и возрасту
 const Power = {
   rating(p) {
+    if (FC_STATS[p.name]) return FC_STATS[p.name][0];
     if (FC27[p.name]) return FC27[p.name];
     const base = { 1: 85, 2: 80, 3: 75 }[p.tier] || 74;
     const age = new Date().getFullYear() - p.born;
