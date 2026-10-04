@@ -7,10 +7,10 @@
   const YEAR = new Date().getFullYear();
   function cats() {
     const out = [];
-    const add = (label, test) => { const ps = PLAYERS.filter((p) => p.tier <= 3 && test(p)); if (ps.length >= 8) out.push({ label, ps, test }); };
+    // только широкие категории: в них понятно, кого назовёт большинство, и есть место для неочевидного ответа
+    const add = (label, test) => { const ps = PLAYERS.filter((p) => p.tier <= 3 && test(p)); if (ps.length >= 25 && ps.filter((p) => p.tier <= 2).length >= 6) out.push({ label, ps, test }); };
     [...new Set(PLAYERS.map((p) => p.lg))].forEach((l) => add(`Играет в лиге: ${l}`, (p) => p.lg === l));
     [...new Set(PLAYERS.map((p) => p.nat))].forEach((n) => add(`Сборная: ${n}`, (p) => p.nat === n));
-    [...new Set(PLAYERS.map((p) => p.club))].forEach((c) => add(`Играет за «${c}»`, (p) => p.club === c));
     ['Вратари', 'Защитники', 'Полузащитники', 'Нападающие'].forEach((l) => add(`${l} из АПЛ`, (p) => LINE[p.pos] === l && p.lg === 'АПЛ'));
     add('Старше 32 лет', (p) => YEAR - p.born > 32);
     add('Младше 22 лет', (p) => YEAR - p.born < 22);
