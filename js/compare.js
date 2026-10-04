@@ -76,10 +76,9 @@ const Compare = (() => {
     const best = Store.d.compare[cfg.key];
     Sound.play(streak >= 5 ? 'goal' : 'lose');
     Modal.open(
-      `<h2>Серия: ${streak}</h2>
-       <p>${esc(b)}: <b>${cfg.fmt(cfg.data[b])}</b>, ${esc(a)}: <b>${cfg.fmt(cfg.data[a])}</b></p>
-       <p>${streak >= best && streak > 0 ? 'Это твой новый рекорд!' : `Рекорд: ${best}`}</p>
-       ${quoteHtml(streak >= 5 ? 'win' : 'lose')}`,
+      resultHtml({ act: mode, ico: mode, win: streak >= 5, big: streak, title: streak >= 5 ? 'Отличная серия!' : 'Серия прервалась',
+        text: `${esc(b)}: <b>${cfg.fmt(cfg.data[b])}</b>, ${esc(a)}: <b>${cfg.fmt(cfg.data[a])}</b>`, record: streak >= best && streak > 0,
+        stats: [['Рекорд', best]], extra: quoteHtml(streak >= 5 ? 'win' : 'lose') }),
       [{ label: 'Ещё раз', onClick: () => start(mode) }, { label: 'В меню', cls: 'ghost', onClick: () => App.home() }],
     );
   }

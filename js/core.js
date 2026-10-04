@@ -64,19 +64,78 @@ const Store = {
   load() {
     let raw = null;
     try { raw = JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { raw = null; }
+    this.d = this.merge(raw);
+    this.loadedTs = (raw && raw.ts) || 0; // время сохранения на момент запуска: с ним сравниваем облако
+  },
+  // Сохранение поверх значений по умолчанию; новые разделы (дуэли, настройки) тоже сохраняются
+  merge(raw) {
     const d = this.defaults();
     if (raw && typeof raw === 'object') {
-      for (const k of Object.keys(d)) {
+      for (const k of Object.keys(raw)) {
         if (raw[k] === undefined) continue;
-        d[k] = (d[k] && typeof d[k] === 'object') ? Object.assign(d[k], raw[k]) : raw[k];
+        d[k] = (d[k] && typeof d[k] === 'object' && !Array.isArray(d[k])) ? Object.assign(d[k], raw[k]) : raw[k];
       }
     }
-    this.d = d;
+    return d;
   },
-  save() {
+  save(local) {
+    this.d.ts = Date.now();
     try { localStorage.setItem(this.KEY, JSON.stringify(this.d)); } catch (e) { /* приватный режим */ }
+    if (!local) Cloud.schedule();
   },
 };
+
+// Облачное сохранение в Telegram (CloudStorage): прогресс не теряется и одинаковый на телефоне и компьютере.
+// Значение одного ключа — до 4096 символов, поэтому сохранение режется на куски s0, s1, … ; в sn — число кусков, в st — время.
+const Cloud = (() => {
+  const CHUNK = 4000;
+  let timer = null, busy = false, again = false, ready = false;
+  const cs = () => {
+    try { return TG && TG.CloudStorage && TG.isVersionAtLeast && TG.isVersionAtLeast('6.9') ? TG.CloudStorage : null; } catch (e) { return null; }
+  };
+  const call = (fn, ...args) => new Promise((ok) => { try { cs()[fn](...args, (err, res) => ok(err ? null : res)); } catch (e) { ok(null); } });
+
+  async function push() {
+    if (!cs()) return;
+    if (busy) { again = true; return; }
+    busy = true;
+    try {
+      const str = JSON.stringify(Store.d), n = Math.ceil(str.length / CHUNK);
+      for (let i = 0; i < n; i++) await call('setItem', 's' + i, str.slice(i * CHUNK, (i + 1) * CHUNK));
+      await call('setItem', 'sn', String(n));
+      await call('setItem', 'st', String(Store.d.ts || 0));
+    } finally { busy = false; }
+    if (again) { again = false; push(); }
+  }
+  // сохраняем не чаще раза в 3 секунды
+  function schedule() {
+    if (!cs() || !ready) return; // пока не сверились с облаком, не перезаписываем его
+    clearTimeout(timer);
+    timer = setTimeout(push, 3000);
+  }
+  // При запуске: если в облаке сохранение новее — берём его, иначе отправляем своё
+  async function pull() {
+    if (!cs()) return false;
+    const meta = await call('getItems', ['sn', 'st']);
+    if (!meta) { ready = true; return false; } // облако недоступно — не трогаем его
+    const n = +meta.sn, ts = +meta.st;
+    ready = true;
+    if (!n || !(ts > Store.loadedTs)) { push(); return false; }
+    const keys = Array.from({ length: n }, (_, i) => 's' + i);
+    const parts = await call('getItems', keys);
+    if (!parts) return false;
+    try {
+      const raw = JSON.parse(keys.map((k) => parts[k] || '').join(''));
+      Store.d = Store.merge(raw);
+      Store.d.ts = ts;
+      try { localStorage.setItem(Store.KEY, JSON.stringify(Store.d)); } catch (e) { /* без локальной копии */ }
+      return true;
+    } catch (e) { return false; }
+  }
+  // при сворачивании Mini App сохраняем сразу
+  document.addEventListener('visibilitychange', () => { if (document.hidden && timer) { clearTimeout(timer); timer = null; push(); } });
+  return { schedule, pull, push, on: () => !!cs() };
+})();
 
 const Coins = {
   render(bump) {
@@ -317,6 +376,22 @@ const QUOTES = {
 function quoteHtml(kind) {
   const [cls, name, text] = pick(QUOTES[kind]);
   return `<div class="quote ${cls}"><b>${name}:</b>${esc(text)}</div>`;
+}
+
+// Единый экран итога для всех игр: иконка, большая цифра, заголовок, плашки, награда.
+// act — действие плитки на главной (оттуда берутся цвета иконки), ico — ключ иконки в Icons.
+function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '', title = '', text = '', stats = [], extra = '', reward = 0, record = false }) {
+  if (act && !c1) {
+    const t = document.querySelector(`#hub [data-act="${act}"]`);
+    if (t) { c1 = t.style.getPropertyValue('--c1'); c2 = t.style.getPropertyValue('--c2'); }
+  }
+  const icon = ico ? Icons.get(ico) : '';
+  return `<div class="ng-res ${win ? 'win' : 'lose'}">
+    ${icon ? `<span class="tile-ico ng-res-ico" style="${c1 ? `--c1:${c1};--c2:${c2}` : ''}">${icon}</span>` : ''}
+    ${big !== '' ? `<div class="ng-res-big">${big}</div>` : ''}${record ? '<span class="res-record">🏅 Новый рекорд!</span>' : ''}
+    <h2>${title}</h2>${text ? `<p class="res-text">${text}</p>` : ''}
+    ${stats.length ? `<div class="ng-res-stats">${stats.map(([k, v]) => `<span><b>${v}</b><small>${k}</small></span>`).join('')}</div>` : ''}
+    ${extra}${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}</div>`;
 }
 
 // Профиль игрока: опыт, звания, победы по играм.

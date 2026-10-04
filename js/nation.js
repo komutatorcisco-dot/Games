@@ -80,7 +80,8 @@ const Nation = (() => {
   function end() {
     if (streak >= 3) Profile.bump('nation', streak * 3);
     Sound.play(streak >= 5 ? 'goal' : 'lose');
-    Modal.open(`<h2>Серия: ${streak}</h2><p>Рекорд: <b>${Store.d.nation.best}</b>.</p>${quoteHtml(streak >= 5 ? 'win' : 'lose')}`, [
+    Modal.open(resultHtml({ act: 'nation', ico: 'nation', win: streak >= 5, big: streak, title: streak >= 5 ? 'Знаешь сборные!' : 'Серия прервалась',
+      record: streak >= Store.d.nation.best && streak > 0, stats: [['Рекорд', Store.d.nation.best]], extra: quoteHtml(streak >= 5 ? 'win' : 'lose') }), [
       { label: 'Ещё раз', onClick: start },
       { label: 'На главную', cls: 'ghost', onClick: () => App.home() },
     ]);

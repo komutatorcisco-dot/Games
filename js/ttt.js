@@ -215,8 +215,9 @@ const TTT = (() => {
     if (result === 1 || (mode === 'duo' && result !== -1)) { Sound.play('goal'); confetti(); } else Sound.play('lose');
     if (mode === 'timed') title += ` · рекорд ${Store.d.ttt.b2bBest}`;
     later(() => Modal.open(
-      `<h2>${esc(title)}</h2><p>В пустых клетках показан один из правильных ответов.</p>
-       ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`,
+      resultHtml({ act: mode === 'timed' ? 'b2b' : mode === 'duo' ? 'ttt-duo' : 'ttt', ico: mode === 'timed' ? 'ng-box2box' : mode === 'duo' ? 'ttt-duo' : 'ttt',
+        c1: mode === 'timed' ? '#2fb35a' : '', c2: mode === 'timed' ? '#1b1340' : '',
+        win: result === 1 || (mode === 'duo' && result !== -1), title: esc(title), text: 'В пустых клетках показан один из правильных ответов', reward }),
       [{ label: 'Новая сетка', onClick: () => begin() }, { label: 'Посмотреть ответы', cls: 'ghost' }, { label: 'В меню', cls: 'ghost', onClick: () => App.home() }],
     ), 600);
   }

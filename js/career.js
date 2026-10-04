@@ -90,8 +90,8 @@ const Career = (() => {
       won ? (Sound.play('goal'), confetti()) : Sound.play('lose');
       renderHead();
       later(() => Modal.open(
-        `<h2>${who ? esc(who) + ' угадал!' : 'Никто не угадал'}</h2>${card}
-         <div class="scoreboard"><span class="tag tag-danil">${esc(D.a.toUpperCase())}: ${score[0]}</span><span class="tag tag-sasha">${esc(D.b.toUpperCase())}: ${score[1]}</span></div>`,
+        resultHtml({ act: 'career-duel', ico: 'career-duel', win: !!who, title: who ? esc(who) + ' угадал!' : 'Никто не угадал',
+          big: `${score[0]}:${score[1]}`, extra: card + `<div class="scoreboard"><span class="tag tag-danil">${esc(D.a.toUpperCase())}: ${score[0]}</span><span class="tag tag-sasha">${esc(D.b.toUpperCase())}: ${score[1]}</span></div>` }),
         [{ label: 'Следующий раунд →', onClick: next }, { label: 'Закончить', cls: 'ghost', onClick: () => App.home() }],
       ), 500);
       return;
@@ -110,10 +110,8 @@ const Career = (() => {
     Store.save();
     reward = Econ.play(reward);
     later(() => Modal.open(
-      `<h2>${won ? 'Это он!' : 'Не угадал'}</h2>${card}
-       <p>${won ? `С ${tries}-й попытки. Серия: ${C.streak}.` : 'Серия обнулилась.'}</p>
-       ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}
-       ${quoteHtml(won ? 'win' : 'lose')}`,
+      resultHtml({ act: 'career', ico: 'career', win: won, title: won ? 'Это он!' : 'Не угадал', text: won ? `С ${tries}-й попытки` : 'Серия обнулилась',
+        stats: [['Серия', C.streak], ['Рекорд', C.best]], extra: card + quoteHtml(won ? 'win' : 'lose'), reward }),
       [{ label: 'Следующий →', onClick: next }, { label: 'В меню', cls: 'ghost', onClick: () => App.home() }],
     ), 500);
   }

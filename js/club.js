@@ -66,11 +66,8 @@ const Club = (() => {
     Store.save();
     reward = Econ.play(reward);
     later(() => Modal.open(
-      `<h2>${won ? 'Верно!' : 'Не угадал'}</h2>
-       <div class="player-card">${crestImg(answer.name, 'xl')}<div class="pname">${answer.flag} ${esc(answer.name)}</div>
-       <div class="pmeta">${esc(answer.city)} · ${esc(answer.stadium)} · с ${answer.founded} года</div></div>
-       ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}
-       ${quoteHtml(won ? 'win' : 'lose')}`,
+      resultHtml({ act: 'club', ico: 'club', win: won, title: won ? 'Верно!' : 'Не угадал', reward, extra: `<div class="player-card">${crestImg(answer.name, 'xl')}<div class="pname">${answer.flag} ${esc(answer.name)}</div>
+       <div class="pmeta">${esc(answer.city)} · ${esc(answer.stadium)} · с ${answer.founded} года</div></div>${quoteHtml(won ? 'win' : 'lose')}` }),
       [{ label: 'Следующий клуб →', onClick: start }, { label: 'В меню', cls: 'ghost', onClick: () => App.home() }],
     ), 450);
   }

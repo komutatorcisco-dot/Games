@@ -105,9 +105,8 @@ const Transfer = (() => {
     const best = mode === 'where' ? T.best : T.hlBest;
     Sound.play(streak >= 5 ? 'goal' : 'lose');
     Modal.open(
-      `<h2>Серия: ${streak}</h2>
-       <p>${streak >= best && streak > 0 ? 'Это твой новый рекорд!' : `Рекорд: ${best}`}</p>
-       ${quoteHtml(streak >= 5 ? 'win' : 'lose')}`,
+      resultHtml({ act: mode === 'where' ? 'transfer' : 'hl', ico: mode === 'where' ? 'transfer' : 'hl', win: streak >= 5, big: streak,
+        title: streak >= 5 ? 'Отличная серия!' : 'Серия прервалась', record: streak >= best && streak > 0, stats: [['Рекорд', best]], extra: quoteHtml(streak >= 5 ? 'win' : 'lose') }),
       [{ label: 'Ещё раз', onClick: () => start(mode) }, { label: 'В меню', cls: 'ghost', onClick: () => App.home() }],
     );
   }

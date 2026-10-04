@@ -312,11 +312,8 @@ const Pass = (() => {
     const msg = st === 3 ? 'Идеальная атака!' : 'Можно забить быстрее — попробуй найти путь короче.';
     later(() => {
       Modal.open(
-        `<h2>${isFinal(n) ? 'Финал взят!' : 'Гол!'}</h2>
-         <div class="stars">${starsHtml}</div>
-         <p>Ударов: <b>${moves}</b>. ${msg}</p>
-         ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}
-         ${quoteHtml(st === 3 ? 'win' : 'lose')}`,
+        resultHtml({ ico: 'pass', c1: '#2e9a4c', c2: '#1b1340', win: st === 3, title: isFinal(n) ? 'Финал взят!' : 'Гол!',
+          extra: `<div class="stars">${starsHtml}</div>${quoteHtml(st === 3 ? 'win' : 'lose')}`, text: `Ударов: <b>${moves}</b>. ${msg}`, reward }),
         [
           { label: `Уровень ${n + 1} →`, onClick: () => start(n + 1) },
           { label: 'Переиграть', cls: 'ghost', onClick: () => start(n) },

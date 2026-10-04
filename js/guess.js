@@ -237,11 +237,8 @@ const Guess = (() => {
     Store.save();
     reward = Econ.play(reward);
     later(() => Modal.open(
-      `<h2>${won ? 'Угадал!' : 'Не угадал'}</h2>
-       <p>${won ? `С ${tries}-й попытки.` : 'Это был:'}</p>
-       ${playerCard()}
-       ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}
-       ${quoteHtml(won ? 'win' : 'lose')}`,
+      resultHtml({ act: 'guess-career', ico: 'guess', win: won, title: won ? 'Угадал!' : 'Не угадал', text: won ? `С ${tries}-й попытки` : 'Это был:',
+        extra: playerCard() + quoteHtml(won ? 'win' : 'lose'), reward }),
       [
         { label: 'Следующий игрок →', onClick: startCareer },
         { label: 'В меню', cls: 'ghost', onClick: () => App.home() },

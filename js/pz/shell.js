@@ -50,9 +50,7 @@ const PZ = (() => {
       if (reward) later(() => Coins.add(reward), 400);
       const starsHtml = [1, 2, 3].map((i) => (i <= stars ? '★' : '<span class="off">★</span>')).join('');
       later(() => Modal.open(
-        `<h2>Уровень ${level} пройден!</h2><div class="stars">${starsHtml}</div>
-         ${text ? `<p>${text}</p>` : ''}
-         ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`,
+        resultHtml({ ico: cur.id, c1: cur.c1, c2: cur.c2, win: true, title: `Уровень ${level} пройден!`, text, extra: `<div class="stars">${starsHtml}</div>`, reward }),
         [
           { label: `Уровень ${level + 1} →`, onClick: () => open(cur.id, level + 1) },
           { label: 'Переиграть', cls: 'ghost', onClick: () => open(cur.id, level) },
@@ -63,7 +61,7 @@ const PZ = (() => {
     lose(text) {
       Sound.play('lose'); haptic('bad');
       later(() => Modal.open(
-        `<h2>Не вышло</h2><p>${text}</p>`,
+        resultHtml({ ico: cur.id, c1: cur.c1, c2: cur.c2, title: 'Не вышло', text }),
         [
           { label: 'Ещё раз', onClick: () => open(cur.id, level, ch) },
           { label: 'Все головоломки', cls: 'ghost', onClick: () => App.home('puzzles') },
@@ -86,9 +84,7 @@ const PZ = (() => {
     if (reward) later(() => Coins.add(reward), 400);
     const starsHtml = [1, 2, 3].map((i) => (i <= stars ? '★' : '<span class="off">★</span>')).join('');
     later(() => Modal.open(
-      `<h2>${all ? 'Пак испытаний пройден!' : `Испытание ${k} из ${PACK}!`}</h2><div class="stars">${starsHtml}</div>
-       ${text ? `<p>${text}</p>` : ''}
-       ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`,
+      resultHtml({ ico: cur.id, c1: cur.c1, c2: cur.c2, win: true, title: all ? 'Пак испытаний пройден!' : `Испытание ${k} из ${PACK}!`, text, extra: `<div class="stars">${starsHtml}</div>`, reward }),
       [
         ...(k < PACK ? [{ label: `Испытание ${k + 1} →`, onClick: () => open(cur.id, 0, k + 1) }] : []),
         { label: 'Переиграть', cls: 'ghost', onClick: () => open(cur.id, 0, k) },

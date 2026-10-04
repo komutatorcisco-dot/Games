@@ -324,6 +324,13 @@ const App = (() => {
     else if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }
     else if (NG.list.some((g) => g.id === h)) { if (h === 'box2box') actions.b2b(); else NG.open(h); Howto.auto('ng-' + h); }
     else { Screens.show('hub'); User.ensure(); }
+    // облако Telegram: если там сохранение новее (зашёл с другого устройства) — подхватываем его
+    Cloud.pull().then((got) => {
+      if (!got) return;
+      Shop.apply(); Coins.render();
+      if (Screens.current === 'hub') { renderHub(); if (Store.d.user.nick && $('#nick-in')) Modal.close(); }
+      toast('Прогресс загружен из облака Telegram ☁️');
+    });
   }
 
   return { init, home };

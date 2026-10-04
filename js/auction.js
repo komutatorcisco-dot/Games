@@ -176,10 +176,8 @@ const Auction = (() => {
     Sound.play(w === -1 ? 'tap' : 'goal');
     if (w !== -1) confetti();
     Modal.open(
-      `<h2>${w === -1 ? 'Ничья!' : esc(names[w]) + ' собрал лучшую команду'}</h2>
-       <p>Сумма текущей формы пятёрки</p>
-       <div class="ares-wrap">${row(0)}${row(1)}</div>
-       ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`,
+      resultHtml({ ico: 'auction', c1: '#ff5f6d', c2: '#7b2b8a', win: w !== -1, title: w === -1 ? 'Ничья!' : esc(names[w]) + ' собрал лучшую команду',
+        text: 'Сумма текущей формы пятёрки', extra: `<div class="ares-wrap">${row(0)}${row(1)}</div>`, reward }),
       [
         { label: 'Ещё аукцион', onClick: () => begin() },
         { label: 'В меню', cls: 'ghost', onClick: () => App.home() },

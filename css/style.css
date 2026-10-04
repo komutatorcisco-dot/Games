@@ -1685,3 +1685,68 @@ body[data-balls="crests"] .sball, .shop-balls[data-balls="crests"] .sball {
 .sc-goals span { animation: rise .35s ease both; }
 .sc-goals div span:nth-child(2) { animation-delay: .08s; } .sc-goals div span:nth-child(3) { animation-delay: .16s; } .sc-goals div span:nth-child(4) { animation-delay: .24s; } .sc-goals div span:nth-child(n+5) { animation-delay: .32s; }
 .sc-st b { display: inline-block; }
+
+/* =====================================================================
+   ЕДИНЫЙ СТИЛЬ ЭКРАНОВ ИГР
+   Шапка одинаковая, содержимое игры стоит по центру экрана (без пустой нижней половины),
+   варианты ответа — одинаковые тёмные кнопки, верно/неверно — одним цветом во всех играх.
+   ===================================================================== */
+#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner) { min-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)) - 30px); }
+/* центрирование: автоматические отступы у шапки и у невидимого «хвоста» делят свободное место поровну */
+#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner):not(#pass-levels):not(#guess) > .topbar { margin-bottom: auto; }
+#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner):not(#pass-levels):not(#guess)::after { content: ''; margin-top: auto; }
+/* игры, где список растёт по ходу, оставляем сверху, чтобы поле ввода не «уезжало» */
+#ng:has(.ng-top10, .ng-context, .ng-linkup) > .topbar { margin-bottom: 0; }
+#ng:has(.ng-top10, .ng-context, .ng-linkup)::after { display: none; }
+
+/* шапка: название в две строки максимум, подзаголовок в одну */
+.topbar { min-height: 48px; }
+.topbar-title > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px; letter-spacing: .01em; }
+.topbar-title small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.back { transition: transform .2s cubic-bezier(.3,1.8,.5,1); } .back:active { transform: scale(.9); }
+
+/* варианты ответа: один вид во всех играх */
+.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt {
+  display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 56px; padding: 10px 12px;
+  border: 0; border-radius: 14px; background: var(--night-2); color: var(--ink);
+  font: 700 15px/1.2 var(--font-body); text-transform: none; letter-spacing: 0; text-align: center;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), 0 4px 0 #120b30;
+}
+:is(.ng-opt, .nat-opt, .btn.ghost.opt):active:not(:disabled) { transform: translateY(3px) scale(.97); box-shadow: inset 0 0 0 1px rgba(255,255,255,.09), 0 1px 0 #120b30; }
+:is(.ng-opt, .nat-opt, .opt, .du-opt).right { background: var(--hit) !important; color: #06210f !important; box-shadow: 0 4px 0 #1f7a3a !important; animation: ngOk .6s ease; opacity: 1 !important; }
+:is(.ng-opt, .nat-opt, .opt, .du-opt).wrong { background: #b8324a !important; color: #fff !important; box-shadow: 0 4px 0 #6b1726 !important; animation: shakeBad .45s ease; opacity: 1 !important; }
+:is(.ng-opt, .nat-opt, .opt):disabled:not(.right):not(.wrong) { opacity: .5; }
+.ng-opts, .nat-opts, .tr-opts { gap: 10px !important; }
+
+/* основная кнопка действия — во всю ширину и заметная */
+.ng-row .btn.gold, .actions .btn.gold:only-child { min-height: 52px; padding-inline: 22px; font-size: 16px; }
+
+/* заголовок вопроса — одинаковый */
+.ng-q, .tm-ask, .du-text { font-size: 19px !important; line-height: 1.25; text-align: center; margin: 4px 0 6px; }
+.ng-lead { text-align: center; color: var(--muted); font-size: 13px; }
+
+/* экран итога: одинаковый у всех игр */
+.ng-res-ico { width: 72px; height: 72px; border-radius: 20px; }
+.ng-res .res-text { margin: 0; color: var(--muted); }
+.ng-res .res-text b { color: var(--ink); }
+.ng-res.win .ng-res-ico { box-shadow: 0 0 0 3px var(--gold), 0 0 26px rgba(255,207,58,.45); }
+.res-record { padding: 4px 12px; border-radius: 99px; background: var(--gold); color: #2a1d00; font-weight: 800; font-size: 13px; animation: popin .5s cubic-bezier(.3,1.5,.5,1) .35s both; }
+.ng-res .player-card { width: 100%; box-sizing: border-box; }
+.ng-res .stars { font-size: 34px; }
+
+/* плитки «Связей» и «Бинго» — тёмные, как остальные карточки */
+.cn-tile, .bg-cell { background: var(--night-2) !important; color: var(--ink) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 3px 0 #120b30; }
+.cn-tile.on { background: #4a3d93 !important; box-shadow: inset 0 0 0 2px var(--gold), 0 3px 0 #120b30; }
+.bg-cell.on { background: var(--hit) !important; color: #06210f !important; }
+.cn-tile:active, .bg-cell:active:not(:disabled) { transform: scale(.95); }
+
+/* короткие игры: главные карточки крупнее, чтобы занимать экран */
+.tm-card { min-height: min(34vh, 260px); align-content: center; border-radius: 22px; }
+.tm-card .crest-xl { width: 84px; height: 84px; }
+.tm-card b { font-size: 16px; }
+.sc-card { padding: 18px 14px !important; }
+.sc-flag { font-size: 44px; }
+.sc-st b { font-size: 34px; }
+.sc-st button { width: 44px; height: 44px; font-size: 22px; }
+#compare .player-card, #transfer .player-card { padding: 18px 14px; }
+.nh-card { min-height: 160px; }

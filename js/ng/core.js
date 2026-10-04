@@ -158,7 +158,7 @@ const NG = (() => {
 
   // Окно конца игры
   // Окно конца игры: иконка игры, большая цифра, плашки статистики, квадратики для «Поделиться»
-  function end({ title, html = '', reward = 0, again, shareText, win = false, big = '', stats = [], daily = false }) {
+  function end({ title, html = '', reward = 0, again, shareText, win = false, big = '', stats = [], daily = false, record = false }) {
     const g = cur, s = store(g.id);
     if (daily) { if (reward) later(() => Coins.add(reward), 300); } else reward = Econ.play(reward);
     if (win) { Sound.play('goal'); haptic('ok'); confetti(); } else Sound.play('lose');
@@ -168,12 +168,8 @@ const NG = (() => {
     btns.push({ label: 'В меню', cls: 'ghost', onClick: () => App.home() });
     const sq = shareText ? (shareText.match(/[🟩🟨🟥⬛⬜]+/gu) || []).join('\n') : '';
     if (s.streak > 1 && !stats.some(([k]) => k === 'Серия')) stats = [...stats, ['Серия', `${s.streak} 🔥`]];
-    later(() => Modal.open(`<div class="ng-res ${win ? 'win' : 'lose'}">
-        <span class="tile-ico ng-res-ico" style="--c1:${g.c1};--c2:${g.c2}">${Icons.get('ng-' + g.id)}</span>
-        ${big ? `<div class="ng-res-big">${big}</div>` : ''}<h2>${title}</h2>
-        ${stats.length ? `<div class="ng-res-stats">${stats.map(([k, v]) => `<span><b>${v}</b><small>${k}</small></span>`).join('')}</div>` : ''}
-        ${sq ? `<pre class="ng-res-sq">${sq}</pre>` : ''}${html}
-        ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}</div>`, btns), 500);
+    later(() => Modal.open(resultHtml({ ico: 'ng-' + g.id, c1: g.c1, c2: g.c2, win, big, title, stats, reward, record,
+      extra: `${sq ? `<pre class="ng-res-sq">${sq}</pre>` : ''}${html}` }), btns), 500);
   }
 
   // Короткая подсветка элемента: верно / неверно

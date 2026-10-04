@@ -207,9 +207,8 @@ const Pick = (() => {
       Sound.play('goal');
       Store.d.pick.games++; Store.save();
       Profile.bump('pick', 8);
-      Modal.open(`<h2>${win < 0 ? 'Ничья!' : `Побеждает ${esc(win ? B : A)}!`}</h2>
-        <p>Матчей за ${esc(club)} у состава: <b>${esc(A)} — ${sum[0]}</b>, <b>${esc(B)} — ${sum[1]}</b>.</p>
-        <p class="muted">А в комментариях пусть решат, чей состав сильнее 😉</p>`, [
+      Modal.open(resultHtml({ act: 'pick-duo', ico: 'pick-duo', win: win >= 0, title: win < 0 ? 'Ничья!' : `Побеждает ${esc(win ? B : A)}!`,
+        stats: [[esc(A), sum[0]], [esc(B), sum[1]]], text: `Матчей за ${esc(club)} у состава. А в комментариях пусть решат, чей состав сильнее 😉` }), [
         { label: 'Ещё раз', onClick: () => begin(club) },
         { label: 'Смотреть составы', cls: 'ghost', onClick: () => {
           $('#pick-opts').innerHTML = '<button class="btn" data-pick-again="1">Ещё раз</button><button class="btn ghost" data-pick-other="1">Другой клуб</button>';
@@ -225,8 +224,8 @@ const Pick = (() => {
     if (score === 4) confetti();
     Profile.bump('pick', score * 2);
     Sound.play(score >= 3 ? 'goal' : 'lose');
-    Modal.open(`<h2>${score} из 4</h2><p>${score === 4 ? 'Знаешь историю клуба как свои пять пальцев.' : 'Цифры матчей за клуб бывают неожиданными.'}</p>
-      ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}`, [
+    Modal.open(resultHtml({ act: 'pick-solo', ico: 'pick', win: score >= 3, big: `${score}/4`, title: score === 4 ? 'Знаешь историю клуба!' : 'Неплохо',
+      text: score === 4 ? 'Как свои пять пальцев' : 'Цифры матчей за клуб бывают неожиданными', reward }), [
       { label: 'Ещё раз', onClick: () => begin(club) },
       { label: 'Другой клуб', cls: 'ghost', onClick: () => start(mode) },
     ]);
