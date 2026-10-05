@@ -98,7 +98,7 @@ const App = (() => {
     const games = NG.list.filter((g) => g.group === 'daily' && Release.isOut('ng:' + g.id));
     const doneOf = (g) => { const d = (Store.d.ng[g.id] || {}).daily; return !!(d && d.day === Day.key() && d.done); };
     $('#dly-progress').innerHTML = `<div class="dp-row ${games.length <= 2 ? 'few' : ''}">${games.map((g) => `<button class="dp-game ${doneOf(g) ? 'ok' : ''}" data-ng="${g.id}" style="--c1:${g.c1};--c2:${g.c2}">
-        <span class="tile-ico" data-ico="ng-${g.id}"></span><b>${esc(g.title.replace(/ дня$/, '').replace('Футбольный ', ''))}</b>${doneOf(g) ? '<i>✓</i>' : ''}</button>`).join('')}</div>
+        <span class="tile-ico" data-ico="ng-${g.id}"></span><b>${esc(games.length <= 2 ? g.title : g.title.replace(/ дня$/, '').replace('Футбольный ', ''))}</b>${doneOf(g) ? '<i>✓</i>' : ''}</button>`).join('')}</div>
       <div class="dp-foot"><div class="dp-bar"><i style="width:${(done / st.length) * 100}%"></i></div><span>${done}/${st.length}</span></div>
       ${all && !claimed ? `<button class="btn gold dp-chest" data-act="chest">🎁 Все задания сделаны — забрать сундук +${CHEST}</button>`
         : `<small class="dp-note">${claimed ? 'Сундук получен ✓ Новые задания в полночь по МСК' : `Сделай все ${st.length} задания дня — сундук +${CHEST} монет`}</small>`}`;
@@ -109,21 +109,17 @@ const App = (() => {
     rankUi('#prof-rank', '#prof-xp', '#prof-next');
     $('#prof-badge').textContent = Profile.rank().name.slice(0, 1);
     const P = Store.d.pass, T = Store.d.transfer;
+    const dh = (Store.d.fduel && Store.d.fduel.hist) || [];
+    // только то, во что сейчас можно играть
     const stats = [
       ['Монеты', Store.d.coins],
       ['Опыт', Store.d.stats.xp],
-      ['Пазл: уровень', P.unlocked],
-      ['Пазл: звёзды', Pass.totalStars()],
-      ['Угадано игроков', Profile.wins('guess')],
-      ['Угадано карьер', Profile.wins('career')],
-      ['Угадано клубов', Profile.wins('club')],
-      ['Рекорд трансферов', T.best],
-      ['Рекорд «дороже/дешевле»', T.hlBest],
-      ['Сетки Тики-Така-Тоу', Store.d.ttt.wins],
-      ['Рекорд FC 27', Store.d.compare.fcBest],
-      ['Рекорд «кто дороже»', Store.d.compare.valBest],
       ['Игрок дня: угадано', Store.d.dly.wins || 0],
       ['Игрок дня: лучшая серия', Store.d.dly.best],
+      ['Рекорд «Угадай сборную»', Store.d.nation.best || 0],
+      ['Побед в аукционе', (Store.d.auction && Store.d.auction.wins) || 0],
+      ['Дуэлей сыграно', dh.length],
+      ['Побед в дуэлях', dh.filter((x) => x.res === 'win').length],
     ];
     $('#prof-stats').innerHTML = stats.map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
     $('#prof-achs').innerHTML = ACHIEVEMENTS.map(([name, desc, test]) => {
@@ -131,6 +127,7 @@ const App = (() => {
       return `<div class="ach ${ok ? 'ok' : ''}"><i>${ok ? '★' : '☆'}</i><div><b>${name}</b><small>${desc}</small></div></div>`;
     }).join('');
     $('#prof-admin').hidden = !Store.d.admin;
+    $('#set-wheel').textContent = Wheel.ready() ? 'Крутить' : 'Завтра';
     $('#set-music').textContent = Store.d.music ? 'Вкл' : 'Выкл';
     $('#set-sound').textContent = Store.d.sound ? 'Вкл' : 'Выкл';
     Coins.render();
@@ -159,10 +156,15 @@ const App = (() => {
     $$('#cat-nav [data-cat]').forEach((b) => { const n = +$(`.cat[data-cat="${b.dataset.cat}"]`).dataset.n; b.dataset.n = n; b.hidden = !n; });
     compact = visible <= 14;
     $('#cat-nav').hidden = compact;
-    // «Играть»: все вышедшие игры, кроме ежедневных (они в заданиях дня)
-    const src = $$('#panel-games .cat .tile-card:not([hidden]), #panel-friends > .tiles .tile-card:not([hidden])');
-    $('#featured').innerHTML = '';
-    src.forEach((el) => { const c = el.cloneNode(true); c.classList.remove('wide'); $('#featured').appendChild(c); });
+    // «Игры» на главной: короткий список всех вышедших игр (ежедневные — выше, в заданиях дня)
+    const src = $$('#panel-games .cat .tile-card:not([hidden]), #panel-friends > .tiles .tile-card:not([hidden])')
+      .filter((el) => !['act:auction-duo'].includes(keyOf(el)));
+    const extra = [
+      `<button class="tile-card" data-act="auction-bot" style="--c1:#ff5f6d;--c2:#7b2b8a"><span class="tile-ico" data-ico="auction"></span><b>Аукцион</b><small>Против бота или вдвоём</small></button>`,
+      `<button class="tile-card" data-ng="duel" style="--c1:#ff8a5c;--c2:#c2348d"><span class="tile-ico" data-ico="ng-duel"></span><b>Футбольная дуэль</b><small>С другом онлайн или рядом</small></button>`,
+    ];
+    $('#featured').innerHTML = extra.join('');
+    src.forEach((el) => { const c = el.cloneNode(true); c.classList.remove('wide', 'duo'); $$('.limit-note', c).forEach((x) => x.remove()); $('#featured').appendChild(c); });
     // новинка недели и следующая игра
     const cur = Release.current(), nx = Release.next();
     const wk = $('#week-game');
@@ -229,7 +231,7 @@ const App = (() => {
     else if (PANELS.includes(where)) showPanel(where, false);
     else { showPanel(panel, false); if (scrollMem[panel]) window.scrollTo(0, scrollMem[panel]); }
     if (!Store.d.user.nick) later(() => User.ensure(), 250);
-    else Track.maybeAsk();
+    else { Track.maybeAsk(); claimDaily(); }
   }
 
   // нажатие на вкладку внизу: на главной просто листаем панели
@@ -311,7 +313,7 @@ const App = (() => {
       Store.d.lastDaily = today();
       Store.save();
       Coins.add(dailyReward(day));
-      toast(`День ${day}: +${dailyReward(day)} монет. Заходи завтра — будет больше`);
+      toast(`Бонус за вход: +${dailyReward(day)} монет (день ${day} из 7)`);
       renderHub();
     },
     music: () => { Music.toggle(); renderProfile(); },
@@ -381,6 +383,7 @@ const App = (() => {
     else if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }
     else if (NG.list.some((g) => g.id === h)) { if (h === 'box2box') actions.b2b(); else NG.open(h); Howto.auto('ng-' + h); }
     else { Screens.show('hub'); User.ensure(); }
+    claimDaily();
     // облако Telegram: если там сохранение новее (зашёл с другого устройства) — подхватываем его
     Cloud.pull().then((got) => {
       Board.submit();
@@ -393,6 +396,9 @@ const App = (() => {
   }
 
   // перерисовать главную/профиль (например, когда сервер сообщил, что это админ)
+  // бонус за вход начисляется сам при первом заходе за день — без лишней кнопки на главной
+  function claimDaily() { if (Store.d.lastDaily !== today()) later(() => actions.daily(), 900); }
+
   function refresh() { if (Screens.current === 'hub') renderHub(); if (Screens.current === 'profile') renderProfile(); }
 
   return { init, home, refresh };

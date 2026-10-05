@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;800&family=Inter:wght@900&family=Russo+One&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261005d">
+<link rel="stylesheet" href="css/style.css?v=20261005e">
 <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -27,12 +27,6 @@
     </header>
 
     <div class="hub-panel" id="panel-home">
-      <div class="perks">
-        <button id="daily" class="perk perk-bonus" data-act="daily" hidden><span class="perk-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="9" width="17" height="11.5" rx="2" fill="#ffcf3a"/><rect x="2.5" y="6.5" width="19" height="4.5" rx="1.5" fill="#fff"/><rect x="10.5" y="6.5" width="3" height="14" fill="#e2384d"/><path d="M12 6.5 C10 2.5 6 3 7 5.5 C7.6 6.8 10 6.5 12 6.5 C14 6.5 16.4 6.8 17 5.5 C18 3 14 2.5 12 6.5 Z" fill="#e2384d"/></svg></span><span><b>Бонус за вход</b><small id="daily-text"></small></span></button>
-        <button id="wheel-btn" class="perk perk-wheel" data-act="wheel" hidden><span class="wheel-mini" aria-hidden="true"></span><span><b>Колесо удачи</b><small>до 150 монет</small></span></button>
-      </div>
-      <span id="daily-days" hidden></span>
-
       <h3 class="section-label">Сегодня</h3>
       <button id="dly-card" class="dly-card" data-act="dly">
         <span class="dly-card-photo" aria-hidden="true"><i>?</i></span>
@@ -45,28 +39,22 @@
       <div class="dly-progress" id="dly-progress"></div>
       <div class="tiles" id="ng-daily" hidden></div>
 
-      <div class="recent-wrap" hidden><h3 class="section-label">Продолжить</h3><div class="recent" id="recent"></div></div>
-
       <button class="week-game" id="week-game" hidden></button>
-      <h3 class="section-label">Играть</h3>
-      <div class="featured" id="featured"></div>
-      <button class="board-teaser" data-act="board" id="board-teaser" hidden></button>
+
+      <h3 class="section-label">Игры</h3>
+      <div class="home-list" id="featured"></div>
       <p class="unlock-next" id="unlock-next"></p>
-      <button class="all-games" data-tab="games"><span>🎮</span><b>Все игры</b><small id="all-count"></small><i>→</i></button>
 
-      <button class="friends-teaser" data-tab="friends">
-        <span class="ft-vs"><span>⚽</span><i>VS</i><span>🙂</span></span>
-        <span><b>Сыграй с другом</b><small>Онлайн по ссылке или на одном телефоне</small></span>
-      </button>
-
-      <a class="runner-hero" href="runner.html" data-act="runner">
-        <span class="rh-badge">3D</span>
-        <b>Прорыв к воротам</b>
-        <small>Беги с мячом, обходи защитников, качай скорость и удар, бей пенальти. 3D-игра канала прямо здесь.</small>
-        <span class="btn">Играть →</span>
-      </a>
-
-      <button class="donate-card donate-entry" data-act="donate" hidden><span class="don-star">⭐</span><span><b>Поддержать канал</b><small>Звёздами Telegram · рамка «Спонсор»</small></span></button>
+      <!-- старые блоки главной: скрыты, но нужны коду (бонус за вход начисляется сам, колесо — в профиле) -->
+      <div hidden>
+      <div class="perks">
+        <button id="daily" class="perk perk-bonus" data-act="daily" hidden><span class="perk-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="9" width="17" height="11.5" rx="2" fill="#ffcf3a"/><rect x="2.5" y="6.5" width="19" height="4.5" rx="1.5" fill="#fff"/><rect x="10.5" y="6.5" width="3" height="14" fill="#e2384d"/><path d="M12 6.5 C10 2.5 6 3 7 5.5 C7.6 6.8 10 6.5 12 6.5 C14 6.5 16.4 6.8 17 5.5 C18 3 14 2.5 12 6.5 Z" fill="#e2384d"/></svg></span><span><b>Бонус за вход</b><small id="daily-text"></small></span></button>
+        <button id="wheel-btn" class="perk perk-wheel" data-act="wheel" hidden><span class="wheel-mini" aria-hidden="true"></span><span><b>Колесо удачи</b><small>до 150 монет</small></span></button>
+      </div>
+        <span id="daily-days"></span>
+        <div class="recent-wrap"><div class="recent" id="recent"></div></div>
+        <button id="board-teaser"></button><small id="all-count"></small>
+      </div>
     </div>
 
     <div class="hub-panel" id="panel-games" hidden>
@@ -184,10 +172,6 @@
     </div>
     </div>
 
-    <footer class="hub-foot">
-      <a href="https://t.me/JacksonGamesbot" target="_blank" rel="noopener">Бот с играми · @JacksonGamesbot</a>
-      <a href="https://www.tiktok.com/@oldjacksons2" target="_blank" rel="noopener">TikTok · @oldjacksons2</a>
-    </footer>
   </section>
 
   <!-- ===== ПРОФИЛЬ ===== -->
@@ -214,6 +198,7 @@
     <h3 class="section-label">Настройки</h3>
     <div class="settings">
       <button class="set-row" data-act="admin" id="prof-admin" hidden><span>📊 Админка</span><b>→</b></button>
+      <button class="set-row" data-act="wheel"><span>🎡 Колесо удачи</span><b id="set-wheel"></b></button>
       <button class="set-row" data-act="report"><span>🐞 Нашёл ошибку</span><b>→</b></button>
       <button class="set-row" data-act="shop"><span>🛒 Магазин</span><b>→</b></button>
       <button class="set-row" data-act="board"><span>🏆 Рейтинг канала</span><b>→</b></button>
@@ -517,76 +502,76 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script defer src="js/core.js?v=20261005d"></script>
-<script defer src="js/music.js?v=20261005d"></script>
-<script defer src="js/players.js?v=20261005d"></script>
-<script defer src="js/careers.js?v=20261005d"></script>
-<script defer src="js/careers2.js?v=20261005d"></script>
-<script defer src="js/tttcats.js?v=20261005d"></script>
-<script defer src="js/quizdata.js?v=20261005d"></script>
-<script defer src="js/data/fcstats.js?v=20261005d"></script>
-<script defer src="js/media.js?v=20261005d"></script>
-<script defer src="js/pass.js?v=20261005d"></script>
-<script defer src="js/guess.js?v=20261005d"></script>
-<script defer src="js/career.js?v=20261005d"></script>
-<script defer src="js/club.js?v=20261005d"></script>
-<script defer src="js/transfer.js?v=20261005d"></script>
-<script defer src="js/ttt.js?v=20261005d"></script>
-<script defer src="js/compare.js?v=20261005d"></script>
-<script defer src="js/form.js?v=20261005d"></script>
-<script defer src="js/auction.js?v=20261005d"></script>
-<script defer src="js/nationxi.js?v=20261005d"></script>
-<script defer src="js/nation.js?v=20261005d"></script>
-<script defer src="js/daily.js?v=20261005d"></script>
-<script defer src="js/pick.js?v=20261005d"></script>
-<script defer src="js/howto.js?v=20261005d"></script>
-<script defer src="js/icons.js?v=20261005d"></script>
-<script defer src="js/wheel.js?v=20261005d"></script>
-<script defer src="js/pz/shell.js?v=20261005d"></script>
-<script defer src="js/pz/sort.js?v=20261005d"></script>
-<script defer src="js/pz/pipes.js?v=20261005d"></script>
-<script defer src="js/pz/flood.js?v=20261005d"></script>
-<script defer src="js/pz/slide.js?v=20261005d"></script>
-<script defer src="js/pz/memory.js?v=20261005d"></script>
-<script defer src="js/pz/words.js?v=20261005d"></script>
-<script defer src="js/pz/g2048.js?v=20261005d"></script>
-<script defer src="js/pz/popcrests.js?v=20261005d"></script>
-<script defer src="js/pz/popit.js?v=20261005d"></script>
-<script defer src="js/ng/core.js?v=20261005d"></script>
-<script defer src="js/ng/lineup.js?v=20261005d"></script>
-<script defer src="js/ng/wordle.js?v=20261005d"></script>
-<script defer src="js/ng/treble.js?v=20261005d"></script>
-<script defer src="js/ng/false9.js?v=20261005d"></script>
-<script defer src="js/ng/connect.js?v=20261005d"></script>
-<script defer src="js/data/lists.js?v=20261005d"></script>
-<script defer src="js/ng/top10.js?v=20261005d"></script>
-<script defer src="js/ng/context.js?v=20261005d"></script>
-<script defer src="js/ng/whoami.js?v=20261005d"></script>
-<script defer src="js/ng/linkup.js?v=20261005d"></script>
-<script defer src="js/ng/rank.js?v=20261005d"></script>
-<script defer src="js/data/goals.js?v=20261005d"></script>
-<script defer src="js/ng/replay.js?v=20261005d"></script>
-<script defer src="js/data/wcmatches.js?v=20261005d"></script>
-<script defer src="js/ng/score.js?v=20261005d"></script>
-<script defer src="js/data/numhist.js?v=20261005d"></script>
-<script defer src="js/ng/numhist.js?v=20261005d"></script>
-<script defer src="js/data/elohist.js?v=20261005d"></script>
-<script defer src="js/ng/timemachine.js?v=20261005d"></script>
-<script defer src="js/ng/box2box.js?v=20261005d"></script>
-<script defer src="js/ng/bingo.js?v=20261005d"></script>
-<script defer src="js/ng/draft.js?v=20261005d"></script>
-<script defer src="js/ng/trumps.js?v=20261005d"></script>
-<script defer src="js/data/pop.js?v=20261005d"></script>
-<script defer src="js/ng/vs100.js?v=20261005d"></script>
-<script defer src="js/ng/darts.js?v=20261005d"></script>
-<script defer src="js/shop.js?v=20261005d"></script>
-<script defer src="js/config.js?v=20261005d"></script>
-<script defer src="js/donate.js?v=20261005d"></script>
-<script defer src="js/user.js?v=20261005d"></script>
-<script defer src="js/duel.js?v=20261005d"></script>
-<script defer src="js/release.js?v=20261005d"></script>
-<script defer src="js/board.js?v=20261005d"></script>
-<script defer src="js/track.js?v=20261005d"></script>
-<script defer src="js/app.js?v=20261005d"></script>
+<script defer src="js/core.js?v=20261005e"></script>
+<script defer src="js/music.js?v=20261005e"></script>
+<script defer src="js/players.js?v=20261005e"></script>
+<script defer src="js/careers.js?v=20261005e"></script>
+<script defer src="js/careers2.js?v=20261005e"></script>
+<script defer src="js/tttcats.js?v=20261005e"></script>
+<script defer src="js/quizdata.js?v=20261005e"></script>
+<script defer src="js/data/fcstats.js?v=20261005e"></script>
+<script defer src="js/media.js?v=20261005e"></script>
+<script defer src="js/pass.js?v=20261005e"></script>
+<script defer src="js/guess.js?v=20261005e"></script>
+<script defer src="js/career.js?v=20261005e"></script>
+<script defer src="js/club.js?v=20261005e"></script>
+<script defer src="js/transfer.js?v=20261005e"></script>
+<script defer src="js/ttt.js?v=20261005e"></script>
+<script defer src="js/compare.js?v=20261005e"></script>
+<script defer src="js/form.js?v=20261005e"></script>
+<script defer src="js/auction.js?v=20261005e"></script>
+<script defer src="js/nationxi.js?v=20261005e"></script>
+<script defer src="js/nation.js?v=20261005e"></script>
+<script defer src="js/daily.js?v=20261005e"></script>
+<script defer src="js/pick.js?v=20261005e"></script>
+<script defer src="js/howto.js?v=20261005e"></script>
+<script defer src="js/icons.js?v=20261005e"></script>
+<script defer src="js/wheel.js?v=20261005e"></script>
+<script defer src="js/pz/shell.js?v=20261005e"></script>
+<script defer src="js/pz/sort.js?v=20261005e"></script>
+<script defer src="js/pz/pipes.js?v=20261005e"></script>
+<script defer src="js/pz/flood.js?v=20261005e"></script>
+<script defer src="js/pz/slide.js?v=20261005e"></script>
+<script defer src="js/pz/memory.js?v=20261005e"></script>
+<script defer src="js/pz/words.js?v=20261005e"></script>
+<script defer src="js/pz/g2048.js?v=20261005e"></script>
+<script defer src="js/pz/popcrests.js?v=20261005e"></script>
+<script defer src="js/pz/popit.js?v=20261005e"></script>
+<script defer src="js/ng/core.js?v=20261005e"></script>
+<script defer src="js/ng/lineup.js?v=20261005e"></script>
+<script defer src="js/ng/wordle.js?v=20261005e"></script>
+<script defer src="js/ng/treble.js?v=20261005e"></script>
+<script defer src="js/ng/false9.js?v=20261005e"></script>
+<script defer src="js/ng/connect.js?v=20261005e"></script>
+<script defer src="js/data/lists.js?v=20261005e"></script>
+<script defer src="js/ng/top10.js?v=20261005e"></script>
+<script defer src="js/ng/context.js?v=20261005e"></script>
+<script defer src="js/ng/whoami.js?v=20261005e"></script>
+<script defer src="js/ng/linkup.js?v=20261005e"></script>
+<script defer src="js/ng/rank.js?v=20261005e"></script>
+<script defer src="js/data/goals.js?v=20261005e"></script>
+<script defer src="js/ng/replay.js?v=20261005e"></script>
+<script defer src="js/data/wcmatches.js?v=20261005e"></script>
+<script defer src="js/ng/score.js?v=20261005e"></script>
+<script defer src="js/data/numhist.js?v=20261005e"></script>
+<script defer src="js/ng/numhist.js?v=20261005e"></script>
+<script defer src="js/data/elohist.js?v=20261005e"></script>
+<script defer src="js/ng/timemachine.js?v=20261005e"></script>
+<script defer src="js/ng/box2box.js?v=20261005e"></script>
+<script defer src="js/ng/bingo.js?v=20261005e"></script>
+<script defer src="js/ng/draft.js?v=20261005e"></script>
+<script defer src="js/ng/trumps.js?v=20261005e"></script>
+<script defer src="js/data/pop.js?v=20261005e"></script>
+<script defer src="js/ng/vs100.js?v=20261005e"></script>
+<script defer src="js/ng/darts.js?v=20261005e"></script>
+<script defer src="js/shop.js?v=20261005e"></script>
+<script defer src="js/config.js?v=20261005e"></script>
+<script defer src="js/donate.js?v=20261005e"></script>
+<script defer src="js/user.js?v=20261005e"></script>
+<script defer src="js/duel.js?v=20261005e"></script>
+<script defer src="js/release.js?v=20261005e"></script>
+<script defer src="js/board.js?v=20261005e"></script>
+<script defer src="js/track.js?v=20261005e"></script>
+<script defer src="js/app.js?v=20261005e"></script>
 </body>
 </html>

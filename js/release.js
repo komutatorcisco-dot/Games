@@ -6,7 +6,7 @@
 
 const Release = (() => {
   // ключ плитки на главной: 'ng:<id>' — новые игры, 'act:<действие>' — старые, 'pz:<id>' — головоломки
-  const START = ['ng:wordle', 'act:nation', 'act:pick-duo', 'act:auction-bot', 'act:auction-duo', 'ng:duel', 'ng:replay', 'ng:trumps'];
+  const START = ['ng:wordle', 'act:nation', 'act:pick-duo', 'act:auction-bot', 'act:auction-duo', 'ng:duel', 'ng:trumps'];
   // [дата понедельника, название для баннера, ключи плиток, которые открываются вместе]
   const QUEUE = [
     ['2026-10-12', 'Тики-Така-Тоу', ['act:ttt', 'act:ttt-duo']],
@@ -44,6 +44,7 @@ const Release = (() => {
     ['2027-05-24', 'Перекрась поле', ['pz:flood']],
     ['2027-05-31', 'Пятнашки', ['pz:slide']],
     ['2027-06-07', 'Поп-ит', ['pz:popit']],
+    ['2027-06-14', 'Повтор гола', ['ng:replay']],
   ];
   const TZ = 'Europe/Berlin', HOUR = 10;
 
