@@ -1990,3 +1990,9 @@ button.tc-st:active { transform: scale(.92); }
 .dh-modes span { display: grid; place-items: center; height: 30px; color: var(--gold); }
 .dh-modes span svg { width: 28px; height: 28px; }
 .dh-ico.tile-ico { width: 56px; height: 56px; margin: 0; animation: none; }
+.perk-ico { display: grid; place-items: center; width: 30px; height: 30px; }
+.perk-ico svg { width: 30px; height: 30px; filter: drop-shadow(0 2px 2px rgba(0,0,0,.3)); }
+/* шапка внутри игр: название обычным жирным шрифтом, без капса */
+.topbar-title, .topbar-title > span { font-family: var(--font-body); font-weight: 800; text-transform: none; letter-spacing: 0; }
+.topbar-title > span { font-size: 17px; }
+.ng-q, .tm-ask, .du-text, .nh-q { font-family: var(--font-body) !important; font-weight: 800 !important; text-transform: none !important; letter-spacing: 0; }
