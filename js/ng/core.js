@@ -128,7 +128,15 @@ const NG = (() => {
       } else if (e.key === 'Escape') hide();
     });
     inp.addEventListener('blur', () => setTimeout(hide, 180));
-    box.addEventListener('pointerdown', (e) => { const b = e.target.closest('button[data-i]'); if (b) { e.preventDefault(); choose(opts[+b.dataset.i]); } });
+    // выбор — когда палец отпущен на том же варианте; клик после этого гасим, чтобы он не попал в кнопку под списком
+    let downI = -1;
+    box.addEventListener('pointerdown', (e) => { const b = e.target.closest('button[data-i]'); if (b) { e.preventDefault(); downI = +b.dataset.i; } });
+    box.addEventListener('pointerup', (e) => {
+      const b = e.target.closest('button[data-i]');
+      if (b && +b.dataset.i === downI && opts[downI]) { e.preventDefault(); swallowNextClick(); choose(opts[downI]); }
+      downI = -1;
+    });
+    box.addEventListener('pointercancel', () => { downI = -1; });
     const go = $('.ng-go', host);
     if (go) go.addEventListener('click', () => (items ? opts.length && choose(opts[sel]) : submitFree()));
     return { focus: () => inp.focus(), disable(v) { inp.disabled = v; if (go) go.disabled = v; }, el: inp };

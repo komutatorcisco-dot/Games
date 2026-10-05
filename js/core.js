@@ -10,6 +10,17 @@ const pick = (arr, rnd = Math.random) => arr[Math.floor(rnd() * arr.length)];
 // В обычном браузере скрипт Telegram тоже создаёт WebApp, но с пустым initData — тогда считаем, что мы не в Telegram.
 const TG = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) ? window.Telegram.WebApp : null;
 try { if (TG) { TG.ready(); TG.expand(); } } catch (e) { /* открыто не в Telegram */ }
+// Свайп вниз в Telegram сворачивал мини-приложение, когда листаешь страницу вверх. Отключаем (Telegram 7.7+).
+try { if (TG && TG.disableVerticalSwipes) TG.disableVerticalSwipes(); } catch (e) { /* старый Telegram */ }
+
+// Гасит следующий клик по странице: нужен, когда выбор делается по отпусканию пальца,
+// а исчезающий список иначе «пропускает» нажатие на кнопку под ним.
+function swallowNextClick(ms = 600) {
+  const stop = (e) => { e.stopPropagation(); e.preventDefault(); off(); };
+  const off = () => { document.removeEventListener('click', stop, true); clearTimeout(t); };
+  const t = setTimeout(off, ms);
+  document.addEventListener('click', stop, true);
+}
 // Ссылка на игры в боте: открывает Mini App прямо в Telegram. start — экран, который откроется сразу (как #daily).
 const APP_LINK = 'https://t.me/JacksonGamesbot/games';
 const appLink = (start) => APP_LINK + (start ? `?startapp=${start}` : '');
