@@ -59,7 +59,7 @@ const User = (() => {
     if (pn) pn.innerHTML = u.nick ? `<span class="hub-emo">${u.emoji}</span> <b>${esc(u.nick)}</b>${u.since ? `<small>в игре с ${u.since.split('-').reverse().join('.')}</small>` : ''}` : '';
     const box = $('#recent');
     if (box) {
-      const r = Store.d.recent.slice(0, 4);
+      const r = Store.d.recent.filter((x) => typeof Release === 'undefined' || Release.isOut(x.k)).slice(0, 4);
       box.parentElement.hidden = !r.length;
       box.innerHTML = r.map((x) => {
         const [type, id] = x.k.split(':');

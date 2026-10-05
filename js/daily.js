@@ -232,6 +232,7 @@ const Daily = (() => {
     }
     Store.save();
     Board.submit(); // результат дня — в рейтинг «Игрок дня»
+    Track.end(won);
     render();
   }
 

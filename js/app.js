@@ -55,7 +55,6 @@ const App = (() => {
     $('#pz-shelf').innerHTML = PZ.shelf();
     Daily.hubCard();
     ['daily', 'brain', 'grid', 'cards', 'hist'].forEach((g) => { $('#ng-' + g).innerHTML = NG.tiles(g); });
-    $('#featured').innerHTML = NG.tiles(featured());
     const dh = (Store.d.fduel && Store.d.fduel.hist) || [];
     $('#duel-stat').textContent = dh.length ? `Сыграно дуэлей: ${dh.length} · побед: ${dh.filter((x) => x.res === 'win').length}` : '';
     if (!cat) cat = (Store.d.ui && Store.d.ui.cat) || 'guess';
@@ -65,12 +64,10 @@ const App = (() => {
     });
     const total = $$('#panel-games :is(.tile-card, .game-card, .auction-hero)').length + $$('#panel-friends .tile-card').length + 1;
     $('#all-count').textContent = `${total} ${plural(total, 'игра', 'игры', 'игр')} по разделам`;
+    applyRelease();
     setCat(cat, false);
-    Unlock.decorate();
     const bt = Board.teaser();
     $('#board-teaser').hidden = !bt; $('#board-teaser').innerHTML = bt;
-    const nx = Unlock.next();
-    $('#unlock-next').innerHTML = nx ? `🔒 Следующая игра — <b>«${esc(nx.title)}»</b> — откроется через ${nx.left} ${plural(nx.left, 'игру', 'игры', 'игр')}` : '';
     renderDailyProgress();
     $('#lim-auction').textContent = Limits.label('auction');
     $('#lim-pick').textContent = Limits.label('pick');
@@ -98,7 +95,7 @@ const App = (() => {
     const st = NG.dailyStatus(), done = st.filter(([, d]) => d).length, all = done === st.length;
     const claimed = (Store.d.ng.chest || '') === Day.key();
     // ежедневные игры — ряд маленьких плиток с галочкой; «Игрок дня» стоит отдельной карточкой выше
-    const games = NG.list.filter((g) => g.group === 'daily');
+    const games = NG.list.filter((g) => g.group === 'daily' && Release.isOut('ng:' + g.id));
     const doneOf = (g) => { const d = (Store.d.ng[g.id] || {}).daily; return !!(d && d.day === Day.key() && d.done); };
     $('#dly-progress').innerHTML = `<div class="dp-row">${games.map((g) => `<button class="dp-game ${doneOf(g) ? 'ok' : ''}" data-ng="${g.id}" style="--c1:${g.c1};--c2:${g.c2}">
         <span class="tile-ico" data-ico="ng-${g.id}"></span><b>${esc(g.title.replace(/ дня$/, '').replace('Футбольный ', ''))}</b>${doneOf(g) ? '<i>✓</i>' : ''}</button>`).join('')}</div>
@@ -133,6 +130,7 @@ const App = (() => {
       const ok = test();
       return `<div class="ach ${ok ? 'ok' : ''}"><i>${ok ? '★' : '☆'}</i><div><b>${name}</b><small>${desc}</small></div></div>`;
     }).join('');
+    $('#prof-admin').hidden = !Store.d.admin;
     $('#set-music').textContent = Store.d.music ? 'Вкл' : 'Выкл';
     $('#set-sound').textContent = Store.d.sound ? 'Вкл' : 'Выкл';
     Coins.render();
@@ -145,10 +143,38 @@ const App = (() => {
   let panel = 'home', cat = null; // раздел игр берём из сохранения после Store.load()
   const scrollMem = {};
 
-  // Подборка дня: 4 игры, у всех одинаковые, меняются в полночь МСК
-  function featured() {
-    const pool = NG.list.filter((g) => ['brain', 'grid', 'cards', 'hist'].includes(g.group) && Unlock.isOpen(g.act ? 'act:' + g.act : 'ng:' + g.id)).map((g) => g.id);
-    return shuffle(pool, Day.rng('featured')).slice(0, 4);
+  // ---------- какие игры видны (js/release.js): стартовые + вышедшие по неделям ----------
+  const keyOf = (el) => (el.dataset.ng ? 'ng:' + el.dataset.ng : el.dataset.pz ? 'pz:' + el.dataset.pz : el.dataset.act ? 'act:' + el.dataset.act : '');
+  let compact = false; // игр немного — все разделы подряд, без переключателя
+  function applyRelease() {
+    Release.refresh();
+    $$('#hub :is(.tile-card, .game-card, .auction-hero)').forEach((el) => {
+      if (el.closest('#featured, #recent')) return;
+      const k = keyOf(el); if (!k) return;
+      el.hidden = !Release.isOut(k);
+      el.classList.toggle('is-soon', Release.soon(k)); // видно только админу: игра ещё не вышла
+    });
+    let visible = 0;
+    $$('#panel-games .cat').forEach((c) => { const n = $$(':is(.tile-card, .game-card, .auction-hero):not([hidden])', c).length; c.dataset.n = n; visible += n; });
+    $$('#cat-nav [data-cat]').forEach((b) => { const n = +$(`.cat[data-cat="${b.dataset.cat}"]`).dataset.n; b.dataset.n = n; b.hidden = !n; });
+    compact = visible <= 14;
+    $('#cat-nav').hidden = compact;
+    // «Играть»: все вышедшие игры, кроме ежедневных (они в заданиях дня)
+    const src = $$('#panel-games .cat .tile-card:not([hidden]), #panel-friends > .tiles .tile-card:not([hidden])');
+    $('#featured').innerHTML = '';
+    src.forEach((el) => { const c = el.cloneNode(true); c.classList.remove('wide'); $('#featured').appendChild(c); });
+    // новинка недели и следующая игра
+    const cur = Release.current(), nx = Release.next();
+    const wk = $('#week-game');
+    wk.hidden = !cur;
+    if (cur) {
+      const t = src.find((el) => cur.keys.includes(keyOf(el))) || $$('#hub :is(.tile-card, .game-card, .auction-hero)').find((el) => cur.keys.includes(keyOf(el)));
+      wk.dataset.key = cur.keys[0];
+      wk.innerHTML = `<span class="wg-tag">Новинка недели</span><b>${esc(cur.title)}</b><small>Сыграй первым — в понедельник вышла новая игра</small>${t ? `<span class="tile-ico" data-ico="${esc(($('[data-ico]', t) || {}).dataset.ico || '')}"></span>` : ''}`;
+    }
+    const days = nx ? Math.ceil((nx.at - Date.now()) / 864e5) : 0;
+    $('#unlock-next').innerHTML = nx ? `Следующая игра — <b>«${esc(nx.title)}»</b> — ${days <= 1 ? 'завтра' : `через ${days} ${plural(days, 'день', 'дня', 'дней')}`}, в понедельник в 10:00` : '';
+    $('#all-count').textContent = `${visible + 1} ${plural(visible + 1, 'игра', 'игры', 'игр')}`;
   }
 
   function showPanel(name, animate = true) {
@@ -168,6 +194,7 @@ const App = (() => {
   }
 
   function setCat(c, animate = true) {
+    if (compact) { $$('#panel-games .cat').forEach((el) => { el.hidden = !+el.dataset.n; }); return; }
     if (!CATS.includes(c)) c = 'guess';
     cat = c;
     (Store.d.ui || (Store.d.ui = {})).cat = c; Store.save();
@@ -202,6 +229,7 @@ const App = (() => {
     else if (PANELS.includes(where)) showPanel(where, false);
     else { showPanel(panel, false); if (scrollMem[panel]) window.scrollTo(0, scrollMem[panel]); }
     if (!Store.d.user.nick) later(() => User.ensure(), 250);
+    else Track.maybeAsk();
   }
 
   // нажатие на вкладку внизу: на главной просто листаем панели
@@ -224,6 +252,8 @@ const App = (() => {
     games: () => tab('games'),
     friends: () => tab('friends'),
     board: () => Board.open(),
+    report: () => Track.report(),
+    admin: () => Track.admin(),
     'duel-live': () => NG.open('duel', { mode: 'live' }),
     'duel-link': () => NG.open('duel', { mode: 'link' }),
     'duel-hot': () => NG.open('duel', { mode: 'hot' }),
@@ -304,10 +334,21 @@ const App = (() => {
       if (tb) { Sound.play('tap'); tab(tb.dataset.tab); return; }
       const ct = e.target.closest('#cat-nav [data-cat]');
       if (ct) { Sound.play('tap'); haptic('tap'); setCat(ct.dataset.cat); return; }
-      const lockedTile = e.target.closest('.locked');
-      if (lockedTile) { Sound.play('tap'); Unlock.ask(Unlock.keyOf(lockedTile), renderHub); return; }
+      const wg = e.target.closest('#week-game');
+      if (wg) { const t = $$('#hub :is(.tile-card, .game-card, .auction-hero)').find((el) => keyOf(el) === wg.dataset.key); if (t) t.click(); return; }
       const tile = e.target.closest('.tile-card, .card, .recent-tile, .runner-hero');
-      if (tile) { Unlock.seen(tile); User.remember(tile); if (Screens.current === 'hub') scrollMem[panel] = scrollY; }
+      if (tile) { User.remember(tile); if (Screens.current === 'hub') scrollMem[panel] = scrollY; }
+      // статистика: какую игру открыли
+      const g = Screens.current === 'hub' && e.target.closest('[data-ng], [data-act], [data-pz]');
+      if (g) {
+        let k = keyOf(g);
+        if (/^act:duel-/.test(k)) k = 'ng:duel';
+        if (k === 'act:dly' || Release.known(k)) {
+          const host = g.closest('.tile-card, .game-card, .auction-hero, .dp-game, .recent-tile, .dly-card') || g;
+          const t = (host.querySelector(':scope > b, h2, .dly-card-title') || {}).textContent || (k === 'ng:duel' ? 'Футбольная дуэль' : '');
+          Track.open(k, k === 'act:dly' ? 'Игрок дня' : t);
+        }
+      }
       const el = e.target.closest('[data-act]');
       if (el && el.tagName === 'A') e.preventDefault();
       if (el && actions[el.dataset.act]) { actions[el.dataset.act](); Howto.forAct(el.dataset.act); return; }
@@ -343,6 +384,7 @@ const App = (() => {
     // облако Telegram: если там сохранение новее (зашёл с другого устройства) — подхватываем его
     Cloud.pull().then((got) => {
       Board.submit();
+      Track.hello();
       if (!got) return;
       Shop.apply(); Coins.render();
       if (Screens.current === 'hub') { renderHub(); if (Store.d.user.nick && $('#nick-in')) Modal.close(); }
@@ -350,7 +392,10 @@ const App = (() => {
     });
   }
 
-  return { init, home };
+  // перерисовать главную/профиль (например, когда сервер сообщил, что это админ)
+  function refresh() { if (Screens.current === 'hub') renderHub(); if (Screens.current === 'profile') renderProfile(); }
+
+  return { init, home, refresh };
 })();
 
 App.init();

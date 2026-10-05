@@ -2,9 +2,15 @@
 //   GET  /invoice?stars=100        — счёт в Telegram Stars для доната;
 //   POST /webhook                  — обновления бота: подтверждение оплаты, /start;
 //   POST /score                    — игрок присылает свой опыт и результат «Игрока дня»;
-//   POST /top                      — таблица лидеров: неделя, всё время, «Игрок дня» сегодня.
-// Кто прислал очки, сервер узнаёт по подписи Telegram (initData), подделать чужой результат нельзя.
+//   POST /top                      — таблица лидеров: неделя, всё время, «Игрок дня» сегодня;
+//   POST /hello                    — игрок открыл приложение (для статистики), ответ: админ он или нет;
+//   POST /event                    — пачка событий: какую игру открыли, доиграли, сколько длилась;
+//   POST /report                   — «Нашёл ошибку»: сообщение уходит админу в бота;
+//   POST /admin/stats              — статистика для админа (экран в приложении);
+//   scheduled (Cron)               — по понедельникам в 10:00 по Европе бот пишет игрокам про новую игру недели.
+// Кто прислал данные, сервер узнаёт по подписи Telegram (initData), подделать чужой результат нельзя.
 // Секреты: BOT_TOKEN (токен бота), WEBHOOK_SECRET (любая строка). База: D1, привязка с именем DB.
+// Админ: напиши боту «/admin <WEBHOOK_SECRET>» — после этого бот присылает тебе ошибки, команды /stats и /broadcast.
 
 const ALLOWED = [50, 100, 250, 500, 1000];
 const ORIGIN = 'https://komutatorcisco-dot.github.io';
@@ -79,6 +85,15 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS weekly (week TEXT NOT NULL, id INTEGER NOT NULL, start INTEGER NOT NULL, xp INTEGER NOT NULL, PRIMARY KEY (week, id))'),
     db.prepare('CREATE TABLE IF NOT EXISTS daily (day TEXT NOT NULL, id INTEGER NOT NULL, tries INTEGER NOT NULL, won INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (day, id))'),
     db.prepare('CREATE INDEX IF NOT EXISTS users_xp ON users (xp DESC)'),
+    // статистика: кто заходил, по дням; события игр; ошибки; настройки (кто админ, когда была рассылка); кто запускал бота
+    db.prepare('CREATE TABLE IF NOT EXISTS seen (id INTEGER PRIMARY KEY, nick TEXT, first INTEGER NOT NULL, last INTEGER NOT NULL, days INTEGER NOT NULL DEFAULT 1, opens INTEGER NOT NULL DEFAULT 1, writable INTEGER NOT NULL DEFAULT 0, platform TEXT, lastday TEXT)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS visits (day TEXT NOT NULL, id INTEGER NOT NULL, PRIMARY KEY (day, id))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS events (day TEXT NOT NULL, id INTEGER NOT NULL, game TEXT NOT NULL, kind TEXT NOT NULL, ms INTEGER NOT NULL DEFAULT 0, ts INTEGER NOT NULL)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS events_day ON events (day, game)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS reports (ts INTEGER NOT NULL, id INTEGER NOT NULL, nick TEXT, text TEXT, info TEXT)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS bot (chat INTEGER PRIMARY KEY, started INTEGER NOT NULL, blocked INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS names (game TEXT PRIMARY KEY, title TEXT)'),
     db.prepare('CREATE INDEX IF NOT EXISTS weekly_xp ON weekly (week, xp)'),
   ]);
   ready = true;
@@ -155,25 +170,205 @@ async function top(env, user, scope) {
   return { rows: rows.map((r) => ({ nick: r.nick, emoji: r.emoji, score: r.score, me: r.id === id })), me, total, weekEnd: weekEnd(now) };
 }
 
+// ---------- статистика, ошибки, админ ----------
+const getSetting = async (db, k) => { const r = await db.prepare('SELECT v FROM settings WHERE k = ?').bind(k).first(); return r ? r.v : null; };
+const setSetting = (db, k, v) => db.prepare('INSERT INTO settings (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v = ?2').bind(k, String(v)).run();
+const adminId = async (env) => Number(await getSetting(env.DB, 'admin')) || 0;
+
+async function hello(env, user, body) {
+  const db = env.DB, now = Date.now(), today = dayKey(now);
+  await schema(db);
+  const nick = clean(body.nick, 16) || clean(user.username || user.first_name, 16) || 'Игрок';
+  // писать в личку можно, если игрок разрешил это при входе или нажал «Да» на вопросе в приложении
+  const writable = user.allows_write_to_pm || body.writeOk === true ? 1 : 0;
+  const platform = clean(body.platform, 20);
+  await db.batch([
+    db.prepare(`INSERT INTO seen (id, nick, first, last, days, opens, writable, platform, lastday) VALUES (?1, ?2, ?3, ?3, 1, 1, ?4, ?5, ?6)
+      ON CONFLICT(id) DO UPDATE SET nick = ?2, last = ?3, opens = opens + 1, writable = MAX(writable, ?4), platform = ?5,
+      days = days + (CASE WHEN lastday = ?6 THEN 0 ELSE 1 END), lastday = ?6`).bind(user.id, nick, now, writable, platform, today),
+    db.prepare('INSERT OR IGNORE INTO visits (day, id) VALUES (?, ?)').bind(today, user.id),
+  ]);
+  return { admin: user.id === (await adminId(env)) };
+}
+
+async function events(env, user, body) {
+  const db = env.DB, now = Date.now(), today = dayKey(now);
+  await schema(db);
+  const list = (Array.isArray(body.events) ? body.events : []).slice(0, 40)
+    .filter((e) => e && /^[a-z0-9:-]{2,40}$/.test(e.game) && ['open', 'end', 'win'].includes(e.kind));
+  if (list.length) await db.batch([
+    ...list.map((e) => db.prepare('INSERT INTO events (day, id, game, kind, ms, ts) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(today, user.id, e.game, e.kind, Math.max(0, Math.min(3600e3, Math.floor(Number(e.ms) || 0))), now)),
+    // русские названия игр для статистики
+    ...list.filter((e) => e.title).map((e) => db.prepare('INSERT INTO names (game, title) VALUES (?1, ?2) ON CONFLICT(game) DO UPDATE SET title = ?2').bind(e.game, clean(e.title, 40))),
+  ]);
+  return { saved: list.length };
+}
+
+async function report(env, user, body) {
+  const db = env.DB;
+  await schema(db);
+  const text = clean(body.text, 1500), info = clean(body.info, 1500), nick = clean(body.nick, 16) || clean(user.username || user.first_name, 16);
+  if (!text) return { ok: false };
+  await db.prepare('INSERT INTO reports (ts, id, nick, text, info) VALUES (?, ?, ?, ?, ?)').bind(Date.now(), user.id, nick, text, info).run();
+  const admin = await adminId(env);
+  if (admin) {
+    const who = user.username ? `@${user.username}` : `id ${user.id}`;
+    await tg(env, 'sendMessage', { chat_id: admin, text: `🐞 Ошибка от ${nick} (${who})\n\n${text}\n\n— ${info}` });
+  }
+  return { ok: true };
+}
+
+// Статистика для админа: игроки, активность по дням, игры за 7 дней, ошибки
+async function stats(env) {
+  const db = env.DB, now = Date.now();
+  await schema(db);
+  const days = [...Array(7).keys()].map((i) => dayKey(now - i * 864e5)).reverse();
+  const one = async (q, ...a) => (await db.prepare(q).bind(...a).first()) || {};
+  const all = async (q, ...a) => (await db.prepare(q).bind(...a).all()).results;
+  const total = (await one('SELECT COUNT(*) AS n FROM seen')).n || 0;
+  const newToday = (await one('SELECT COUNT(*) AS n FROM seen WHERE first >= ?', Date.parse(days[6]) - 3 * 3600e3)).n || 0;
+  const new7 = (await one('SELECT COUNT(*) AS n FROM seen WHERE first >= ?', now - 7 * 864e5)).n || 0;
+  const returned = (await one('SELECT COUNT(*) AS n FROM seen WHERE days >= 2')).n || 0;
+  const oldEnough = (await one('SELECT COUNT(*) AS n FROM seen WHERE first < ?', now - 864e5)).n || 0;
+  const reach = (await recipients(db)).length; // кому бот может написать (без повторов)
+  const dauRows = await all(`SELECT day, COUNT(*) AS n FROM visits WHERE day >= ? GROUP BY day`, days[0]);
+  const dau = days.map((d) => ({ day: d, n: (dauRows.find((r) => r.day === d) || {}).n || 0 }));
+  const wau = (await one('SELECT COUNT(DISTINCT id) AS n FROM visits WHERE day >= ?', days[0])).n || 0;
+  const games = await all(`SELECT game, (SELECT title FROM names n WHERE n.game = e.game) AS title,
+      SUM(kind = 'open') AS opens, SUM(kind = 'end') AS ends, SUM(kind = 'win') AS wins,
+      COUNT(DISTINCT id) AS players, CAST(AVG(CASE WHEN kind = 'end' THEN ms END) AS INTEGER) AS avgms
+    FROM events e WHERE day >= ? GROUP BY game ORDER BY opens DESC LIMIT 40`, days[0]);
+  const topXp = await all('SELECT nick, emoji, xp FROM users ORDER BY xp DESC LIMIT 5');
+  const reports = await all('SELECT ts, nick, text, info FROM reports ORDER BY ts DESC LIMIT 15');
+  const platforms = await all('SELECT platform, COUNT(*) AS n FROM seen GROUP BY platform ORDER BY n DESC LIMIT 6');
+  return { total, newToday, new7, returnRate: oldEnough ? Math.round((returned / oldEnough) * 100) : 0, reach, dau, wau, games, topXp, reports, platforms };
+}
+
+function statsText(st) {
+  const sec = (ms) => (ms ? `${Math.round(ms / 1000)} с` : '—');
+  return [
+    '📊 Статистика игр',
+    `Игроков всего: ${st.total} · новых сегодня: ${st.newToday} · за 7 дней: ${st.new7}`,
+    `Заходят сегодня: ${st.dau[6].n} · за неделю: ${st.wau}`,
+    `Вернулись хотя бы раз: ${st.returnRate}%`,
+    `Бот может написать: ${st.reach}`,
+    '', 'По дням: ' + st.dau.map((d) => `${d.day.slice(8)}.${d.day.slice(5, 7)} — ${d.n}`).join(', '),
+    '', 'Игры за 7 дней (открыли / доиграли / игроков / средняя партия):',
+    ...st.games.slice(0, 15).map((g) => `• ${g.title || g.game}: ${g.opens} / ${g.ends} (${g.opens ? Math.round((g.ends / g.opens) * 100) : 0}%) / ${g.players} / ${sec(g.avgms)}`),
+    '', `Ошибок прислали: ${st.reports.length ? st.reports.length + ' (последние в приложении, вкладка «Профиль» → «Админка»)' : 'нет'}`,
+  ].join('\n');
+}
+
+// ---------- рассылка ----------
+// Копия расписания из js/release.js: дата понедельника → новая игра недели
+const RELEASES = [
+  ['2026-10-12', 'Тики-Така-Тоу'], ['2026-10-19', 'Угадай футболиста'], ['2026-10-26', 'Угадай карьеру'], ['2026-11-02', 'Угадай счёт'],
+  ['2026-11-09', 'Топ-10'], ['2026-11-16', 'Связи'], ['2026-11-23', 'Кто легендарнее?'], ['2026-11-30', 'Куда перешёл?'],
+  ['2026-12-07', 'Машина времени'], ['2026-12-14', 'Тепло-холодно'], ['2026-12-21', 'Кто выше в FC 27?'], ['2026-12-28', 'Состав дня'],
+  ['2027-01-04', 'Пас в ворота'], ['2027-01-11', 'Сортировка мячей'], ['2027-01-18', 'Требл дня'], ['2027-01-25', 'Угадай клуб'],
+  ['2027-02-01', 'Кто я?'], ['2027-02-08', 'Драфт'], ['2027-02-15', 'Дороже или дешевле'], ['2027-02-22', 'Номер в истории'],
+  ['2027-03-01', 'Розыгрыш'], ['2027-03-08', 'Связка'], ['2027-03-15', 'Кто дороже?'], ['2027-03-22', 'Ложная девятка'],
+  ['2027-03-29', 'Дартс 170'], ['2027-04-05', 'VS 100'], ['2027-04-12', 'Бинго'], ['2027-04-19', 'Box2Box на время'],
+  ['2027-04-26', 'Рейтинг'], ['2027-05-03', '2048: Карьера'], ['2027-05-10', 'Филворд'], ['2027-05-17', 'Найди пару'],
+  ['2027-05-24', 'Перекрась поле'], ['2027-05-31', 'Пятнашки'], ['2027-06-07', 'Поп-ит'],
+];
+
+async function recipients(db) {
+  const a = (await db.prepare('SELECT chat AS id FROM bot WHERE blocked = 0').all()).results.map((r) => r.id);
+  const b = (await db.prepare('SELECT id FROM seen WHERE writable = 1').all()).results.map((r) => r.id);
+  return [...new Set([...a, ...b])];
+}
+// разослать всем, кто разрешил боту писать; кто заблокировал бота — помечаем
+async function broadcast(env, text, button = 'Играть') {
+  const db = env.DB;
+  await schema(db);
+  let sent = 0;
+  for (const id of await recipients(db)) {
+    const r = await tg(env, 'sendMessage', { chat_id: id, text, reply_markup: { inline_keyboard: [[{ text: button, web_app: { url: `${ORIGIN}/Games/` } }]] } }).catch(() => null);
+    if (r && r.ok) sent++;
+    else if (r && r.error_code === 403) await db.batch([
+      db.prepare('INSERT INTO bot (chat, started, blocked) VALUES (?1, ?2, 1) ON CONFLICT(chat) DO UPDATE SET blocked = 1').bind(id, Date.now()),
+      db.prepare('UPDATE seen SET writable = 0 WHERE id = ?').bind(id),
+    ]);
+    await new Promise((ok) => setTimeout(ok, 40)); // не больше ~25 сообщений в секунду
+  }
+  return sent;
+}
+
+// Понедельник, 10:00 по Европе: новая игра недели + тройка лидеров прошлой недели
+async function weekly(env) {
+  const db = env.DB, now = Date.now(), wk = weekKey(now);
+  await schema(db);
+  const local = new Date(now + tzOffset(now));
+  if (local.getUTCDay() !== 1 || local.getUTCHours() !== WEEK_HOUR) return 'не время';
+  if ((await getSetting(db, 'weekly')) === wk) return 'уже отправлено';
+  await setSetting(db, 'weekly', wk);
+  const prev = weekKey(now - 7 * 864e5);
+  const top3 = (await db.prepare(`SELECT u.nick, w.xp - w.start AS score FROM weekly w JOIN users u ON u.id = w.id WHERE w.week = ? AND w.xp > w.start ORDER BY score DESC LIMIT 3`).bind(prev).all()).results;
+  const game = RELEASES.find((r) => r[0] === wk);
+  const text = [
+    game ? `🆕 Новая игра недели: «${game[1]}»!` : '⚽ Новая неделя в играх «Стариков Джексонов»!',
+    top3.length ? `\n🏆 Лучшие прошлой недели:\n${top3.map((r, i) => `${['🥇', '🥈', '🥉'][i]} ${r.nick} — ${r.score} оч.`).join('\n')}` : '',
+    '\nРейтинг недели обнулился — самое время забрать первое место ⚽',
+  ].filter(Boolean).join('\n');
+  return `отправлено: ${await broadcast(env, text)}`;
+}
+
 export default {
   async fetch(request, env) {
     const res = await route(request, env);
     return cors(new Response(res.body, res), request, env);
   },
+  // Cron-триггер (Settings → Trigger events): «0 8,9 * * 1» — понедельник 8:00 и 9:00 UTC, отправка только в 10:00 по Европе
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(weekly(env));
+  },
 };
+export { weekly, stats };
+
+// Команды админа в боте: /admin <секрет> — стать админом; /stats — статистика; /broadcast <текст> — написать всем
+async function adminCommand(env, m) {
+  const db = env.DB, chat = m.chat.id, text = m.text || '';
+  if (!db) return;
+  await schema(db);
+  const say = (t) => tg(env, 'sendMessage', { chat_id: chat, text: t });
+  if (text.startsWith('/admin')) {
+    if (env.WEBHOOK_SECRET && text.split(/\s+/)[1] === env.WEBHOOK_SECRET && m.chat.type === 'private') {
+      await setSetting(db, 'admin', chat);
+      return say('✅ Ты админ. Сюда будут приходить ошибки от игроков.\n/stats — статистика\n/broadcast текст — сообщение всем игрокам\nВ приложении: Профиль → Админка.');
+    }
+    return say('Неверный код.');
+  }
+  if (chat !== (await adminId(env))) return say('Команда только для админа.');
+  if (text.startsWith('/stats')) return say(statsText(await stats(env)));
+  if (text.startsWith('/broadcast')) {
+    const msg = text.replace(/^\/broadcast\s*/, '').trim();
+    if (!msg) return say('Напиши так: /broadcast текст сообщения');
+    const n = await broadcast(env, msg);
+    return say(`Отправлено: ${n}`);
+  }
+}
 
 async function route(request, env) {
   const url = new URL(request.url);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204 });
 
   // ---------- рейтинг ----------
-  if ((url.pathname === '/score' || url.pathname === '/top') && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
     const user = await verifyInit(body.initData, env.BOT_TOKEN);
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     if (url.pathname === '/score') return json({ ok: true, ...(await saveScore(env, user, body)) });
+    if (url.pathname === '/hello') return json({ ok: true, ...(await hello(env, user, body)) });
+    if (url.pathname === '/event') return json({ ok: true, ...(await events(env, user, body)) });
+    if (url.pathname === '/report') return json(await report(env, user, body));
+    if (url.pathname === '/admin/stats') {
+      if (user.id !== (await adminId(env))) return json({ ok: false, error: 'forbidden' }, 403);
+      return json({ ok: true, ...(await stats(env)) });
+    }
     const scope = ['week', 'all', 'day'].includes(body.scope) ? body.scope : 'week';
     return json({ ok: true, ...(await top(env, user, scope)) });
   }
@@ -203,7 +398,10 @@ async function route(request, env) {
     } else if (u.message && u.message.successful_payment) {
       const p = u.message.successful_payment;
       await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Спасибо за ${p.total_amount} ⭐! Это очень помогает каналу 🙌` });
-    } else if (u.message && u.message.text === '/start') {
+    } else if (u.message && /^\/(admin|stats|broadcast)\b/.test(u.message.text || '')) {
+      await adminCommand(env, u.message);
+    } else if (u.message && /^\/start\b/.test(u.message.text || '')) {
+      if (env.DB) { await schema(env.DB); await env.DB.prepare('INSERT INTO bot (chat, started, blocked) VALUES (?1, ?2, 0) ON CONFLICT(chat) DO UPDATE SET blocked = 0').bind(u.message.chat.id, Date.now()).run(); }
       await tg(env, 'sendMessage', {
         chat_id: u.message.chat.id, text: 'Футбольные мини-игры канала «Старики Джексоны» ⚽',
         reply_markup: { inline_keyboard: [[{ text: 'Играть', web_app: { url: `${ORIGIN}/Games/` } }]] },

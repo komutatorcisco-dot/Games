@@ -191,7 +191,7 @@ const NG = (() => {
   function dailyStatus() {
     const dly = Store.d.dly;
     const out = [['Игрок дня', dly.day === Day.key() && dly.done]];
-    list.filter((g) => g.group === 'daily').forEach((g) => { const d = store(g.id).daily; out.push([g.title, !!(d && d.day === Day.key() && d.done)]); });
+    list.filter((g) => g.group === 'daily' && Release.isOut('ng:' + g.id)).forEach((g) => { const d = store(g.id).daily; out.push([g.title, !!(d && d.day === Day.key() && d.done)]); });
     return out;
   }
 

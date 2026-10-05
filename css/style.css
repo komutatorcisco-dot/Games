@@ -1693,8 +1693,8 @@ body[data-balls="crests"] .sball, .shop-balls[data-balls="crests"] .sball {
    ===================================================================== */
 #app > .screen:not(#hub):not(#profile):not(#shop):not(#runner) { min-height: calc(100dvh - max(12px, env(safe-area-inset-top, 0px)) - 30px); }
 /* центрирование: автоматические отступы у шапки и у невидимого «хвоста» делят свободное место поровну */
-#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner):not(#pass-levels):not(#guess):not(#board) > .topbar { margin-bottom: auto; }
-#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner):not(#pass-levels):not(#guess):not(#board)::after { content: ''; margin-top: auto; }
+#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner):not(#pass-levels):not(#guess):not(#board):not(#admin) > .topbar { margin-bottom: auto; }
+#app > .screen:not(#hub):not(#profile):not(#shop):not(#runner):not(#pass-levels):not(#guess):not(#board):not(#admin)::after { content: ''; margin-top: auto; }
 /* игры, где список растёт по ходу, оставляем сверху, чтобы поле ввода не «уезжало» */
 #ng:has(.ng-top10, .ng-context, .ng-linkup) > .topbar { margin-bottom: 0; }
 #ng:has(.ng-top10, .ng-context, .ng-linkup)::after { display: none; }
@@ -1996,3 +1996,34 @@ button.tc-st:active { transform: scale(.92); }
 .topbar-title, .topbar-title > span { font-family: var(--font-body); font-weight: 800; text-transform: none; letter-spacing: 0; }
 .topbar-title > span { font-size: 17px; }
 .ng-q, .tm-ask, .du-text, .nh-q { font-family: var(--font-body) !important; font-weight: 800 !important; text-transform: none !important; letter-spacing: 0; }
+.week-game { position: relative; display: grid; gap: 2px; width: 100%; margin-top: 12px; padding: 14px 76px 14px 16px; border: 0; border-radius: 18px; text-align: left; color: var(--ink); cursor: pointer;
+  background: linear-gradient(120deg, #ffcf3a, #ff8a2a); box-shadow: 0 6px 20px rgba(255,159,42,.3); overflow: hidden; }
+.week-game .wg-tag { justify-self: start; padding: 2px 8px; border-radius: 99px; background: rgba(0,0,0,.75); color: #fff; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+.week-game b { color: #1b1000; font-size: 20px; font-weight: 900; }
+.week-game small { color: rgba(27,16,0,.75); font-size: 12px; font-weight: 600; }
+.week-game .tile-ico { position: absolute; right: 14px; top: 50%; transform: translateY(-50%) rotate(8deg); width: 54px; height: 54px; margin: 0; }
+.tile-card.is-soon::before { content: 'скоро'; position: absolute; top: 8px; right: 10px; padding: 1px 7px; border-radius: 99px; background: var(--gold); color: #2a1d00; font-size: 10px; font-weight: 900; }
+
+/* Админка */
+.ad-refresh { width: 44px; height: 44px; padding: 0; font-size: 20px; }
+.ad-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.ad-kpis div { display: grid; gap: 2px; padding: 12px 10px; border-radius: 14px; background: var(--night-2); }
+.ad-kpis b { font: 400 24px var(--font-display); }
+.ad-kpis small { color: var(--muted); font-size: 11px; line-height: 1.2; }
+.ad-bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 140px; padding: 10px; border-radius: 14px; background: var(--night-2); }
+.ad-bars div { display: grid; grid-template-rows: auto 1fr auto; justify-items: center; align-items: end; gap: 4px; }
+.ad-bars i { width: 100%; min-height: 3px; border-radius: 6px 6px 2px 2px; background: linear-gradient(var(--gold), #ff8a2a); }
+.ad-bars em { font-style: normal; font-size: 11px; font-weight: 800; }
+.ad-bars small { color: var(--muted); font-size: 11px; }
+.ad-table { display: grid; gap: 2px; border-radius: 14px; overflow: hidden; }
+.ad-row { display: grid; grid-template-columns: 1.8fr repeat(4, 1fr); gap: 6px; padding: 9px 10px; background: var(--night-2); font-size: 12px; align-items: center; }
+.ad-row span:not(:first-child) { text-align: right; font-weight: 700; }
+.ad-row.head { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+.ad-note { margin: 6px 2px 0; color: var(--muted); font-size: 12px; }
+.ad-list { display: grid; gap: 4px; padding: 10px 12px; border-radius: 14px; background: var(--night-2); font-size: 13px; }
+.ad-reports { display: grid; gap: 8px; }
+.ad-reports > div { padding: 10px 12px; border-radius: 14px; background: var(--night-2); }
+.ad-reports p { margin: 4px 0; font-size: 14px; }
+.ad-reports small { color: var(--muted); font-size: 11px; }
+.rep-text { min-height: 110px; text-align: left; font-size: 15px; font-weight: 500; resize: vertical; }
+.ask-ico { font-size: 48px; }
