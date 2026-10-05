@@ -97,7 +97,7 @@ const App = (() => {
     // ежедневные игры — ряд маленьких плиток с галочкой; «Игрок дня» стоит отдельной карточкой выше
     const games = NG.list.filter((g) => g.group === 'daily' && Release.isOut('ng:' + g.id));
     const doneOf = (g) => { const d = (Store.d.ng[g.id] || {}).daily; return !!(d && d.day === Day.key() && d.done); };
-    $('#dly-progress').innerHTML = `<div class="dp-row">${games.map((g) => `<button class="dp-game ${doneOf(g) ? 'ok' : ''}" data-ng="${g.id}" style="--c1:${g.c1};--c2:${g.c2}">
+    $('#dly-progress').innerHTML = `<div class="dp-row ${games.length <= 2 ? 'few' : ''}">${games.map((g) => `<button class="dp-game ${doneOf(g) ? 'ok' : ''}" data-ng="${g.id}" style="--c1:${g.c1};--c2:${g.c2}">
         <span class="tile-ico" data-ico="ng-${g.id}"></span><b>${esc(g.title.replace(/ дня$/, '').replace('Футбольный ', ''))}</b>${doneOf(g) ? '<i>✓</i>' : ''}</button>`).join('')}</div>
       <div class="dp-foot"><div class="dp-bar"><i style="width:${(done / st.length) * 100}%"></i></div><span>${done}/${st.length}</span></div>
       ${all && !claimed ? `<button class="btn gold dp-chest" data-act="chest">🎁 Все задания сделаны — забрать сундук +${CHEST}</button>`

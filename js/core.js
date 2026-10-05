@@ -354,7 +354,7 @@ function confetti() {
   if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const box = document.createElement('div');
   box.className = 'confetti';
-  const colors = ['#8fd8c4', '#c65bd8', '#ffcf3a', '#eef8f0', '#34c46a'];
+  const colors = ['#ffffff', '#ffcf3a', '#ffe58a', '#c9c9d1', '#ffb020'];
   for (let i = 0; i < 60; i++) {
     const p = document.createElement('i');
     p.style.left = Math.random() * 100 + '%';

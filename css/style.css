@@ -2027,3 +2027,105 @@ button.tc-st:active { transform: scale(.92); }
 .ad-reports small { color: var(--muted); font-size: 11px; }
 .rep-text { min-height: 110px; text-align: left; font-size: 15px; font-weight: 500; resize: vertical; }
 .ask-ico { font-size: 48px; }
+
+/* =====================================================================
+   ДИЗАЙН v3 «под аватарку»: почти чёрный фон, графит, белый как основной цвет, золото — единственный акцент.
+   Заголовки — плотный гротеск Inter Black, логотип со «смазом» как на аватарке канала.
+   ===================================================================== */
+:root {
+  --night: #0b0b0f; --night-2: #17171d; --night-3: #23232b; --ink: #f5f5f7; --muted: #8d8d99;
+  --line: rgba(255,255,255,.08); --danil: #ffffff; --sasha: #e9e9ee;
+  --font-display: "Twemoji Country Flags", "Inter", "Arial Black", Impact, sans-serif;
+}
+body { background: radial-gradient(90% 40% at 50% -8%, #2a2a33 0%, transparent 70%), var(--night) !important; }
+::selection { background: var(--gold); color: #000; }
+
+/* логотип: ДЖЕКСО + смазанные «НЫ» */
+.wordmark { font: 900 23px/1 "Inter", "Arial Black", sans-serif; letter-spacing: -.035em; color: #fff; white-space: nowrap; animation: wmIn .7s cubic-bezier(.2,.9,.2,1) both; }
+.wordmark span { position: relative; display: inline-block; color: rgba(255,255,255,.9); filter: blur(.5px);
+  text-shadow: 2px 0 1px rgba(255,255,255,.7), 5px 0 2px rgba(255,255,255,.5), 9px 0 4px rgba(255,255,255,.32), 14px 0 6px rgba(255,255,255,.18), 20px 0 9px rgba(255,255,255,.08);
+  animation: wmBlur 3.2s ease-in-out 1s infinite; }
+@keyframes wmIn { from { opacity: 0; transform: translateX(-14px); filter: blur(6px); } }
+@keyframes wmBlur { 0%, 100% { filter: blur(.5px); } 50% { filter: blur(1.4px); } }
+.hub-head { background: linear-gradient(var(--night) 78%, rgba(11,11,15,0)) !important; }
+.hh-right { display: flex; align-items: center; gap: 8px; }
+.me-ava-btn { padding: 0; border: 0; background: none; cursor: pointer; }
+.me-ava-btn .me-ava { width: 40px; height: 40px; font-size: 21px; background: var(--night-3); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.18); }
+.coins { background: var(--night-3) !important; box-shadow: inset 0 0 0 1px var(--line) !important; color: var(--ink); }
+
+/* кнопки: основная — белая, вторичная — графит, золото — для главного действия в игре */
+.btn { background: #fff; color: #0b0b0f; box-shadow: 0 3px 0 #9b9ba6; }
+.btn:active { box-shadow: 0 1px 0 #9b9ba6; }
+.btn.ghost { background: var(--night-3); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line), 0 3px 0 #050507; }
+.btn.sasha { background: var(--night-3); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.2), 0 3px 0 #050507; }
+.btn.gold { color: #111; }
+
+/* поверхности: графит и тонкая граница вместо фиолетовых теней */
+.tile-card, .ng-opt, .nat-opt, .btn.ghost.opt, .du-opt, .du-mode, .dp-game, .bd-row, .stat, .ach, .set-row, .cx-row, .du-pl, .tm-card, .sc-card,
+.ad-kpis div, .ad-bars, .ad-list, .ad-reports > div, .ad-row, .all-games, .perk, .dly-progress, .modal-card, .player-card, .du-hrow, .bd-tabs, .tc-pot {
+  box-shadow: inset 0 0 0 1px var(--line) !important; }
+.tile-card, .ng-opt, .nat-opt, .du-opt, .du-mode, .dp-game { box-shadow: inset 0 0 0 1px var(--line), 0 3px 0 #050507 !important; }
+.modal-card { background: #141419 !important; }
+.section-label { color: #6f6f7c; letter-spacing: .14em; font-weight: 800; }
+
+/* иконки игр: графитовая подложка, рисунок белый с золотом, цвет игры — только тонкой рамкой */
+.tile-ico { background: linear-gradient(160deg, #2a2a33, #1a1a21) !important;
+  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c1, #fff) 55%, transparent), 0 4px 10px rgba(0,0,0,.35) !important; }
+.tile-ico::after { background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,0) 50%) !important; }
+
+/* заголовки — плотный гротеск, как на аватарке */
+.dly-card-title, .du-res, .ng-res h2, .ng-res-big, .du-end-big, .bd-you b, .cx-temp b, .tc-ovr, .sc-real, .ad-kpis b, .week-game b, .runner-hero b, .duel-hero .dh-top b, .du-hero p ~ *, .tm-elo {
+  font-family: "Inter", "Arial Black", sans-serif !important; font-weight: 900 !important; letter-spacing: -.02em; }
+.ng-res h2 { text-transform: uppercase; font-size: 24px; line-height: 1.05; }
+
+/* карточки-герои: чёрно-белые, без радужных градиентов */
+.dly-card { background: #fff !important; color: #0b0b0f !important; box-shadow: 0 6px 24px rgba(0,0,0,.45) !important; }
+.dly-card::after { display: none; }
+.dly-card small, .dly-card-top b { color: rgba(11,11,15,.6) !important; }
+.dly-card-top .tag { background: #0b0b0f; color: #fff; }
+.dly-card-top em { color: #c98f00; }
+.dly-card-photo { background: #0b0b0f !important; box-shadow: none !important; }
+.dly-card-photo i { color: #fff !important; }
+.week-game { background: #fff !important; box-shadow: 0 6px 24px rgba(0,0,0,.45) !important; }
+.week-game b { color: #0b0b0f; text-transform: uppercase; }
+.duel-hero, .friends-teaser { background: linear-gradient(150deg, #24242c, #141419) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 8px 24px rgba(0,0,0,.4) !important; }
+.duel-hero::before, .friends-teaser::before { background: linear-gradient(100deg, transparent 35%, rgba(255,255,255,.06) 48%, transparent 60%) !important; }
+.dh-top b, .friends-teaser b { text-transform: uppercase; letter-spacing: -.01em; }
+.dh-modes button { background: rgba(255,255,255,.06) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1) !important; }
+.dh-ico.tile-ico { --c1: #ffcf3a; }
+.ft-vs i { background: #fff; color: #0b0b0f; }
+.auction-hero { background: linear-gradient(150deg, #24242c, #141419) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1) !important; }
+.runner-hero { filter: saturate(.75); }
+.donate-card { background: linear-gradient(120deg, #2a2410, #17171d) !important; box-shadow: inset 0 0 0 1px rgba(255,207,58,.35) !important; color: var(--ink) !important; }
+.donate-card small { color: var(--muted) !important; }
+.perk, .perk-wheel { background: var(--night-2) !important; }
+.perk-bonus { box-shadow: inset 0 0 0 1px rgba(255,207,58,.45) !important; }
+
+/* нижнее меню: чёрное, активная вкладка — белая */
+.tabbar { background: rgba(11,11,15,.94) !important; box-shadow: 0 -1px 0 var(--line) !important; }
+.tab.on { background: #fff !important; color: #0b0b0f !important; }
+.tab.on span svg { color: #0b0b0f !important; }
+
+/* выбор раздела, вкладки рейтинга, задания дня */
+.cat-nav button.on, .bd-tabs button.on { background: #fff !important; color: #0b0b0f !important; box-shadow: none !important; }
+.dp-bar i { background: linear-gradient(90deg, #fff, var(--gold)) !important; }
+.xpbar i { background: linear-gradient(90deg, #fff, var(--gold)) !important; }
+
+/* поле ввода */
+.guess-input input, .ng-input input, .nick-input { background: #fff !important; color: #0b0b0f !important; box-shadow: none !important; }
+.suggest { background: #fff !important; }
+.suggest button { color: #0b0b0f !important; }
+.suggest button.sel { background: #efeff3 !important; }
+.suggest small { color: #6b6b78 !important; }
+.dly-progress { background: var(--night-2) !important; }
+.dp-row.few { grid-template-columns: 1fr; }
+.dp-row.few .dp-game { display: flex; align-items: center; justify-content: flex-start; gap: 12px; padding: 8px 12px; text-align: left; }
+.dp-row.few .dp-game b { font-size: 15px; text-align: left; }
+.dp-row.few .dp-game::after { content: 'Сыграть ›'; margin-left: auto; color: var(--muted); font-size: 13px; font-weight: 700; }
+.dp-row.few .dp-game.ok::after { content: 'Сыграно ✓'; color: var(--hit); }
+.dp-row.few .dp-game i { display: none; }
+.tag-sasha { background: #fff !important; color: #0b0b0f !important; }
+.tag-danil { background: var(--gold) !important; color: #0b0b0f !important; }
+.prof-badge, #prof-badge { background: #fff !important; color: #0b0b0f !important; box-shadow: 0 0 0 3px var(--gold) !important; font-family: "Inter", "Arial Black", sans-serif !important; font-weight: 900 !important; }
+.du-hero { background: linear-gradient(150deg, #24242c, #141419) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1) !important; }
+.du-mode.live .du-mi { background: var(--gold) !important; } .du-mode.link .du-mi, .du-mode.hot .du-mi { background: #fff !important; }
