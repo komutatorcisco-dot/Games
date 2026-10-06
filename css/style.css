@@ -2719,3 +2719,44 @@ html, body { touch-action: manipulation; }
 /* ошибка запуска — видна, чтобы можно было прислать скрин */
 #oops { position: fixed; left: 12px; right: 12px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 9999; padding: 10px 12px; border-radius: 12px;
   background: #3a0d16; border: 1px solid #ff4d6a; color: #fff; font: 600 13px/1.35 Inter, system-ui, sans-serif; word-break: break-word; }
+
+/* подсказки над полем, когда поле внизу (на телефоне снизу клавиатура) */
+.suggest.up { top: auto !important; bottom: calc(100% + 4px); display: flex; flex-direction: column-reverse; }
+.suggest.up button:last-child { border-bottom: 1px solid #ece8f7; }
+
+/* Вордл: «мимо» — тёмное, чтобы не путать с подсветкой */
+.wd-row i.miss { background: rgba(10, 8, 24, .55); border-color: rgba(255,255,255,.08); color: rgba(255,255,255,.45); }
+.wd-kb button.miss { background: rgba(10, 8, 24, .6); color: rgba(255,255,255,.28); }
+.wd-kb button { background: rgba(255,255,255,.14); }
+
+/* ===== игры в стиле ночного стадиона: без травы и белых плашек ===== */
+:root { --glass: linear-gradient(180deg, rgba(255,255,255,.09), rgba(255,255,255,.035)); --glass-line: rgba(255,255,255,.14); --team-a: #ffcf3a; --team-b: #6fd3ff; }
+/* Угадай сборную: ночное поле с белой разметкой */
+.nat-pitch { background: radial-gradient(90% 60% at 50% 0%, rgba(140,110,255,.22), transparent 70%), linear-gradient(180deg, rgba(24,16,60,.85), rgba(14,10,38,.92)) !important;
+  border: 2px solid rgba(255,255,255,.55) !important; }
+.nat-pitch::before, .nat-pitch::after { border-color: rgba(255,255,255,.45) !important; }
+.nat-slot .crest-m { background: rgba(255,255,255,.95); }
+/* Тики-така: стеклянные клетки */
+.tg-cell { background: var(--glass) !important; box-shadow: inset 0 0 0 1px var(--glass-line), 0 3px 0 rgba(0,0,0,.35) !important; }
+.tg-cell.sel { box-shadow: inset 0 0 0 2px var(--gold), 0 0 18px rgba(255,207,58,.35) !important; }
+.tg-cell.filled { background: linear-gradient(180deg, rgba(62,230,107,.22), rgba(62,230,107,.08)) !important; box-shadow: inset 0 0 0 2px rgba(62,230,107,.7) !important; }
+.tg-head { background: rgba(255,255,255,.06) !important; box-shadow: inset 0 0 0 1px var(--glass-line); }
+/* Аукцион: команды — тёмное стекло с цветной кромкой, без зелени */
+.auction-stage { background: radial-gradient(120% 70% at 50% 0%, rgba(120,90,255,.35) 0%, transparent 70%), linear-gradient(180deg, rgba(30,20,70,.85), rgba(16,11,40,.92)) !important;
+  box-shadow: inset 0 0 0 1px var(--glass-line); }
+.ateam.danil, .ateam.sasha { background: var(--glass) !important; }
+.ateam.danil { box-shadow: inset 0 0 0 1px var(--glass-line), inset 0 3px 0 var(--team-a); }
+.ateam.sasha { box-shadow: inset 0 0 0 1px var(--glass-line), inset 0 3px 0 var(--team-b); }
+.aslot { border-color: rgba(255,255,255,.28) !important; }
+.auction-tags .tag { background: rgba(255,255,255,.08) !important; color: #fff !important; box-shadow: inset 0 0 0 1px var(--glass-line); }
+.auction-tags .tag:first-child { color: var(--team-a) !important; } .auction-tags .tag:last-child { color: var(--team-b) !important; }
+.auction-tags .tag.active { background: rgba(255,207,58,.16) !important; box-shadow: 0 0 0 2px var(--gold) !important; }
+/* Этого или того: табло составов на тёмном стекле */
+.tb { background: rgba(14,10,38,.78) !important; color: #fff !important; box-shadow: inset 0 0 0 1px var(--glass-line), 0 10px 24px rgba(0,0,0,.35) !important; }
+.tb-head, .tb-pos { background: rgba(255,255,255,.08) !important; }
+.tb-head.danil { box-shadow: inset 0 -3px 0 var(--team-a) !important; } .tb-head.sasha { box-shadow: inset 0 -3px 0 var(--team-b) !important; }
+.tb-slot { background: linear-gradient(90deg, rgba(255,255,255,.16), rgba(255,255,255,.06)) !important; color: #fff; }
+.tb-slot.empty { background: rgba(255,255,255,.04) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08) !important; }
+/* шапка игр: длинное название в одну строку */
+.ng-head h1, .game-head h1, .scr-head h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.topbar-title > span { -webkit-line-clamp: 1 !important; font-size: 16px !important; }

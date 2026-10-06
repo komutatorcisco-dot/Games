@@ -19,6 +19,15 @@
     POOL = out.sort((a, b) => (a.w < b.w ? -1 : 1));
     return POOL;
   }
+  // все известные фамилии: догадка должна быть настоящей фамилией, а не набором букв
+  let DICT = null;
+  function dict() {
+    if (DICT) return DICT;
+    DICT = new Set();
+    const add = (name) => DICT.add(surname(name).toUpperCase().replace(/Ё/g, 'Е'));
+    PLAYERS.forEach((p) => add(p.name)); CAREERS.forEach((c) => add(c.name));
+    return DICT;
+  }
   function score(guess, ans) {
     const res = Array(ans.length).fill('miss'), left = {};
     [...ans].forEach((ch, i) => { if (guess[i] === ch) res[i] = 'hit'; else left[ch] = (left[ch] || 0) + 1; });
@@ -59,6 +68,7 @@
         if (k === 'del') cur = cur.slice(0, -1);
         else if (k === 'enter') {
           if (cur.length < L) { toast(`Нужно ${L} ${plural(L, 'буква', 'буквы', 'букв')}`); bad = true; haptic('bad'); render(); return; }
+          if (!dict().has(cur)) { toast('Нет такого футболиста — попробуй другую фамилию'); bad = true; haptic('bad'); render(); return; }
           st.rows.push(cur); cur = ''; fresh = st.rows.length - 1;
           if (st.rows[st.rows.length - 1] === ans.w) { st.won = true; render(); return later(finish, L * 110 + 400); }
           Sound.play('tap');

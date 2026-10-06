@@ -29,7 +29,8 @@ const Auction = (() => {
     budget = [BUDGET, BUDGET]; team = [[], []]; starter = 0; over = false;
     deck = shuffle(POOL, Math.random);
     Screens.show('auction');
-    $('#auction-title').textContent = vsBot ? 'Аукцион против бота' : 'Аукцион вдвоём';
+    $('#auction-title').textContent = 'Аукцион';
+    $('#auction-title').nextElementSibling.textContent = vsBot ? 'Против бота · побеждает форма' : 'Вдвоём · побеждает форма';
     nextLot();
   }
 

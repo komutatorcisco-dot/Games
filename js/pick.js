@@ -106,7 +106,7 @@ const Pick = (() => {
   function start(m) {
     mode = m;
     Screens.show('pick');
-    $('#pick-title').textContent = mode === 'duo' ? 'Возьмёшь этого или другого?' : 'Кто легендарнее?';
+    $('#pick-title').textContent = mode === 'duo' ? 'Этого или того?' : 'Кто легендарнее?';
     $('#pick-sub').textContent = 'Выбери версию';
     $('#pick-opts').innerHTML = '';
     $('#pick-stage').innerHTML = `<div class="pick-clubs">${Object.keys(DATA).map((c) => `

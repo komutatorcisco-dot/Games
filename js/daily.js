@@ -116,7 +116,8 @@ const Daily = (() => {
     $('#dly-clues').innerHTML = clues(p).map(([k, v], i) => (i < lvl
       ? `<div class="dly-clue open" style="--i:${i}"><span>${k}</span><b>${v}</b></div>`
       : `<div class="dly-clue"><span>${k}</span><b>🔒 Подсказка ${i + 1}</b></div>`)).join('');
-    $('#dly-tries').innerHTML = s.ev.map((e) => `<i class="ev-${e}"></i>`).join('') + '<i></i>'.repeat(Math.max(0, MAX - s.ev.length));
+    const tr = s.ev.filter((e) => e !== 'h'); // точки — только догадки, подсказки их не тратят
+    $('#dly-tries').innerHTML = tr.map((e) => `<i class="ev-${e}"></i>`).join('') + '<i></i>'.repeat(Math.max(0, MAX - tr.length));
     $('#dly-guesses').innerHTML = s.guessed.map((id) => guessRow(PLAYERS[id])).join('');
     const playing = !s.done && s.tries > used();
     $('#dly-play').hidden = !playing;

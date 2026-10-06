@@ -154,10 +154,11 @@ const Guess = (() => {
     const q = norm($('#guess-field').value.trim());
     if (q.length < 2) { hideSuggest(); return; }
     const used = new Set(guesses.map((g) => g.id));
-    suggestions = PLAYERS.filter((p) => !used.has(p.id) && (norm(p.name).includes(q) || norm(p.alt).includes(q)))
-      .sort((x, y) => (norm(x.name).startsWith(q) ? 0 : 2) + (x.tier > 3 ? 1 : 0) - (norm(y.name).startsWith(q) ? 0 : 2) - (y.tier > 3 ? 1 : 0))
+    suggestions = lenient((q) => PLAYERS.filter((p) => !used.has(p.id) && (norm(p.name).includes(q) || norm(p.alt).includes(q)))
+      .sort((x, y) => (norm(x.name).startsWith(q) ? 0 : 2) + (x.tier > 3 ? 1 : 0) - (norm(y.name).startsWith(q) ? 0 : 2) - (y.tier > 3 ? 1 : 0)), q)
       .slice(0, 6);
     const box = $('#guess-suggest');
+    placeSuggest(box, $('#guess-field'));
     if (!suggestions.length) {
       box.innerHTML = '<button type="button" disabled>Такого игрока нет в базе</button>';
       box.hidden = false;

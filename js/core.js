@@ -531,6 +531,21 @@ const Econ = {
   left() { return Math.max(0, this.TIERS[0][0] - this.sync().earned); },
 };
 
+// Поиск с опечатками: если по запросу пусто, пробуем его без последних букв («Холанд» → «Холан» → Холанн).
+function lenient(find, q) {
+  let r = find(q);
+  for (let k = q.length - 1; !r.length && k >= 4; k--) r = find(q.slice(0, k));
+  return r;
+}
+// Подсказки над полем, если поле внизу экрана: на телефоне снизу их закрывает клавиатура.
+function placeSuggest(box, input) {
+  try {
+    const vv = window.visualViewport, r = input.getBoundingClientRect();
+    const top = r.top - (vv ? vv.offsetTop : 0), h = vv ? vv.height : innerHeight;
+    box.classList.toggle('up', top > h * 0.45);
+  } catch (e) { /* по умолчанию — вниз */ }
+}
+
 // Поле ввода с подсказками: имена футболистов или клубов.
 // items(q) возвращает [{key, label, sub}], onPick(key) вызывается при выборе.
 function Picker(inputSel, boxSel, items, onPick) {
@@ -541,8 +556,9 @@ function Picker(inputSel, boxSel, items, onPick) {
   function render() {
     const q = norm(input.value.trim());
     if (q.length < 2) { hide(); return; }
-    list = items(q, norm).slice(0, 6);
-    if (!list.length) { box.innerHTML = '<button type="button" disabled>Нет в базе</button>'; box.hidden = false; return; }
+    list = lenient((x) => items(x, norm), q).slice(0, 6);
+    placeSuggest(box, input);
+    if (!list.length) { box.innerHTML = '<button type="button" disabled>Не нашли — попробуй по-другому</button>'; box.hidden = false; return; }
     sel = 0;
     box.innerHTML = list.map((it, i) => `<button type="button" data-i="${i}" class="${i ? '' : 'sel'}"><span>${esc(it.label)}</span>${it.sub ? `<small>${esc(it.sub)}</small>` : ''}</button>`).join('');
     box.hidden = false;

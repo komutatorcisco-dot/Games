@@ -109,7 +109,8 @@ const NG = (() => {
       if (!items) return;
       const q = normName(inp.value);
       if (q.length < 2) return hide();
-      opts = items(q).slice(0, 6);
+      opts = lenient(items, q).slice(0, 6);
+      placeSuggest(box, inp);
       if (!opts.length) { box.innerHTML = '<button type="button" disabled>Нет в базе</button>'; box.hidden = false; return; }
       sel = 0;
       box.innerHTML = opts.map((it, i) => `<button type="button" data-i="${i}" class="${i ? '' : 'sel'}"><span>${esc(it.label)}</span>${it.sub ? `<small>${esc(it.sub)}</small>` : ''}</button>`).join('');
