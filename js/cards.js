@@ -1,5 +1,6 @@
 // Коллекция карточек футболистов. Карточки выпадают из паков, повторки превращаются в монеты.
-// Редкости: бронза (FC 78–79), серебро (80–83), золото (84+), легенда (великие игроки прошлого), «Джексон» — особая версия звёзд.
+// Редкости (в базе рейтинги от 70): бронза (70–72), серебро (73–77), золото (78+); легенда — великие игроки прошлого; «Джексон» — особая версия звёзд.
+// В коллекции все игроки базы, у кого есть лицо, — полные составы клубов. Недостающую карточку можно купить за монеты.
 // Карточка: тёмная наклейка — фото на фоне цветов клуба, снизу плашка цвета редкости.
 // Сохранение: Store.d.cards = { own: {ключ: сколько}, fresh: [ключи ещё не просмотренных] }.
 'use strict';
@@ -13,16 +14,15 @@ const Cards = (() => {
     jack: { n: 'ДЖЕКСОН!!', dup: 120 },
   };
   const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack'];
-  const MIN_R = 78;
   const LEAGUES = ['АПЛ', 'Ла Лига', 'Серия А', 'Бундеслига', 'Лига 1'];
   const POS = { ГК: 'ВРТ' };
 
   let ALL = null, BY = null;
   function all() {
     if (ALL) return ALL;
-    const cur = PLAYERS.filter((p) => FACES[p.name] && FC_STATS[p.name] && FC_STATS[p.name][0] >= MIN_R).map((p) => {
+    const cur = PLAYERS.filter((p) => FACES[p.name] && FC_STATS[p.name]).map((p) => {
       const r = FC_STATS[p.name][0];
-      return { key: p.name, name: p.name, r, pos: POS[p.pos] || p.pos, club: p.club, flag: p.flag, lg: p.lg, face: FACES[p.name], rar: r >= 84 ? 'gold' : r >= 80 ? 'silver' : 'bronze' };
+      return { key: p.name, name: p.name, r, pos: POS[p.pos] || p.pos, club: p.club, flag: p.flag, lg: p.lg, face: FACES[p.name], rar: r >= 78 ? 'gold' : r >= 73 ? 'silver' : 'bronze' };
     });
     const legs = CARD_LEGENDS.map(([name, r, club, pos]) => ({ key: name, name, r, pos, club, flag: '', lg: 'Легенды', face: FACES[name], rar: 'legend' }));
     // «Джексон»: особые версии лучших — 12 действующих и 6 легенд, рейтинг выше обычного
@@ -46,7 +46,8 @@ const Cards = (() => {
 
   // ---------- что выпадает ----------
   function draw(rar) {
-    const pool = all().filter((c) => c.rar === rar);
+    let pool = all().filter((c) => c.rar === rar);
+    for (let i = ORDER.indexOf(rar) + 1; !pool.length && i < ORDER.length; i++) pool = all().filter((c) => c.rar === ORDER[i]);
     const fresh = pool.filter((c) => !owned(c.key));
     // половина шанса — карточка, которой ещё нет: коллекция растёт заметно
     const from = fresh.length && Math.random() < 0.5 ? fresh : pool;
@@ -84,7 +85,7 @@ const Cards = (() => {
 
   // ---------- вид карточки ----------
   const col = (club) => (typeof CLUB_COL !== 'undefined' && CLUB_COL[club]) || ['#3b4f8f', '#141a3a'];
-  const img = (id) => (FACE_DATA[id] || (FreshFaces.on() ? FreshFaces.url(id, 240) : `img/cards/${id}.webp`));
+  const img = (id) => (FACE_DATA[id] || (FreshFaces.on() ? FreshFaces.url(id, 240) : faceSrc(id)));
   // на плашке — фамилия; «ван Дейк» целиком, короткие тройные имена («Сон Хын Мин») — полностью
   const surname = (n) => {
     const w = n.split(' ');
@@ -94,7 +95,7 @@ const Cards = (() => {
   };
   function html(c, { w = 150, locked = false, cls = '' } = {}) {
     if (!c) return '';
-    if (locked) return `<div class="cc lock ${cls}" style="--w:${w}px"><div class="cc-ph"></div><span class="cc-sil"></span><div class="cc-r">??</div><div class="cc-band"><b>???</b><small>${RAR[c.rar].n}</small></div></div>`;
+    if (locked) return `<div class="cc lock ${cls}" style="--w:${w}px" data-lock="${esc(c.key)}"><div class="cc-ph"></div><span class="cc-sil"></span><div class="cc-r">??</div><div class="cc-band"><b>???</b><small>${RAR[c.rar].n}</small></div></div>`;
     const [k1, k2] = col(c.club), cr = CRESTS[c.club];
     return `<div class="cc ${c.rar} ${cls}" style="--w:${w}px;--k1:${k1};--k2:${k2}" data-card="${esc(c.key)}">
       <div class="cc-ph"></div><img class="cc-face" src="${img(c.face)}" alt="" loading="lazy">
@@ -233,12 +234,26 @@ const Cards = (() => {
     Modal.open(`<div class="cd">${html(c, { w: 220 })}<h2>${esc(c.name)}</h2><p class="cd-m">${esc(c.club)}${c.rar === 'legend' || c.rar === 'jack' ? '' : ` · ${esc(c.lg || '')}`}</p>${stats}
       <p class="cd-own">В коллекции: ×${owned(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
   }
+  // купить недостающую карточку: как трансферный рынок
+  const price = (c) => (c.rar === 'jack' ? 0 : c.rar === 'legend' ? 600 : c.rar === 'gold' ? 150 + Math.max(0, c.r - 78) * 30 : c.rar === 'silver' ? 80 : 40);
+  function buy(key) {
+    const c = get(key); if (!c || owned(key)) return;
+    const p = price(c);
+    const body = `<div class="cd">${html(c, { w: 180, locked: true })}<h2>${c.rar === 'jack' ? 'Только из паков' : 'Купить карточку?'}</h2>
+      <p class="cd-m">${c.rar === 'jack' ? 'Карточки «Джексон» выпадают только из паков' : `${RAR[c.rar].n} · ${esc(c.club)} · рейтинг ${c.r}. Кто внутри — узнаешь после покупки`}</p></div>`;
+    if (!p) { Modal.open(body, [{ label: 'Понятно', cls: 'ghost' }]); return; }
+    Modal.open(body, [
+      { label: `Купить за ${p} монет`, onClick: () => { if (!Coins.spend(p)) return; Modal.close(); const res = add([key]); reveal(res, () => { if (typeof Rewards !== 'undefined') Rewards.refresh(); }); } },
+      { label: 'Не сейчас', cls: 'ghost' },
+    ]);
+  }
   function onClick(e) {
     const g = e.target.closest('[data-gl]'); if (g) { view = { g: g.dataset.gl, club: null }; Sound.play('tap'); jump = true; return true; }
     const c = e.target.closest('[data-glc]'); if (c) { view = { ...view, club: c.dataset.glc }; Sound.play('tap'); jump = true; return true; }
     if (e.target.closest('[data-glback]')) { view = view.club !== null ? { g: view.g, club: null } : { g: '', club: null }; if (view.g === 'Джексон') view = { g: '', club: null }; Sound.play('tap'); jump = true; return true; }
     const cl = e.target.closest('[data-claim]'); if (cl) { claim(cl.dataset.claim); return true; }
     const k = e.target.closest('.cl-cell [data-card]'); if (k) { details(k.dataset.card); return 'modal'; }
+    const lk = e.target.closest('.cl-cell [data-lock]'); if (lk) { buy(lk.dataset.lock); return 'modal'; }
     return false;
   }
 

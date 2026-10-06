@@ -616,3 +616,43 @@ function shiftStage(stage, render) {
   stage.classList.add('shifting');
   setTimeout(() => { stage.classList.remove('shifting'); render(); }, 380);
 }
+
+// Движение в играх: новые варианты ответа выезжают по очереди, карточки игроков влетают с поворотом,
+// новый вопрос въезжает сбоку. Если игра перерисовала то же самое (тот же текст) — не анимируем, чтобы не мигало.
+const Motion = (() => {
+  const KINDS = [
+    ['mo-opt', '.nat-opt, .du-opt, .ng-opt, .btn.ghost.opt, .pick-btns .btn, .tc-st'],
+    ['mo-card', '.player-card, .alot, .tc-card, .pick-card, .du-card, .tb-slot:not(.empty), .aslot.filled, .dly-face'],
+    ['mo-q', '.du-q, .pick-ask, .dly-clue, .ng-q, .du-media, .tc-res, .du-res, .dly-verdict'],
+    ['mo-row', '.dly-g, .row-tiles, .guess-row, .ng-row'],
+  ];
+  const ALL = KINDS.map(([, s]) => s).join(', ');
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const sig = (el) => el.className.split(' ')[0] + '|' + (el.textContent || '').trim().slice(0, 80) + '|' + ((el.querySelector('img') || {}).src || '').slice(-24);
+  const inGame = (el) => !el.closest('#hub, .cr-wrap, .drop, #rewards');
+  function mark(el, i) {
+    const k = KINDS.find(([, s]) => el.matches(s)); if (!k) return;
+    el.style.setProperty('--mo-i', i);
+    el.classList.add('mo', k[0]);
+    el.addEventListener('animationend', function done(e) { if (e.target === el) { el.classList.remove('mo', k[0]); el.removeEventListener('animationend', done); } });
+  }
+  if (!reduce && 'MutationObserver' in window) {
+    new MutationObserver((muts) => {
+      const gone = new Set();
+      muts.forEach((m) => m.removedNodes.forEach((n) => { if (n.nodeType !== 1) return; if (n.matches(ALL)) gone.add(sig(n)); n.querySelectorAll(ALL).forEach((x) => gone.add(sig(x))); }));
+      const fresh = [];
+      muts.forEach((m) => m.addedNodes.forEach((n) => {
+        if (n.nodeType !== 1 || !inGame(n)) return;
+        if (n.matches(ALL)) fresh.push(n);
+        n.querySelectorAll(ALL).forEach((x) => fresh.push(x));
+      }));
+      const per = new Map();
+      fresh.forEach((el) => {
+        if (gone.has(sig(el))) return; // то же самое перерисовали — без анимации
+        const p = el.parentElement, i = per.get(p) || 0; per.set(p, i + 1);
+        mark(el, Math.min(i, 8));
+      });
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+  return { mark };
+})();

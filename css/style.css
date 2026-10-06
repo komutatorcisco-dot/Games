@@ -2936,3 +2936,21 @@ html, body { touch-action: manipulation; }
 .ares small { color: rgba(255,255,255,.75); opacity: 1; }
 .ares b { color: #fff; }
 .ares.win b { color: var(--gold); }
+
+/* движение в играх (Motion в core.js): появляется один раз, потом класс снимается */
+.mo { animation-fill-mode: both !important; animation-delay: calc(var(--mo-i, 0) * 55ms) !important; }
+.mo-opt { animation: moOpt .42s cubic-bezier(.2,.9,.25,1.25) !important; }
+.mo-card { animation: moCard .6s cubic-bezier(.2,.9,.25,1.15) !important; }
+.mo-q { animation: moQ .45s cubic-bezier(.2,.8,.2,1) !important; }
+.mo-row { animation: moRow .4s cubic-bezier(.2,.9,.3,1.2) !important; }
+@keyframes moOpt { from { opacity: 0; transform: translateY(18px) scale(.94); } 70% { opacity: 1; } to { opacity: 1; transform: none; } }
+@keyframes moCard { from { opacity: 0; transform: perspective(700px) translateY(24px) rotateY(-28deg) scale(.88); filter: brightness(1.6); } 60% { opacity: 1; filter: brightness(1.15); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes moQ { from { opacity: 0; transform: translateX(34px); } to { opacity: 1; transform: none; } }
+@keyframes moRow { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: none; } }
+
+/* ответ: верный — вспышка и подпрыгивание, неверный — встряска с красной вспышкой */
+:is(.ng-opt, .nat-opt, .opt, .du-opt).right { animation: moRight .55s cubic-bezier(.2,1.6,.4,1) !important; }
+:is(.ng-opt, .nat-opt, .opt, .du-opt).wrong { animation: moWrong .5s ease !important; }
+@keyframes moRight { 0% { transform: scale(1); } 35% { transform: scale(1.08); box-shadow: 0 0 0 6px rgba(62,230,107,.35), 0 0 30px rgba(62,230,107,.6); } 100% { transform: scale(1); } }
+@keyframes moWrong { 0%, 100% { transform: none; } 15% { transform: translateX(-9px) rotate(-1deg); } 35% { transform: translateX(8px) rotate(1deg); } 55% { transform: translateX(-6px); } 75% { transform: translateX(4px); } }
+@media (prefers-reduced-motion: reduce) { .mo { animation: none !important; } }
