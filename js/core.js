@@ -393,15 +393,15 @@ function quoteHtml(kind) {
 
 // Единый экран итога для всех игр: иконка, большая цифра, заголовок, плашки, награда.
 // act — действие плитки на главной (оттуда берутся цвета иконки), ico — ключ иконки в Icons.
-function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '', title = '', text = '', stats = [], extra = '', reward = 0, record = false, score = null }) {
+function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '', title = '', text = '', stats = [], extra = '', reward = 0, record = false, score = null, labels = null }) {
   if (typeof Board !== 'undefined') Board.submit(); // и отправляет опыт в рейтинг канала
   if (typeof Track !== 'undefined') Track.end(win); // статистика: партию доиграли
   // итог любой игры — табло стадиона: счёт «верно : ошибки», число (серия, очки) или просто исход
-  const led = score ? `<b>${score[0]}</b><i>:</i><b class="bad">${score[1]}</b>`
+  const led = score ? `<b>${score[0]}</b><i>:</i><b class="${labels ? '' : 'bad'}">${score[1]}</b>`
     : big !== '' ? `<b class="ng-res-big">${big}</b>` : `<b class="word">${win ? 'ПОБЕДА' : 'НЕ ВЫШЛО'}</b>`;
   return `<div class="ng-res ${win ? 'win' : 'lose'}">
     <div class="sb"><div class="sb-k">Финальный свисток${ico ? `<span class="sb-ico">${Icons.get(ico)}</span>` : ''}</div>
-      <div class="sb-led">${led}</div>${score ? '<div class="sb-lb"><span>верно</span><span>ошибки</span></div>' : ''}
+      <div class="sb-led ${String(score ? score.join('') : big).length > 5 ? 'long' : ''}">${led}</div>${score ? `<div class="sb-lb"><span>${labels ? labels[0] : 'верно'}</span><span>${labels ? labels[1] : 'ошибки'}</span></div>` : ''}
       ${record ? '<span class="res-record">Новый рекорд</span>' : ''}
       ${stats.length ? `<div class="ng-res-stats">${stats.map(([k, v]) => `<span><b>${v}</b><small>${k}</small></span>`).join('')}</div>` : ''}
       ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}</div>

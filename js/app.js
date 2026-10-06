@@ -219,6 +219,8 @@ const App = (() => {
       items.push({ data: { ...el.dataset }, key: k, ico: (($('[data-ico]', el) || {}).dataset || {}).ico || '', title: ($(':scope > b', el) || {}).textContent || '',
         badge: curKeys.includes(k) ? ['new', 'NEW'] : note ? ['', `${note[1]}/${note[2]}`] : null, soon: el.classList.contains('is-soon') });
     });
+    // на поле — как в футболе — максимум 11; остальные сидят на скамейке запасных под полем
+    const bench = items.splice(11);
     const nx = Release.next();
     const all = nx ? [...items, { soon: true, next: nx }] : items;
     const rows = formation(all.length);
@@ -243,7 +245,14 @@ const App = (() => {
       }).join('');
     }).join('');
     box.innerHTML = html + `<button class="tk gk" data-act="dly" style="left:50%;top:${yOf(rows.length)}%"><span class="tok"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>`;
-    Icons.fill(box);
+    const bb = $('#bench');
+    bb.hidden = !bench.length;
+    $('#bench-row').innerHTML = bench.map((it) => {
+      const attrs = Object.entries(it.data).map(([a, v]) => `data-${a.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}="${esc(v)}"`).join(' ');
+      return `<button class="tk bn ${it.soon ? 'is-soon' : ''}" ${attrs} style="--k:${kolor(it.key)}"><span class="tok"><span class="tile-ico" data-ico="${esc(it.ico)}"></span></span>${it.badge ? `<em class="${it.badge[0]}">${it.badge[1]}</em>` : ''}<b>${esc(SHORT[it.key] || it.title)}</b></button>`;
+    }).join('');
+    $('#bench-n').textContent = bench.length;
+    Icons.fill(box); Icons.fill(bb);
     const s = Store.d.dly || {};
     $('#hub-streak').textContent = `🔥 ${s.streak || 0}`;
     $('#pitch-tour').textContent = `Тур ${Release.tour()}`;
@@ -437,7 +446,7 @@ const App = (() => {
       if (t) { const r = t.getBoundingClientRect(); t.style.setProperty('--px', `${e.clientX - r.left}px`); t.style.setProperty('--py', `${e.clientY - r.top}px`); }
     }, true);
     document.addEventListener('click', (e) => {
-      if (e.target.closest('#pitch .tk:not(.soon)')) { Sound.play('token'); haptic('tap'); }
+      if (e.target.closest('#pitch .tk:not(.soon), #bench .tk')) { Sound.play('token'); haptic('tap'); }
       const tb = e.target.closest('[data-tab]');
       if (tb) { Sound.play('tap'); tab(tb.dataset.tab); return; }
       const ct = e.target.closest('#cat-nav [data-cat]');
