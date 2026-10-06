@@ -2162,168 +2162,187 @@ body { background: radial-gradient(90% 40% at 50% -8%, #2a2a33 0%, transparent 7
 #panel-home .section-label:first-child { margin-top: 4px; }
 .ava-s { width: 36px; height: 36px; flex: none; } .ava-s b { font-size: 13px; }
 
+
 /* =====================================================================
-   ДИЗАЙН v4 «наклейки»: чёрный фон, у каждой игры свой сочный плоский цвет, чёрный текст,
-   толстый шрифт Unbounded, жёсткая «ступенька» снизу вместо мягких теней. Лаймовый — главный акцент.
+   ДИЗАЙН v5: чёрная основа, как раньше, + графика в духе спортивного табло:
+   жирный наклонный шрифт, скошенные белые плашки, цветной блок у каждой игры,
+   жёлтый и красный — акценты.
    ===================================================================== */
-:root { --lime: #c6f432; --lime-d: #7f9c17; --ink-d: #0b0b0f; --disp: "Unbounded", "Inter", "Arial Black", sans-serif; }
-body { background: #0b0b0f !important; }
-.section-label, #panel-home .section-label { font: 900 19px/1.1 var(--disp) !important; color: #fff !important; letter-spacing: -.01em !important; text-transform: uppercase; margin: 22px 0 10px !important; }
+:root { --y: #ffd23f; --r: #e3262f; --nv: #0d1530; --k5: #0b0b0f; --disp: "Rubik", "Inter", "Arial Black", sans-serif;
+  --slant: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+body { background: radial-gradient(100% 50% at 100% -10%, #1a2350 0%, transparent 60%), #0b0b0f !important; }
+.wordmark { font: italic 900 24px/1 var(--disp) !important; letter-spacing: -.02em; }
+.coins { background: var(--y) !important; color: var(--nv) !important; box-shadow: none !important; font-style: italic; font-weight: 900;
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%); border-radius: 0 !important; }
+.coins b { color: var(--nv) !important; }
+.me-ava-btn .me-ava { border-radius: 0 !important; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); background: #fff !important; box-shadow: none !important; }
+
+/* заголовки разделов — жёлтая черта + наклонные капслоком */
+.section-label, #panel-home .section-label { display: flex; align-items: center; gap: 10px; font: italic 900 18px/1 var(--disp) !important; color: #fff !important;
+  letter-spacing: 0 !important; text-transform: uppercase; margin: 22px 0 10px !important; }
+.section-label::before { content: ''; flex: none; width: 7px; height: 20px; background: var(--y); }
 #panel-home .section-label:first-child { margin-top: 6px !important; }
-.topbar-title { font-family: var(--disp) !important; font-weight: 900; font-size: 18px; letter-spacing: -.01em; }
-.topbar-title small { font-family: "Inter", sans-serif; font-size: 13px; font-weight: 700; color: var(--lime); }
-.wordmark { font-family: var(--disp) !important; font-size: 21px; letter-spacing: -.02em; }
+.topbar-title { font: italic 900 18px/1.05 var(--disp) !important; text-transform: uppercase; }
+.topbar-title small { font: 800 12px "Rubik", sans-serif; font-style: normal; color: var(--y); text-transform: none; }
+.topbar .back { border-radius: 0 !important; clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
 
-/* кнопки */
-.btn, .btn.gold { background: var(--lime) !important; color: var(--ink-d) !important; box-shadow: 0 4px 0 var(--lime-d) !important; font-family: var(--disp); font-weight: 800; letter-spacing: -.01em; }
-.btn:active, .btn.gold:active { box-shadow: 0 1px 0 var(--lime-d) !important; transform: translateY(3px); }
-.btn.ghost, .btn.sasha { background: #23232b !important; color: #fff !important; box-shadow: 0 4px 0 #050507 !important; font-family: "Inter", sans-serif; font-weight: 800; }
-.coins { background: #1c1c22 !important; }
+/* кнопки: главная — жёлтая, вторичная — тёмная; срезанный угол */
+.btn, .btn.gold { background: var(--y) !important; color: var(--nv) !important; box-shadow: none !important; border-radius: 0 !important;
+  clip-path: var(--slant); font: italic 900 16px/1.1 var(--disp) !important; text-transform: uppercase; }
+.btn:active, .btn.gold:active { transform: translateY(2px); filter: brightness(.9); }
+.btn.ghost, .btn.sasha { background: #23232b !important; color: #fff !important; }
 
-/* главная: карточки игр — плотная сетка 2×N, цветные «наклейки» */
-.home-list { grid-template-columns: 1fr 1fr; gap: 10px; }
-#featured .tile-card, #panel-games .tile-card, #panel-friends .tile-card {
-  display: flex !important; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 14px;
-  min-height: 128px; padding: 12px !important; border-radius: 20px; text-align: left;
-  background: var(--k, #c6f432) !important; color: var(--ink-d) !important;
-  box-shadow: 0 5px 0 color-mix(in srgb, var(--k, #c6f432) 45%, #000) !important; }
-#featured .tile-card:active, #panel-games .tile-card:active, #panel-friends .tile-card:active { transform: translateY(4px); box-shadow: 0 1px 0 color-mix(in srgb, var(--k, #c6f432) 45%, #000) !important; }
-#featured .tile-card .tile-ico, #panel-games .tile-card .tile-ico, #panel-friends .tile-card .tile-ico {
-  width: 48px !important; height: 48px !important; margin: 0 !important; border-radius: 14px !important; background: var(--ink-d) !important; box-shadow: none !important; }
-#featured .tile-card .tile-ico::after, #panel-games .tile-card .tile-ico::after, #panel-friends .tile-card .tile-ico::after { display: none; }
-#featured .tile-card > b, #panel-games .tile-card > b, #panel-friends .tile-card > b {
-  font: 900 14.5px/1.08 var(--disp) !important; text-transform: uppercase; letter-spacing: -.02em; color: var(--ink-d) !important; align-self: stretch; overflow-wrap: anywhere; }
-#featured .tile-card > small, #panel-games .tile-card > small, #panel-friends .tile-card > small, #featured .tile-card::before { display: none !important; }
-#featured .tile-card::after, #panel-games .tile-card::after, #panel-friends .tile-card::after { display: none; }
-#panel-games .tiles, #panel-friends > .tiles { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; }
-.tile-card.is-soon { opacity: .55; }
-.tile-card .tile-done { background: var(--ink-d) !important; color: var(--lime) !important; }
+/* ---------- «Игрок дня»: большая плашка ---------- */
+.dly-card { position: relative; display: block !important; min-height: 196px; padding: 0 !important; border-radius: 6px !important; overflow: hidden;
+  background: linear-gradient(120deg, #1b3fb0, var(--nv)) !important; color: #fff !important; box-shadow: inset 0 0 0 2px rgba(255,255,255,.18) !important; }
+.dly-card::after { display: none; }
+.dly-card-photo { position: absolute !important; right: 18px; top: 12px; width: auto !important; height: auto !important; background: none !important; box-shadow: none !important; }
+.dly-card-photo i { font: italic 900 120px/1 var(--disp) !important; color: var(--y) !important; text-shadow: 6px 6px 0 var(--r); }
+.dly-card.done .dly-card-photo i { color: #fff !important; }
+.dly-card-body { position: absolute !important; left: 0; right: 14%; bottom: 14px; display: grid; gap: 0 !important; justify-items: start; }
+.dly-card-top { gap: 0 !important; }
+.dly-card-top .tag { background: var(--y) !important; color: var(--nv) !important; border-radius: 0 !important; font: italic 900 12px/1 var(--disp) !important; padding: 6px 10px 6px 14px; letter-spacing: .04em; }
+.dly-card-top b, .dly-card-top em { background: var(--nv); color: #fff !important; font: italic 900 12px/1 var(--disp) !important; padding: 6px 8px; }
+.dly-card-top em { color: var(--y) !important; }
+.dly-card-title { align-self: stretch; background: #fff; color: var(--nv) !important; font: italic 900 24px/1 var(--disp) !important; text-transform: uppercase;
+  padding: 9px 22px 9px 14px; clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 100%, 0 100%); letter-spacing: -.01em !important; }
+.dly-card small, #dly-card-state { background: var(--r); color: #fff !important; font: 800 13px/1 "Rubik", sans-serif !important; padding: 7px 12px 7px 14px; opacity: 1 !important; }
 
-/* «Игрок дня» — главная лаймовая карточка */
-.dly-card { background: var(--lime) !important; color: var(--ink-d) !important; border-radius: 24px !important; padding: 16px !important; box-shadow: 0 6px 0 var(--lime-d) !important; }
-.dly-card:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--lime-d) !important; }
-.dly-card-photo { width: 76px !important; height: 76px !important; border-radius: 20px !important; background: var(--ink-d) !important; }
-.dly-card-photo i { font: 900 38px var(--disp) !important; color: var(--lime) !important; }
-.dly-card-title { font: 900 20px/1.05 var(--disp) !important; letter-spacing: -.02em !important; }
-.dly-card-top .tag { background: var(--ink-d) !important; color: var(--lime) !important; font-weight: 800; }
-.dly-card-top b, .dly-card-top em { color: var(--ink-d) !important; font-family: "Inter", sans-serif !important; font-weight: 900 !important; }
-.dly-card small { color: var(--ink-d) !important; font-size: 14px !important; font-weight: 800 !important; opacity: 1 !important; }
-
-/* задания дня (Wordle и др.) — цветные «билеты» */
-.dly-progress { background: none !important; box-shadow: none !important; padding: 0 !important; margin-top: 12px; }
-.dp-row { gap: 10px !important; }
-.dp-game { background: var(--k, #ffd23f) !important; color: var(--ink-d) !important; border-radius: 20px !important; box-shadow: 0 5px 0 color-mix(in srgb, var(--k, #ffd23f) 45%, #000) !important; position: relative; }
-.dp-game b { color: var(--ink-d) !important; font: 900 14px/1.1 var(--disp) !important; text-transform: uppercase; }
-.dp-game .tile-ico { background: var(--ink-d) !important; box-shadow: none !important; border-radius: 12px !important; }
-.dp-row.few .dp-game { padding: 12px 14px !important; min-height: 70px; }
-.dp-row.few .dp-game::after { content: 'ИГРАТЬ' !important; color: var(--k, #ffd23f) !important; background: var(--ink-d); padding: 8px 12px; border-radius: 999px; font: 800 12px/1 "Inter", sans-serif !important; }
-.dp-row.few .dp-game.ok::after { content: '✓ ГОТОВО' !important; }
-.dp-row.few .dp-game::before { content: ''; position: absolute; left: 72px; top: 8px; bottom: 8px; border-left: 2px dashed rgba(0,0,0,.25); }
-.dp-game.ok { opacity: .8; }
-
-/* новинка недели */
-.week-game { background: #ff5fa2 !important; color: var(--ink-d) !important; border-radius: 22px !important; box-shadow: 0 5px 0 #8a2252 !important; }
-.week-game .wg-tag { background: var(--ink-d) !important; color: #ff5fa2 !important; }
-.week-game b { font: 900 20px/1.05 var(--disp) !important; color: var(--ink-d) !important; }
-.week-game small { color: var(--ink-d) !important; font-size: 13px !important; font-weight: 700 !important; }
-.week-game .tile-ico { background: var(--ink-d) !important; box-shadow: none !important; }
-
-/* «скоро» — заметная плашка, а не мелкий серый текст */
-.unlock-next:not(:empty) { margin: 16px 0 4px !important; padding: 14px 16px; border-radius: 18px; border: 2px dashed rgba(255,255,255,.22); color: #fff !important; font-size: 14px !important; font-weight: 700; line-height: 1.35; text-align: left; }
-.unlock-next b { color: var(--lime); }
-
-/* вкладки разделов игр и рейтинга */
-.cat-nav button.on, .bd-tabs button.on { background: var(--lime) !important; color: var(--ink-d) !important; }
-.cat h3, .cat .section-label { color: #fff !important; }
-
-/* нижнее меню: активная вкладка — лаймовая таблетка */
-.tabbar { background: #0b0b0f !important; box-shadow: 0 -1px 0 rgba(255,255,255,.07) !important; }
-.tab { color: #7c7c88 !important; font-weight: 800 !important; }
-.tab.on { background: var(--lime) !important; color: var(--ink-d) !important; border-radius: 999px !important; }
-.tab.on span svg { color: var(--ink-d) !important; }
-
-/* с другом */
-.duel-hero, .friends-teaser { background: #4fc3ff !important; color: var(--ink-d) !important; box-shadow: 0 6px 0 #1d6f98 !important; }
-.duel-hero::before, .friends-teaser::before { display: none !important; }
-.duel-hero *, .friends-teaser * { color: var(--ink-d); }
-.dh-top b { font: 900 21px/1.05 var(--disp) !important; }
-.dh-modes button { background: var(--ink-d) !important; color: #fff !important; box-shadow: none !important; }
-.dh-modes button * { color: #fff; }
-.dh-ico.tile-ico { background: var(--ink-d) !important; }
-
-/* профиль */
-.pf-card { display: flex; align-items: center; gap: 14px; margin: 6px 0 12px; padding: 16px; border-radius: 24px; background: var(--lime); color: var(--ink-d); box-shadow: 0 6px 0 var(--lime-d); position: relative; }
-.pf-card #prof-badge { flex: none; width: 70px; height: 70px; margin: 0; border-radius: 20px; display: grid; place-content: center; font-size: 34px;
-  background: var(--ink-d) !important; color: var(--lime) !important; box-shadow: none !important; font-family: var(--disp) !important; }
-.pf-main { min-width: 0; flex: 1; display: grid; gap: 4px; }
-#prof-nick { font: 900 21px/1.05 var(--disp); letter-spacing: -.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 30px; }
-.pf-rank { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
-#prof-rank { font-weight: 900; font-size: 14px; color: var(--ink-d) !important; }
-#prof-next { font-size: 12px; font-weight: 700; color: rgba(0,0,0,.65) !important; }
-.pf-card .xpbar { display: block; height: 10px; border-radius: 99px; background: rgba(0,0,0,.18); overflow: hidden; margin-top: 2px; }
-.pf-card .xpbar i { display: block; height: 100%; background: var(--ink-d) !important; border-radius: 99px; }
-.pf-edit { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; border: 0; border-radius: 12px; background: var(--ink-d); color: var(--lime); font-size: 16px; font-weight: 900; }
-.pf-stats { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 8px !important; margin: 0 0 14px; }
-.pf-stats .stat { padding: 12px 4px !important; border-radius: 16px; background: #1c1c22 !important; text-align: center; display: grid; gap: 3px; }
-.pf-stats .stat b { font: 900 19px/1 var(--disp); color: #fff; }
-.pf-stats .stat span { font-size: 11px; font-weight: 700; line-height: 1.15; color: #b4b4be; }
-.pf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
-.pf-grid button { display: grid; justify-items: start; gap: 6px; padding: 14px; border: 0; border-radius: 20px; text-align: left; color: var(--ink-d); min-height: 116px;
-  background: var(--k); box-shadow: 0 5px 0 color-mix(in srgb, var(--k) 45%, #000); cursor: pointer; }
-.pf-grid button:active { transform: translateY(4px); box-shadow: 0 1px 0 color-mix(in srgb, var(--k) 45%, #000); }
-.pf-grid span { width: 44px; height: 44px; border-radius: 13px; background: var(--ink-d); color: var(--k); display: grid; place-content: center; }
-.pf-grid span svg { width: 26px; height: 26px; }
-.pf-grid b { font: 900 15px/1.05 var(--disp); text-transform: uppercase; letter-spacing: -.02em; margin-top: auto; }
-.pf-grid small { font-size: 13px; font-weight: 800; color: rgba(0,0,0,.72); }
-.pf-b1 { --k: #ffd23f; } .pf-b2 { --k: #4fc3ff; } .pf-b3 { --k: #ff5fa2; } .pf-b4 { --k: #ff7a2f; }
-.settings { display: grid; gap: 8px; }
-.set-row { background: #1c1c22 !important; border-radius: 16px !important; padding: 15px 16px !important; font-weight: 800; font-size: 15px; }
-.set-row b { color: var(--lime); }
-
-/* достижения */
-#achievements .achs { display: grid; gap: 8px; }
-.ach { background: #1c1c22 !important; border-radius: 16px !important; padding: 12px 14px !important; }
-.ach.ok { background: var(--lime) !important; color: var(--ink-d) !important; }
-.ach.ok small { color: rgba(0,0,0,.7) !important; }
-.ach b { font-weight: 900; font-size: 15px; }
-.ach small { font-size: 13px !important; color: #b4b4be; }
-.ach i { font-style: normal; font-size: 20px; }
-
-/* игры: варианты ответа — белые «клавиши», верно — лайм, неверно — красный */
-:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt):not(.tb-fut) { background: #fff !important; color: var(--ink-d) !important; box-shadow: 0 4px 0 #8e8e99 !important; border-radius: 16px !important; font-weight: 800 !important; }
-:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt):not(.tb-fut) small { color: #55555f !important; }
-:is(.ng-opt, .nat-opt, .opt, .du-opt).right { background: var(--lime) !important; color: var(--ink-d) !important; box-shadow: 0 4px 0 var(--lime-d) !important; }
-:is(.ng-opt, .nat-opt, .opt, .du-opt).wrong { background: #ff4d4d !important; color: #fff !important; box-shadow: 0 4px 0 #8a1f1f !important; }
-.ng-res h2, .du-res, .ng-res-big, .du-end-big { font-family: var(--disp) !important; }
-.modal-card { border-radius: 26px !important; }
-
-/* рейтинг */
-.bd-row.me { background: var(--lime) !important; color: var(--ink-d) !important; }
-.bd-row.me * { color: var(--ink-d) !important; }
-.bd-you b { color: var(--lime); }
-#featured .tile-card { min-height: 116px; }
-/* нечётная последняя игра — на всю ширину, в строку */
-#featured .tile-card:last-child:nth-child(odd) { grid-column: 1 / -1; flex-direction: row; align-items: center; min-height: 76px; }
+/* ---------- строки игр: цветной блок + белая скошенная плашка ---------- */
+.home-list { display: grid; gap: 8px; }
+#featured .tile-card, #panel-games .tile-card, #panel-friends .tile-card, .dp-game {
+  display: grid !important; grid-template-columns: 58px minmax(0, 1fr) 44px; grid-template-rows: 1fr auto; align-items: center !important; text-align: left !important;
+  min-height: 62px; padding: 0 !important; gap: 0 !important; border-radius: 0 !important; background: #fff !important; color: var(--nv) !important;
+  box-shadow: none !important; clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%); grid-column: auto !important; flex: none; }
+:is(#featured, #panel-games, #panel-friends) .tile-card:active, .dp-game:active { transform: translateX(3px); filter: brightness(.94); }
+:is(#featured, #panel-games, #panel-friends) .tile-card .tile-ico, .dp-game .tile-ico {
+  grid-row: 1 / 3; grid-column: 1; align-self: stretch; width: 58px !important; height: auto !important; min-height: 62px; margin: 0 !important; border-radius: 0 !important;
+  background: var(--k, var(--y)) !important; box-shadow: none !important; display: grid; place-items: center; }
+:is(#featured, #panel-games, #panel-friends) .tile-card .tile-ico svg, .dp-game .tile-ico svg { width: 40px; height: 40px; filter: drop-shadow(1px 1px 0 rgba(0,0,0,.35)); }
+:is(#featured, #panel-games, #panel-friends) .tile-card .tile-ico::after, .dp-game .tile-ico::after { display: none; }
+:is(#featured, #panel-games, #panel-friends) .tile-card > b, .dp-game > b {
+  grid-column: 2; grid-row: 1; align-self: end; padding: 9px 8px 0 12px; font: italic 900 16.5px/1.05 var(--disp) !important; text-transform: uppercase; color: var(--nv) !important; letter-spacing: -.01em; }
+:is(#featured, #panel-games, #panel-friends) .tile-card > small {
+  display: block !important; grid-column: 2; grid-row: 2; align-self: start; padding: 2px 8px 9px 12px; font: 700 12.5px/1.2 "Rubik", sans-serif !important; color: #59627f !important; }
+:is(#featured, #panel-games, #panel-friends) .tile-card::before, .dp-game::before {
+  content: '›'; display: grid !important; place-items: center; position: static !important; grid-column: 3; grid-row: 1 / 3; align-self: stretch; padding-right: 8px;
+  background: var(--nv); color: var(--y); font: italic 900 24px/1 var(--disp); }
+:is(#featured, #panel-games, #panel-friends) .tile-card::after, .dp-game::after { display: none !important; }
+:is(#featured, #panel-games, #panel-friends) .tile-card :is(.tile-done, .new-badge, .lock-note) { display: none; }
+.tile-card .limit-note { grid-column: 2; grid-row: 2; justify-self: start; margin: 0 0 8px 12px; color: #fff !important; background: var(--r); padding: 3px 7px; font: 800 11px/1 "Rubik", sans-serif !important; }
 #hub .tile-card[hidden] { display: none !important; }
-#panel-games .tile-card, #panel-friends .tile-card { grid-column: auto !important; }
-#panel-games .tile-card::before, #panel-friends .tile-card::before { display: none !important; }
-#panel-games .cat-lead { display: none; }
-#panel-games .cat + .cat:not([hidden]) { margin-top: 10px; }
-.tile-card .limit-note { color: var(--ink-d) !important; background: rgba(0,0,0,.12); padding: 3px 8px; border-radius: 99px; font-size: 11px !important; font-weight: 800 !important; }
-.toast { background: var(--lime) !important; color: var(--ink-d) !important; font-weight: 800 !important; box-shadow: 0 4px 0 var(--lime-d) !important; }
-/* мало игр — вкладка «Игры» одной сеткой без разделов */
-#panel-games.compact:not([hidden]) { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start; }
-#panel-games.compact > *:not(.cat) { grid-column: 1 / -1; }
+.tile-card.is-soon { opacity: .5; }
+#featured .tile-card:last-child:nth-child(odd) { grid-column: auto; }
+
+/* вкладка «Игры», когда игр мало: одной колонкой, без разделов */
+#panel-games.compact:not([hidden]) { display: grid; grid-template-columns: 1fr; gap: 8px; align-content: start; }
 #panel-games.compact .cat, #panel-games.compact .cat .tiles { display: contents !important; }
 #panel-games.compact .cat > :not(.tiles):not(.tile-card):not(.auction-hero) { display: none; }
-#panel-games.compact .auction-hero { grid-column: 1 / -1; }
-.auction-hero { background: #ff7a2f !important; color: var(--ink-d) !important; box-shadow: 0 6px 0 #8a3a10 !important; border-radius: 22px !important; }
-.auction-hero * { color: var(--ink-d); }
-.auction-hero h2, .auction-hero b:not(.tag *) { font-family: var(--disp) !important; }
-.auction-hero .btn { background: var(--ink-d) !important; color: #fff !important; box-shadow: 0 4px 0 #5a2408 !important; }
-.auction-hero .btn.ghost { background: rgba(0,0,0,.15) !important; color: var(--ink-d) !important; }
-.auction-hero .limit-note, .auction-hero small { color: var(--ink-d) !important; font-weight: 800; }
-.auction-hero .btn.sasha { background: rgba(0,0,0,.15) !important; color: var(--ink-d) !important; box-shadow: none !important; }
-.auction-hero .tag { background: var(--ink-d) !important; color: #fff !important; }
-#featured .tile-card, #panel-games .tile-card, #panel-friends .tile-card { align-items: flex-start !important; text-align: left !important; }
-#featured .tile-card:last-child:nth-child(odd) { align-items: center !important; }
+#panel-games .tiles, #panel-friends > .tiles { display: grid !important; grid-template-columns: 1fr; gap: 8px; }
+#panel-games .cat-lead { display: none; }
+
+/* задания дня (Wordle и др.): такая же строка; готово — зелёная галочка в конце */
+.dly-progress { background: none !important; box-shadow: none !important; padding: 0 !important; margin-top: 10px; }
+.dp-row, .dp-row.few { display: grid !important; grid-template-columns: 1fr !important; gap: 8px !important; }
+.dp-game > b { grid-row: 1 / 3; align-self: center; padding: 0 8px 0 12px; }
+.dp-game > i { display: none !important; }
+.dp-row.few .dp-game::after { display: none !important; }
+.dp-game.ok::before { content: '✓'; background: #1f9d55; color: #fff; }
+.dp-game.ok { filter: saturate(.6); }
+
+/* новинка недели и «следующая игра» */
+.week-game { background: var(--y) !important; color: var(--nv) !important; border-radius: 0 !important; box-shadow: none !important; clip-path: var(--slant); }
+.week-game .wg-tag { background: var(--r) !important; color: #fff !important; border-radius: 0 !important; font-style: italic; font-weight: 900; }
+.week-game b { font: italic 900 20px/1.05 var(--disp) !important; color: var(--nv) !important; text-transform: uppercase; }
+.week-game small { color: var(--nv) !important; font-weight: 700 !important; }
+.week-game .tile-ico { background: var(--nv) !important; border-radius: 0 !important; box-shadow: none !important; }
+.unlock-next:not(:empty) { margin: 14px 0 4px !important; padding: 12px 14px; background: #17171d; border-left: 6px solid var(--r); color: #fff !important;
+  font: 700 14px/1.35 "Rubik", sans-serif !important; text-align: left; }
+.unlock-next b { color: var(--y); font-style: italic; }
+
+/* аукцион и дуэль — те же плашки покрупнее */
+.auction-hero, .duel-hero, .friends-teaser { background: linear-gradient(120deg, #1b3fb0, var(--nv)) !important; color: #fff !important; border-radius: 6px !important;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.18) !important; }
+.duel-hero::before, .friends-teaser::before { display: none !important; }
+.auction-hero > b, .dh-top b { display: inline-block; background: #fff; color: var(--nv) !important; font: italic 900 22px/1 var(--disp) !important; text-transform: uppercase;
+  padding: 8px 22px 8px 12px; clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%); }
+.auction-hero .tag { border-radius: 0 !important; font-style: italic; font-weight: 900; }
+.auction-hero .tag-danil { background: var(--y) !important; color: var(--nv) !important; } .auction-hero .tag-sasha { background: #fff !important; color: var(--nv) !important; }
+.auction-hero small, .dh-top small { color: #cfd6f2 !important; }
+.auction-hero .limit-note { color: var(--y) !important; }
+.auction-hero .btn.sasha, .dh-modes button { background: rgba(255,255,255,.12) !important; color: #fff !important; box-shadow: none !important; border-radius: 0 !important; clip-path: var(--slant); }
+.dh-modes button * { color: #fff; }
+.dh-ico.tile-ico { background: var(--r) !important; border-radius: 0 !important; box-shadow: none !important; }
+
+/* выбор раздела, вкладки рейтинга */
+.cat-nav button, .bd-tabs button { border-radius: 0 !important; font-style: italic; font-weight: 900; text-transform: uppercase; }
+.cat-nav button.on, .bd-tabs button.on { background: var(--y) !important; color: var(--nv) !important; clip-path: var(--slant); }
+
+/* нижнее меню */
+.tabbar { background: #0b0b0f !important; box-shadow: 0 -2px 0 var(--r) !important; }
+.tab { color: #8a8a96 !important; font: italic 900 11px/1 var(--disp) !important; text-transform: uppercase; border-radius: 0 !important; }
+.tab.on { background: #fff !important; color: var(--r) !important; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.tab.on span svg { color: var(--r) !important; }
+.toast { background: #fff !important; color: var(--nv) !important; border-radius: 0 !important; border-left: 6px solid var(--y); font-weight: 800 !important; }
+
+/* ---------- экраны игр ---------- */
+:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt):not(.tb-fut) { background: #fff !important; color: var(--nv) !important; box-shadow: none !important; border-radius: 0 !important;
+  clip-path: var(--slant); font-weight: 900 !important; }
+:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt):not(.tb-fut) small { color: #59627f !important; }
+:is(.ng-opt, .nat-opt, .opt, .du-opt).right { background: #22c55e !important; color: #fff !important; box-shadow: none !important; }
+:is(.ng-opt, .nat-opt, .opt, .du-opt).wrong { background: var(--r) !important; color: #fff !important; box-shadow: none !important; }
+.ng-res h2, .du-res, .ng-res-big, .du-end-big { font-family: var(--disp) !important; font-style: italic; }
+.ng-res h2 { display: inline-block; background: #fff; color: var(--nv); padding: 6px 20px 6px 12px; clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
+.modal-card { border-radius: 8px !important; border-top: 5px solid var(--y); }
+.guess-input input, .ng-input input, .nick-input { border-radius: 0 !important; }
+
+/* ---------- профиль ---------- */
+.pf-card { position: relative; display: grid; grid-template-columns: 76px 1fr; gap: 0 12px; align-items: end; margin: 6px 0 12px; padding: 14px 0 14px 14px;
+  border-radius: 6px; background: linear-gradient(120deg, #1b3fb0, var(--nv)); box-shadow: inset 0 0 0 2px rgba(255,255,255,.18); }
+.pf-card #prof-badge { width: 76px; height: 76px; margin: 0; border-radius: 0 !important; display: grid; place-content: center; font: italic 900 38px var(--disp) !important;
+  background: var(--y) !important; color: var(--nv) !important; box-shadow: none !important; }
+.pf-main { min-width: 0; display: grid; justify-items: start; }
+#prof-nick { justify-self: stretch; background: #fff; color: var(--nv); font: italic 900 22px/1 var(--disp); text-transform: uppercase; padding: 8px 40px 8px 12px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 14px) 100%, 0 100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-rank { display: flex; flex-wrap: wrap; align-items: center; margin-top: 6px; gap: 0; }
+#prof-rank { background: var(--r); color: #fff !important; font: italic 900 12px/1 var(--disp); padding: 5px 8px; text-transform: uppercase; }
+#prof-next { font-size: 12px; font-weight: 700; color: #cfd6f2 !important; padding: 0 8px; }
+.pf-card .xpbar { display: block; justify-self: stretch; margin: 8px 14px 0 0; height: 8px; background: rgba(255,255,255,.15); border-radius: 0; overflow: hidden; }
+.pf-card .xpbar i { display: block; height: 100%; background: var(--y) !important; }
+.pf-edit { position: absolute; top: 18px; right: 22px; width: 30px; height: 30px; border: 0; background: var(--nv); color: var(--y); font-size: 15px; font-weight: 900; z-index: 1; }
+.pf-stats { display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 6px !important; margin: 0 0 14px; }
+.pf-stats .stat { padding: 10px 4px !important; border-radius: 0 !important; background: #17171d !important; border-top: 3px solid var(--y); text-align: center; display: grid; gap: 4px; }
+.pf-stats .stat b { font: italic 900 20px/1 var(--disp); color: #fff; }
+.pf-stats .stat span { font-size: 11px; font-weight: 700; line-height: 1.15; color: #a9a9b6; }
+.pf-grid { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 18px; }
+.pf-grid button { display: grid; grid-template-columns: 58px 1fr auto 44px; align-items: center; min-height: 58px; padding: 0; border: 0; border-radius: 0; text-align: left; cursor: pointer;
+  background: #fff; color: var(--nv); clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%); }
+.pf-grid button::after { content: '›'; grid-column: 4; align-self: stretch; display: grid; place-items: center; padding-right: 8px; background: var(--nv); color: var(--y); font: italic 900 24px/1 var(--disp); }
+.pf-grid button:active { transform: translateX(3px); }
+.pf-grid span { align-self: stretch; background: var(--k); color: #fff; display: grid; place-content: center; }
+.pf-grid span svg { width: 28px; height: 28px; filter: drop-shadow(1px 1px 0 rgba(0,0,0,.3)); }
+.pf-grid b { padding-left: 12px; font: italic 900 17px/1 var(--disp); text-transform: uppercase; }
+.pf-grid small { padding: 0 10px; font: 800 13px "Rubik", sans-serif; color: #59627f; }
+.pf-b1 { --k: #e9a400; } .pf-b2 { --k: #2a6cdb; } .pf-b3 { --k: #e0478a; } .pf-b4 { --k: #e0612a; }
+.settings { display: grid; gap: 6px; }
+.set-row { background: #17171d !important; border-radius: 0 !important; padding: 15px 16px !important; font-weight: 800; font-size: 15px; border-left: 4px solid #2c2c36; }
+.set-row b { color: var(--y); }
+
+/* ---------- достижения ---------- */
+#achievements .achs { display: grid; gap: 6px; }
+.ach { background: #17171d !important; border-radius: 0 !important; padding: 12px 14px !important; border-left: 4px solid #2c2c36; }
+.ach.ok { background: #fff !important; color: var(--nv) !important; border-left-color: var(--y); clip-path: var(--slant); }
+.ach.ok small { color: #59627f !important; }
+.ach b { font: italic 900 15px/1.1 var(--disp); text-transform: uppercase; }
+.ach small { font-size: 13px !important; color: #a9a9b6; }
+.ach i { font-style: normal; font-size: 20px; color: var(--y); }
+
+/* ---------- рейтинг ---------- */
+.bd-row { border-radius: 0 !important; }
+.bd-row.me { background: var(--y) !important; color: var(--nv) !important; }
+.bd-row.me * { color: var(--nv) !important; }
+.bd-you b { color: var(--y); }
+.ava-s { width: 36px; height: 36px; flex: none; } .ava-s b { font-size: 13px; }
+.dp-game, #featured .tile-card, #panel-games .tile-card, #panel-friends .tile-card { justify-items: stretch !important; }
+.dp-game > b { justify-self: start; text-align: left !important; font-size: 16.5px !important; }
+.dp-game .tile-ico svg, :is(#featured, #panel-games, #panel-friends) .tile-card .tile-ico svg { position: static !important; inset: auto !important; width: 40px !important; height: 40px !important; margin: auto; }
