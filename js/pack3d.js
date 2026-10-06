@@ -50,7 +50,8 @@ const Pack3D = (() => {
     g.restore();
   }
 
-  function frontTex(W, H) {
+  function frontTex(W, H, th) {
+    if (th && th !== 'purple') return themed(W, H, th);
     const c = cv(W, H), g = c.getContext('2d');
     const bg = g.createLinearGradient(0, 0, W, H);
     bg.addColorStop(0, '#2a1470'); bg.addColorStop(0.3, '#6b3cff'); bg.addColorStop(0.42, '#c9a8ff'); bg.addColorStop(0.55, '#5a2ee0'); bg.addColorStop(0.8, '#2a1470'); bg.addColorStop(1, '#170a45');
@@ -82,6 +83,78 @@ const Pack3D = (() => {
     for (let x = 0; x < W; x += 16) { g.fillRect(x, 0, 8, H * 0.025); g.fillRect(x, H * 0.975, 8, H * 0.025); }
     return c;
   }
+  // ---------- другие варианты оформления пака ----------
+  // слово с «уезжающими» буквами, как на аватарке канала
+  function smearWord(g, solid, smear, x, y, size, col) {
+    g.save(); g.font = `900 ${size}px Inter, Rubik, sans-serif`; g.textBaseline = 'middle'; g.textAlign = 'left'; g.fillStyle = col;
+    const w1 = g.measureText(solid).width, w2 = g.measureText(smear).width, x0 = x - (w1 + w2) / 2;
+    g.fillText(solid, x0, y);
+    for (let i = 0; i < 18; i++) { g.globalAlpha = 0.16 * (1 - i / 18); g.filter = `blur(${1 + i * 0.5}px)`; g.fillText(smear, x0 + w1 + i * size * 0.035, y); }
+    g.restore();
+  }
+  function band(g, W, H, y, h, c1, c2, txt, tc) {
+    const gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, c1); gr.addColorStop(0.35, c2); gr.addColorStop(0.65, c2); gr.addColorStop(1, c1);
+    g.fillStyle = gr; g.fillRect(0, y, W, h); g.fillStyle = tc; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.font = `700 ${h * 0.42}px Oswald, Rubik, sans-serif`; g.fillText(txt, W / 2, y + h * 0.42); g.font = `${h * 0.2}px sans-serif`; g.fillText('★ ★ ★', W / 2, y + h * 0.8);
+  }
+  function crimp(g, W, H, col) { g.fillStyle = col; for (let x = 0; x < W; x += 16) { g.fillRect(x, 0, 8, H * 0.025); g.fillRect(x, H * 0.975, 8, H * 0.025); } }
+  function ball(g, x, y, r, line, fill) {
+    g.save(); g.fillStyle = fill; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); g.clip();
+    g.fillStyle = line; hex(g, x, y, r * 0.36); g.fill();
+    for (let i = 0; i < 5; i++) { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5; hex(g, x + Math.cos(a) * r * 0.95, y + Math.sin(a) * r * 0.95, r * 0.34); g.fill();
+      g.strokeStyle = line; g.lineWidth = r * 0.05; g.beginPath(); g.moveTo(x + Math.cos(a) * r * 0.32, y + Math.sin(a) * r * 0.32); g.lineTo(x + Math.cos(a) * r * 0.65, y + Math.sin(a) * r * 0.65); g.stroke(); }
+    g.restore(); g.strokeStyle = line; g.lineWidth = r * 0.05; g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke();
+  }
+  function themed(W, H, th) {
+    const c = cv(W, H), g = c.getContext('2d'), cx = W / 2;
+    if (th === 'mono') { // чёрный матовый с логотипом как на аватарке
+      g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, W, H);
+      g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 2; g.font = `900 ${W * 0.2}px Inter, Rubik, sans-serif`; g.textAlign = 'left';
+      for (let r = 0; r < 9; r++) g.strokeText('ДЖЕКСОНЫ', -W * 0.3 * (r % 2), H * 0.08 + r * H * 0.12);
+      g.fillStyle = '#0b0b0b'; g.fillRect(0, H * 0.33, W, H * 0.2);
+      smearWord(g, 'ДЖЕКСО', 'НЫ', cx - W * 0.03, H * 0.43, W * 0.115, '#fff');
+      g.fillStyle = 'rgba(255,255,255,.55)'; g.font = `700 ${W * 0.045}px Oswald, sans-serif`; g.textAlign = 'center'; g.fillText('С Т А Р И К И', cx, H * 0.34);
+      band(g, W, H, H * 0.74, H * 0.12, '#bdbdbd', '#ffffff', 'ПАК  ДНЯ', '#0b0b0b'); crimp(g, W, H, 'rgba(255,255,255,.2)');
+    } else if (th === 'toty') { // чёрный с золотом, как особые паки FC
+      const bg = g.createRadialGradient(cx, H * 0.4, 10, cx, H * 0.4, H * 0.8); bg.addColorStop(0, '#2a2a33'); bg.addColorStop(1, '#050507'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      g.strokeStyle = 'rgba(255,207,58,.22)'; g.lineWidth = 1.5;
+      for (let y = 0; y < H; y += 46) for (let x = (y / 46) % 2 ? 26 : 0; x < W + 30; x += 52) { hex(g, x, y, 24); g.stroke(); }
+      g.save(); g.translate(cx, H * 0.42); for (let i = 0; i < 4; i++) { g.rotate(Math.PI / 4); g.fillStyle = 'rgba(255,207,58,.12)'; g.fillRect(-W, -2, W * 2, 4); } g.restore();
+      star(g, cx, H * 0.42, W * 0.27, W * 0.11); const sg = g.createLinearGradient(cx - W * 0.27, H * 0.3, cx + W * 0.27, H * 0.55); sg.addColorStop(0, '#fff6c4'); sg.addColorStop(0.45, '#ffcf3a'); sg.addColorStop(0.8, '#a8761a'); sg.addColorStop(1, '#ffe27a'); g.fillStyle = sg; g.fill();
+      star(g, cx, H * 0.42, W * 0.2, W * 0.08); g.fillStyle = '#0b0b0f'; g.fill();
+      g.fillStyle = '#ffd34a'; g.font = `700 ${W * 0.12}px Oswald, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Д', cx, H * 0.425);
+      band(g, W, H, H * 0.74, H * 0.12, '#7a5200', '#ffe27a', 'ПАК  ДНЯ', '#0b0b0f'); crimp(g, W, H, 'rgba(255,207,58,.35)');
+    } else if (th === 'night') { // ночной стадион, как фон игры
+      const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#2a1a6e'); bg.addColorStop(0.6, '#120c33'); bg.addColorStop(1, '#0b0820'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      [[0.05, -0.02], [0.95, -0.02]].forEach(([px, py]) => { const lg = g.createRadialGradient(W * px, H * py, 0, W * px, H * py, W * 0.9); lg.addColorStop(0, 'rgba(255,240,200,.55)'); lg.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = lg; g.fillRect(0, 0, W, H); });
+      g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 3; g.strokeRect(W * 0.08, H * 0.08, W * 0.84, H * 0.84); g.beginPath(); g.moveTo(W * 0.08, H * 0.5); g.lineTo(W * 0.92, H * 0.5); g.stroke(); g.beginPath(); g.arc(cx, H * 0.5, W * 0.2, 0, 7); g.stroke();
+      hex(g, cx, H * 0.42, W * 0.22); const hg = g.createLinearGradient(0, H * 0.3, 0, H * 0.55); hg.addColorStop(0, '#3ee6a8'); hg.addColorStop(1, '#4fc3ff'); g.fillStyle = hg; g.fill();
+      g.shadowColor = '#3ee6a8'; g.shadowBlur = 40; hex(g, cx, H * 0.42, W * 0.18); g.fillStyle = '#0b0820'; g.fill(); g.shadowBlur = 0;
+      g.fillStyle = '#3ee6a8'; g.font = `700 ${W * 0.16}px Oswald, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Д', cx, H * 0.425);
+      band(g, W, H, H * 0.74, H * 0.12, '#2aa37a', '#7fffd4', 'ПАК  ДНЯ', '#0b0820'); crimp(g, W, H, 'rgba(255,255,255,.2)');
+    } else if (th === 'grass') { // газон с разметкой и мячом
+      for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? '#2a8548' : '#2f8f4e'; g.fillRect(0, (i * H) / 10, W, H / 10 + 1); }
+      g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 4; g.strokeRect(W * 0.08, H * 0.06, W * 0.84, H * 0.88);
+      g.beginPath(); g.moveTo(W * 0.08, H * 0.5); g.lineTo(W * 0.92, H * 0.5); g.stroke(); g.strokeRect(W * 0.28, H * 0.06, W * 0.44, H * 0.12);
+      ball(g, cx, H * 0.42, W * 0.2, '#111', '#fff');
+      band(g, W, H, H * 0.74, H * 0.12, '#a87400', '#ffe27a', 'ПАК  ДНЯ', '#0b3d1e'); crimp(g, W, H, 'rgba(255,255,255,.3)');
+    } else if (th === 'holo') { // голографическая фольга
+      const bg = g.createLinearGradient(0, 0, W, H); ['#ff9ad1', '#9ad8ff', '#c6ffb3', '#ffe89a', '#d1a8ff', '#9affea'].forEach((col, i, a) => bg.addColorStop(i / (a.length - 1), col)); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      g.globalAlpha = 0.3; for (let i = -H; i < W + H; i += 22) { g.fillStyle = (i / 22) % 2 ? '#fff' : '#b9a8ff'; g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 11, 0); g.lineTo(i + 11 - H * 0.7, H); g.lineTo(i - H * 0.7, H); g.fill(); } g.globalAlpha = 1;
+      smearWord(g, 'ДЖЕКСО', 'НЫ', cx - W * 0.03, H * 0.42, W * 0.115, '#111');
+      band(g, W, H, H * 0.74, H * 0.12, '#222', '#111', 'ПАК  ДНЯ', '#fff'); crimp(g, W, H, 'rgba(255,255,255,.5)');
+    } else if (th === 'red') { // красно-чёрный, как акцент меню
+      g.fillStyle = '#c8102e'; g.fillRect(0, 0, W, H);
+      g.fillStyle = '#0b0b0b'; g.beginPath(); g.moveTo(0, H * 0.62); g.lineTo(W, H * 0.3); g.lineTo(W, H); g.lineTo(0, H); g.fill();
+      g.fillStyle = 'rgba(0,0,0,.15)'; for (let i = 0; i < W; i += 10) g.fillRect(i, 0, 3, H);
+      ball(g, cx, H * 0.4, W * 0.19, '#0b0b0b', '#fff');
+      g.fillStyle = '#fff'; g.font = `900 ${W * 0.1}px Inter, Rubik, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ДЖЕКСОНЫ', cx, H * 0.66);
+      band(g, W, H, H * 0.76, H * 0.11, '#9a0c22', '#ff3b55', 'ПАК  ДНЯ', '#fff'); crimp(g, W, H, 'rgba(255,255,255,.25)');
+    }
+    return c;
+  }
+  const EDGE = { purple: 0xd9a400, mono: 0xc8c8c8, toty: 0xd9a400, night: 0x3ee6a8, grass: 0xd9a400, holo: 0xe6e6ff, red: 0x111111 };
+
   function backTex(W, H) {
     const c = cv(W, H), g = c.getContext('2d');
     const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#1a0d52'); bg.addColorStop(1, '#3a1c8a'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
@@ -109,7 +182,7 @@ const Pack3D = (() => {
 
   // ---------- сцена ----------
   // box — элемент, в который рисуем; prize — сколько монет внутри; onOpen — когда карточка показана
-  async function mount(box, prize, onOpen) {
+  async function mount(box, prize, onOpen, theme = 'purple') {
     await three();
     const T = window.THREE;
     const W = box.clientWidth || 340, H = box.clientHeight || 420;
@@ -126,9 +199,9 @@ const Pack3D = (() => {
 
     const tex = (c) => { const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 4; return t; };
     const PW = 1.5, PH = 2.2, PD = 0.12, CAP = 0.2; // доля высоты, которая отрывается
-    const front = tex(frontTex(512, 750)), back = tex(backTex(512, 750));
+    const front = tex(frontTex(512, 750, theme)), back = tex(backTex(512, 750));
     const foil = (map) => new T.MeshStandardMaterial({ map, metalness: 0.55, roughness: 0.28 });
-    const edge = new T.MeshStandardMaterial({ color: 0xd9a400, metalness: 0.9, roughness: 0.3 });
+    const edge = new T.MeshStandardMaterial({ color: EDGE[theme] || 0xd9a400, metalness: 0.9, roughness: 0.3 });
     // часть пака: кусок текстуры по высоте [v0..v1]
     function slab(v0, v1) {
       const h = PH * (v1 - v0), geo = new T.BoxGeometry(PW, h, PD);
