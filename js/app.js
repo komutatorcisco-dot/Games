@@ -338,7 +338,7 @@ const App = (() => {
     else if (PANELS.includes(where)) showPanel(where, false);
     else { showPanel(panel, false); if (scrollMem[panel]) window.scrollTo(0, scrollMem[panel]); }
     if (!Store.d.user.nick) later(() => User.ensure(), 250);
-    else { Track.maybeAsk(); claimDaily(); later(maybeSub, 1600); }
+    else { Track.maybeAsk(); claimDaily(); later(maybeSub, 1600); later(() => { if (Wheel.gift() && !Modal.isOpen && Screens.current === 'hub') Wheel.open(); }, 2600); }
   }
 
   // нажатие на вкладку внизу: на главной просто листаем панели

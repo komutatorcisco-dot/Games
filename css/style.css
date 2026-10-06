@@ -2620,3 +2620,7 @@ html, body { touch-action: manipulation; }
 .ng-res .sb .ng-res-stats span { background: rgba(255,255,255,.08) !important; border-radius: 0 !important; clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
 .ng-res .sb .reward { background: rgba(255,207,58,.16) !important; }
 .sb-led.long b { font-size: 50px !important; } .sb-led.long { gap: 8px; } .sb-led.long i { font-size: 32px; }
+/* 3D-пак дня */
+.pk3 { width: 100%; height: min(420px, 56vh); margin: 4px 0 8px; cursor: pointer; }
+.pk3 canvas { display: block; width: 100% !important; height: 100% !important; }
+.pk3 canvas { -webkit-mask-image: radial-gradient(closest-side, #000 72%, transparent 100%); mask-image: radial-gradient(closest-side, #000 72%, transparent 100%); }
