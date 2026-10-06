@@ -16,29 +16,18 @@ const Wheel = (() => {
   let scene = null;
   async function open() {
     if (!ready()) { toast('Пак уже открыт сегодня. Новый — завтра!'); return; }
+    if (scene) return;
     const isGift = gift();
-    if (scene) { scene.destroy(); scene = null; }
-    Modal.open(`<div class="pk-head"><h2>${isGift ? 'Подарок: пак дня' : 'Пак дня'}</h2><p id="pk3-hint">${isGift ? 'Каждому — по одному паку. ' : ''}Нажми на пак, чтобы открыть</p></div>
-      <div class="pk3" id="pk3"></div>`, []);
-    const box = $('#pk3'), btns = $('#modal-card .btns');
-    const btn = document.createElement('button'); btn.className = 'btn gold'; btn.textContent = 'Открыть пак'; btns.appendChild(btn);
-    const prize = roll();
-    let opened = false;
-    const go = () => {
-      if (opened || !scene) return; opened = true; btn.disabled = true; btn.textContent = 'Открываем…';
-      if (isGift) { (Store.d.ui || (Store.d.ui = {})).packGift = Date.now(); } else Store.d.lastWheel = today();
-      Store.save(); scene.open();
-    };
+    Modal.close();
     try {
-      scene = await Pack3D.mount(box, prize, () => {
-        if (prize >= 100) confetti();
-        Sound.play(prize >= 100 ? 'goal' : 'coin');
-        $('#pk3-hint').textContent = prize >= 100 ? 'Джекпот! Вот это занос' : 'Монеты твои';
-        btn.disabled = false; btn.textContent = `Забрать +${prize}`;
-        btn.onclick = () => { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(prize); if (scene) { scene.destroy(); scene = null; } Modal.close(); App.refresh(); };
-      }, 'mix2');
-    } catch (e) { scene = null; return openCards(); }
-    btn.onclick = go; box.addEventListener('click', go);
+      scene = await Pack3D.drop({
+        gift: isGift,
+        // пак считается открытым с первого нажатия — выйти и перезайти за другой редкостью нельзя
+        onStart: () => { if (isGift) (Store.d.ui || (Store.d.ui = {})).packGift = Date.now(); else Store.d.lastWheel = today(); Store.save(); },
+        onTake: (prize) => { scene = null; Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(prize); App.refresh(); },
+      });
+      const x = document.querySelector('.drop-x'); if (x) x.addEventListener('click', () => { scene = null; });
+    } catch (e) { scene = null; openCards(); }
   }
   // запасной вариант без 3D
   function openCards() {

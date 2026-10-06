@@ -2624,3 +2624,31 @@ html, body { touch-action: manipulation; }
 .pk3 { width: 100%; height: min(420px, 56vh); margin: 4px 0 8px; cursor: pointer; }
 .pk3 canvas { display: block; width: 100% !important; height: 100% !important; }
 .pk3 canvas { -webkit-mask-image: radial-gradient(closest-side, #000 72%, transparent 100%); mask-image: radial-gradient(closest-side, #000 72%, transparent 100%); }
+
+/* ===== пак дня на весь экран (как старр-дропы) ===== */
+.drop { position: fixed; inset: 0; z-index: 200; --rc: #3ee66b; touch-action: none; user-select: none; -webkit-user-select: none; opacity: 0; transition: opacity .25s; overflow: hidden; }
+.drop.in { opacity: 1; } .drop.out { opacity: 0; }
+.drop-bg { position: absolute; inset: 0; background: radial-gradient(70% 50% at 50% 48%, color-mix(in srgb, var(--rc) 55%, transparent), transparent 70%), radial-gradient(120% 90% at 50% 50%, #1a1146, #05030f 75%); transition: background .4s; }
+.drop.jackson .drop-bg { background: radial-gradient(70% 50% at 50% 48%, rgba(255,59,92,.6), transparent 70%), conic-gradient(from 0deg at 50% 48%, #ff2d55, #ff9a3d, #ffe14a, #3ee66b, #4fc3ff, #b14cff, #ff2d55); animation: dropSpin 6s linear infinite; }
+@keyframes dropSpin { to { filter: hue-rotate(360deg); } }
+.drop-stage { position: absolute; inset: 0; }
+.drop-stage canvas { display: block; }
+.drop-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 3; }
+.drop-flash.go { animation: dropFlash .45s ease-out; }
+@keyframes dropFlash { 0% { opacity: .85; } 100% { opacity: 0; } }
+.drop-top { position: absolute; left: 0; right: 0; top: max(56px, calc(env(safe-area-inset-top, 0px) + 50px), calc(var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, 0px) + 20px)); text-align: center; z-index: 2; pointer-events: none; }
+.drop-top small { display: block; font: 700 13px "Oswald", sans-serif; letter-spacing: .3em; color: rgba(255,255,255,.75); }
+.drop-rar { display: inline-block; margin-top: 6px; font: 700 44px/1 "Oswald", sans-serif; color: #fff; letter-spacing: .02em;
+  text-shadow: 0 0 24px var(--rc), 0 0 6px var(--rc), 0 4px 0 color-mix(in srgb, var(--rc) 50%, #000); }
+.drop-rar.slam { animation: dropSlam .5s cubic-bezier(.2,1.6,.4,1); }
+@keyframes dropSlam { 0% { transform: scale(2.4); opacity: 0; } 60% { transform: scale(.92); opacity: 1; } 100% { transform: scale(1); } }
+.drop.jackson .drop-rar { font-size: 58px; color: #fff; -webkit-text-stroke: 3px #111; paint-order: stroke fill; text-shadow: 0 0 30px #fff, 0 6px 0 #111; }
+.drop-steps { position: absolute; left: 0; right: 0; top: calc(max(56px, calc(env(safe-area-inset-top, 0px) + 50px)) + 78px); display: flex; justify-content: center; gap: 8px; z-index: 2; pointer-events: none; }
+.drop-steps i { width: 26px; height: 8px; border-radius: 9px; background: rgba(255,255,255,.18); transition: background .3s, box-shadow .3s; }
+.drop-steps i.on { background: var(--c); box-shadow: 0 0 10px var(--c); }
+.drop-hint { position: absolute; left: 0; right: 0; bottom: calc(110px + env(safe-area-inset-bottom, 0px)); text-align: center; z-index: 2; pointer-events: none;
+  font: 900 20px "Rubik", sans-serif; color: #fff; animation: dropHint 1.2s ease-in-out infinite; }
+@keyframes dropHint { 50% { transform: scale(1.08); opacity: .7; } }
+.drop-take { position: absolute !important; left: 24px; right: 24px; bottom: calc(34px + env(safe-area-inset-bottom, 0px)); z-index: 4; font-size: 20px !important; padding: 18px !important; }
+.drop-x { position: absolute; right: 16px; top: max(16px, calc(var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, 0px) + 8px)); z-index: 4; width: 40px; height: 40px; border: 0; border-radius: 50%; background: rgba(255,255,255,.12); color: #fff; font-size: 18px; }
+.drop-x[hidden] { display: none; }

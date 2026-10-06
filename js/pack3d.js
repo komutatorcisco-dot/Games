@@ -326,5 +326,180 @@ const Pack3D = (() => {
     };
   }
 
-  return { mount, coin };
+
+  // =====================================================================
+  // Открытие на весь экран, как старр-дропы в Brawl Stars: каждое нажатие может поднять редкость,
+  // последнее нажатие открывает пак. Редкость решается заранее (по весам), нажатия только раскрывают её.
+  const RAR = [
+    { k: 'rare', name: 'РЕДКИЙ', col: 0x3ee66b, css: '#3ee66b', w: 55, prize: [10, 20] },
+    { k: 'super', name: 'СВЕРХРЕДКИЙ', col: 0x3fa9ff, css: '#4fc3ff', w: 25, prize: [25, 40] },
+    { k: 'epic', name: 'ЭПИЧЕСКИЙ', col: 0xb14cff, css: '#c27bff', w: 13, prize: [50, 80] },
+    { k: 'legend', name: 'ЛЕГЕНДАРНЫЙ', col: 0xffc21a, css: '#ffcf3a', w: 5.5, prize: [100, 150] },
+    { k: 'jackson', name: 'ДЖЕКСОН!!', col: 0xff2d55, css: '#ff3b5c', w: 1.5, prize: [300, 300] },
+  ];
+  function rollRarity() { let r = Math.random() * RAR.reduce((a, x) => a + x.w, 0), i = 0; while ((r -= RAR[i].w) > 0 && i < RAR.length - 1) i++; return i; }
+
+  function dropCard(lv, prize) {
+    const R = RAR[lv], W = 512, H = 720, c = cv(W, H), g = c.getContext('2d');
+    const shield = (inset) => { g.beginPath(); g.moveTo(W / 2, inset); g.lineTo(W - inset, H * 0.07 + inset * 0.5); g.lineTo(W - inset, H * 0.88 - inset * 0.3); g.lineTo(W / 2, H - inset); g.lineTo(inset, H * 0.88 - inset * 0.3); g.lineTo(inset, H * 0.07 + inset * 0.5); g.closePath(); };
+    shield(0);
+    const bg = g.createLinearGradient(0, 0, W, H);
+    if (R.k === 'jackson') { ['#ff2d55', '#ff9a3d', '#ffe14a', '#3ee66b', '#4fc3ff', '#b14cff', '#ff2d55'].forEach((col, i, a) => bg.addColorStop(i / (a.length - 1), col)); }
+    else { bg.addColorStop(0, '#ffffff'); bg.addColorStop(0.25, R.css); bg.addColorStop(0.8, '#120a35'); bg.addColorStop(1, R.css); }
+    g.fillStyle = bg; g.fill();
+    g.save(); shield(0); g.clip(); g.globalAlpha = 0.14; g.fillStyle = '#fff'; for (let i = -H; i < W + H; i += 34) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 16, 0); g.lineTo(i + 16 - H, H); g.lineTo(i - H, H); g.fill(); } g.restore();
+    shield(16); g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 6; g.stroke();
+    g.textAlign = 'center'; g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 10;
+    g.font = `700 ${R.name.length > 9 ? 40 : 50}px Oswald, Rubik, sans-serif`; g.fillText(R.name, W / 2, 125);
+    g.shadowBlur = 0; coin(g, W / 2, 310, 130);
+    g.shadowBlur = 14; g.font = '700 150px Oswald, Rubik, sans-serif'; g.fillText(`+${prize}`, W / 2, 570);
+    g.font = '700 34px Oswald, Rubik, sans-serif'; g.fillText('М О Н Е Т', W / 2, 622);
+    return c;
+  }
+
+  // gift — подпись «Подарок»; onTake(prize) — нажали «Забрать»
+  async function drop({ gift = false, onStart, onTake } = {}) {
+    await three();
+    const T = window.THREE;
+    const final = rollRarity(), R0 = RAR[final], prize = R0.prize[0] + Math.round(Math.random() * (R0.prize[1] - R0.prize[0]) / 5) * 5;
+    const el = document.createElement('div'); el.className = 'drop';
+    el.innerHTML = `<div class="drop-bg"></div><div class="drop-flash"></div><div class="drop-stage"></div>
+      <div class="drop-top"><small>${gift ? 'ПОДАРОК · ПАК ДНЯ' : 'ПАК ДНЯ'}</small><b class="drop-rar">${RAR[0].name}</b></div>
+      <div class="drop-steps">${RAR.map((r, i) => `<i style="--c:${r.css}" class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>
+      <p class="drop-hint">Жми на пак!</p><button class="drop-x" aria-label="Закрыть">✕</button><button class="btn gold drop-take" hidden></button>`;
+    document.body.appendChild(el);
+    const setCol = (lv) => { el.style.setProperty('--rc', RAR[lv].css); el.classList.toggle('jackson', RAR[lv].k === 'jackson'); };
+    setCol(0);
+    const stage = $('.drop-stage', el);
+    const renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    const size = () => { renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); };
+    renderer.outputEncoding = T.sRGBEncoding; stage.appendChild(renderer.domElement);
+    const scene = new T.Scene(), cam = new T.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 60);
+    cam.position.set(0, 0.15, 9.5); size(); addEventListener('resize', size);
+    scene.add(new T.AmbientLight(0xffffff, 0.6));
+    const key = new T.DirectionalLight(0xffffff, 0.85); key.position.set(2, 3, 5); scene.add(key);
+    const tint = new T.PointLight(RAR[0].col, 2.2, 14); tint.position.set(0, 0, 3); scene.add(tint);
+
+    const tex = (c) => { const t = new T.CanvasTexture(c); t.encoding = T.sRGBEncoding; t.anisotropy = 4; return t; };
+    const PW = 1.7, PH = 2.5, PD = 0.14, CAP = 0.2;
+    const front = tex(frontTex(512, 750, 'mix2')), back = tex(backTex(512, 750));
+    const edge = new T.MeshStandardMaterial({ color: RAR[0].col, emissive: RAR[0].col, emissiveIntensity: 0.45, metalness: 0.8, roughness: 0.3 });
+    function slab(v0, v1) {
+      const geo = new T.BoxGeometry(PW, PH * (v1 - v0), PD);
+      const fm = new T.MeshStandardMaterial({ map: front.clone(), metalness: 0.5, roughness: 0.3 }), bm = new T.MeshStandardMaterial({ map: back.clone(), metalness: 0.5, roughness: 0.3 });
+      [fm.map, bm.map].forEach((m) => { m.needsUpdate = true; m.repeat.set(1, v1 - v0); m.offset.set(0, v0); });
+      const m = new T.Mesh(geo, [edge, edge, edge, edge, fm, bm]); m.position.y = -PH / 2 + PH * (v0 + v1) / 2; return m;
+    }
+    const pack = new T.Group(), body = slab(0, 1 - CAP), cap = slab(1 - CAP, 1); pack.add(body, cap); scene.add(pack);
+
+    // свечение и лучи за паком — цвет редкости
+    const glowC = cv(256, 256), gg = glowC.getContext('2d'), grd = gg.createRadialGradient(128, 128, 0, 128, 128, 128); grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.35, 'rgba(255,255,255,.45)'); grd.addColorStop(1, 'rgba(255,255,255,0)'); gg.fillStyle = grd; gg.fillRect(0, 0, 256, 256);
+    const glow = new T.Mesh(new T.PlaneGeometry(7, 7), new T.MeshBasicMaterial({ map: tex(glowC), color: RAR[0].col, transparent: true, opacity: 0.75, depthWrite: false, blending: T.AdditiveBlending }));
+    glow.position.z = -1.2; scene.add(glow);
+    const rc = cv(512, 512), rg = rc.getContext('2d'); rg.translate(256, 256);
+    for (let i = 0; i < 18; i++) { rg.rotate((Math.PI * 2) / 18); const lg = rg.createLinearGradient(0, 0, 256, 0); lg.addColorStop(0, 'rgba(255,255,255,.95)'); lg.addColorStop(1, 'rgba(255,255,255,0)'); rg.fillStyle = lg; rg.beginPath(); rg.moveTo(0, 0); rg.lineTo(256, -22); rg.lineTo(256, 22); rg.fill(); }
+    const rays = new T.Mesh(new T.PlaneGeometry(14, 14), new T.MeshBasicMaterial({ map: tex(rc), color: RAR[0].col, transparent: true, opacity: 0.35, depthWrite: false, blending: T.AdditiveBlending }));
+    rays.position.z = -1.5; scene.add(rays);
+
+    // искры
+    const N = 220, pos = new Float32Array(N * 3), vel = Array.from({ length: N }, () => new T.Vector3()), life = new Float32Array(N);
+    const pg = new T.BufferGeometry(); pg.setAttribute('position', new T.BufferAttribute(pos, 3));
+    const sc = cv(64, 64), sg = sc.getContext('2d'), sgr = sg.createRadialGradient(32, 32, 0, 32, 32, 32); sgr.addColorStop(0, '#fff'); sgr.addColorStop(0.35, 'rgba(255,255,255,.8)'); sgr.addColorStop(1, 'rgba(255,255,255,0)'); sg.fillStyle = sgr; sg.fillRect(0, 0, 64, 64);
+    const pm = new T.PointsMaterial({ size: 0.2, map: tex(sc), color: RAR[0].col, transparent: true, depthWrite: false, blending: T.AdditiveBlending });
+    const sparks = new T.Points(pg, pm); scene.add(sparks);
+    for (let i = 0; i < N; i++) pos[i * 3 + 2] = -50;
+    function burst(n, y = 0, power = 1) {
+      let k = 0;
+      for (let i = 0; i < N && k < n; i++) { if (life[i] > 0) continue; k++;
+        pos[i * 3] = (Math.random() - 0.5) * 0.6; pos[i * 3 + 1] = y + (Math.random() - 0.5) * 0.6; pos[i * 3 + 2] = 0.3;
+        const a = Math.random() * Math.PI * 2, sp = (2 + Math.random() * 5) * power; vel[i].set(Math.cos(a) * sp, Math.sin(a) * sp + 1.5, (Math.random() - 0.3) * 3); life[i] = 1 + Math.random() * 0.6; }
+    }
+
+    let card = null, started = false;
+    let level = 0, busy = false, phase = 'idle', t0 = performance.now(), last = t0, raf = 0, alive = true, hop = 0, hopT = 0;
+    const colNow = new T.Color(RAR[0].col), colTo = new T.Color(RAR[0].col);
+    const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
+    const back3 = (x) => { x = Math.min(1, Math.max(0, x)); const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+    const flash = () => { const f = $('.drop-flash', el); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); };
+
+    function upgrade() {
+      level++; colTo.setHex(RAR[level].col); setCol(level); flash();
+      const lab = $('.drop-rar', el); lab.textContent = RAR[level].name; lab.classList.remove('slam'); void lab.offsetWidth; lab.classList.add('slam');
+      $$('.drop-steps i', el).forEach((s, i) => s.classList.toggle('on', i <= level));
+      burst(60 + level * 25, 0, 1 + level * 0.25);
+      Sound.play(RAR[level].k === 'jackson' ? 'whistle' : level >= 3 ? 'goal' : 'coin'); haptic(level >= 3 ? 'ok' : 'pop');
+      if (RAR[level].k === 'jackson' && typeof confetti === 'function') confetti();
+    }
+    function tap() {
+      if (busy || phase !== 'idle') return;
+      if (!started) { started = true; $('.drop-x', el).hidden = true; onStart && onStart(); }
+      busy = true; hop = 1; hopT = performance.now();
+      Sound.play('kick'); haptic('tap');
+      if (level < final) { setTimeout(() => { upgrade(); }, 260); setTimeout(() => { busy = false; }, 650); }
+      else { $('.drop-hint', el).textContent = ''; setTimeout(() => { phase = 'shake'; t0 = performance.now(); }, 280); }
+    }
+    el.addEventListener('pointerdown', (e) => { if (!e.target.closest('.drop-take, .drop-x')) tap(); });
+    $('.drop-x', el).addEventListener('click', () => { if (!started) close(); });
+
+    function frame(now) {
+      if (!alive) return;
+      const t = (now - t0) / 1000, dt = Math.min(0.05, (now - last) / 1000); last = now;
+      colNow.lerp(colTo, Math.min(1, dt * 8));
+      edge.color.copy(colNow); edge.emissive.copy(colNow); glow.material.color.copy(colNow); rays.material.color.copy(colNow); pm.color.copy(colNow); tint.color.copy(colNow);
+      rays.rotation.z += dt * (0.2 + level * 0.12);
+      const pulse = 1 + Math.sin(now / 1000 * 3) * 0.04; glow.scale.setScalar(pulse * (1 + level * 0.12)); rays.material.opacity = 0.28 + level * 0.07;
+      // прыжок при нажатии: присел, подпрыгнул с оборотом
+      let hy = 0, sy = 1, spin = 0;
+      if (hop) { const k = (now - hopT) / 600; if (k >= 1) hop = 0; else { sy = k < 0.2 ? 1 - Math.sin((k / 0.2) * Math.PI) * 0.18 : 1; hy = k > 0.15 ? Math.sin(((k - 0.15) / 0.85) * Math.PI) * 0.8 : 0; spin = k > 0.15 ? ease((k - 0.15) / 0.85) * Math.PI * 2 : 0; } }
+      if (phase === 'idle') {
+        pack.position.y = Math.sin(now / 1000 * 1.6) * 0.1 + hy; pack.scale.set(1 + (1 - sy) * 0.5, sy, 1);
+        pack.rotation.y = Math.sin(now / 1000 * 1.1) * 0.35 + spin; pack.rotation.x = Math.sin(now / 1000 * 0.8) * 0.06;
+      } else if (phase === 'shake') {
+        const k = t / 0.9; pack.scale.set(1, 1, 1);
+        pack.rotation.set(0, Math.sin(t * 50) * 0.05, Math.sin(t * 70) * 0.07 * k); pack.position.set(Math.sin(t * 90) * 0.04 * k, 0, 0);
+        tint.intensity = 2.2 + k * 3; glow.scale.setScalar((1 + level * 0.12) * (1 + k * 0.6));
+        if (k >= 1) {
+          phase = 'tear'; t0 = now; pack.rotation.set(0, 0, 0); pack.position.set(0, 0, 0); flash(); burst(160, PH / 2 - 0.3, 1.4);
+          card = new T.Mesh(new T.PlaneGeometry(1.45, 2.04), new T.MeshStandardMaterial({ map: tex(dropCard(final, prize)), transparent: true, metalness: 0.25, roughness: 0.4, side: T.DoubleSide, emissive: 0xffffff, emissiveIntensity: 0.08 }));
+          card.position.set(0, -0.1, 0); scene.add(card); Sound.play('kick'); haptic('ok');
+        }
+      } else if (phase === 'tear') {
+        const k = t / 0.9;
+        cap.position.y = PH / 2 - PH * CAP / 2 + ease(k) * 4; cap.position.x = ease(k) * 2; cap.rotation.z = -ease(k) * 1.4; cap.rotation.x = ease(k);
+        card.position.y = -0.1 + ease(k) * 1.4;
+        if (k >= 1) { phase = 'reveal'; t0 = now; }
+      } else if (phase === 'reveal') {
+        const k = t / 1.0;
+        pack.position.y = -ease(k) * 6; pack.rotation.x = ease(k) * 0.7;
+        card.position.set(0, 1.3 - back3(k) * 1.2, back3(k) * 2.6); card.rotation.y = (1 - ease(k)) * Math.PI * 2;
+        if (k >= 1) {
+          phase = 'done'; t0 = now; burst(120, 0.3, 1.2); flash();
+          Sound.play(final >= 3 ? 'goal' : 'coin');
+          const b = $('.drop-take', el); b.textContent = `Забрать +${prize}`; b.hidden = false;
+        }
+      } else if (phase === 'done') {
+        card.rotation.y = Math.sin(t * 1.3) * 0.2; card.position.y = 0.1 + Math.sin(t * 1.9) * 0.05; tint.intensity = 2.5;
+      }
+      for (let i = 0; i < N; i++) {
+        if (life[i] <= 0) continue; life[i] -= dt;
+        vel[i].y -= 5 * dt; pos[i * 3] += vel[i].x * dt; pos[i * 3 + 1] += vel[i].y * dt; pos[i * 3 + 2] += vel[i].z * dt;
+        if (life[i] <= 0) pos[i * 3 + 2] = -50;
+      }
+      pg.attributes.position.needsUpdate = true;
+      renderer.render(scene, cam);
+      raf = requestAnimationFrame(frame);
+    }
+    raf = requestAnimationFrame(frame);
+    requestAnimationFrame(() => el.classList.add('in'));
+
+    function close() {
+      alive = false; cancelAnimationFrame(raf); removeEventListener('resize', size);
+      el.classList.add('out'); setTimeout(() => { renderer.dispose(); el.remove(); }, 280);
+    }
+    $('.drop-take', el).addEventListener('click', () => { close(); onTake && onTake(prize, RAR[final]); });
+    return { close, prize, rarity: RAR[final] };
+  }
+
+  return { mount, coin, drop, RAR };
 })();
