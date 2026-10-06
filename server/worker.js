@@ -73,7 +73,7 @@ export async function verifyInit(initData, token, maxAgeSec = 7 * 86400) {
   const sig = [...new Uint8Array(await hmac(secret, check))].map((b) => b.toString(16).padStart(2, '0')).join('');
   if (sig !== hash) return null;
   if (Date.now() / 1000 - Number(p.get('auth_date') || 0) > maxAgeSec) return null;
-  try { const u = JSON.parse(p.get('user')); return u && u.id ? u : null; } catch (e) { return null; }
+  try { const u = JSON.parse(p.get('user')); if (u && u.id) u.start_param = p.get('start_param') || ''; return u && u.id ? u : null; } catch (e) { return null; }
 }
 
 // ---------- база ----------
@@ -95,6 +95,8 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS bot (chat INTEGER PRIMARY KEY, started INTEGER NOT NULL, blocked INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE TABLE IF NOT EXISTS names (game TEXT PRIMARY KEY, title TEXT)'),
     db.prepare('CREATE INDEX IF NOT EXISTS weekly_xp ON weekly (week, xp)'),
+    // друзья: кто пришёл по чьей ссылке ?startapp=ref_<id> — связь в обе стороны
+    db.prepare('CREATE TABLE IF NOT EXISTS friends (a INTEGER NOT NULL, b INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (a, b))'),
   ]);
   ready = true;
 }
@@ -161,6 +163,15 @@ async function top(env, user, scope) {
       const above = (await db.prepare('SELECT COUNT(*) AS n FROM daily WHERE day = ? AND won = 1 AND (tries < ? OR (tries = ? AND ts < ?))').bind(day, mine.tries, mine.tries, mine.ts).first()).n;
       me = { place: above + 1, score: mine.tries };
     }
+  } else if (scope === 'friends') {
+    // ты и твои друзья: очки за эту неделю (у кого ещё нет очков — 0)
+    const wk = weekKey(now);
+    rows = (await db.prepare(`SELECT u.id, u.nick, u.emoji, COALESCE(MAX(w.xp - w.start, 0), 0) AS score FROM users u
+      LEFT JOIN weekly w ON w.id = u.id AND w.week = ?1
+      WHERE u.id = ?2 OR u.id IN (SELECT b FROM friends WHERE a = ?2) ORDER BY score DESC, u.updated ASC LIMIT ${TOP}`).bind(wk, id).all()).results;
+    total = rows.length;
+    const i = rows.findIndex((r) => r.id === id);
+    if (i >= 0) me = { place: i + 1, score: rows[i].score };
   } else {
     rows = (await db.prepare(`SELECT id, nick, emoji, xp AS score FROM users WHERE xp > 0 ORDER BY xp DESC, updated ASC LIMIT ${TOP}`).all()).results;
     total = (await db.prepare('SELECT COUNT(*) AS n FROM users WHERE xp > 0').first()).n;
@@ -187,6 +198,12 @@ async function hello(env, user, body) {
       ON CONFLICT(id) DO UPDATE SET nick = ?2, last = ?3, opens = opens + 1, writable = MAX(writable, ?4), platform = ?5,
       days = days + (CASE WHEN lastday = ?6 THEN 0 ELSE 1 END), lastday = ?6`).bind(user.id, nick, now, writable, platform, today),
     db.prepare('INSERT OR IGNORE INTO visits (day, id) VALUES (?, ?)').bind(today, user.id),
+  ]);
+  // пришёл по ссылке друга — записываем дружбу в обе стороны
+  const ref = /^ref_(\d{3,15})$/.exec(user.start_param || '');
+  if (ref && Number(ref[1]) !== user.id) await db.batch([
+    db.prepare('INSERT OR IGNORE INTO friends (a, b, ts) VALUES (?, ?, ?)').bind(user.id, Number(ref[1]), now),
+    db.prepare('INSERT OR IGNORE INTO friends (a, b, ts) VALUES (?, ?, ?)').bind(Number(ref[1]), user.id, now),
   ]);
   return { admin: user.id === (await adminId(env)) };
 }
@@ -369,7 +386,7 @@ async function route(request, env) {
       if (user.id !== (await adminId(env))) return json({ ok: false, error: 'forbidden' }, 403);
       return json({ ok: true, ...(await stats(env)) });
     }
-    const scope = ['week', 'all', 'day'].includes(body.scope) ? body.scope : 'week';
+    const scope = ['week', 'all', 'day', 'friends'].includes(body.scope) ? body.scope : 'week';
     return json({ ok: true, ...(await top(env, user, scope)) });
   }
 

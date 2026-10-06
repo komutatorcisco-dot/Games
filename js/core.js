@@ -212,6 +212,8 @@ const Sound = {
         kick: [[160, 0, .09, 'triangle']],
         bad: [[110, 0, .14, 'sawtooth']],
         tap: [[520, 0, .05, 'sine']],
+        token: [[330, 0, .05, 'triangle'], [660, .03, .06, 'sine']],
+        whistle: [[2800, 0, .14, 'sine'], [2650, .18, .12, 'sine'], [2900, .34, .42, 'sine']],
         coin: [[988, 0, .07, 'square'], [1319, .07, .12, 'square']],
         goal: [[523, 0, .12, 'square'], [659, .12, .12, 'square'], [784, .24, .12, 'square'], [1047, .36, .3, 'square']],
         lose: [[392, 0, .18, 'triangle'], [330, .18, .18, 'triangle'], [262, .36, .35, 'triangle']],
@@ -391,20 +393,19 @@ function quoteHtml(kind) {
 
 // Единый экран итога для всех игр: иконка, большая цифра, заголовок, плашки, награда.
 // act — действие плитки на главной (оттуда берутся цвета иконки), ico — ключ иконки в Icons.
-function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '', title = '', text = '', stats = [], extra = '', reward = 0, record = false }) {
-  if (act && !c1) {
-    const t = document.querySelector(`#hub [data-act="${act}"]`);
-    if (t) { c1 = t.style.getPropertyValue('--c1'); c2 = t.style.getPropertyValue('--c2'); }
-  }
-  const icon = ico ? Icons.get(ico) : '';
+function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '', title = '', text = '', stats = [], extra = '', reward = 0, record = false, score = null }) {
   if (typeof Board !== 'undefined') Board.submit(); // и отправляет опыт в рейтинг канала
   if (typeof Track !== 'undefined') Track.end(win); // статистика: партию доиграли
+  // итог любой игры — табло стадиона: счёт «верно : ошибки», число (серия, очки) или просто исход
+  const led = score ? `<b>${score[0]}</b><i>:</i><b class="bad">${score[1]}</b>`
+    : big !== '' ? `<b class="ng-res-big">${big}</b>` : `<b class="word">${win ? 'ПОБЕДА' : 'НЕ ВЫШЛО'}</b>`;
   return `<div class="ng-res ${win ? 'win' : 'lose'}">
-    ${icon ? `<span class="tile-ico ng-res-ico" style="${c1 ? `--c1:${c1};--c2:${c2}` : ''}">${icon}</span>` : ''}
-    ${big !== '' ? `<div class="ng-res-big">${big}</div>` : ''}${record ? '<span class="res-record">🏅 Новый рекорд!</span>' : ''}
-    <h2>${title}</h2>${text ? `<p class="res-text">${text}</p>` : ''}
-    ${stats.length ? `<div class="ng-res-stats">${stats.map(([k, v]) => `<span><b>${v}</b><small>${k}</small></span>`).join('')}</div>` : ''}
-    ${extra}${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}</div>`;
+    <div class="sb"><div class="sb-k">Финальный свисток${ico ? `<span class="sb-ico">${Icons.get(ico)}</span>` : ''}</div>
+      <div class="sb-led">${led}</div>${score ? '<div class="sb-lb"><span>верно</span><span>ошибки</span></div>' : ''}
+      ${record ? '<span class="res-record">Новый рекорд</span>' : ''}
+      ${stats.length ? `<div class="ng-res-stats">${stats.map(([k, v]) => `<span><b>${v}</b><small>${k}</small></span>`).join('')}</div>` : ''}
+      ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}</div>
+    <h2>${title}</h2>${text ? `<p class="res-text">${text}</p>` : ''}${extra}</div>`;
 }
 
 // Профиль игрока: опыт, звания, победы по играм.

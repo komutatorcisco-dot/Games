@@ -113,14 +113,16 @@ const App = (() => {
   function renderProfile() {
     rankUi('#prof-rank', '#prof-xp', '#prof-next');
     $('#prof-badge').textContent = Store.d.user.emoji || '⚽';
-    // карточка игрока: общий рейтинг растёт с опытом, внизу — настоящая статистика
-    const xp = Store.d.stats.xp || 0, fd = (Store.d.fduel && Store.d.fduel.hist) || [];
-    $('#pf-ovr').textContent = Math.min(99, 45 + Math.floor(xp / 80));
-    $('#pf-pos').textContent = Profile.rank().name.slice(0, 3).toUpperCase();
+    // абонемент: с какого дня в игре, тур, опыт и место в таблице недели; ниже — настоящая статистика
+    const xp = Store.d.stats.xp || 0, fd = (Store.d.fduel && Store.d.fduel.hist) || [], bp = Store.d.boardPlace;
+    const since = Store.d.user.since; $('#tk-since').textContent = since ? since.slice(5).split('-').reverse().join('.') : '—';
+    $('#tk-tour').textContent = Release.tour();
+    $('#tk-xp').textContent = xp;
+    $('#tk-place').textContent = bp && bp.week > Date.now() ? bp.place : '—';
     $('#pf-fstats').innerHTML = [
-      ['УГД', (Store.d.dly && Store.d.dly.wins) || 0], ['СЕР', (Store.d.dly && Store.d.dly.best) || 0],
-      ['ДУЭ', fd.filter((x) => x.res === 'win').length], ['АУК', (Store.d.auction && Store.d.auction.wins) || 0],
-      ['СБР', (Store.d.nation && Store.d.nation.best) || 0], ['ТИК', (Store.d.ttt && Store.d.ttt.wins) || 0],
+      ['угадано', (Store.d.dly && Store.d.dly.wins) || 0], ['лучшая серия', (Store.d.dly && Store.d.dly.best) || 0],
+      ['побед в дуэлях', fd.filter((x) => x.res === 'win').length], ['аукционов', (Store.d.auction && Store.d.auction.wins) || 0],
+      ['рекорд сборной', (Store.d.nation && Store.d.nation.best) || 0], ['тики-така', (Store.d.ttt && Store.d.ttt.wins) || 0],
     ].map(([k, v]) => `<span><b>${v}</b>${k}</span>`).join('');
     $('#prof-nick').textContent = Store.d.user.nick || 'Игрок';
     const dh = (Store.d.fduel && Store.d.fduel.hist) || [];
@@ -140,7 +142,7 @@ const App = (() => {
     $('#pf-ach').textContent = `${got} из ${achs.length}`;
     $('#ach-sub').textContent = `${got} из ${achs.length}`;
     $('#prof-admin').hidden = !Store.d.admin;
-    $('#set-wheel').textContent = Wheel.ready() ? 'Крутить' : 'Завтра';
+    $('#set-wheel').textContent = Wheel.ready() ? 'Открыть' : 'Завтра';
     $('#set-music').textContent = Store.d.music ? 'Вкл' : 'Выкл';
     $('#set-sound').textContent = Store.d.sound ? 'Вкл' : 'Выкл';
     Coins.render();
@@ -231,7 +233,7 @@ const App = (() => {
         }
         const attrs = Object.entries(it.data).map(([a, v]) => `data-${a.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}="${esc(v)}"`).join(' ');
         return `<button class="tk ${it.badge && it.badge[0] === 'ok' ? 'done' : ''} ${it.soon ? 'is-soon' : ''}" ${attrs} style="left:${x}%;top:${y}%;--k:${kolor(it.key)}">
-          <span class="tok"><span class="tile-ico" data-ico="${esc(it.ico)}"></span>${it.badge ? `<em class="${it.badge[0]}">${it.badge[1]}</em>` : ''}</span><b>${esc(SHORT[it.key] || it.title)}</b></button>`;
+          <span class="tok"><span class="tile-ico" data-ico="${esc(it.ico)}"></span></span>${it.badge ? `<em class="${it.badge[0]}">${it.badge[1]}</em>` : ''}<b>${esc(SHORT[it.key] || it.title)}</b></button>`;
       }).join('');
     }).join('');
     box.innerHTML = html + `<button class="tk gk" data-act="dly" style="left:50%;top:88%"><span class="tok"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>`;
@@ -245,6 +247,7 @@ const App = (() => {
     const cur = Release.current(), ui = Store.d.ui || (Store.d.ui = {}), wk = Release.weekKey();
     if (!cur || ui.subWeek === wk || Modal.isOpen || !Store.d.user.nick) return;
     ui.subWeek = wk; Store.save();
+    Sound.play('whistle'); haptic('ok');
     const t = $$('#hub :is(.tile-card, .game-card, .auction-hero)').find((el) => cur.keys.includes(keyOf(el)));
     const ico = t && $('[data-ico]', t) ? $('[data-ico]', t).dataset.ico : '';
     Modal.open(`<div class="sub-led"><span>▲</span><b>${$$('#pitch .tk:not(.gk):not(.soon)').length || ''}</b><small>Замена · новая игра недели</small></div>
@@ -342,6 +345,12 @@ const App = (() => {
     games: () => tab('games'),
     friends: () => tab('friends'),
     board: () => Board.open(),
+    // позвать друга: ссылка с твоим id — кто откроет игры по ней, попадёт к тебе в «Друзья» в таблице
+    invite: () => {
+      const u = TG && TG.initDataUnsafe && TG.initDataUnsafe.user;
+      if (!u) { toast('Открой игры через бота @JacksonGamesbot, чтобы позвать друга'); return; }
+      Duel.share(`ref_${u.id}`, `${Store.d.user.emoji || '⚽'} ${Store.d.user.nick || 'Я'} зовёт тебя в футбольные игры «Стариков Джексонов» — посмотрим, кто выше в таблице!`);
+    },
     achievements: () => { Modal.close(); renderProfile(); Screens.show('achievements'); window.scrollTo(0, 0); },
     report: () => Track.report(),
     admin: () => Track.admin(),
@@ -421,6 +430,7 @@ const App = (() => {
       if (t) { const r = t.getBoundingClientRect(); t.style.setProperty('--px', `${e.clientX - r.left}px`); t.style.setProperty('--py', `${e.clientY - r.top}px`); }
     }, true);
     document.addEventListener('click', (e) => {
+      if (e.target.closest('#pitch .tk:not(.soon)')) { Sound.play('token'); haptic('tap'); }
       const tb = e.target.closest('[data-tab]');
       if (tb) { Sound.play('tap'); tab(tb.dataset.tab); return; }
       const ct = e.target.closest('#cat-nav [data-cat]');

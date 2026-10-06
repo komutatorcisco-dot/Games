@@ -7,7 +7,7 @@ const Board = (() => {
   const api = () => CONFIG.api || CONFIG.donateApi || '';
   const ready = () => !!(api() && TG && TG.initData);
   let timer = null, scope = 'week', cache = {};
-  const SCOPES = [['week', 'Неделя'], ['all', 'Всё время'], ['day', 'Игрок дня']];
+  const SCOPES = [['week', 'Неделя'], ['friends', 'Друзья'], ['all', 'Всё время'], ['day', 'Игрок дня']];
 
   const post = (path, body) => fetch(api() + path, {
     method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ initData: TG.initData, ...body }),
@@ -26,7 +26,7 @@ const Board = (() => {
   }
 
   const medal = (n) => (n === 1 ? '🥇' : n === 2 ? '🥈' : n === 3 ? '🥉' : n);
-  const unit = (sc, v) => (sc === 'day' ? `с ${v}-й попытки` : `${v.toLocaleString('ru-RU')} ${sc === 'week' ? 'оч.' : 'опыта'}`);
+  const unit = (sc, v) => (sc === 'day' ? `с ${v}-й попытки` : `${v.toLocaleString('ru-RU')} ${sc === 'week' || sc === 'friends' ? 'оч.' : 'опыта'}`);
   function left(t) {
     const ms = t - Date.now();
     if (ms <= 0) return '';
@@ -50,14 +50,16 @@ const Board = (() => {
     if (data.error) { box.innerHTML = `${tabs}<div class="bd-empty"><span>📡</span><h3>Не удалось загрузить</h3><p>Проверь интернет и попробуй ещё раз.</p><button class="btn gold" data-bd="${scope}">Обновить</button></div>`; return; }
     const head = scope === 'week' ? `Неделя закончится через ${left(data.weekEnd)}. Очки — опыт за победы с понедельника 10:00 (по Европе).`
       : scope === 'day' ? 'Кто быстрее всех угадал сегодняшнего «Игрока дня». Подсказки тоже считаются попыткой.'
-        : 'Весь опыт за победы во всех играх.';
+        : scope === 'friends' ? 'Ты и друзья: те, кого ты позвал по своей ссылке, и тот, кто позвал тебя. Очки за эту неделю.'
+          : 'Весь опыт за победы во всех играх.';
     const rows = data.rows.map((r, i) => `<div class="bd-row ${r.me ? 'me' : ''} ${i < 3 ? 'top' : ''}" style="--i:${Math.min(i, 15)}">
         <b class="bd-place">${medal(i + 1)}</b><span class="bd-emo">${esc(r.emoji || '⚽')}</span><span class="bd-nick">${esc(r.nick)}</span><em>${unit(scope, r.score)}</em></div>`).join('');
     const mine = data.me && !data.rows.some((r) => r.me)
       ? `<div class="bd-row me pinned"><b class="bd-place">${data.me.place}</b><span class="bd-emo">${esc(Store.d.user.emoji)}</span><span class="bd-nick">${esc(Store.d.user.nick || 'Ты')}</span><em>${unit(scope, data.me.score)}</em></div>` : '';
     const you = data.me ? `<div class="bd-you">Ты <b>${data.me.place}-й</b> из ${data.total}</div>`
       : `<div class="bd-you muted">${scope === 'day' ? 'Угадай «Игрока дня», чтобы попасть в таблицу' : 'Выиграй любую игру, чтобы попасть в таблицу'}</div>`;
-    box.innerHTML = `${tabs}<p class="bd-head">${head}</p>${you}
+    const inv = scope === 'friends' ? `<button class="btn gold bd-invite" data-act="invite">${data.rows.length <= 1 ? 'Позвать друга — и соревнуйтесь' : 'Позвать ещё друга'}</button>` : '';
+    box.innerHTML = `${tabs}<p class="bd-head">${head}</p>${scope === 'friends' ? inv : you}
       ${data.rows.length ? `<div class="bd-list">${rows}</div>` : '<div class="bd-empty"><span>🌱</span><p>Пока никого — будь первым!</p></div>'}${mine}`;
   }
 

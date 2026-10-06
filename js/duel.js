@@ -537,5 +537,5 @@ const Duel = (() => {
     return false;
   }
 
-  return { deep, build, parse, token };
+  return { deep, build, parse, token, share: shareLink };
 })();

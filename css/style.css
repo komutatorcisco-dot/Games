@@ -2352,3 +2352,123 @@ body[data-scr="hub"] { background:
 #app { padding-top: max(12px, env(safe-area-inset-top, 0px), calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px) + 6px)) !important; }
 .tabbar { padding-bottom: max(22px, calc(8px + env(safe-area-inset-bottom, 0px)), calc(8px + var(--tg-safe-area-inset-bottom, 0px))) !important; }
 .pitch-wrap { height: max(470px, calc(var(--tg-viewport-stable-height, 100vh) - 236px - var(--tg-content-safe-area-inset-top, 0px) - var(--tg-safe-area-inset-top, 0px))); }
+/* фишки-шестиугольники: как лоскуты на мяче — белая кромка, цвет игры внутри */
+.tk { filter: drop-shadow(0 7px 6px rgba(0,0,0,.32)); }
+.tk .tok { width: 68px; height: 76px; border: 0; border-radius: 0; box-shadow: none; background: #fff;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+.tk .tok::before { content: ''; position: absolute; inset: 4px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--k, #ffd23f) 55%, #fff), var(--k, #ffd23f) 62%, color-mix(in srgb, var(--k, #ffd23f) 80%, #000)); }
+.tk .tok::after { content: ''; position: absolute; inset: 4px; clip-path: polygon(50% 0, 100% 25%, 100% 50%, 0 50%, 0 25%); background: linear-gradient(rgba(255,255,255,.18), transparent); }
+.tk .tok .tile-ico { z-index: 1; }
+.tk em { right: -4px; top: 2px; z-index: 3; }
+.tk:active .tok { transform: scale(.94); }
+.tk.gk .tok { width: 90px; height: 100px; background: var(--gy); border: 0; box-shadow: none; overflow: visible; }
+.tk.gk .tok::before { background: radial-gradient(circle at 50% 40%, #2a2a2a, #0b0b0f); }
+.tk.gk .tok::after { display: none; }
+.tk.gk img, .tk.gk i { z-index: 1; }
+.tk.gk img { clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+.tk.soon { filter: none; }
+.tk.soon .tok { background: rgba(255,255,255,.75); }
+.tk.soon .tok::before { background: #2c8a4b; } .tk.soon .tok::after { display: none; }
+.tk.soon .tok i { z-index: 1; }
+
+/* монета: золотой мяч */
+.coin, .coins i, .coin-ic { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='r' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffe680'/%3E%3Cstop offset='.55' stop-color='%23e6a800'/%3E%3Cstop offset='1' stop-color='%239a6300'/%3E%3C/linearGradient%3E%3CradialGradient id='f' cx='.38' cy='.32' r='.75'%3E%3Cstop offset='0' stop-color='%23fff6c4'/%3E%3Cstop offset='.5' stop-color='%23ffd34a'/%3E%3Cstop offset='1' stop-color='%23d99a00'/%3E%3C/radialGradient%3E%3CclipPath id='c'%3E%3Ccircle cx='32' cy='32' r='24'/%3E%3C/clipPath%3E%3C/defs%3E%3Ccircle cx='32' cy='33.5' r='30' fill='%237a4d00'/%3E%3Ccircle cx='32' cy='32' r='30' fill='url%28%23r%29'/%3E%3Ccircle cx='32' cy='32' r='24.5' fill='%23b98100'/%3E%3Ccircle cx='32' cy='32' r='24' fill='url%28%23f%29'/%3E%3Cg clip-path='url%28%23c%29'%3E%3Cpolygon points='32.00,24.50 39.13,29.68 36.41,38.07 27.59,38.07 24.87,29.68' fill='%23b98100'/%3E%3Cpath d='M32.00 24.50 L32.00 17.00' stroke='%23b98100' stroke-width='1.6'/%3E%3Cpath d='M39.13 29.68 L46.27 27.36' stroke='%23b98100' stroke-width='1.6'/%3E%3Cpath d='M36.41 38.07 L40.82 44.14' stroke='%23b98100' stroke-width='1.6'/%3E%3Cpath d='M27.59 38.07 L23.18 44.14' stroke='%23b98100' stroke-width='1.6'/%3E%3Cpath d='M24.87 29.68 L17.73 27.36' stroke='%23b98100' stroke-width='1.6'/%3E%3Cpolygon points='40.23,20.67 37.69,12.85 44.34,8.01 51.00,12.85 48.46,20.67' fill='%23b98100'/%3E%3Cpolygon points='45.31,36.33 51.97,31.49 58.63,36.33 56.09,44.15 47.86,44.15' fill='%23b98100'/%3E%3Cpolygon points='32.00,46.00 38.66,50.84 36.11,58.66 27.89,58.66 25.34,50.84' fill='%23b98100'/%3E%3Cpolygon points='18.69,36.33 16.14,44.15 7.91,44.15 5.37,36.33 12.03,31.49' fill='%23b98100'/%3E%3Cpolygon points='23.77,20.67 15.54,20.67 13.00,12.85 19.66,8.01 26.31,12.85' fill='%23b98100'/%3E%3C/g%3E%3Cellipse cx='24' cy='20' rx='9' ry='5' fill='%23fff' opacity='.45' transform='rotate%28-30 24 20%29'/%3E%3C/svg%3E") center/contain no-repeat !important; box-shadow: none !important; border-radius: 0 !important; }
+.coins .coin { width: 24px !important; height: 24px !important; }
+/* пак дня: карточки как паки в FC — тёмные с золотой фольгой, переворачиваются */
+.pk-head { text-align: center; } .pk-head h2 { font: 900 26px "Rubik", sans-serif !important; text-transform: none !important; }
+.pk-head p { color: rgba(255,255,255,.75); font-weight: 600; margin-top: 4px; }
+.pk-row { display: flex; justify-content: center; gap: 10px; margin: 18px 0 6px; perspective: 900px; }
+.pk { position: relative; width: 96px; height: 140px; padding: 0; border: 0; background: none; cursor: pointer; animation: pkIn .5s var(--d) both cubic-bezier(.2,1.3,.4,1); }
+@keyframes pkIn { from { opacity: 0; transform: translateY(24px) scale(.9); } }
+.pk:active:not(:disabled) { transform: translateY(3px); }
+.pk-in { position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .7s cubic-bezier(.3,1.2,.4,1); }
+.pk.flip .pk-in { transform: rotateY(180deg); }
+.pk-back, .pk-front { position: absolute; inset: 0; border-radius: 14px; backface-visibility: hidden; -webkit-backface-visibility: hidden; overflow: hidden; }
+.pk-back { display: grid; place-items: center; align-content: center; gap: 6px;
+  background: radial-gradient(120% 60% at 50% 0%, #5a3cc8, transparent 60%), linear-gradient(160deg, #2a1868, #120a35);
+  box-shadow: inset 0 0 0 2px #ffcf3a, inset 0 0 0 5px #120a35, inset 0 0 0 6px rgba(255,207,58,.5), 0 12px 24px rgba(0,0,0,.45); }
+.pk-back::after { content: ''; position: absolute; inset: -40%; background: linear-gradient(115deg, transparent 42%, rgba(255,255,255,.28) 50%, transparent 58%); transform: translateX(-30%); }
+.pk-logo { width: 46px; height: 52px; display: grid; place-items: center; font: 700 26px "Oswald", sans-serif; color: #120a35;
+  background: linear-gradient(160deg, #fff1a8, #ffcf3a 50%, #c98f00); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+.pk-t { font: 700 11px "Oswald", sans-serif; letter-spacing: .18em; color: #ffcf3a; }
+.pk-stars { font-size: 9px; letter-spacing: .3em; color: rgba(255,207,58,.7); }
+.pk-front { transform: rotateY(180deg); }
+.pk-face { position: absolute; inset: 0; display: grid; place-items: center; align-content: center; gap: 2px; border-radius: 14px;
+  background: linear-gradient(160deg, #f4f4f8, #c9cad6 55%, #8d8fa3); color: #1b1340; box-shadow: inset 0 0 0 2px rgba(255,255,255,.7); }
+.pk-face.gold { background: linear-gradient(160deg, #fff1a8, #e9b93a 50%, #a8761a); color: #3a2600; }
+.pk-face.jack { background: linear-gradient(160deg, #ff9ad1, #e3262f 50%, #7a0f2a); color: #fff; }
+.pk-face small { font: 700 9.5px "Oswald", sans-serif; letter-spacing: .16em; opacity: .75; }
+.pk-face b { font: 700 34px/1 "Oswald", sans-serif; }
+.pk-face .coin { width: 26px !important; height: 26px !important; margin-top: 4px; }
+.pk.mine { z-index: 2; } .pk.mine .pk-in { transform: rotateY(180deg) scale(1.08); }
+.pk.other { opacity: .5; filter: grayscale(.5); }
+.pf-pk { width: 26px; height: 32px; border-radius: 5px; background: linear-gradient(160deg, #2a1868, #120a35); box-shadow: inset 0 0 0 2px #ffcf3a; display: block; }
+/* фон всех экранов, кроме поля: графит со светом прожекторов */
+body { background: radial-gradient(60% 34% at 12% 0%, rgba(255,255,230,.16), transparent 70%), radial-gradient(60% 34% at 88% 0%, rgba(255,255,230,.16), transparent 70%), #15161c fixed !important; }
+:root { --glass: rgba(255,255,255,.06); --gline: rgba(255,255,255,.1); }
+.modal-card { background: #1e1f27 !important; }
+/* дуэль: спокойная карточка, иконка на ярком кружке — белых человечков видно */
+.duel-hero { background: linear-gradient(135deg, rgba(255,95,162,.16), rgba(123,44,255,.12) 60%, rgba(255,255,255,.04)) !important; color: #fff !important;
+  box-shadow: inset 0 0 0 1px var(--gline) !important; }
+.duel-hero .dh-top b { color: #fff !important; } .duel-hero .dh-top small { color: rgba(255,255,255,.72) !important; }
+.dh-ico.tile-ico { background: linear-gradient(135deg, #ff5fa2, #7b2cff) !important; box-shadow: none !important; }
+.dh-modes button { background: rgba(255,255,255,.1) !important; color: #fff !important; box-shadow: inset 0 0 0 1px var(--gline) !important; }
+.dh-modes button * { color: #fff !important; }
+.dh-modes button:first-child { background: var(--gy) !important; box-shadow: 0 4px 0 #b38f12 !important; }
+.dh-modes button:first-child * { color: #111 !important; }
+
+/* профиль: сезонный абонемент на «Джексоны Арену» */
+.tix { position: relative; display: grid; grid-template-columns: 1fr 86px; margin: 6px 0 12px; border-radius: 18px; color: #15161c;
+  background: #f4efe3; box-shadow: 0 14px 30px rgba(0,0,0,.4);
+  -webkit-mask: radial-gradient(circle 11px at calc(100% - 86px) 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle 11px at calc(100% - 86px) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat;
+          mask: radial-gradient(circle 11px at calc(100% - 86px) 0, transparent 98%, #000) top / 100% 51% no-repeat, radial-gradient(circle 11px at calc(100% - 86px) 100%, transparent 98%, #000) bottom / 100% 51% no-repeat; }
+.tix::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: .5;
+  background: repeating-linear-gradient(-45deg, transparent 0 14px, rgba(0,0,0,.025) 14px 15px); }
+.tix-main { position: relative; padding: 0 0 14px; min-width: 0; }
+.tix-top { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #15161c; color: #ffcf3a; border-radius: 18px 0 0 0;
+  font: 700 12px "Oswald", sans-serif; letter-spacing: .16em; }
+.tix-top em { margin-left: auto; font-style: normal; color: rgba(255,255,255,.6); letter-spacing: .1em; }
+.tix-hex { width: 22px; height: 25px; display: grid; place-items: center; font: 700 13px "Oswald", sans-serif; color: #15161c;
+  background: linear-gradient(160deg, #fff1a8, #ffcf3a 50%, #c98f00); clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); letter-spacing: 0; }
+.tix-who { position: relative; display: flex; align-items: center; gap: 12px; padding: 14px 14px 6px; }
+.tix .tix-ava { flex: none; width: 58px !important; height: 58px !important; margin: 0 !important; border-radius: 50% !important; display: grid; place-items: center;
+  font: 32px/1 sans-serif !important; background: #15161c !important; color: #fff !important; box-shadow: 0 0 0 3px #ffcf3a !important; }
+.tix-nm { min-width: 0; display: grid; gap: 4px; }
+.tix-nm #prof-nick { font: 700 24px/1 "Oswald", sans-serif; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #15161c; }
+.tix-nm #prof-nick .hub-emo, .tix-nm #prof-nick small { display: none; } .tix-nm #prof-nick b { font: inherit; }
+.tix-rank { justify-self: start; background: #e3262f; color: #fff !important; font: 800 11px/1 "Rubik", sans-serif; padding: 4px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: .04em; }
+.tix .pf-edit { position: absolute; right: 10px; top: 12px; width: 28px; height: 28px; border: 0; border-radius: 50%; background: rgba(0,0,0,.07); color: #15161c; font-size: 13px; }
+.tix-f { display: grid; grid-template-columns: repeat(3, 1fr); margin: 8px 14px 0; border-top: 1.5px solid rgba(0,0,0,.12); border-bottom: 1.5px solid rgba(0,0,0,.12); }
+.tix-f span { padding: 7px 0 6px; } .tix-f span + span { padding-left: 10px; border-left: 1.5px solid rgba(0,0,0,.12); }
+.tix-f small { display: block; font: 700 9.5px "Oswald", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #8a8478; }
+.tix-f b { font: 700 19px/1.1 "Oswald", sans-serif; }
+.tix-xp { margin: 10px 14px 0; } .tix-xp .pf-bar { margin: 0; background: rgba(0,0,0,.1); height: 7px; } .tix-xp .pf-bar i { background: linear-gradient(90deg, #ffcf3a, #e3262f) !important; }
+.tix-xp small { display: block; margin-top: 5px; font: 700 11px "Rubik", sans-serif; color: #6e695f !important; }
+.tix-stub { position: relative; display: grid; place-items: center; align-content: center; gap: 2px; text-align: center; border-left: 2px dashed rgba(0,0,0,.25); overflow: hidden;
+  background: linear-gradient(180deg, transparent 0 10px, transparent) , #efe8d8; }
+.tix-stub::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 8px; background: linear-gradient(90deg, #ff5fa2, #ffcf3a, #3ee6a8, #4fc3ff, #a98bff); opacity: .9; }
+.tix-stub small { font: 700 9.5px "Oswald", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #8a8478; }
+.tix-stub b { font: 700 40px/1 "Oswald", sans-serif; color: #e3262f; }
+.tix-bc { width: 54px; height: 22px; margin-top: 8px; background: repeating-linear-gradient(90deg, #15161c 0 2px, transparent 2px 4px, #15161c 4px 5px, transparent 5px 8px, #15161c 8px 11px, transparent 11px 13px); }
+.tix-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+.tix-stats span { padding: 10px 6px; border-radius: 14px; background: var(--glass); box-shadow: inset 0 0 0 1px var(--gline); text-align: center; font: 700 11px/1.2 "Rubik", sans-serif; color: rgba(255,255,255,.7); }
+.tix-stats b { display: block; font: 700 22px/1.1 "Oswald", sans-serif; color: #fff; }
+/* итог игры — табло стадиона */
+.ng-res .sb { position: relative; margin: 0 0 14px; padding: 14px 12px 14px; border-radius: 20px; background: #0b0b0f; box-shadow: 0 0 0 4px #2a2b33, 0 14px 30px rgba(0,0,0,.4); text-align: center; }
+.sb-k { display: flex; align-items: center; justify-content: center; gap: 8px; font: 700 12px "Oswald", sans-serif; letter-spacing: .2em; text-transform: uppercase; color: #ffcf3a; }
+.sb-ico { width: 22px; height: 22px; display: inline-grid; } .sb-ico svg { width: 100%; height: 100%; }
+.sb-led { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 8px 0 2px; }
+.sb-led b { font: 700 72px/1 "Oswald", sans-serif !important; color: #ffcf3a !important; text-shadow: 0 0 18px rgba(255,207,58,.55) !important; letter-spacing: .02em; background: none !important; }
+.sb-led b.bad { color: #ff4d4d !important; text-shadow: 0 0 18px rgba(255,77,77,.45) !important; }
+.sb-led b.word { font-size: 46px !important; } .ng-res.lose .sb-led b.word { color: #9a9aa6 !important; text-shadow: none !important; }
+.sb-led i { font: 700 44px "Oswald", sans-serif; font-style: normal; color: #444; }
+.sb-lb { display: flex; justify-content: center; gap: 60px; font: 800 11px "Rubik", sans-serif; text-transform: uppercase; color: #888; letter-spacing: .06em; }
+.ng-res .sb .res-record { display: inline-block; margin-top: 8px; background: #e3262f; color: #fff; font: 900 12px "Rubik", sans-serif; padding: 5px 11px; border-radius: 99px; transform: rotate(-3deg); }
+.ng-res .sb .ng-res-stats { margin-top: 12px; }
+.ng-res .sb .ng-res-stats span { background: rgba(255,255,255,.07) !important; }
+.ng-res .sb .reward { display: inline-flex; margin-top: 10px; background: rgba(255,207,58,.14); color: #ffcf3a; }
+.ng-res > h2 { margin-top: 2px; }
+.invite-btn { width: 100%; margin: 14px 0 12px; } .bd-invite { width: 100%; margin: 8px 0 12px; }
+.bd-tabs button { font-size: 12px !important; padding-left: 4px !important; padding-right: 4px !important; }
+.tix-top { white-space: nowrap; letter-spacing: .1em; font-size: 11px; } .tix-top em { letter-spacing: .06em; }
