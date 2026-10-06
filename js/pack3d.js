@@ -132,6 +132,43 @@ const Pack3D = (() => {
       g.shadowColor = '#3ee6a8'; g.shadowBlur = 40; hex(g, cx, H * 0.42, W * 0.18); g.fillStyle = '#0b0820'; g.fill(); g.shadowBlur = 0;
       g.fillStyle = '#3ee6a8'; g.font = `700 ${W * 0.16}px Oswald, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Д', cx, H * 0.425);
       band(g, W, H, H * 0.74, H * 0.12, '#2aa37a', '#7fffd4', 'ПАК  ДНЯ', '#0b0820'); crimp(g, W, H, 'rgba(255,255,255,.2)');
+    } else if (th === 'mix1' || th === 'mix2' || th === 'mix3' || th === 'mix4') {
+      // смеси первых четырёх: основа, узор, эмблема и лента из разных вариантов
+      const base = { mix1: ['#1a1a22', '#050507'], mix2: ['#2a1a6e', '#0b0820'], mix3: ['#4a25c9', '#170a45'], mix4: ['#101418', '#030405'] }[th];
+      const bg = g.createRadialGradient(cx, H * 0.38, 10, cx, H * 0.4, H * 0.85); bg.addColorStop(0, base[0]); bg.addColorStop(1, base[1]); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+      if (th === 'mix3') { // фиолетовая фольга с бликом
+        const fg = g.createLinearGradient(0, 0, W, H); fg.addColorStop(0.25, 'rgba(201,168,255,0)'); fg.addColorStop(0.42, 'rgba(201,168,255,.45)'); fg.addColorStop(0.58, 'rgba(201,168,255,0)'); g.fillStyle = fg; g.fillRect(0, 0, W, H);
+      }
+      if (th === 'mix2') { // прожекторы
+        [[0.05, -0.02], [0.95, -0.02]].forEach(([px, py]) => { const lg = g.createRadialGradient(W * px, H * py, 0, W * px, H * py, W * 0.85); lg.addColorStop(0, 'rgba(255,240,200,.45)'); lg.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = lg; g.fillRect(0, 0, W, H); });
+      }
+      // золотые шестиугольники
+      g.strokeStyle = th === 'mix4' ? 'rgba(62,230,168,.18)' : 'rgba(255,207,58,.2)'; g.lineWidth = 1.5;
+      for (let y = 0; y < H; y += 46) for (let x = (y / 46) % 2 ? 26 : 0; x < W + 30; x += 52) { hex(g, x, y, 24); g.stroke(); }
+      // лучи
+      g.save(); g.translate(cx, H * 0.36);
+      const rc = th === 'mix4' ? '62,230,168' : '255,215,90';
+      for (let i = 0; i < 24; i++) { g.rotate(Math.PI / 12); const lg = g.createLinearGradient(0, 0, W * 0.75, 0); lg.addColorStop(0, `rgba(${rc},.4)`); lg.addColorStop(1, `rgba(${rc},0)`); g.fillStyle = lg; g.beginPath(); g.moveTo(0, 0); g.lineTo(W * 0.75, -W * 0.04); g.lineTo(W * 0.75, W * 0.04); g.fill(); }
+      g.restore();
+      // эмблема
+      const ey = H * 0.36;
+      if (th === 'mix1') {
+        star(g, cx, ey, W * 0.24, W * 0.1); const sg = g.createLinearGradient(cx - W * 0.24, ey - W * 0.24, cx + W * 0.24, ey + W * 0.24); sg.addColorStop(0, '#fff6c4'); sg.addColorStop(0.45, '#ffcf3a'); sg.addColorStop(0.8, '#a8761a'); sg.addColorStop(1, '#ffe27a'); g.fillStyle = sg; g.fill();
+        star(g, cx, ey, W * 0.18, W * 0.075); g.fillStyle = '#0b0b0f'; g.fill();
+      } else {
+        const neon = th === 'mix4';
+        hex(g, cx, ey, W * 0.19); const hg = g.createLinearGradient(cx - W * 0.2, ey - W * 0.2, cx + W * 0.2, ey + W * 0.2);
+        if (neon) { hg.addColorStop(0, '#3ee6a8'); hg.addColorStop(1, '#4fc3ff'); } else { hg.addColorStop(0, '#fff6c4'); hg.addColorStop(0.4, '#ffcf3a'); hg.addColorStop(0.75, '#b47800'); hg.addColorStop(1, '#ffe27a'); }
+        g.fillStyle = hg; g.fill(); if (neon) { g.shadowColor = '#3ee6a8'; g.shadowBlur = 40; }
+        hex(g, cx, ey, W * 0.16); g.fillStyle = '#0b0820'; g.fill(); g.shadowBlur = 0;
+      }
+      g.fillStyle = th === 'mix4' ? '#3ee6a8' : '#ffd34a'; g.font = `700 ${W * 0.14}px Oswald, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Д', cx, ey + W * 0.01);
+      // логотип со смазом
+      smearWord(g, 'ДЖЕКСО', 'НЫ', cx - W * 0.03, H * 0.6, W * 0.1, '#fff');
+      g.fillStyle = 'rgba(255,255,255,.5)'; g.font = `700 ${W * 0.04}px Oswald, sans-serif`; g.textAlign = 'center'; g.fillText('С Т А Р И К И', cx, H * 0.535);
+      if (th === 'mix4') band(g, W, H, H * 0.74, H * 0.12, '#a87400', '#ffe27a', 'ПАК  ДНЯ', '#0b0820');
+      else band(g, W, H, H * 0.74, H * 0.12, '#7a5200', '#ffe27a', 'ПАК  ДНЯ', '#0b0b0f');
+      crimp(g, W, H, 'rgba(255,207,58,.35)');
     } else if (th === 'grass') { // газон с разметкой и мячом
       for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? '#2a8548' : '#2f8f4e'; g.fillRect(0, (i * H) / 10, W, H / 10 + 1); }
       g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 4; g.strokeRect(W * 0.08, H * 0.06, W * 0.84, H * 0.88);
@@ -153,7 +190,7 @@ const Pack3D = (() => {
     }
     return c;
   }
-  const EDGE = { purple: 0xd9a400, mono: 0xc8c8c8, toty: 0xd9a400, night: 0x3ee6a8, grass: 0xd9a400, holo: 0xe6e6ff, red: 0x111111 };
+  const EDGE = { mix1: 0xd9a400, mix2: 0xd9a400, mix3: 0xd9a400, mix4: 0x3ee6a8, purple: 0xd9a400, mono: 0xc8c8c8, toty: 0xd9a400, night: 0x3ee6a8, grass: 0xd9a400, holo: 0xe6e6ff, red: 0x111111 };
 
   function backTex(W, H) {
     const c = cv(W, H), g = c.getContext('2d');
