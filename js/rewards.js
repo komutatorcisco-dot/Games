@@ -220,7 +220,8 @@ const Rewards = (() => {
     const road = ROAD.filter(([t], i) => s.trophies >= t && !s.road.includes(i)).length;
     let pass = 0; for (let i = 0; i < L; i++) { if (!p.free.includes(i)) pass++; if (p.premium && !p.prem.includes(i)) pass++; }
     const qs = [...q.list, ...q.wlist].filter((x) => x.done && !x.got).length;
-    return { road, pass, qs, packs: s.pending, all: road + pass + qs + s.pending };
+    const sets = safe('sets', () => Cards.readySets()) || 0;
+    return { road, pass, qs, sets, packs: s.pending, all: road + pass + qs + sets + s.pending };
   }
   function header() {
     const u = Store.d.user || {};
@@ -257,7 +258,7 @@ const Rewards = (() => {
   function render() {
     const s = S(), p = passSync(), q = questSync(), c = claimable();
     const packs = s.pending ? `<button class="rw-packs" data-act="rw-packs"><span class="rw-pk big"></span><span><b>${s.pending} ${plural(s.pending, 'пак', 'пака', 'паков')} за победы</b><small>Внутри карточки футболистов</small></span><em>Открыть</em></button>` : '';
-    const tabs = `<nav class="rw-tabs">${[['cards', `Коллекция`, Cards.freshN() ? 'NEW' : ''], ['pass', 'Пропуск', c.pass], ['quests', 'Задания', c.qs]].map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}</nav>`;
+    const tabs = `<nav class="rw-tabs">${[['cards', 'Галерея', c.sets || (Cards.freshN() ? 'NEW' : '')], ['pass', 'Пропуск', c.pass], ['quests', 'Задания', c.qs]].map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}</nav>`;
     let body = '';
     if (tab === 'cards') body = `<div class="rw-coll">${Cards.album()}</div>`;
     else if (tab === 'pass') {
@@ -287,7 +288,7 @@ const Rewards = (() => {
   function bind() {
     $('#rewards-body').addEventListener('click', (e) => {
       const t = e.target.closest('[data-rwtab]'); if (t) { tab = t.dataset.rwtab; Sound.play('tap'); render(); return; }
-      const cl = Cards.onClick(e); if (cl === true) { render(); return; } if (cl) return;
+      const cl = Cards.onClick(e); if (cl === true) { render(); if (Cards.takeJump()) { const g = $('#rewards-body .rw-coll'); if (g) scrollTo(0, g.getBoundingClientRect().top + scrollY - 70); } return; } if (cl) return;
       const r = e.target.closest('[data-road]'); if (r) return claimRoad(+r.dataset.road);
       const f = e.target.closest('[data-free]'); if (f) return claimPass(+f.dataset.free, 'free');
       const pr = e.target.closest('[data-prem]'); if (pr) return claimPass(+pr.dataset.prem, 'prem');

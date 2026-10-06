@@ -146,30 +146,83 @@ const Cards = (() => {
     next();
   }
 
-  // ---------- альбом ----------
-  const FILTERS = [['all', 'Все'], ...LEAGUES.map((l) => [l, l]), ['other', 'Другие'], ['legend', 'Легенды'], ['jack', 'Джексон']];
-  let filter = 'all', shown = 48;
-  function inFilter(c) {
-    if (filter === 'all') return true;
-    if (filter === 'legend') return c.rar === 'legend';
-    if (filter === 'jack') return c.rar === 'jack';
-    if (c.rar === 'legend' || c.rar === 'jack') return false;
-    if (filter === 'other') return !LEAGUES.includes(c.lg);
-    return c.lg === filter;
+  // ---------- галерея как в EA FC: лиги → клубы → игроки; собрал клуб или лигу — награда ----------
+  const GROUPS = [...LEAGUES, 'Другие', 'Легенды', 'Джексон'];
+  const GROUP_ICO = { 'АПЛ': '🦁', 'Ла Лига': '🇪🇸', 'Серия А': '🇮🇹', 'Бундеслига': '🇩🇪', 'Лига 1': '🇫🇷', 'Другие': '🌍', 'Легенды': '👑', 'Джексон': '🔥' };
+  const groupOf = (c) => (c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
+  // награда за клуб — по числу карточек в нём; за лигу — легендарный пак и монеты
+  const clubPrize = (n) => (n <= 1 ? { coins: 30 } : n <= 3 ? { coins: 75 } : n <= 7 ? { pack: 0 } : n <= 12 ? { pack: 1 } : n <= 16 ? { pack: 2 } : { pack: 3 });
+  const groupPrize = (g) => (g === 'Джексон' ? { pack: 4, coins: 2000 } : g === 'Легенды' ? { pack: 4, coins: 1000 } : { pack: 4, coins: 500 });
+  const PACKN = ['пак', 'сверхредкий пак', 'эпический пак', 'легендарный пак', 'пак «ДЖЕКСОН!!»'];
+  const prizeTxt = (r) => [r.pack !== undefined ? PACKN[r.pack] : '', r.coins ? `${r.coins} монет` : ''].filter(Boolean).join(' + ');
+  const prizeChip = (r) => `<span class="gl-prize">${r.pack !== undefined ? `<i class="rw-pk" style="--c:${['#3ee66b', '#4fc3ff', '#c27bff', '#ffcf3a', '#ff3b5c'][r.pack]}"></i>` : ''}${r.coins ? `<i class="coin"></i>${r.coins}` : ''}</span>`;
+  const claimed = () => { const s = S(); if (!Array.isArray(s.sets)) s.sets = []; return s.sets; };
+  function sets(group) {
+    const list = all().filter((c) => groupOf(c) === group);
+    if (group === 'Джексон') return [{ club: '', cards: list }];
+    const by = {};
+    list.forEach((c) => { (by[c.club] = by[c.club] || []).push(c); });
+    return Object.entries(by).map(([club, cards]) => ({ club, cards: cards.sort((a, b) => b.r - a.r) })).sort((a, b) => b.cards.length - a.cards.length || a.club.localeCompare(b.club));
   }
+  const have = (cards) => cards.filter((c) => owned(c.key)).length;
+  const bar = (h, n, cls = '') => `<span class="gl-bar ${cls}"><i style="width:${n ? Math.round((h / n) * 100) : 0}%"></i></span>`;
+  function claimBtn(id, done, prize) {
+    if (claimed().includes(id)) return '<span class="gl-got">✓ Получено</span>';
+    if (done) return `<button class="btn gold gl-claim" data-claim="${esc(id)}">Забрать</button>`;
+    return prizeChip(prize);
+  }
+  let view = { g: '', club: null }, jump = false;
   function album() {
-    const list = all().filter(inFilter);
-    const mine = list.filter((c) => owned(c.key)).sort((a, b) => ORDER.indexOf(b.rar) - ORDER.indexOf(a.rar) || b.r - a.r);
-    const rest = list.filter((c) => !owned(c.key)).sort((a, b) => ORDER.indexOf(a.rar) - ORDER.indexOf(b.rar) || a.r - b.r);
-    const items = [...mine, ...rest].slice(0, shown);
-    const total = all().length, have = count();
+    const total = all().length, got = count();
+    let out = `<div class="cl-head"><b>Галерея</b><small>${got} / ${total}</small></div>${bar(got, total, 'cl-bar')}`;
+    if (!view.g) {
+      out += `<div class="gl-list">${GROUPS.map((g) => {
+        const cards = all().filter((c) => groupOf(c) === g), h = have(cards), id = 'g:' + g;
+        return `<button class="gl-row" data-gl="${esc(g)}"><span class="gl-ico">${GROUP_ICO[g]}</span><span class="gl-mid"><b>${g}</b>${bar(h, cards.length)}<small>${h} / ${cards.length}${g === 'Джексон' ? '' : ` · клубов ${sets(g).length}`}</small></span>${claimBtn(id, h === cards.length, groupPrize(g))}</button>`;
+      }).join('')}</div><p class="rw-note">Собери всех игроков клуба — получишь пак. Собери всю лигу — пак «ДЖЕКСОН!!» и монеты.</p>`;
+      return out;
+    }
+    const g = view.g, all_ = all().filter((c) => groupOf(c) === g), hg = have(all_);
+    if (view.club === null && g !== 'Джексон') {
+      out += `<div class="gl-top"><button class="gl-back" data-glback="1">← Лиги</button><span class="gl-ttl">${GROUP_ICO[g]} ${g}</span></div>
+        <div class="gl-sum"><span>${hg} / ${all_.length}${bar(hg, all_.length)}</span><span class="gl-for">За всю лигу: ${prizeTxt(groupPrize(g))}</span>${claimBtn('g:' + g, hg === all_.length, groupPrize(g))}</div>
+        <div class="gl-clubs">${sets(g).map(({ club, cards }) => {
+          const h = have(cards), cr = CRESTS[club], id = `c:${g}:${club}`, done = h === cards.length;
+          return `<button class="gl-club ${done ? 'done' : ''} ${claimed().includes(id) ? 'got' : ''}" data-glc="${esc(club)}">
+            ${cr ? `<img src="img/clubs/${cr}" alt="" loading="lazy">` : '<span class="gl-noc">⚽</span>'}<b>${esc(club)}</b>${bar(h, cards.length)}<small>${h}/${cards.length}</small>
+            ${done && !claimed().includes(id) ? '<i class="gl-dot">!</i>' : claimed().includes(id) ? '<i class="gl-ok">✓</i>' : ''}</button>`;
+        }).join('')}</div>`;
+      return out;
+    }
+    const set = g === 'Джексон' ? sets(g)[0] : sets(g).find((x) => x.club === view.club) || { club: '', cards: [] };
+    const h = have(set.cards), id = g === 'Джексон' ? 'g:Джексон' : `c:${g}:${set.club}`;
+    const prize = g === 'Джексон' ? groupPrize(g) : clubPrize(set.cards.length), cr = CRESTS[set.club];
     const fresh = S().fresh;
-    return `<div class="cl-head"><b>Коллекция</b><small>${have} / ${total}</small></div>
-      <span class="rw-bar cl-bar"><i style="width:${Math.max(1, (have / total) * 100)}%"></i></span>
-      <nav class="cl-chips">${FILTERS.map(([k, n]) => `<button data-clf="${k}" class="${filter === k ? 'on' : ''}">${n}</button>`).join('')}</nav>
-      <div class="cl-grid">${items.map((c) => `<div class="cl-cell">${owned(c.key) ? html(c, { w: 102 }) + (owned(c.key) > 1 ? `<i class="cl-n">×${owned(c.key)}</i>` : '') + (fresh.includes(c.key) ? '<i class="cl-new">NEW</i>' : '') : html(c, { w: 102, locked: true })}</div>`).join('')}</div>
-      ${list.length > shown ? `<button class="btn ghost cl-more" data-clmore="1">Показать ещё (${list.length - shown})</button>` : ''}
-      ${have ? '' : '<p class="rw-note">Карточки выпадают из паков: за победы, на дороге трофеев и в пропуске.</p>'}`;
+    out += `<div class="gl-top"><button class="gl-back" data-glback="1">← ${g === 'Джексон' ? 'Лиги' : g}</button><span class="gl-ttl">${cr ? `<img src="img/clubs/${cr}" alt="">` : GROUP_ICO[g]} ${esc(set.club || g)}</span></div>
+      <div class="gl-sum"><span>${h} / ${set.cards.length}${bar(h, set.cards.length)}</span><span class="gl-for">Награда: ${prizeTxt(prize)}</span>${claimBtn(id, h === set.cards.length, prize)}</div>
+      <div class="cl-grid">${set.cards.map((c) => `<div class="cl-cell">${owned(c.key) ? html(c, { w: 102 }) + (owned(c.key) > 1 ? `<i class="cl-n">×${owned(c.key)}</i>` : '') + (fresh.includes(c.key) ? '<i class="cl-new">NEW</i>' : '') : html(c, { w: 102, locked: true })}</div>`).join('')}</div>`;
+    return out;
+  }
+  function claim(id) {
+    const cl = claimed(); if (cl.includes(id)) return;
+    let cards, prize;
+    if (id.startsWith('g:')) { const g = id.slice(2); cards = all().filter((c) => groupOf(c) === g); prize = groupPrize(g); }
+    else { const [, g, ...rest] = id.split(':'); const club = rest.join(':'); const set = sets(g).find((x) => x.club === club); if (!set) return; cards = set.cards; prize = clubPrize(cards.length); }
+    if (have(cards) < cards.length) return;
+    cl.push(id); Store.save(); Sound.play('goal'); haptic('ok'); if (typeof confetti === 'function') confetti();
+    if (prize.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(prize.coins); }
+    if (prize.pack !== undefined) Rewards.openDrop({ title: id.startsWith('g:') ? `СОБРАНО: ${id.slice(2).toUpperCase()}` : `КЛУБ СОБРАН: ${id.split(':').slice(2).join(':').toUpperCase()}`, minLevel: prize.pack });
+    else toast(`Клуб собран! +${prize.coins} монет`);
+  }
+  // сколько наград за наборы ждут
+  function readySets() {
+    let n = 0;
+    for (const g of GROUPS) {
+      const cards = all().filter((c) => groupOf(c) === g);
+      if (have(cards) === cards.length && !claimed().includes('g:' + g)) n++;
+      if (g !== 'Джексон') sets(g).forEach(({ club, cards: cc }) => { if (have(cc) === cc.length && !claimed().includes(`c:${g}:${club}`)) n++; });
+    }
+    return n;
   }
   function details(key) {
     const c = get(key); if (!c) return;
@@ -181,11 +234,13 @@ const Cards = (() => {
       <p class="cd-own">В коллекции: ×${owned(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
   }
   function onClick(e) {
-    const f = e.target.closest('[data-clf]'); if (f) { filter = f.dataset.clf; shown = 48; Sound.play('tap'); return true; }
-    if (e.target.closest('[data-clmore]')) { shown += 48; return true; }
-    const c = e.target.closest('.cl-cell [data-card]'); if (c) { details(c.dataset.card); return 'modal'; }
+    const g = e.target.closest('[data-gl]'); if (g) { view = { g: g.dataset.gl, club: null }; Sound.play('tap'); jump = true; return true; }
+    const c = e.target.closest('[data-glc]'); if (c) { view = { ...view, club: c.dataset.glc }; Sound.play('tap'); jump = true; return true; }
+    if (e.target.closest('[data-glback]')) { view = view.club !== null ? { g: view.g, club: null } : { g: '', club: null }; if (view.g === 'Джексон') view = { g: '', club: null }; Sound.play('tap'); jump = true; return true; }
+    const cl = e.target.closest('[data-claim]'); if (cl) { claim(cl.dataset.claim); return true; }
+    const k = e.target.closest('.cl-cell [data-card]'); if (k) { details(k.dataset.card); return 'modal'; }
     return false;
   }
 
-  return { all, get, draw, packCards, add, html, reveal, album, onClick, count, total: () => all().length, freshN: () => S().fresh.length, RAR };
+  return { takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, freshN: () => S().fresh.length, RAR };
 })();
