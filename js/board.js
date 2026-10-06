@@ -36,6 +36,7 @@ const Board = (() => {
 
   function render(data) {
     const box = $('#board-body');
+    const bt = $('#bd-tour'); if (bt) bt.textContent = `Тур ${Release.tour()}${data && data.weekEnd ? ` · до конца ${left(data.weekEnd)}` : ''}`;
     const tabs = `<nav class="bd-tabs">${SCOPES.map(([k, n]) => `<button data-bd="${k}" class="${k === scope ? 'on' : ''}">${n}</button>`).join('')}</nav>`;
     if (!api()) {
       box.innerHTML = `${tabs}<div class="bd-empty"><span>🏆</span><h3>Рейтинг канала скоро запустится</h3><p>Здесь будут лучшие игроки недели и всех времён. Играй — опыт уже копится и попадёт в таблицу.</p></div>`;

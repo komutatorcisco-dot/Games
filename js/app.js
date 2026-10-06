@@ -33,6 +33,9 @@ const App = (() => {
     ['Старик Джексон', 'Высшее звание', () => Store.d.stats.xp >= 4000],
   ];
 
+  const TROPHY = { 'Первый гол': '⚽', 'Хет-трик звёзд': '⭐', 'Финал тура': '🏁', 'Скаут': '🔎', 'Историк': '📜', 'Клубный эксперт': '🛡️', 'Трансферный гуру': '✈️',
+    'Финансист': '💶', 'Тики-така': '❌', 'Геймер': '🎮', 'Скаут-оценщик': '💎', 'Богач': '💰', 'Головоломщик': '🧩', 'Неделя с нами': '🔥', 'Сборник': '🏳️',
+    'Игрок дня': '🏆', 'Неделя без промаха': '🎯', 'Агент': '🥇', 'Суперагент': '👑', 'Дуэлянт': '⚡', 'Профи': '🎖️', 'Старик Джексон': '🧓' };
   function rankUi(nameSel, barSel, nextSel) {
     const r = Profile.rank();
     $(nameSel).textContent = r.name;
@@ -109,7 +112,16 @@ const App = (() => {
 
   function renderProfile() {
     rankUi('#prof-rank', '#prof-xp', '#prof-next');
-    $('#prof-badge').textContent = Profile.rank().name.slice(0, 1);
+    $('#prof-badge').textContent = Store.d.user.emoji || '⚽';
+    // карточка игрока: общий рейтинг растёт с опытом, внизу — настоящая статистика
+    const xp = Store.d.stats.xp || 0, fd = (Store.d.fduel && Store.d.fduel.hist) || [];
+    $('#pf-ovr').textContent = Math.min(99, 45 + Math.floor(xp / 80));
+    $('#pf-pos').textContent = Profile.rank().name.slice(0, 3).toUpperCase();
+    $('#pf-fstats').innerHTML = [
+      ['УГД', (Store.d.dly && Store.d.dly.wins) || 0], ['СЕР', (Store.d.dly && Store.d.dly.best) || 0],
+      ['ДУЭ', fd.filter((x) => x.res === 'win').length], ['АУК', (Store.d.auction && Store.d.auction.wins) || 0],
+      ['СБР', (Store.d.nation && Store.d.nation.best) || 0], ['ТИК', (Store.d.ttt && Store.d.ttt.wins) || 0],
+    ].map(([k, v]) => `<span><b>${v}</b>${k}</span>`).join('');
     $('#prof-nick').textContent = Store.d.user.nick || 'Игрок';
     const dh = (Store.d.fduel && Store.d.fduel.hist) || [];
     const stats = [
@@ -123,7 +135,7 @@ const App = (() => {
     const achs = ACHIEVEMENTS.filter((a) => !a[3] || Release.isOut(a[3])); // только для вышедших игр
     $('#prof-achs').innerHTML = achs.map(([name, desc, test]) => {
       const ok = test(); if (ok) got++;
-      return `<div class="ach ${ok ? 'ok' : ''}"><i>${ok ? '★' : '☆'}</i><div><b>${name}</b><small>${desc}</small></div></div>`;
+      return `<div class="ach ${ok ? 'ok' : ''}"><i>${TROPHY[name] || '🏆'}</i><div><b>${name}</b><small>${desc}</small></div></div>`;
     }).join('');
     $('#pf-ach').textContent = `${got} из ${achs.length}`;
     $('#ach-sub').textContent = `${got} из ${achs.length}`;
@@ -160,7 +172,7 @@ const App = (() => {
     $('#panel-games').classList.toggle('compact', compact);
     // «Игры» на главной: короткий список всех вышедших игр (ежедневные — выше, в заданиях дня)
     const src = $$('#panel-games .cat .tile-card:not([hidden]), #panel-friends > .tiles .tile-card:not([hidden])')
-      .filter((el) => !['act:auction-duo'].includes(keyOf(el)));
+      .filter((el) => !['act:auction-duo', 'act:ttt-duo', 'act:guess-duel', 'act:career-duel'].includes(keyOf(el)));
     const extra = [
       `<button class="tile-card" data-act="auction-bot" style="--c1:#ff5f6d;--c2:#7b2b8a"><span class="tile-ico" data-ico="auction"></span><b>Аукцион</b><small>Против бота или вдвоём</small></button>`,
       `<button class="tile-card" data-ng="duel" style="--c1:#ff8a5c;--c2:#c2348d"><span class="tile-ico" data-ico="ng-duel"></span><b>Футбольная дуэль</b><small>С другом онлайн или рядом</small></button>`,
@@ -168,6 +180,7 @@ const App = (() => {
     $('#featured').innerHTML = extra.join('');
     src.forEach((el) => { const c = el.cloneNode(true); c.classList.remove('wide', 'duo'); $$('.limit-note', c).forEach((x) => x.remove()); $('#featured').appendChild(c); });
     paint();
+    renderPitch();
     // новинка недели и следующая игра
     const cur = Release.current(), nx = Release.next();
     const wk = $('#week-game');
@@ -180,6 +193,66 @@ const App = (() => {
     const days = nx ? Math.ceil((nx.at - Date.now()) / 864e5) : 0;
     $('#unlock-next').innerHTML = nx ? `Следующая игра — <b>«${esc(nx.title)}»</b> — ${days <= 1 ? 'завтра' : `через ${days} ${plural(days, 'день', 'дня', 'дней')}`}, в понедельник в 10:00` : '';
     $('#all-count').textContent = `${visible + 1} ${plural(visible + 1, 'игра', 'игры', 'игр')}`;
+  }
+
+  // ---------- Поле: каждая вышедшая игра — фишка, «Игрок дня» — вратарь ----------
+  const SHORT = { 'ng:wordle': 'Wordle', 'act:nation': 'Сборная', 'act:pick-duo': 'Этого или того', 'act:auction-bot': 'Аукцион', 'ng:duel': 'Дуэль',
+    'ng:trumps': 'Козыри', 'act:ttt': 'Тики-така', 'act:guess-career': 'Угадай игрока', 'act:career': 'Карьера', 'act:club': 'Клуб', 'act:transfer': 'Трансфер',
+    'act:pick-solo': 'Легенды', 'act:fc': 'FC 27', 'act:value': 'Кто дороже', 'act:hl': 'Дороже?', 'act:pass-levels': 'Пас' };
+  // сколько фишек в каждой линии — от защиты к атаке (как схема 4-3-3)
+  function formation(n) {
+    const rows = Math.max(1, Math.ceil(n / 3)), base = Math.floor(n / rows), extra = n % rows;
+    return Array.from({ length: rows }, (_, i) => base + (i >= rows - extra ? 1 : 0));
+  }
+  function renderPitch() {
+    const box = $('#pitch'); if (!box) return;
+    const doneDaily = (id) => { const d = (Store.d.ng[id] || {}).daily; return !!(d && d.day === Day.key() && d.done); };
+    const cur = Release.current(), curKeys = cur ? cur.keys : [];
+    const items = NG.list.filter((g) => g.group === 'daily' && Release.isOut('ng:' + g.id))
+      .map((g) => ({ data: { ng: g.id }, key: 'ng:' + g.id, ico: 'ng-' + g.id, title: g.title, badge: doneDaily(g.id) ? ['ok', '✓'] : null }));
+    $$('#featured > *').forEach((el) => {
+      const k = keyOf(el); if (!k || items.some((x) => x.key === k)) return;
+      const note = (($('.limit-note', el) || {}).textContent || '').match(/(\d+)\s*из\s*(\d+)/);
+      items.push({ data: { ...el.dataset }, key: k, ico: (($('[data-ico]', el) || {}).dataset || {}).ico || '', title: ($(':scope > b', el) || {}).textContent || '',
+        badge: curKeys.includes(k) ? ['new', 'NEW'] : note ? ['', `${note[1]}/${note[2]}`] : null, soon: el.classList.contains('is-soon') });
+    });
+    const nx = Release.next();
+    const all = nx ? [...items, { soon: true, next: nx }] : items;
+    const rows = formation(all.length);
+    $('#pitch-form').textContent = `${[...rows].join('-')}`;
+    let i = 0;
+    const html = rows.map((cnt, r) => {
+      const y = 70 - (r * 58) / Math.max(1, rows.length - 1 || 1); // от линии защиты к атаке, в процентах высоты поля
+      return Array.from({ length: cnt }, (_, j) => {
+        const it = all[i++], x = cnt === 1 ? 50 : 13 + (74 * j) / (cnt - 1);
+        if (it.next) {
+          const d = Math.max(1, Math.ceil((it.next.at - Date.now()) / 864e5));
+          return `<div class="tk soon" style="left:${x}%;top:${y}%"><span class="tok"><i>${items.length + 1}</i></span><b>${d <= 1 ? 'Завтра' : `Через ${d} дн`}</b></div>`;
+        }
+        const attrs = Object.entries(it.data).map(([a, v]) => `data-${a.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}="${esc(v)}"`).join(' ');
+        return `<button class="tk ${it.badge && it.badge[0] === 'ok' ? 'done' : ''} ${it.soon ? 'is-soon' : ''}" ${attrs} style="left:${x}%;top:${y}%;--k:${kolor(it.key)}">
+          <span class="tok"><span class="tile-ico" data-ico="${esc(it.ico)}"></span>${it.badge ? `<em class="${it.badge[0]}">${it.badge[1]}</em>` : ''}</span><b>${esc(SHORT[it.key] || it.title)}</b></button>`;
+      }).join('');
+    }).join('');
+    box.innerHTML = html + `<button class="tk gk" data-act="dly" style="left:50%;top:88%"><span class="tok"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>`;
+    Icons.fill(box);
+    const s = Store.d.dly || {};
+    $('#hub-streak').textContent = `🔥 ${s.streak || 0}`;
+    $('#pitch-tour').textContent = `Тур ${Release.tour()}`;
+  }
+  // Новая игра недели: один раз за неделю — табло замены
+  function maybeSub() {
+    const cur = Release.current(), ui = Store.d.ui || (Store.d.ui = {}), wk = Release.weekKey();
+    if (!cur || ui.subWeek === wk || Modal.isOpen || !Store.d.user.nick) return;
+    ui.subWeek = wk; Store.save();
+    const t = $$('#hub :is(.tile-card, .game-card, .auction-hero)').find((el) => cur.keys.includes(keyOf(el)));
+    const ico = t && $('[data-ico]', t) ? $('[data-ico]', t).dataset.ico : '';
+    Modal.open(`<div class="sub-led"><span>▲</span><b>${$$('#pitch .tk:not(.gk):not(.soon)').length || ''}</b><small>Замена · новая игра недели</small></div>
+      <h2 class="sub-h">На поле выходит «${esc(cur.title)}»</h2>${ico ? `<span class="sub-tok" style="--k:${kolor(cur.keys[0])}"><span class="tile-ico" data-ico="${esc(ico)}"></span></span>` : ''}`, [
+      { label: 'Сыграть первым', cls: 'gold', onClick: () => { if (t) t.click(); } },
+      { label: 'Позже', cls: 'ghost' },
+    ]);
+    Icons.fill($('.modal-card') || document);
   }
 
   // у каждой игры свой сочный цвет — одинаковый на главной, во вкладках и в заданиях дня
@@ -246,7 +319,7 @@ const App = (() => {
     else if (PANELS.includes(where)) showPanel(where, false);
     else { showPanel(panel, false); if (scrollMem[panel]) window.scrollTo(0, scrollMem[panel]); }
     if (!Store.d.user.nick) later(() => User.ensure(), 250);
-    else { Track.maybeAsk(); claimDaily(); }
+    else { Track.maybeAsk(); claimDaily(); later(maybeSub, 1600); }
   }
 
   // нажатие на вкладку внизу: на главной просто листаем панели
@@ -381,6 +454,7 @@ const App = (() => {
       if (Screens.current === 'runner' && id !== 'runner') $('#runner-frame').removeAttribute('src');
       if (Screens.current === 'ng' && id !== 'ng') NG.leave();
       orig(id);
+      document.body.dataset.scr = id;
       document.body.classList.toggle('in-runner', id === 'runner');
       $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop' || id === 'board' || id === 'achievements');
       tabs();

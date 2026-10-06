@@ -271,7 +271,7 @@ const Daily = (() => {
   function hubCard() {
     syncDay();
     const s = S();
-    $('#dly-card-num').textContent = `#${dayNum()}`;
+    $('#dly-card-num').textContent = `№${dayNum()}`;
     $('#dly-card-state').textContent = s.done
       ? (s.won ? `Угадал с ${s.level}-й подсказки ✓` : 'Сегодня не угадал') + ' · новый завтра'
       : s.ev.length ? `Догадок: ${s.ev.filter((e) => e !== 'h').length}, подсказок: ${s.level}` : 'Новый футболист уже ждёт';
