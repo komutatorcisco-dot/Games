@@ -8,8 +8,8 @@
 <meta name="description" content="Футбольные мини-игры канала «Старики Джексоны»">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;800&family=Inter:wght@900&family=Russo+One&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261005e">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;800&family=Inter:wght@900&family=Unbounded:wght@700;900&family=Russo+One&display=swap">
+<link rel="stylesheet" href="css/style.css?v=20261006a">
 <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -181,31 +181,38 @@
       <div class="topbar-title">Профиль</div>
       <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
     </header>
-    <div class="prof-user"><div id="prof-nick"></div><button class="btn ghost" data-act="nick">Изменить</button></div>
-    <div class="prof-hero">
+    <div class="pf-card">
       <div class="prof-badge frame-host" id="prof-badge"></div>
-      <div>
-        <div class="rank-label">Звание</div>
-        <div class="prof-rank" id="prof-rank"></div>
+      <div class="pf-main">
+        <div id="prof-nick"></div>
+        <div class="pf-rank"><span id="prof-rank"></span><small id="prof-next"></small></div>
         <span class="xpbar"><i id="prof-xp"></i></span>
-        <small class="muted" id="prof-next"></small>
       </div>
+      <button class="pf-edit" data-act="nick" aria-label="Изменить ник">✎</button>
     </div>
-    <h3 class="section-label">Статистика</h3>
-    <div class="stats" id="prof-stats"></div>
-    <h3 class="section-label">Достижения</h3>
-    <div class="achs" id="prof-achs"></div>
-    <h3 class="section-label">Настройки</h3>
+    <div class="stats pf-stats" id="prof-stats"></div>
+    <div class="pf-grid">
+      <button data-act="achievements" class="pf-b1"><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="15" r="5.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M8.5 10.5 L6 3 H10 L12 8 L14 3 H18 L15.5 10.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><b>Достижения</b><small id="pf-ach"></small></button>
+      <button data-act="board" class="pf-b2"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4 H17 V9 C17 12 15 14 12 14 C9 14 7 12 7 9 Z M7 6 H4 C4 9 5.5 10.5 7.5 10.5 M17 6 H20 C20 9 18.5 10.5 16.5 10.5 M12 14 V17 M9.5 17 H14.5 V20.5 H9.5 Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><b>Рейтинг</b><small>канала</small></button>
+      <button data-act="shop" class="pf-b3"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8 H19 L18 20.5 H6 Z M9 8 V6.5 A3 3 0 0 1 15 6.5 V8" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><b>Магазин</b><small>рамки и карты</small></button>
+      <button data-act="wheel" class="pf-b4"><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 3.5 V20.5 M3.5 12 H20.5 M6 6 L18 18 M18 6 L6 18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="2" fill="currentColor"/></svg></span><b>Колесо</b><small id="set-wheel"></small></button>
+    </div>
     <div class="settings">
-      <button class="set-row" data-act="admin" id="prof-admin" hidden><span>📊 Админка</span><b>→</b></button>
-      <button class="set-row" data-act="wheel"><span>🎡 Колесо удачи</span><b id="set-wheel"></b></button>
-      <button class="set-row" data-act="report"><span>🐞 Нашёл ошибку</span><b>→</b></button>
-      <button class="set-row" data-act="shop"><span>🛒 Магазин</span><b>→</b></button>
-      <button class="set-row" data-act="board"><span>🏆 Рейтинг канала</span><b>→</b></button>
+      <button class="set-row" data-act="admin" id="prof-admin" hidden><span>Админка</span><b>→</b></button>
       <button class="set-row" data-act="music"><span>Фоновая музыка</span><b id="set-music"></b></button>
       <button class="set-row" data-act="sound"><span>Звуки в играх</span><b id="set-sound"></b></button>
+      <button class="set-row" data-act="report"><span>Нашёл ошибку</span><b>→</b></button>
       <button class="set-row donate-entry" data-act="donate" hidden><span>Поддержать канал</span><b>⭐</b></button>
     </div>
+  </section>
+
+  <section class="screen" id="achievements" hidden>
+    <header class="topbar">
+      <button class="back" data-act="profile" aria-label="Назад">←</button>
+      <div class="topbar-title"><span>Достижения</span><small id="ach-sub"></small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div class="achs" id="prof-achs"></div>
   </section>
 
   <!-- ===== ПАС В ВОРОТА: УРОВНИ ===== -->
@@ -502,76 +509,76 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script defer src="js/core.js?v=20261005e"></script>
-<script defer src="js/music.js?v=20261005e"></script>
-<script defer src="js/players.js?v=20261005e"></script>
-<script defer src="js/careers.js?v=20261005e"></script>
-<script defer src="js/careers2.js?v=20261005e"></script>
-<script defer src="js/tttcats.js?v=20261005e"></script>
-<script defer src="js/quizdata.js?v=20261005e"></script>
-<script defer src="js/data/fcstats.js?v=20261005e"></script>
-<script defer src="js/media.js?v=20261005e"></script>
-<script defer src="js/pass.js?v=20261005e"></script>
-<script defer src="js/guess.js?v=20261005e"></script>
-<script defer src="js/career.js?v=20261005e"></script>
-<script defer src="js/club.js?v=20261005e"></script>
-<script defer src="js/transfer.js?v=20261005e"></script>
-<script defer src="js/ttt.js?v=20261005e"></script>
-<script defer src="js/compare.js?v=20261005e"></script>
-<script defer src="js/form.js?v=20261005e"></script>
-<script defer src="js/auction.js?v=20261005e"></script>
-<script defer src="js/nationxi.js?v=20261005e"></script>
-<script defer src="js/nation.js?v=20261005e"></script>
-<script defer src="js/daily.js?v=20261005e"></script>
-<script defer src="js/pick.js?v=20261005e"></script>
-<script defer src="js/howto.js?v=20261005e"></script>
-<script defer src="js/icons.js?v=20261005e"></script>
-<script defer src="js/wheel.js?v=20261005e"></script>
-<script defer src="js/pz/shell.js?v=20261005e"></script>
-<script defer src="js/pz/sort.js?v=20261005e"></script>
-<script defer src="js/pz/pipes.js?v=20261005e"></script>
-<script defer src="js/pz/flood.js?v=20261005e"></script>
-<script defer src="js/pz/slide.js?v=20261005e"></script>
-<script defer src="js/pz/memory.js?v=20261005e"></script>
-<script defer src="js/pz/words.js?v=20261005e"></script>
-<script defer src="js/pz/g2048.js?v=20261005e"></script>
-<script defer src="js/pz/popcrests.js?v=20261005e"></script>
-<script defer src="js/pz/popit.js?v=20261005e"></script>
-<script defer src="js/ng/core.js?v=20261005e"></script>
-<script defer src="js/ng/lineup.js?v=20261005e"></script>
-<script defer src="js/ng/wordle.js?v=20261005e"></script>
-<script defer src="js/ng/treble.js?v=20261005e"></script>
-<script defer src="js/ng/false9.js?v=20261005e"></script>
-<script defer src="js/ng/connect.js?v=20261005e"></script>
-<script defer src="js/data/lists.js?v=20261005e"></script>
-<script defer src="js/ng/top10.js?v=20261005e"></script>
-<script defer src="js/ng/context.js?v=20261005e"></script>
-<script defer src="js/ng/whoami.js?v=20261005e"></script>
-<script defer src="js/ng/linkup.js?v=20261005e"></script>
-<script defer src="js/ng/rank.js?v=20261005e"></script>
-<script defer src="js/data/goals.js?v=20261005e"></script>
-<script defer src="js/ng/replay.js?v=20261005e"></script>
-<script defer src="js/data/wcmatches.js?v=20261005e"></script>
-<script defer src="js/ng/score.js?v=20261005e"></script>
-<script defer src="js/data/numhist.js?v=20261005e"></script>
-<script defer src="js/ng/numhist.js?v=20261005e"></script>
-<script defer src="js/data/elohist.js?v=20261005e"></script>
-<script defer src="js/ng/timemachine.js?v=20261005e"></script>
-<script defer src="js/ng/box2box.js?v=20261005e"></script>
-<script defer src="js/ng/bingo.js?v=20261005e"></script>
-<script defer src="js/ng/draft.js?v=20261005e"></script>
-<script defer src="js/ng/trumps.js?v=20261005e"></script>
-<script defer src="js/data/pop.js?v=20261005e"></script>
-<script defer src="js/ng/vs100.js?v=20261005e"></script>
-<script defer src="js/ng/darts.js?v=20261005e"></script>
-<script defer src="js/shop.js?v=20261005e"></script>
-<script defer src="js/config.js?v=20261005e"></script>
-<script defer src="js/donate.js?v=20261005e"></script>
-<script defer src="js/user.js?v=20261005e"></script>
-<script defer src="js/duel.js?v=20261005e"></script>
-<script defer src="js/release.js?v=20261005e"></script>
-<script defer src="js/board.js?v=20261005e"></script>
-<script defer src="js/track.js?v=20261005e"></script>
-<script defer src="js/app.js?v=20261005e"></script>
+<script defer src="js/core.js?v=20261006a"></script>
+<script defer src="js/music.js?v=20261006a"></script>
+<script defer src="js/players.js?v=20261006a"></script>
+<script defer src="js/careers.js?v=20261006a"></script>
+<script defer src="js/careers2.js?v=20261006a"></script>
+<script defer src="js/tttcats.js?v=20261006a"></script>
+<script defer src="js/quizdata.js?v=20261006a"></script>
+<script defer src="js/data/fcstats.js?v=20261006a"></script>
+<script defer src="js/media.js?v=20261006a"></script>
+<script defer src="js/pass.js?v=20261006a"></script>
+<script defer src="js/guess.js?v=20261006a"></script>
+<script defer src="js/career.js?v=20261006a"></script>
+<script defer src="js/club.js?v=20261006a"></script>
+<script defer src="js/transfer.js?v=20261006a"></script>
+<script defer src="js/ttt.js?v=20261006a"></script>
+<script defer src="js/compare.js?v=20261006a"></script>
+<script defer src="js/form.js?v=20261006a"></script>
+<script defer src="js/auction.js?v=20261006a"></script>
+<script defer src="js/nationxi.js?v=20261006a"></script>
+<script defer src="js/nation.js?v=20261006a"></script>
+<script defer src="js/daily.js?v=20261006a"></script>
+<script defer src="js/pick.js?v=20261006a"></script>
+<script defer src="js/howto.js?v=20261006a"></script>
+<script defer src="js/icons.js?v=20261006a"></script>
+<script defer src="js/wheel.js?v=20261006a"></script>
+<script defer src="js/pz/shell.js?v=20261006a"></script>
+<script defer src="js/pz/sort.js?v=20261006a"></script>
+<script defer src="js/pz/pipes.js?v=20261006a"></script>
+<script defer src="js/pz/flood.js?v=20261006a"></script>
+<script defer src="js/pz/slide.js?v=20261006a"></script>
+<script defer src="js/pz/memory.js?v=20261006a"></script>
+<script defer src="js/pz/words.js?v=20261006a"></script>
+<script defer src="js/pz/g2048.js?v=20261006a"></script>
+<script defer src="js/pz/popcrests.js?v=20261006a"></script>
+<script defer src="js/pz/popit.js?v=20261006a"></script>
+<script defer src="js/ng/core.js?v=20261006a"></script>
+<script defer src="js/ng/lineup.js?v=20261006a"></script>
+<script defer src="js/ng/wordle.js?v=20261006a"></script>
+<script defer src="js/ng/treble.js?v=20261006a"></script>
+<script defer src="js/ng/false9.js?v=20261006a"></script>
+<script defer src="js/ng/connect.js?v=20261006a"></script>
+<script defer src="js/data/lists.js?v=20261006a"></script>
+<script defer src="js/ng/top10.js?v=20261006a"></script>
+<script defer src="js/ng/context.js?v=20261006a"></script>
+<script defer src="js/ng/whoami.js?v=20261006a"></script>
+<script defer src="js/ng/linkup.js?v=20261006a"></script>
+<script defer src="js/ng/rank.js?v=20261006a"></script>
+<script defer src="js/data/goals.js?v=20261006a"></script>
+<script defer src="js/ng/replay.js?v=20261006a"></script>
+<script defer src="js/data/wcmatches.js?v=20261006a"></script>
+<script defer src="js/ng/score.js?v=20261006a"></script>
+<script defer src="js/data/numhist.js?v=20261006a"></script>
+<script defer src="js/ng/numhist.js?v=20261006a"></script>
+<script defer src="js/data/elohist.js?v=20261006a"></script>
+<script defer src="js/ng/timemachine.js?v=20261006a"></script>
+<script defer src="js/ng/box2box.js?v=20261006a"></script>
+<script defer src="js/ng/bingo.js?v=20261006a"></script>
+<script defer src="js/ng/draft.js?v=20261006a"></script>
+<script defer src="js/ng/trumps.js?v=20261006a"></script>
+<script defer src="js/data/pop.js?v=20261006a"></script>
+<script defer src="js/ng/vs100.js?v=20261006a"></script>
+<script defer src="js/ng/darts.js?v=20261006a"></script>
+<script defer src="js/shop.js?v=20261006a"></script>
+<script defer src="js/config.js?v=20261006a"></script>
+<script defer src="js/donate.js?v=20261006a"></script>
+<script defer src="js/user.js?v=20261006a"></script>
+<script defer src="js/duel.js?v=20261006a"></script>
+<script defer src="js/release.js?v=20261006a"></script>
+<script defer src="js/board.js?v=20261006a"></script>
+<script defer src="js/track.js?v=20261006a"></script>
+<script defer src="js/app.js?v=20261006a"></script>
 </body>
 </html>

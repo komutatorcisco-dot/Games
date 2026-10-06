@@ -9,25 +9,26 @@ const App = (() => {
   const nextDay = () => (Store.d.lastDaily === yesterday() ? (Store.d.dailyStreak % 7) + 1 : 1);
 
   const ACHIEVEMENTS = [
-    ['Первый гол', 'Пройди уровень в «Пас в ворота»', () => Store.d.pass.unlocked > 1],
-    ['Хет-трик звёзд', '10 уровней на три звезды', () => Object.values(Store.d.pass.stars).filter((s) => s === 3).length >= 10],
-    ['Финал тура', 'Пройди 10 уровней пазла', () => Store.d.pass.unlocked > 10],
-    ['Скаут', 'Угадай 10 футболистов', () => Profile.wins('guess') >= 10],
-    ['Историк', 'Угадай 10 карьер', () => Profile.wins('career') >= 10],
-    ['Клубный эксперт', 'Угадай 10 клубов', () => Profile.wins('club') >= 10],
-    ['Трансферный гуру', 'Серия 10 в «Куда перешёл?»', () => Store.d.transfer.best >= 10],
-    ['Финансист', 'Серия 10 в «Дороже или дешевле»', () => Store.d.transfer.hlBest >= 10],
-    ['Тики-така', 'Заполни всю сетку Тики-Така-Тоу', () => Store.d.ttt.wins >= 1],
-    ['Геймер', 'Серия 10 в «Кто выше в FC 27?»', () => Store.d.compare.fcBest >= 10],
-    ['Скаут-оценщик', 'Серия 10 в «Кто дороже?»', () => Store.d.compare.valBest >= 10],
+    ['Первый гол', 'Пройди уровень в «Пас в ворота»', () => Store.d.pass.unlocked > 1, 'act:pass-levels'],
+    ['Хет-трик звёзд', '10 уровней на три звезды', () => Object.values(Store.d.pass.stars).filter((s) => s === 3).length >= 10, 'act:pass-levels'],
+    ['Финал тура', 'Пройди 10 уровней пазла', () => Store.d.pass.unlocked > 10, 'act:pass-levels'],
+    ['Скаут', 'Угадай 10 футболистов', () => Profile.wins('guess') >= 10, 'act:guess-career'],
+    ['Историк', 'Угадай 10 карьер', () => Profile.wins('career') >= 10, 'act:career'],
+    ['Клубный эксперт', 'Угадай 10 клубов', () => Profile.wins('club') >= 10, 'act:club'],
+    ['Трансферный гуру', 'Серия 10 в «Куда перешёл?»', () => Store.d.transfer.best >= 10, 'act:transfer'],
+    ['Финансист', 'Серия 10 в «Дороже или дешевле»', () => Store.d.transfer.hlBest >= 10, 'act:hl'],
+    ['Тики-така', 'Заполни всю сетку Тики-Така-Тоу', () => Store.d.ttt.wins >= 1, 'act:ttt'],
+    ['Геймер', 'Серия 10 в «Кто выше в FC 27?»', () => Store.d.compare.fcBest >= 10, 'act:fc'],
+    ['Скаут-оценщик', 'Серия 10 в «Кто дороже?»', () => Store.d.compare.valBest >= 10, 'act:value'],
     ['Богач', 'Накопи 1000 монет', () => Store.d.coins >= 1000],
-    ['Головоломщик', 'Пройди 30 уровней головоломок', () => Profile.wins('pz') >= 30],
+    ['Головоломщик', 'Пройди 30 уровней головоломок', () => Profile.wins('pz') >= 30, 'pz:sort'],
     ['Неделя с нами', 'Заходи 7 дней подряд', () => Store.d.dailyStreak >= 7],
     ['Сборник', 'Серия 10 в «Угадай сборную»', () => Store.d.nation.best >= 10],
     ['Игрок дня', 'Угадай игрока дня', () => Store.d.dly.wins >= 1],
     ['Неделя без промаха', 'Серия 7 в «Игроке дня»', () => Store.d.dly.best >= 7],
     ['Агент', 'Выиграй аукцион', () => Store.d.auction.wins >= 1],
     ['Суперагент', 'Выиграй 10 аукционов', () => Store.d.auction.wins >= 10],
+    ['Дуэлянт', 'Выиграй футбольную дуэль', () => ((Store.d.fduel && Store.d.fduel.hist) || []).some((x) => x.res === 'win')],
     ['Профи', 'Получи звание «Профи»', () => Store.d.stats.xp >= 800],
     ['Старик Джексон', 'Высшее звание', () => Store.d.stats.xp >= 4000],
   ];
@@ -103,29 +104,29 @@ const App = (() => {
       ${all && !claimed ? `<button class="btn gold dp-chest" data-act="chest">🎁 Все задания сделаны — забрать сундук +${CHEST}</button>`
         : `<small class="dp-note">${claimed ? 'Сундук получен ✓ Новые задания в полночь по МСК' : `Сделай все ${st.length} задания дня — сундук +${CHEST} монет`}</small>`}`;
     Icons.fill($('#dly-progress'));
+    paint($('#dly-progress'));
   }
 
   function renderProfile() {
     rankUi('#prof-rank', '#prof-xp', '#prof-next');
     $('#prof-badge').textContent = Profile.rank().name.slice(0, 1);
-    const P = Store.d.pass, T = Store.d.transfer;
+    $('#prof-nick').textContent = Store.d.user.nick || 'Игрок';
     const dh = (Store.d.fduel && Store.d.fduel.hist) || [];
-    // только то, во что сейчас можно играть
     const stats = [
-      ['Монеты', Store.d.coins],
-      ['Опыт', Store.d.stats.xp],
-      ['Игрок дня: угадано', Store.d.dly.wins || 0],
-      ['Игрок дня: лучшая серия', Store.d.dly.best],
-      ['Рекорд «Угадай сборную»', Store.d.nation.best || 0],
-      ['Побед в аукционе', (Store.d.auction && Store.d.auction.wins) || 0],
-      ['Дуэлей сыграно', dh.length],
-      ['Побед в дуэлях', dh.filter((x) => x.res === 'win').length],
+      ['опыт', Store.d.stats.xp],
+      ['игроков дня', Store.d.dly.wins || 0],
+      ['серия', Store.d.dly.best || 0],
+      ['побед в дуэлях', dh.filter((x) => x.res === 'win').length],
     ];
     $('#prof-stats').innerHTML = stats.map(([k, v]) => `<div class="stat"><b>${v}</b><span>${k}</span></div>`).join('');
-    $('#prof-achs').innerHTML = ACHIEVEMENTS.map(([name, desc, test]) => {
-      const ok = test();
+    let got = 0;
+    const achs = ACHIEVEMENTS.filter((a) => !a[3] || Release.isOut(a[3])); // только для вышедших игр
+    $('#prof-achs').innerHTML = achs.map(([name, desc, test]) => {
+      const ok = test(); if (ok) got++;
       return `<div class="ach ${ok ? 'ok' : ''}"><i>${ok ? '★' : '☆'}</i><div><b>${name}</b><small>${desc}</small></div></div>`;
     }).join('');
+    $('#pf-ach').textContent = `${got} из ${achs.length}`;
+    $('#ach-sub').textContent = `${got} из ${achs.length}`;
     $('#prof-admin').hidden = !Store.d.admin;
     $('#set-wheel').textContent = Wheel.ready() ? 'Крутить' : 'Завтра';
     $('#set-music').textContent = Store.d.music ? 'Вкл' : 'Выкл';
@@ -156,6 +157,7 @@ const App = (() => {
     $$('#cat-nav [data-cat]').forEach((b) => { const n = +$(`.cat[data-cat="${b.dataset.cat}"]`).dataset.n; b.dataset.n = n; b.hidden = !n; });
     compact = visible <= 14;
     $('#cat-nav').hidden = compact;
+    $('#panel-games').classList.toggle('compact', compact);
     // «Игры» на главной: короткий список всех вышедших игр (ежедневные — выше, в заданиях дня)
     const src = $$('#panel-games .cat .tile-card:not([hidden]), #panel-friends > .tiles .tile-card:not([hidden])')
       .filter((el) => !['act:auction-duo'].includes(keyOf(el)));
@@ -165,6 +167,7 @@ const App = (() => {
     ];
     $('#featured').innerHTML = extra.join('');
     src.forEach((el) => { const c = el.cloneNode(true); c.classList.remove('wide', 'duo'); $$('.limit-note', c).forEach((x) => x.remove()); $('#featured').appendChild(c); });
+    paint();
     // новинка недели и следующая игра
     const cur = Release.current(), nx = Release.next();
     const wk = $('#week-game');
@@ -177,6 +180,18 @@ const App = (() => {
     const days = nx ? Math.ceil((nx.at - Date.now()) / 864e5) : 0;
     $('#unlock-next').innerHTML = nx ? `Следующая игра — <b>«${esc(nx.title)}»</b> — ${days <= 1 ? 'завтра' : `через ${days} ${plural(days, 'день', 'дня', 'дней')}`}, в понедельник в 10:00` : '';
     $('#all-count').textContent = `${visible + 1} ${plural(visible + 1, 'игра', 'игры', 'игр')}`;
+  }
+
+  // у каждой игры свой сочный цвет — одинаковый на главной, во вкладках и в заданиях дня
+  const KOLORS = ['#c6f432', '#ff7a2f', '#ff5fa2', '#4fc3ff', '#ffd23f', '#a98bff', '#3ee6a8', '#ff4d4d'];
+  const FIXED = { 'ng:wordle': '#ffd23f', 'act:nation': '#3ee6a8', 'act:pick-duo': '#4fc3ff', 'act:auction-bot': '#ff7a2f', 'ng:duel': '#ff5fa2', 'ng:trumps': '#a98bff', 'act:ttt': '#4fc3ff', 'act:guess-career': '#c6f432' };
+  function kolor(k) {
+    if (FIXED[k]) return FIXED[k];
+    let h = 0; for (const ch of k) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    return KOLORS[h % KOLORS.length];
+  }
+  function paint(root = document) {
+    $$('#hub :is(.tile-card, .dp-game)', root).forEach((el) => { const k = el.classList.contains('dp-game') ? 'ng:' + el.dataset.ng : keyOf(el); if (k) el.style.setProperty('--k', kolor(k)); });
   }
 
   function showPanel(name, animate = true) {
@@ -218,7 +233,7 @@ const App = (() => {
     $('#tab-games').classList.toggle('on', id === 'hub' && panel === 'games');
     $('#tab-friends').classList.toggle('on', id === 'hub' && panel === 'friends');
     $('#tab-board').classList.toggle('on', id === 'board');
-    $('#tab-profile').classList.toggle('on', id === 'profile');
+    $('#tab-profile').classList.toggle('on', id === 'profile' || id === 'achievements');
   }
 
   // where: вкладка ('games'), раздел игр ('puzzles') или ничего — вернуться туда, где был
@@ -254,6 +269,7 @@ const App = (() => {
     games: () => tab('games'),
     friends: () => tab('friends'),
     board: () => Board.open(),
+    achievements: () => { Modal.close(); renderProfile(); Screens.show('achievements'); window.scrollTo(0, 0); },
     report: () => Track.report(),
     admin: () => Track.admin(),
     'duel-live': () => NG.open('duel', { mode: 'live' }),
@@ -366,7 +382,7 @@ const App = (() => {
       if (Screens.current === 'ng' && id !== 'ng') NG.leave();
       orig(id);
       document.body.classList.toggle('in-runner', id === 'runner');
-      $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop' || id === 'board');
+      $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop' || id === 'board' || id === 'achievements');
       tabs();
       try { if (TG && TG.BackButton) id === 'hub' ? TG.BackButton.hide() : TG.BackButton.show(); } catch (e) { /* не в Telegram */ }
     };

@@ -19,7 +19,7 @@
     },
     () => {
       const ts = shuffle(TR().filter((t) => t[5] > 0), Math.random).filter((t, i, a) => a.findIndex((x) => x[5] === t[5]) === i).slice(0, 5);
-      return { title: 'Трансферы по сумме: от самого дорогого', items: ts.map((t) => ({ key: t[0] + t[4], html: `${t[1]} ${esc(t[0])}<small>${esc(t[2])} → ${esc(t[3])}, ${t[4]}</small>`, v: t[5], show: `${t[5]} млн €` })) };
+      return { title: 'Трансферы по сумме: от самого дорогого', items: ts.map((t) => ({ key: t[0] + t[4], html: `${avatar(t[0], 's')}<span>${t[1]} ${esc(t[0])}<small>${esc(t[2])} → ${esc(t[3])}, ${t[4]}</small></span>`, v: t[5], show: `${t[5]} млн €` })) };
     },
   ];
 
