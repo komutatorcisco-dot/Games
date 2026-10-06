@@ -366,6 +366,7 @@ const App = (() => {
     friends: () => tab('friends'),
     board: () => Board.open(),
     rewards: () => Rewards.open(),
+    collection: () => Rewards.open('cards'),
     'rw-packs': () => Rewards.openPending(),
     'rw-buy': () => Rewards.buyPass(),
     // позвать друга: ссылка с твоим id — кто откроет игры по ней, попадёт к тебе в «Друзья» в таблице

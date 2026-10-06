@@ -28,27 +28,25 @@ const Rewards = (() => {
   const seasonEnd = () => SEASON_START + season() * SEASON_DAYS * 864e5;
 
   // ---------- что может выпасть ----------
-  const COSMETICS = () => {
-    const out = [];
-    const add = (kind, list, label) => list.forEach(([id, name, price]) => { if (price > 0) out.push({ kind, id, name: `${label} «${name}»`, emoji: kind === 'frame' ? '🖼️' : kind === 'cards' ? '🃏' : '⚽' }); });
-    add('frame', Shop.FRAMES, 'Рамка'); add('cards', Shop.CARDS, 'Карты'); add('balls', Shop.BALLS, 'Мячи');
-    return out.filter((c) => !Store.d.shop.owned[`${c.kind}:${c.id}`]);
-  };
   // Содержимое пака по итоговой редкости: монеты и иногда предмет
   function contents(lv) {
     const R = Pack3D.RAR[lv];
     const coins = R.prize[0] + Math.round((Math.random() * (R.prize[1] - R.prize[0])) / 5) * 5;
-    const itemChance = [0, 0.15, 0.35, 0.6, 1][lv];
-    if (Math.random() < itemChance) {
-      if (lv <= 1) return { coins, item: { kind: 'life', n: 1, name: 'Запасная жизнь', emoji: '❤️' } };
-      const pool = COSMETICS();
-      if (pool.length) return { coins, item: pool[Math.floor(Math.random() * pool.length)] };
-      return { coins: coins * 2 };
-    }
-    return { coins };
+    // главное в паке — карточки футболистов; монеты идут довеском
+    return { coins, cards: Cards.packCards(lv) };
   }
-  function grant(c) {
+  // карточки: в коллекцию и показать по одной; повторы — монетами
+  function giveCards(keys, then) {
+    const res = Cards.add(keys);
+    Cards.reveal(res, () => {
+      const dup = res.reduce((s, x) => s + x.coins, 0);
+      if (dup) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(dup); }
+      refresh(); then && then();
+    });
+  }
+  function grant(c, then) {
     if (c.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(c.coins); }
+    if (c.cards && c.cards.length) { quest('pack'); refresh(); giveCards(c.cards, then); return; }
     if (c.item) {
       if (c.item.kind === 'life') Store.d.shop.lives += c.item.n || 1;
       else { Store.d.shop.owned[`${c.item.kind}:${c.item.id}`] = true; setTimeout(() => toast(`${c.item.name} — теперь твоя! Выбери в магазине`), 900); }
@@ -56,37 +54,41 @@ const Rewards = (() => {
     }
     quest('pack');
     refresh();
+    then && then();
   }
   // открыть пак: minLevel — гарантированная редкость (с пути трофеев и пропуска)
   async function openDrop({ title, minLevel = 0, onStart, onDone } = {}) {
     try {
-      await Pack3D.drop({ title, minLevel, contents, onStart, onTake: (c) => { grant(c); onDone && onDone(c); } });
+      await Pack3D.drop({ title, minLevel, contents, onStart, onTake: (c) => grant(c, () => onDone && onDone(c)) });
     } catch (e) { // нет 3D — просто выдаём содержимое
       onStart && onStart();
-      const c = contents(minLevel); grant(c);
-      toast(`Пак: +${c.coins} монет${c.item ? ` и ${c.item.name}` : ''}`); onDone && onDone(c);
+      const c = contents(minLevel);
+      toast(`Пак: +${c.coins} монет`); grant(c, () => onDone && onDone(c));
     }
   }
 
   // ---------- путь трофеев ----------
   const ROAD = [
-    [10, { coins: 50 }], [25, { pack: 1 }], [50, { coins: 100 }], [80, { lives: 2 }], [120, { pack: 2 }],
-    [170, { coins: 150 }], [230, { pack: 1 }], [300, { pack: 3 }], [380, { coins: 250 }], [470, { lives: 3 }],
-    [570, { pack: 2 }], [680, { coins: 350 }], [800, { pack: 3 }], [950, { coins: 500 }], [1100, { pack: 2 }],
-    [1300, { lives: 5 }], [1500, { pack: 3 }], [1750, { coins: 800 }], [2000, { pack: 4 }],
+    [10, { coins: 50 }], [25, { pack: 1 }], [50, { card: 'gold' }], [80, { lives: 2 }], [120, { pack: 2 }],
+    [170, { coins: 150 }], [230, { pack: 1 }], [300, { card: 'legend' }], [380, { coins: 250 }], [470, { pack: 3 }],
+    [570, { pack: 2 }], [680, { card: 'legend' }], [800, { pack: 3 }], [950, { coins: 500 }], [1100, { pack: 2 }],
+    [1300, { card: 'jack' }], [1500, { pack: 3 }], [1750, { coins: 800 }], [2000, { pack: 4 }],
   ];
   const PACKNAME = ['Пак', 'Сверхредкий пак', 'Эпический пак', 'Легендарный пак', 'Пак «ДЖЕКСОН!!»'];
   const PACKCOL = ['#3ee66b', '#4fc3ff', '#c27bff', '#ffcf3a', '#ff3b5c'];
+  const CARDNAME = { gold: 'Золотая карточка', legend: 'Карточка-легенда', jack: 'Карточка «Джексон»' };
   function rewardLabel(r) {
-    if (r.coins) return { ico: '<i class="coin"></i>', txt: `${r.coins}` };
-    if (r.lives) return { ico: '❤️', txt: `×${r.lives}` };
-    if (r.pack !== undefined) return { ico: `<span class="rw-pk" style="--c:${PACKCOL[r.pack]}"></span>`, txt: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«') };
-    return { ico: '🎁', txt: '' };
+    if (r.coins) return { ico: '<i class="coin"></i>', txt: `${r.coins}`, art: '<span class="rs-coins"><i class="coin"></i><i class="coin"></i><i class="coin"></i></span>', name: `+${r.coins}` };
+    if (r.lives) return { ico: '❤️', txt: `×${r.lives}`, art: '<span class="rs-heart">❤️</span>', name: `Жизни ×${r.lives}` };
+    if (r.card) return { ico: `<span class="rs-card sm ${r.card}">?</span>`, txt: CARDNAME[r.card].split(' ')[0], art: `<span class="rs-card ${r.card}">?</span>`, name: CARDNAME[r.card].replace('Карточка-', '').replace('Карточка ', '') };
+    if (r.pack !== undefined) return { ico: `<span class="rw-pk" style="--c:${PACKCOL[r.pack]}"></span>`, txt: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«'), art: `<span class="rs-pack" style="--c:${PACKCOL[r.pack]}"><b>Д</b></span>`, name: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«') };
+    return { ico: '🎁', txt: '', art: '🎁', name: '' };
   }
   function giveReward(r, title) {
     if (r.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(r.coins); }
     if (r.lives) { Store.d.shop.lives += r.lives; Store.save(); toast(`+${r.lives} ${plural(r.lives, 'жизнь', 'жизни', 'жизней')}`); }
     if (r.pack !== undefined) openDrop({ title, minLevel: r.pack });
+    if (r.card) giveCards([Cards.draw(r.card).key]);
     refresh();
   }
   function claimRoad(i) {
@@ -211,8 +213,8 @@ const Rewards = (() => {
       onDone: () => { if (S().pending) setTimeout(openPending, 500); } });
   }
 
-  // ---------- экран «Награды» ----------
-  let tab = 'road';
+  // ---------- экран «Награды»: дорога трофеев лентой, ниже коллекция / пропуск / задания ----------
+  let tab = 'cards';
   function claimable() {
     const s = S(), p = passSync(), q = questSync(), L = passLevel();
     const road = ROAD.filter(([t], i) => s.trophies >= t && !s.road.includes(i)).length;
@@ -220,30 +222,45 @@ const Rewards = (() => {
     const qs = [...q.list, ...q.wlist].filter((x) => x.done && !x.got).length;
     return { road, pass, qs, packs: s.pending, all: road + pass + qs + s.pending };
   }
+  function header() {
+    const u = Store.d.user || {};
+    $$('.mh-nick').forEach((el) => { el.textContent = u.nick || 'Игрок'; });
+    $$('.mh-ava').forEach((el) => { el.textContent = u.emoji || '⚽'; });
+    $$('.mh-tro').forEach((el) => { el.textContent = `🏆 ${S().trophies}`; });
+    $$('.mh-cn').forEach((el) => { el.textContent = Cards.count(); });
+    $$('.mh-cards').forEach((el) => el.classList.toggle('fresh', Cards.freshN() > 0));
+  }
   function refresh() {
     const c = claimable();
     $$('.rw-dot').forEach((el) => { el.textContent = c.all > 9 ? '9+' : c.all; el.hidden = !c.all; });
     const ch = $('#hub-packs'); if (ch) { ch.hidden = !S().pending; ch.querySelector('b').textContent = S().pending; }
-    const tr = $('#hub-trophies'); if (tr) tr.querySelector('b').textContent = S().trophies;
+    header();
     if (Screens.current === 'rewards') render();
   }
   function cell(r, state, i, line) {
     const l = rewardLabel(r);
     return `<button class="rw-cell ${state}" ${state === 'ready' ? `data-${line}="${i}"` : ''}><span class="rw-ico">${l.ico}</span><b>${l.txt}</b>${state === 'got' ? '<i class="rw-ok">✓</i>' : state === 'lock' ? '<i class="rw-lock">🔒</i>' : ''}</button>`;
   }
+  function road(s) {
+    const next = ROAD.find(([t]) => s.trophies < t);
+    const steps = ROAD.map(([t, r], i) => {
+      const l = rewardLabel(r), got = s.road.includes(i), ready = !got && s.trophies >= t;
+      const prev = i ? ROAD[i - 1][0] : 0;
+      const fill = s.trophies >= t ? 100 : s.trophies <= prev ? 0 : Math.round(((s.trophies - prev) / (t - prev)) * 100);
+      return `<button class="rs ${got ? 'got' : ready ? 'ready' : 'lock'}" ${ready ? `data-road="${i}"` : ''}>
+        <span class="rs-art">${l.art}</span><span class="rs-name">${ready ? 'Забрать!' : l.name}</span>${got ? '<i class="rs-ok">✓</i>' : ''}
+        <span class="rs-seg"><i style="width:${fill}%"></i></span><span class="rs-t">${t}</span></button>`;
+    }).join('');
+    return `<div class="rw-sec"><div class="rw-row"><b>Дорога трофеев</b><small>🏆 ${s.trophies}${next ? ` → ${next[0]}` : ' · пройдена!'}</small></div>
+      <div class="rs-strip">${steps}</div><p class="rw-sub">За победу +${WIN_TROPHIES} 🏆, за матч +${PLAY_TROPHIES}</p></div>`;
+  }
   function render() {
     const s = S(), p = passSync(), q = questSync(), c = claimable();
-    const tabs = `<nav class="rw-tabs">${[['road', 'Путь', c.road], ['pass', 'Пропуск', c.pass], ['quests', 'Задания', c.qs]].map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}</nav>`;
-    const packs = s.pending ? `<button class="rw-packs" data-act="rw-packs"><span class="rw-pk big"></span><span><b>${s.pending} ${plural(s.pending, 'пак', 'пака', 'паков')} за победы</b><small>Нажми, чтобы открыть</small></span><em>Открыть</em></button>` : '';
+    const packs = s.pending ? `<button class="rw-packs" data-act="rw-packs"><span class="rw-pk big"></span><span><b>${s.pending} ${plural(s.pending, 'пак', 'пака', 'паков')} за победы</b><small>Внутри карточки футболистов</small></span><em>Открыть</em></button>` : '';
+    const tabs = `<nav class="rw-tabs">${[['cards', `Коллекция`, Cards.freshN() ? 'NEW' : ''], ['pass', 'Пропуск', c.pass], ['quests', 'Задания', c.qs]].map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}</nav>`;
     let body = '';
-    if (tab === 'road') {
-      const next = ROAD.find(([t], i) => s.trophies < t);
-      const prev = [...ROAD].reverse().find(([t]) => s.trophies >= t);
-      const from = prev ? prev[0] : 0, to = next ? next[0] : from || 1;
-      body = `<div class="rw-head"><span class="rw-tro">🏆 <b>${s.trophies}</b></span><small>${next ? `До следующей награды ${to - s.trophies} 🏆 · за победу +${WIN_TROPHIES}` : 'Весь путь пройден!'}</small>
-          <span class="rw-bar"><i style="width:${next ? Math.round(((s.trophies - from) / (to - from)) * 100) : 100}%"></i></span></div>
-        <div class="rw-road">${ROAD.map(([t, r], i) => `<div class="rw-step ${s.trophies >= t ? 'reach' : ''}"><span class="rw-t">${t}</span>${cell(r, s.road.includes(i) ? 'got' : s.trophies >= t ? 'ready' : 'lock', i, 'road')}</div>`).join('')}</div>`;
-    } else if (tab === 'pass') {
+    if (tab === 'cards') body = `<div class="rw-coll">${Cards.album()}</div>`;
+    else if (tab === 'pass') {
       const L = passLevel(), left = Math.max(0, Math.ceil((seasonEnd() - Date.now()) / 864e5));
       body = `<div class="rw-head"><span class="rw-tro">Сезон ${season()} · ур. <b>${L}</b></span><small>${L < PASS_LEVELS ? `${p.xp % PASS_STEP}/${PASS_STEP} до уровня ${L + 1} · ` : ''}до конца сезона ${left} ${plural(left, 'день', 'дня', 'дней')}</small>
           <span class="rw-bar"><i style="width:${L >= PASS_LEVELS ? 100 : (p.xp % PASS_STEP)}%"></i></span>
@@ -257,17 +274,26 @@ const Rewards = (() => {
       body = `<h3 class="section-label">На сегодня</h3>${q.list.map(row).join('')}<h3 class="section-label">На неделю</h3>${q.wlist.map(row).join('')}
         <p class="rw-note">Новые задания каждый день в полночь по МСК, недельные — в понедельник.</p>`;
     }
-    $('#rewards-body').innerHTML = tabs + packs + body;
+    const box = $('#rewards-body');
+    const keep = box.querySelector('.rs-strip'), sx = keep ? keep.scrollLeft : null;
+    box.innerHTML = road(s) + packs + tabs + body;
+    // лента: к ближайшей награде (готовой или следующей)
+    const strip = box.querySelector('.rs-strip');
+    if (sx !== null) strip.scrollLeft = sx;
+    else { const t = strip.querySelector('.rs.ready') || strip.querySelector('.rs.lock'); if (t) strip.scrollLeft = Math.max(0, t.offsetLeft - 16); }
+    header();
   }
   function open(t) { if (t) tab = t; Modal.close(); Screens.show('rewards'); render(); window.scrollTo(0, 0); }
   function bind() {
     $('#rewards-body').addEventListener('click', (e) => {
       const t = e.target.closest('[data-rwtab]'); if (t) { tab = t.dataset.rwtab; Sound.play('tap'); render(); return; }
+      const cl = Cards.onClick(e); if (cl === true) { render(); return; } if (cl) return;
       const r = e.target.closest('[data-road]'); if (r) return claimRoad(+r.dataset.road);
       const f = e.target.closest('[data-free]'); if (f) return claimPass(+f.dataset.free, 'free');
       const pr = e.target.closest('[data-prem]'); if (pr) return claimPass(+pr.dataset.prem, 'prem');
       const q = e.target.closest('[data-quest]'); if (q) return claimQuest(q.dataset.quest);
     });
+    header();
   }
 
   return { onEnd, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S };

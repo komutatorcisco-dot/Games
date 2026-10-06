@@ -353,7 +353,19 @@ const Pack3D = (() => {
     g.textAlign = 'center'; g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 10;
     g.font = `700 ${R.name.length > 9 ? 40 : 50}px Oswald, Rubik, sans-serif`; g.fillText(R.name, W / 2, 125);
     g.shadowBlur = 0;
-    if (it.item) { // предмет: крупный значок и название, монеты — строкой ниже
+    if (it.cards) { // карточки: веер рубашек и число, монеты — строкой ниже
+      const n = it.cards.length;
+      for (let i = 0; i < n; i++) {
+        const a = (i - (n - 1) / 2) * 0.16;
+        g.save(); g.translate(W / 2, 420); g.rotate(a); g.translate(0, -150);
+        g.fillStyle = '#1b1250'; g.strokeStyle = 'rgba(255,255,255,.85)'; g.lineWidth = 6;
+        g.beginPath(); g.roundRect ? g.roundRect(-70, -95, 140, 190, 16) : g.rect(-70, -95, 140, 190); g.fill(); g.stroke();
+        g.fillStyle = R.css; g.font = '900 80px Rubik, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Д', 0, 4); g.restore();
+      }
+      g.textAlign = 'center'; g.textBaseline = 'alphabetic'; g.fillStyle = '#fff'; g.shadowBlur = 14;
+      g.font = '700 64px Oswald, Rubik, sans-serif'; g.fillText(`${n} ${n < 5 ? 'КАРТОЧКИ' : 'КАРТОЧЕК'}`, W / 2, 545);
+      g.font = '700 44px Oswald, Rubik, sans-serif'; g.fillText(`+${prize} монет`, W / 2, 620);
+    } else if (it.item) { // предмет: крупный значок и название, монеты — строкой ниже
       g.font = '170px sans-serif'; g.textBaseline = 'middle'; g.fillText(it.item.emoji || '🎁', W / 2, 315); g.textBaseline = 'alphabetic';
       g.shadowBlur = 12; g.font = '700 40px Oswald, Rubik, sans-serif';
       const words = it.item.name.split(' '); const l1 = words.slice(0, Math.ceil(words.length / 2)).join(' '), l2 = words.slice(Math.ceil(words.length / 2)).join(' ');
@@ -487,7 +499,7 @@ const Pack3D = (() => {
         if (k >= 1) {
           phase = 'done'; t0 = now; burst(120, 0.3, 1.2); flash();
           Sound.play(final >= 3 ? 'goal' : 'coin');
-          const b = $('.drop-take', el); b.textContent = got.item ? 'Забрать' : `Забрать +${prize}`; b.hidden = false;
+          const b = $('.drop-take', el); b.textContent = got.cards ? 'Открыть карточки' : got.item ? 'Забрать' : `Забрать +${prize}`; b.hidden = false;
         }
       } else if (phase === 'done') {
         card.rotation.y = Math.sin(t * 1.3) * 0.2; card.position.y = 0.1 + Math.sin(t * 1.9) * 0.05; tint.intensity = 2.5;
