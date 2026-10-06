@@ -206,6 +206,7 @@ const App = (() => {
     const rows = Math.max(1, Math.ceil(n / 3)), base = Math.floor(n / rows), extra = n % rows;
     return Array.from({ length: rows }, (_, i) => base + (i >= rows - extra ? 1 : 0));
   }
+  addEventListener('resize', () => { if (Screens.current === 'hub' && panel === 'home') renderPitch(); });
   function renderPitch() {
     const box = $('#pitch'); if (!box) return;
     const doneDaily = (id) => { const d = (Store.d.ng[id] || {}).daily; return !!(d && d.day === Day.key() && d.done); };
@@ -222,9 +223,14 @@ const App = (() => {
     const all = nx ? [...items, { soon: true, next: nx }] : items;
     const rows = formation(all.length);
     $('#pitch-form').textContent = `${[...rows].join('-')}`;
+    // высота поля разная на разных телефонах: делим её на линии (+ вратарь) и уменьшаем фишки, если тесно
+    const H = box.clientHeight || 520, slot = H / (rows.length + 1);
+    const sc = Math.max(0.62, Math.min(1, (slot - 30) / 84));
+    box.style.setProperty('--ts', sc.toFixed(3));
+    const yOf = (k) => ((k + 0.5) * slot / H) * 100; // k = 0 — верхняя линия (атака)
     let i = 0;
     const html = rows.map((cnt, r) => {
-      const y = 70 - (r * 58) / Math.max(1, rows.length - 1 || 1); // от линии защиты к атаке, в процентах высоты поля
+      const y = yOf(rows.length - 1 - r);
       return Array.from({ length: cnt }, (_, j) => {
         const it = all[i++], x = cnt === 1 ? 50 : 13 + (74 * j) / (cnt - 1);
         if (it.next) {
@@ -236,7 +242,7 @@ const App = (() => {
           <span class="tok"><span class="tile-ico" data-ico="${esc(it.ico)}"></span></span>${it.badge ? `<em class="${it.badge[0]}">${it.badge[1]}</em>` : ''}<b>${esc(SHORT[it.key] || it.title)}</b></button>`;
       }).join('');
     }).join('');
-    box.innerHTML = html + `<button class="tk gk" data-act="dly" style="left:50%;top:88%"><span class="tok"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>`;
+    box.innerHTML = html + `<button class="tk gk" data-act="dly" style="left:50%;top:${yOf(rows.length)}%"><span class="tok"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>`;
     Icons.fill(box);
     const s = Store.d.dly || {};
     $('#hub-streak').textContent = `🔥 ${s.streak || 0}`;
@@ -274,6 +280,7 @@ const App = (() => {
     if (!PANELS.includes(name)) name = 'home';
     const from = PANELS.indexOf(panel), to = PANELS.indexOf(name);
     panel = name;
+    document.body.dataset.panel = name; // газон — только на поле
     PANELS.forEach((p) => {
       const el = $('#panel-' + p);
       el.hidden = p !== name;

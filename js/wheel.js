@@ -9,11 +9,11 @@ const Wheel = (() => {
 
   // Пак дня: три карточки рубашкой вверх, как паки в FC. Выбираешь одну — она переворачивается с монетами.
   const roll = () => { let r = Math.random() * WEIGHTS.reduce((x, y) => x + y, 0), i = 0; while ((r -= WEIGHTS[i]) > 0) i++; return PRIZES[i]; };
-  const face = (v) => `<span class="pk-face ${v >= 100 ? 'jack' : v >= 40 ? 'gold' : ''}"><small>${v >= 100 ? 'ДЖЕКПОТ' : 'МОНЕТЫ'}</small><b>+${v}</b><i class="coin"></i></span>`;
+  const face = (v) => `<span class="pk-face ${v >= 100 ? 'jack' : v >= 40 ? 'gold' : 'silver'}"><span class="pk-fr"></span><small>${v >= 100 ? 'ДЖЕКПОТ' : v >= 40 ? 'ЗОЛОТО' : 'СЕРЕБРО'}</small><i class="coin"></i><b>+${v}</b><em>монет</em></span>`;
   function open() {
     if (!ready()) { toast('Пак уже открыт сегодня. Новый — завтра!'); return; }
     Modal.open(`<div class="pk-head"><h2>Пак дня</h2><p>Выбери одну карточку. Внутри от 10 до 150 монет.</p></div>
-      <div class="pk-row">${[0, 1, 2].map((i) => `<button class="pk" data-pk="${i}" style="--d:${i * 0.08}s"><span class="pk-in"><span class="pk-back"><span class="pk-logo">Д</span><span class="pk-t">ПАК ДНЯ</span><span class="pk-stars">★ ★ ★</span></span><span class="pk-front"></span></span></button>`).join('')}</div>`, []);
+      <div class="pk-row">${[0, 1, 2].map((i) => `<button class="pk" data-pk="${i}" style="--d:${i * 0.08}s"><span class="pk-in"><span class="pk-back"><span class="pk-rays"></span><span class="pk-foil"></span><span class="pk-logo"><b>Д</b></span><span class="pk-band"><span class="pk-t">ПАК ДНЯ</span><span class="pk-stars">★★★</span></span><span class="pk-sp s1"></span><span class="pk-sp s2"></span><span class="pk-sp s3"></span></span><span class="pk-front"></span></span></button>`).join('')}</div>`, []);
     $$('#modal-card .pk').forEach((b) => b.addEventListener('click', () => pick(+b.dataset.pk), { once: true }));
   }
   function pick(n) {

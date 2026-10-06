@@ -36,7 +36,7 @@
       const pool = shuffle(PLAYERS.filter((p) => p.tier <= 3 && p.pos !== 'ГК' && st(p)), Math.random).slice(0, HAND * 2)
         .sort((a, b) => st(b)[0] - st(a)[0]);
       let me = shuffle(pool.filter((_, i) => i % 2 === 0), Math.random), bot = shuffle(pool.filter((_, i) => i % 2 === 1), Math.random);
-      let round = 1, myTurn = Math.random() < 0.5, phase = 'pick', last = null, pot = [], over = false;
+      let round = 1, myTurn = true, phase = 'pick', last = null, pot = [], over = false;
       const b = api.body;
 
       function render() {
@@ -52,7 +52,7 @@
           </div>
           <div class="tc-foot">${phase === 'shown' ? `<p class="tc-res ${last.res}">${last.text}</p><button class="btn gold" data-a="next">${me.length && bot.length && round < ROUNDS ? 'Дальше →' : 'Итоги'}</button>`
             : myTurn ? '<p class="ng-lead">Твой ход: нажми на характеристику, которой бьёшь</p>'
-              : '<p class="ng-lead tr-think">Бот выбирает<i>.</i><i>.</i><i>.</i></p>'}</div>`;
+              : '<p class="ng-lead tr-think">Ход бота, следующий — твой<i>.</i><i>.</i><i>.</i></p>'}</div>`;
         Photos.hydrate(b);
         if (phase === 'shown') {
           $$('.tc-st.hl em', b).forEach((el) => countUp(el, +el.textContent, { from: 40, dur: 500 }));
@@ -75,8 +75,8 @@
       // забрать карты: проигравшая улетает к победителю
       function settle() {
         const mine = me.shift(), his = bot.shift();
-        if (last.res === 'win') { me.push(mine, his, ...pot); pot = []; myTurn = true; }
-        else if (last.res === 'lose') { bot.push(his, mine, ...pot); pot = []; myTurn = false; }
+        if (last.res === 'win') { me.push(mine, his, ...pot); pot = []; }
+        else if (last.res === 'lose') { bot.push(his, mine, ...pot); pot = []; }
         else pot.push(mine, his);
       }
       function next() {
@@ -85,6 +85,7 @@
         if (table) table.classList.add(last.res === 'win' ? 'fly-me' : last.res === 'lose' ? 'fly-bot' : 'fly-pot');
         later(() => {
           settle();
+          myTurn = !myTurn; // ходим по очереди: ты, бот, ты…
           round++; phase = 'pick'; last = null;
           if (!me.length || !bot.length || round > ROUNDS) return finish();
           render();
