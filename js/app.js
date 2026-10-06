@@ -45,20 +45,22 @@ const App = (() => {
   }
 
   function renderHub() {
-    const P = Store.d.pass, G = Store.d.guess, C = Store.d.career, T = Store.d.transfer;
-    $('#meta-pass').textContent = P.unlocked > 1 ? `Уровень ${P.unlocked} · ★ ${Pass.totalStars()}` : 'Начни с уровня 1';
-    $('#meta-guess').textContent = G.level > 1 ? `Уровень ${G.level}` : `${PLAYERS.length} ${plural(PLAYERS.length, 'игрок', 'игрока', 'игроков')}`;
-    $('#meta-career').textContent = C.best ? `Рекорд ${C.best}` : `${Career.count} ${plural(Career.count, 'карьера', 'карьеры', 'карьер')}`;
-    $('#meta-club').textContent = Store.d.club.best ? `Рекорд ${Store.d.club.best}` : `${Club.count} ${plural(Club.count, 'клуб', 'клуба', 'клубов')}`;
-    $('#meta-transfer').textContent = T.best ? `Рекорд ${T.best}` : `${Transfer.count} ${plural(Transfer.count, 'трансфер', 'трансфера', 'трансферов')}`;
-    $('#meta-hl').textContent = T.hlBest ? `Рекорд ${T.hlBest}` : 'Сколько стоил?';
-    $('#meta-fc').textContent = Store.d.compare.fcBest ? `Рекорд ${Store.d.compare.fcBest}` : `${Compare.countFc} ${plural(Compare.countFc, 'игрок', 'игрока', 'игроков')}`;
-    $('#meta-value').textContent = Store.d.compare.valBest ? `Рекорд ${Store.d.compare.valBest}` : 'Transfermarkt';
-    $('#meta-nation').textContent = Store.d.nation.best ? `Рекорд ${Store.d.nation.best}` : `${Nation.count} ${plural(Nation.count, 'сборная', 'сборные', 'сборных')}`;
-    $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
-    $('#pz-shelf').innerHTML = PZ.shelf();
-    Daily.hubCard();
-    ['daily', 'brain', 'grid', 'cards', 'hist'].forEach((g) => { $('#ng-' + g).innerHTML = NG.tiles(g); });
+    safe('meta', () => {
+      const P = Store.d.pass, G = Store.d.guess, C = Store.d.career, T = Store.d.transfer;
+      $('#meta-pass').textContent = P.unlocked > 1 ? `Уровень ${P.unlocked} · ★ ${Pass.totalStars()}` : 'Начни с уровня 1';
+      $('#meta-guess').textContent = G.level > 1 ? `Уровень ${G.level}` : `${PLAYERS.length} ${plural(PLAYERS.length, 'игрок', 'игрока', 'игроков')}`;
+      $('#meta-career').textContent = C.best ? `Рекорд ${C.best}` : `${Career.count} ${plural(Career.count, 'карьера', 'карьеры', 'карьер')}`;
+      $('#meta-club').textContent = Store.d.club.best ? `Рекорд ${Store.d.club.best}` : `${Club.count} ${plural(Club.count, 'клуб', 'клуба', 'клубов')}`;
+      $('#meta-transfer').textContent = T.best ? `Рекорд ${T.best}` : `${Transfer.count} ${plural(Transfer.count, 'трансфер', 'трансфера', 'трансферов')}`;
+      $('#meta-hl').textContent = T.hlBest ? `Рекорд ${T.hlBest}` : 'Сколько стоил?';
+      $('#meta-fc').textContent = Store.d.compare.fcBest ? `Рекорд ${Store.d.compare.fcBest}` : `${Compare.countFc} ${plural(Compare.countFc, 'игрок', 'игрока', 'игроков')}`;
+      $('#meta-value').textContent = Store.d.compare.valBest ? `Рекорд ${Store.d.compare.valBest}` : 'Transfermarkt';
+      $('#meta-nation').textContent = Store.d.nation.best ? `Рекорд ${Store.d.nation.best}` : `${Nation.count} ${plural(Nation.count, 'сборная', 'сборные', 'сборных')}`;
+      $('#meta-ttt').textContent = Store.d.ttt.wins ? `Побед: ${Store.d.ttt.wins}` : 'Как на box2box';
+      $('#pz-shelf').innerHTML = PZ.shelf();
+    });
+    safe('daily-card', () => { Daily.hubCard(); });
+    safe('ng-tiles', () => { ['daily', 'brain', 'grid', 'cards', 'hist'].forEach((g) => { $('#ng-' + g).innerHTML = NG.tiles(g); }); });
     const dh = (Store.d.fduel && Store.d.fduel.hist) || [];
     $('#duel-stat').textContent = dh.length ? `Сыграно дуэлей: ${dh.length} · побед: ${dh.filter((x) => x.res === 'win').length}` : '';
     if (!cat) cat = (Store.d.ui && Store.d.ui.cat) || 'guess';
@@ -68,16 +70,15 @@ const App = (() => {
     });
     const total = $$('#panel-games :is(.tile-card, .game-card, .auction-hero)').length + $$('#panel-friends .tile-card').length + 1;
     $('#all-count').textContent = `${total} ${plural(total, 'игра', 'игры', 'игр')} по разделам`;
-    applyRelease();
+    safe('release', () => { applyRelease(); });
     setCat(cat, false);
-    const bt = Board.teaser();
-    $('#board-teaser').hidden = !bt; $('#board-teaser').innerHTML = bt;
-    renderDailyProgress();
+    safe('board', () => { const bt = Board.teaser(); $('#board-teaser').hidden = !bt; $('#board-teaser').innerHTML = bt; });
+    safe('daily-progress', () => { renderDailyProgress(); });
     $('#lim-auction').textContent = Limits.label('auction');
     $('#lim-pick').textContent = Limits.label('pick');
-    Icons.fill($('#hub'));
+    safe('icons', () => { Icons.fill($('#hub')); });
     $('#daily').hidden = Store.d.lastDaily === today();
-    $('#wheel-btn').hidden = !Wheel.ready();
+    safe('wheel', () => { $('#wheel-btn').hidden = !Wheel.ready(); });
     if (!$('#daily').hidden) {
       const day = nextDay();
       $('#daily-text').textContent = `день ${day}, забери +${dailyReward(day)}`;
@@ -89,9 +90,9 @@ const App = (() => {
     $('#hub-rank').textContent = rk.name;
     $('#hub-next').textContent = rk.to ? `${rk.xp}/${rk.to}` : `${rk.xp}`;
     $('#hub-xp').style.width = `${rk.to ? Math.round(((rk.xp - rk.from) / (rk.to - rk.from)) * 100) : 100}%`;
-    User.render(); Donate.render();
+    safe('user', () => { User.render(); Donate.render(); });
     Coins.render();
-    Rewards.refresh();
+    safe('Rewards.refresh', () => Rewards.refresh());
   }
 
   // Ежедневные задания: прогресс и сундук за все пять
@@ -143,7 +144,7 @@ const App = (() => {
     $('#pf-ach').textContent = `${got} из ${achs.length}`;
     $('#ach-sub').textContent = `${got} из ${achs.length}`;
     $('#prof-admin').hidden = !Store.d.admin;
-    $('#set-wheel').textContent = Wheel.ready() ? 'Открыть' : 'Завтра';
+    $('#set-wheel').textContent = safe('wheel', () => Wheel.ready()) ? 'Открыть' : 'Завтра';
     $('#set-music').textContent = Store.d.music ? 'Вкл' : 'Выкл';
     $('#set-sound').textContent = Store.d.sound ? 'Вкл' : 'Выкл';
     Coins.render();
@@ -183,7 +184,7 @@ const App = (() => {
     $('#featured').innerHTML = extra.join('');
     src.forEach((el) => { const c = el.cloneNode(true); c.classList.remove('wide', 'duo'); $$('.limit-note', c).forEach((x) => x.remove()); $('#featured').appendChild(c); });
     paint();
-    renderPitch();
+    safe('pitch', renderPitch);
     // новинка недели и следующая игра
     const cur = Release.current(), nx = Release.next();
     const wk = $('#week-game');
@@ -442,9 +443,11 @@ const App = (() => {
 
   function init() {
     Store.load();
-    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind(); Nation.bind(); Pick.bind(); Daily.bind(); Shop.bind(); Board.bind(); Rewards.bind();
-    Howto.addButtons();
-    Music.arm();
+    // каждый модуль подключаем отдельно: ошибка в одном не должна ломать весь экран
+    [['Pass', () => Pass.bind()], ['Guess', () => Guess.bind()], ['Career', () => Career.bind()], ['Club', () => Club.bind()], ['Transfer', () => Transfer.bind()],
+      ['TTT', () => TTT.bind()], ['Compare', () => Compare.bind()], ['Auction', () => Auction.bind()], ['Nation', () => Nation.bind()], ['Pick', () => Pick.bind()],
+      ['Daily', () => Daily.bind()], ['Shop', () => Shop.bind()], ['Board', () => Board.bind()], ['Rewards', () => Rewards.bind()],
+      ['Howto', () => Howto.addButtons()], ['Music', () => Music.arm()]].forEach(([n, f]) => safe(n, f));
     document.addEventListener('pointerdown', (e) => {
       Coins.last = { x: e.clientX, y: e.clientY };
       // блик плитки из точки касания
@@ -499,7 +502,7 @@ const App = (() => {
     let h = location.hash.replace('#', '');
     try { if (TG && TG.initDataUnsafe && TG.initDataUnsafe.start_param) h = TG.initDataUnsafe.start_param; } catch (e) { /* не в Telegram */ }
     const deep = { board: 'board', top: 'board', puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop' };
-    renderHub();
+    safe('renderHub', renderHub);
     if (Duel.deep(h)) { /* вызов на дуэль или комната */ }
     else if (h !== 'puzzles' && (PANELS.includes(h) || CATS.includes(h))) { home(h); }
     else if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }

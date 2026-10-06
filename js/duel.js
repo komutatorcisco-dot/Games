@@ -151,7 +151,7 @@ const Duel = (() => {
     d.hist.unshift(Object.assign({ day: Day.key() }, entry));
     d.hist = d.hist.slice(0, 12);
     Store.save();
-    if (typeof Rewards !== 'undefined' && ['win', 'lose', 'draw'].includes(entry.res)) Rewards.onEnd(entry.res === 'win', 'ng:duel');
+    if (['win', 'lose', 'draw'].includes(entry.res)) safe('rewards', () => Rewards.onEnd(entry.res === 'win', 'ng:duel'));
   }
 
   // PeerJS грузим только когда открыли живую игру

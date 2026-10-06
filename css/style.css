@@ -2715,3 +2715,7 @@ html, body { touch-action: manipulation; }
 .hub-head .coins .coin { width: 22px !important; height: 22px !important; }
 .hub-head .wordmark { font-size: 21px !important; }
 @media (max-width: 370px) { .hub-head .wordmark { font-size: 18px !important; } }
+
+/* ошибка запуска — видна, чтобы можно было прислать скрин */
+#oops { position: fixed; left: 12px; right: 12px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 9999; padding: 10px 12px; border-radius: 12px;
+  background: #3a0d16; border: 1px solid #ff4d6a; color: #fff; font: 600 13px/1.35 Inter, system-ui, sans-serif; word-break: break-word; }

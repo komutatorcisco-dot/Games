@@ -232,7 +232,7 @@ const Daily = (() => {
     }
     Store.save();
     Board.submit(); // результат дня — в рейтинг «Игрок дня»
-    if (typeof Rewards !== 'undefined') Rewards.onEnd(won, 'act:dly');
+    safe('rewards', () => Rewards.onEnd(won, 'act:dly'));
     Track.end(won);
     render();
   }

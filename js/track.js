@@ -49,7 +49,7 @@ const Track = (() => {
     if (!on()) return;
     try {
       const r = await post('/hello', { nick: Store.d.user.nick, platform: (TG && TG.platform) || '', version: ver(), ...extra });
-      if (r && r.ok && typeof Rewards !== 'undefined') Rewards.serverPass(r.pass);
+      if (r && r.ok) safe('pass', () => Rewards.serverPass(r.pass));
       if (r && r.ok && !!r.admin !== !!Store.d.admin) { Store.d.admin = !!r.admin; Store.save(true); if (typeof App !== 'undefined') App.refresh(); }
     } catch (e) { /* нет сети */ }
   }

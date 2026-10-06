@@ -6,6 +6,43 @@ const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const pick = (arr, rnd = Math.random) => arr[Math.floor(rnd() * arr.length)];
 
+// Ошибки запуска: каждый шаг идёт через safe(), чтобы одна поломка не гасила весь экран.
+// Ошибку показываем внизу экрана и один раз отправляем админу через /report.
+const Oops = (() => {
+  const list = window.__errs || (window.__errs = []);
+  let sent = false, timer = null;
+  function show() {
+    let el = document.getElementById('oops');
+    if (!el) { el = document.createElement('div'); el.id = 'oops'; el.addEventListener('click', () => el.remove()); document.body.appendChild(el); }
+    el.textContent = 'Ошибка: ' + list.slice(0, 3).join(' · ') + '  (нажми, чтобы скрыть)';
+  }
+  function send() {
+    if (sent || !list.length) return;
+    try {
+      const W = window.Telegram && window.Telegram.WebApp;
+      if (!W || !W.initData || typeof CONFIG === 'undefined' || !CONFIG.api) return;
+      sent = true;
+      const ver = ((document.querySelector('script[src*="js/app.js"]') || {}).src || '').split('v=')[1] || '';
+      fetch(CONFIG.api + '/report', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ initData: W.initData, nick: 'авто', text: list.slice(0, 5).join('\n'), info: `${ver} · ${navigator.userAgent}` }) }).catch(() => {});
+    } catch (e) { /* без отправки */ }
+  }
+  function add(where, e) {
+    const msg = `${where}: ${(e && (e.message || e)) || '?'}`;
+    if (list.includes(msg)) return;
+    list.push(msg);
+    try { console.error(msg, e && e.stack); } catch (x) { /* нет консоли */ }
+    if (document.body) show(); else document.addEventListener('DOMContentLoaded', show);
+    clearTimeout(timer); timer = setTimeout(send, 1500);
+  }
+  if (list.length) setTimeout(() => { show(); send(); }, 0);
+  window.addEventListener('error', (ev) => add((ev.filename || '').split('/').pop().split('?')[0] + ':' + ev.lineno, ev.error || ev.message));
+  window.addEventListener('unhandledrejection', (ev) => add('promise', ev.reason));
+  return { add };
+})();
+window.Oops = Oops;
+function safe(where, fn) { try { return fn(); } catch (e) { Oops.add(where, e); return undefined; } }
+
 // Telegram Mini App: если игра открыта внутри Telegram, разворачиваем на весь экран.
 // В обычном браузере скрипт Telegram тоже создаёт WebApp, но с пустым initData — тогда считаем, что мы не в Telegram.
 const TG = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) ? window.Telegram.WebApp : null;
@@ -396,7 +433,7 @@ function quoteHtml(kind) {
 function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '', title = '', text = '', stats = [], extra = '', reward = 0, record = false, score = null, labels = null }) {
   if (typeof Board !== 'undefined') Board.submit(); // и отправляет опыт в рейтинг канала
   // награды: трофеи, паки за победы, задания (подпись покажем на табло)
-  const rw = typeof Rewards !== 'undefined' ? Rewards.onEnd(win, typeof Track !== 'undefined' ? Track.game() : '') : '';
+  const rw = safe('rewards', () => Rewards.onEnd(win, typeof Track !== 'undefined' ? Track.game() : '')) || '';
   if (typeof Track !== 'undefined') Track.end(win); // статистика: партию доиграли
   // итог любой игры — табло стадиона: счёт «верно : ошибки», число (серия, очки) или просто исход
   const led = score ? `<b>${score[0]}</b><i>:</i><b class="${labels ? '' : 'bad'}">${score[1]}</b>`
