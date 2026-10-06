@@ -85,7 +85,7 @@
         if (table) table.classList.add(last.res === 'win' ? 'fly-me' : last.res === 'lose' ? 'fly-bot' : 'fly-pot');
         later(() => {
           settle();
-          myTurn = !myTurn; // ходим по очереди: ты, бот, ты…
+          myTurn = true; // характеристику всегда выбирает игрок
           round++; phase = 'pick'; last = null;
           if (!me.length || !bot.length || round > ROUNDS) return finish();
           render();
