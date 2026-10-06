@@ -3858,20 +3858,24 @@ const FreshFaces = (() => {
   const KEY = 'jx-fresh-faces';
   let on = false;
   try { on = localStorage.getItem(KEY) === '1'; } catch (e) { /* без памяти */ }
+  // свои картинки есть только у этих; остальным лица — только с воркера
+  const LOCAL = new Set(Object.values(FACES).map(String));
+  const extra = () => { if (typeof FACES_EXTRA !== 'undefined') Object.assign(FACES, FACES_EXTRA); if (typeof Cards !== 'undefined' && Cards.reset) Cards.reset(); };
+  if (on) extra();
   const api = () => (typeof CONFIG !== 'undefined' && CONFIG.api) || '';
   // проверка раз за запуск: Месси грузится — значит воркер с лицами обновлён
   setTimeout(() => {
     if (!api()) return;
     const im = new Image();
-    im.onload = () => { if (!on) { on = true; try { localStorage.setItem(KEY, '1'); } catch (e) { /* ок */ } } };
+    im.onload = () => { if (!on) { on = true; extra(); try { localStorage.setItem(KEY, '1'); } catch (e) { /* ок */ } } };
     im.onerror = () => { on = false; try { localStorage.removeItem(KEY); } catch (e) { /* ок */ } };
     im.src = `${api()}/face/158023?s=120&t=${Math.floor(Date.now() / 864e5)}`;
   }, 1500);
   // если свежее лицо не загрузилось — тихо подменяем на своё
-  addEventListener('error', (e) => {
+  document.addEventListener('error', (e) => {
     const t = e.target;
     const m = t && t.tagName === 'IMG' && !t.dataset.fb && t.src.match(/\/face\/(\d+)/);
-    if (m) { t.dataset.fb = '1'; t.src = `img/players/${m[1]}.webp`; }
+    if (m) { t.dataset.fb = '1'; t.src = LOCAL.has(m[1]) ? `img/players/${m[1]}.webp` : 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='; }
   }, true);
   // у свежих лиц серый фон: вырезаем его на лету — заливка от верхнего и боковых краёв, мягкая кромка
   const cutCache = new Map();
@@ -3920,7 +3924,7 @@ const FreshFaces = (() => {
     im.src = url;
   }
   document.addEventListener('load', (e) => { const t = e.target; if (t && t.tagName === 'IMG' && /\/face\/\d+/.test(t.src)) process(t); }, true);
-  return { on: () => on && !!api(), url: (id, s = 120) => `${api()}/face/${id}${s === 240 ? '?s=240' : ''}` };
+  return { local: (src) => { const m = String(src).match(/\/face\/(\d+)/); return m && LOCAL.has(m[1]) ? `img/players/${m[1]}.webp` : ''; }, fix: (im) => { if (/\/face\/\d+/.test(im.src)) process(im); }, on: () => on && !!api(), url: (id, s = 120) => `${api()}/face/${id}${s === 240 ? '?s=240' : ''}` };
 })();
 const faceSrc = (id) => FACE_DATA[id] || (FreshFaces.on() ? FreshFaces.url(id) : `img/players/${id}.webp`);
 
@@ -3977,8 +3981,9 @@ const Photos = (() => {
     img.alt = '';
     img.decoding = 'async';
     img.src = url;
-    if (img.complete && img.naturalWidth) { el.appendChild(img); el.classList.add('loaded', 'instant'); return; }
-    img.onload = () => { if (el.isConnected) { el.appendChild(img); requestAnimationFrame(() => el.classList.add('loaded')); } };
+    if (img.complete && img.naturalWidth) { el.appendChild(img); el.classList.add('loaded', 'instant'); FreshFaces.fix(img); return; }
+    img.onerror = () => { const fb = FreshFaces.local(img.src); img.onerror = null; if (fb) img.src = fb; };
+    img.onload = () => { if (el.isConnected) { el.appendChild(img); FreshFaces.fix(img); requestAnimationFrame(() => el.classList.add('loaded')); } };
   }
 
   function hydrate(root = document) {

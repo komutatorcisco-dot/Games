@@ -97,7 +97,7 @@ const Cards = (() => {
     if (locked) return `<div class="cc lock ${cls}" style="--w:${w}px"><div class="cc-ph"></div><span class="cc-sil"></span><div class="cc-r">??</div><div class="cc-band"><b>???</b><small>${RAR[c.rar].n}</small></div></div>`;
     const [k1, k2] = col(c.club), cr = CRESTS[c.club];
     return `<div class="cc ${c.rar} ${cls}" style="--w:${w}px;--k1:${k1};--k2:${k2}" data-card="${esc(c.key)}">
-      <div class="cc-ph"></div><img class="cc-face" src="${img(c.face)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='img/players/${c.face}.webp'">
+      <div class="cc-ph"></div><img class="cc-face" src="${img(c.face)}" alt="" loading="lazy">
       <div class="cc-r">${c.r}<small>${esc(c.pos)}</small></div>${cr ? `<img class="cc-cr" src="img/clubs/${cr}" alt="" loading="lazy">` : ''}
       <div class="cc-band"><b>${esc(surname(c.name))}</b><small>${c.flag ? c.flag + ' ' : ''}${RAR[c.rar].n}</small></div></div>`;
   }
@@ -242,5 +242,5 @@ const Cards = (() => {
     return false;
   }
 
-  return { takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, freshN: () => S().fresh.length, RAR };
+  return { reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, freshN: () => S().fresh.length, RAR };
 })();

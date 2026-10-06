@@ -2927,3 +2927,12 @@ html, body { touch-action: manipulation; }
 .gl-club small { font: 800 11px "Rubik", sans-serif; color: rgba(255,255,255,.75); }
 .gl-dot, .gl-ok { position: absolute; top: 6px; right: 6px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font: 900 11px "Rubik"; font-style: normal; }
 .gl-dot { background: var(--gold); color: #1c1400; } .gl-ok { background: #3ee66b; color: #062; }
+
+/* итог аукциона: тёмные плашки, видно имена и цифры */
+.ares { background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04)) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
+.ares.danil { box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), inset 4px 0 0 var(--team-a, #ffcf3a); }
+.ares.sasha { box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), inset 4px 0 0 var(--team-b, #6fd3ff); }
+.ares.win { background: linear-gradient(180deg, rgba(255,207,58,.22), rgba(255,207,58,.06)) !important; box-shadow: inset 0 0 0 2px var(--gold), 0 0 22px rgba(255,207,58,.35) !important; }
+.ares small { color: rgba(255,255,255,.75); opacity: 1; }
+.ares b { color: #fff; }
+.ares.win b { color: var(--gold); }
