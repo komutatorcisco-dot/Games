@@ -91,6 +91,7 @@ const App = (() => {
     $('#hub-xp').style.width = `${rk.to ? Math.round(((rk.xp - rk.from) / (rk.to - rk.from)) * 100) : 100}%`;
     User.render(); Donate.render();
     Coins.render();
+    Rewards.refresh();
   }
 
   // Ежедневные задания: прогресс и сундук за все пять
@@ -326,6 +327,7 @@ const App = (() => {
     $('#tab-games').classList.toggle('on', id === 'hub' && panel === 'games');
     $('#tab-friends').classList.toggle('on', id === 'hub' && panel === 'friends');
     $('#tab-board').classList.toggle('on', id === 'board');
+    $('#tab-rewards').classList.toggle('on', id === 'rewards');
     $('#tab-profile').classList.toggle('on', id === 'profile' || id === 'achievements');
   }
 
@@ -362,6 +364,9 @@ const App = (() => {
     games: () => tab('games'),
     friends: () => tab('friends'),
     board: () => Board.open(),
+    rewards: () => Rewards.open(),
+    'rw-packs': () => Rewards.openPending(),
+    'rw-buy': () => Rewards.buyPass(),
     // позвать друга: ссылка с твоим id — кто откроет игры по ней, попадёт к тебе в «Друзья» в таблице
     invite: () => {
       const u = TG && TG.initDataUnsafe && TG.initDataUnsafe.user;
@@ -437,7 +442,7 @@ const App = (() => {
 
   function init() {
     Store.load();
-    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind(); Nation.bind(); Pick.bind(); Daily.bind(); Shop.bind(); Board.bind();
+    Pass.bind(); Guess.bind(); Career.bind(); Club.bind(); Transfer.bind(); TTT.bind(); Compare.bind(); Auction.bind(); Nation.bind(); Pick.bind(); Daily.bind(); Shop.bind(); Board.bind(); Rewards.bind();
     Howto.addButtons();
     Music.arm();
     document.addEventListener('pointerdown', (e) => {
@@ -483,7 +488,7 @@ const App = (() => {
       orig(id);
       document.body.dataset.scr = id;
       document.body.classList.toggle('in-runner', id === 'runner');
-      $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop' || id === 'board' || id === 'achievements');
+      $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop' || id === 'board' || id === 'achievements' || id === 'rewards');
       tabs();
       try { if (TG && TG.BackButton) id === 'hub' ? TG.BackButton.hide() : TG.BackButton.show(); } catch (e) { /* не в Telegram */ }
     };

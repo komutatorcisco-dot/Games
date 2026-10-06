@@ -125,5 +125,5 @@ const Shop = (() => {
     apply();
   }
 
-  return { open, bind, apply, offerLife, ballStyle, PACK_COST };
+  return { FRAMES, CARDS, BALLS, open, bind, apply, offerLife, ballStyle, PACK_COST };
 })();

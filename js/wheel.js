@@ -13,21 +13,16 @@ const Wheel = (() => {
   const roll = () => { let r = Math.random() * WEIGHTS.reduce((x, y) => x + y, 0), i = 0; while ((r -= WEIGHTS[i]) > 0) i++; return PRIZES[i]; };
   const face = (v) => `<span class="pk-face ${v >= 100 ? 'jack' : v >= 40 ? 'gold' : 'silver'}"><span class="pk-fr"></span><small>${v >= 100 ? 'ДЖЕКПОТ' : v >= 40 ? 'ЗОЛОТО' : 'СЕРЕБРО'}</small><i class="coin"></i><b>+${v}</b><em>монет</em></span>`;
   // 3D-пак (js/pack3d.js); если 3D на телефоне не запустилось — старые три карточки
-  let scene = null;
+  let busy = false;
   async function open() {
     if (!ready()) { toast('Пак уже открыт сегодня. Новый — завтра!'); return; }
-    if (scene) return;
+    if (busy) return;
     const isGift = gift();
-    Modal.close();
-    try {
-      scene = await Pack3D.drop({
-        gift: isGift,
-        // пак считается открытым с первого нажатия — выйти и перезайти за другой редкостью нельзя
-        onStart: () => { if (isGift) (Store.d.ui || (Store.d.ui = {})).packGift = Date.now(); else Store.d.lastWheel = today(); Store.save(); },
-        onTake: (prize) => { scene = null; Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(prize); App.refresh(); },
-      });
-      const x = document.querySelector('.drop-x'); if (x) x.addEventListener('click', () => { scene = null; });
-    } catch (e) { scene = null; openCards(); }
+    Modal.close(); busy = true;
+    // пак считается открытым с первого нажатия — выйти и перезайти за другой редкостью нельзя
+    await Rewards.openDrop({ title: isGift ? 'ПОДАРОК · ПАК ДНЯ' : 'ПАК ДНЯ',
+      onStart: () => { if (isGift) (Store.d.ui || (Store.d.ui = {})).packGift = Date.now(); else Store.d.lastWheel = today(); Store.save(); } });
+    busy = false;
   }
   // запасной вариант без 3D
   function openCards() {

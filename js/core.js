@@ -395,6 +395,8 @@ function quoteHtml(kind) {
 // act — действие плитки на главной (оттуда берутся цвета иконки), ico — ключ иконки в Icons.
 function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '', title = '', text = '', stats = [], extra = '', reward = 0, record = false, score = null, labels = null }) {
   if (typeof Board !== 'undefined') Board.submit(); // и отправляет опыт в рейтинг канала
+  // награды: трофеи, паки за победы, задания (подпись покажем на табло)
+  const rw = typeof Rewards !== 'undefined' ? Rewards.onEnd(win, typeof Track !== 'undefined' ? Track.game() : '') : '';
   if (typeof Track !== 'undefined') Track.end(win); // статистика: партию доиграли
   // итог любой игры — табло стадиона: счёт «верно : ошибки», число (серия, очки) или просто исход
   const led = score ? `<b>${score[0]}</b><i>:</i><b class="${labels ? '' : 'bad'}">${score[1]}</b>`
@@ -404,7 +406,7 @@ function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '
       <div class="sb-led ${String(score ? score.join('') : big).length > 5 ? 'long' : ''}">${led}</div>${score ? `<div class="sb-lb"><span>${labels ? labels[0] : 'верно'}</span><span>${labels ? labels[1] : 'ошибки'}</span></div>` : ''}
       ${record ? '<span class="res-record">Новый рекорд</span>' : ''}
       ${stats.length ? `<div class="ng-res-stats">${stats.map(([k, v]) => `<span><b>${v}</b><small>${k}</small></span>`).join('')}</div>` : ''}
-      ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}</div>
+      ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}${rw}</div>
     <h2>${title}</h2>${text ? `<p class="res-text">${text}</p>` : ''}${extra}</div>`;
 }
 

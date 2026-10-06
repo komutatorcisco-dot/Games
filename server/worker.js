@@ -1,5 +1,6 @@
 // Сервер игр бота @JacksonGamesbot: Cloudflare Worker (бесплатный тариф) + база Cloudflare D1.
 //   GET  /invoice?stars=100        — счёт в Telegram Stars для доната;
+//   GET  /invoice?item=pass&season=N&initData=… — счёт на премиум-пропуск сезона (покупка записывается в purchases);
 //   POST /webhook                  — обновления бота: подтверждение оплаты, /start;
 //   POST /score                    — игрок присылает свой опыт и результат «Игрока дня»;
 //   POST /top                      — таблица лидеров: неделя, всё время, «Игрок дня» сегодня;
@@ -13,6 +14,7 @@
 // Админ: напиши боту «/admin <WEBHOOK_SECRET>» — после этого бот присылает тебе ошибки, команды /stats и /broadcast.
 
 const ALLOWED = [50, 100, 250, 500, 1000];
+const PASS_STARS = 100; // цена премиум-пропуска (как в js/rewards.js)
 const ORIGIN = 'https://komutatorcisco-dot.github.io';
 const TOP = 50;
 
@@ -96,6 +98,8 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS names (game TEXT PRIMARY KEY, title TEXT)'),
     db.prepare('CREATE INDEX IF NOT EXISTS weekly_xp ON weekly (week, xp)'),
     // друзья: кто пришёл по чьей ссылке ?startapp=ref_<id> — связь в обе стороны
+    // покупки за звёзды: сезонный пропуск
+    db.prepare('CREATE TABLE IF NOT EXISTS purchases (id INTEGER NOT NULL, item TEXT NOT NULL, season INTEGER NOT NULL DEFAULT 0, stars INTEGER NOT NULL DEFAULT 0, ts INTEGER NOT NULL, PRIMARY KEY (id, item, season))'),
     db.prepare('CREATE TABLE IF NOT EXISTS friends (a INTEGER NOT NULL, b INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (a, b))'),
   ]);
   ready = true;
@@ -205,7 +209,8 @@ async function hello(env, user, body) {
     db.prepare('INSERT OR IGNORE INTO friends (a, b, ts) VALUES (?, ?, ?)').bind(user.id, Number(ref[1]), now),
     db.prepare('INSERT OR IGNORE INTO friends (a, b, ts) VALUES (?, ?, ?)').bind(Number(ref[1]), user.id, now),
   ]);
-  return { admin: user.id === (await adminId(env)) };
+  const pass = (await db.prepare("SELECT season FROM purchases WHERE id = ? AND item = 'pass'").bind(user.id).all()).results.map((r) => r.season);
+  return { admin: user.id === (await adminId(env)), pass };
 }
 
 async function events(env, user, body) {
@@ -391,6 +396,19 @@ async function route(request, env) {
   }
 
   // ---------- донат ----------
+  if (url.pathname === '/invoice' && url.searchParams.get('item') === 'pass') {
+    // премиум-пропуск сезона: кто покупает, узнаём по подписи Telegram
+    const user = await verifyInit(url.searchParams.get('initData'), env.BOT_TOKEN);
+    if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
+    const season = Math.max(1, Math.min(999, Number(url.searchParams.get('season')) || 1));
+    const r = await tg(env, 'createInvoiceLink', {
+      title: `Премиум-пропуск · сезон ${season}`,
+      description: 'Вторая линия наград в пропуске: паки высокой редкости, жизни и монеты. Действует до конца сезона.',
+      payload: JSON.stringify({ item: 'pass', season, uid: user.id }),
+      currency: 'XTR', prices: [{ label: 'Премиум-пропуск', amount: PASS_STARS }],
+    });
+    return json(r.ok ? { ok: true, link: r.result } : { ok: false, error: r.description });
+  }
   if (url.pathname === '/invoice') {
     const stars = Number(url.searchParams.get('stars'));
     if (!ALLOWED.includes(stars)) return json({ ok: false, error: 'bad amount' }, 400);
@@ -414,7 +432,14 @@ async function route(request, env) {
       await tg(env, 'answerPreCheckoutQuery', { pre_checkout_query_id: u.pre_checkout_query.id, ok: true });
     } else if (u.message && u.message.successful_payment) {
       const p = u.message.successful_payment;
-      await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Спасибо за ${p.total_amount} ⭐! Это очень помогает каналу 🙌` });
+      let pl = {}; try { pl = JSON.parse(p.invoice_payload || '{}'); } catch (e) { /* старый формат */ }
+      if (pl.item === 'pass' && env.DB) {
+        await schema(env.DB);
+        await env.DB.prepare('INSERT OR IGNORE INTO purchases (id, item, season, stars, ts) VALUES (?, ?, ?, ?, ?)').bind(u.message.from.id, 'pass', Number(pl.season) || 0, p.total_amount, Date.now()).run();
+        await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Премиум-пропуск сезона ${pl.season} открыт ⭐ Забирай награды во вкладке «Награды»!` });
+      } else {
+        await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Спасибо за ${p.total_amount} ⭐! Это очень помогает каналу 🙌` });
+      }
     } else if (u.message && /^\/(admin|stats|broadcast)\b/.test(u.message.text || '')) {
       await adminCommand(env, u.message);
     } else if (u.message && /^\/start\b/.test(u.message.text || '')) {

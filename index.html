@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;800&family=Inter:wght@900&family=Rubik:ital,wght@0,500;0,700;0,800;0,900;1,900&family=Oswald:wght@500;700&family=Russo+One&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261006n">
+<link rel="stylesheet" href="css/style.css?v=20261006o">
 <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body data-scr="hub" data-panel="home">
@@ -21,7 +21,7 @@
       <div class="wordmark" aria-label="Джексоны">ДЖЕКСО<span aria-hidden="true">НЫ</span></div>
       <div class="hh-right">
         <button class="coins" data-act="coins-info" aria-label="Монеты"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></button>
-        <span class="hh-streak" id="hub-streak">🔥 0</span><button class="me-ava-btn" data-act="profile" aria-label="Профиль" hidden><span class="me-ava" id="hub-ava">⚽</span></button>
+        <button class="hh-packs" id="hub-packs" data-act="rw-packs" hidden><i class="rw-pk"></i><b>0</b></button><button class="hh-tro" id="hub-trophies" data-act="rewards"><span>🏆</span><b>0</b></button><span class="hh-streak" id="hub-streak" hidden>🔥 0</span><button class="me-ava-btn" data-act="profile" aria-label="Профиль" hidden><span class="me-ava" id="hub-ava">⚽</span></button>
       </div>
       <div hidden><b id="hub-hello"></b><span id="hub-rank"></span><span id="hub-next"></span><i id="hub-xp"></i></div>
     </header>
@@ -209,6 +209,15 @@
       <button class="set-row" data-act="report"><span>Нашёл ошибку</span><b>→</b></button>
       <button class="set-row donate-entry" data-act="donate" hidden><span>Поддержать канал</span><b>⭐</b></button>
     </div>
+  </section>
+
+  <section class="screen" id="rewards" hidden>
+    <header class="topbar">
+      <button class="back" data-act="home" aria-label="Назад">←</button>
+      <div class="topbar-title"><span>Награды</span><small>Путь трофеев, пропуск и задания</small></div>
+      <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
+    </header>
+    <div id="rewards-body"></div>
   </section>
 
   <section class="screen" id="achievements" hidden>
@@ -505,6 +514,7 @@
     <button data-act="games" class="tab" id="tab-games" hidden>Игры</button>
     <button data-act="friends" class="tab" id="tab-friends"><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2.5 20 C2.5 15.5 5 13.5 8 13.5 C11 13.5 13.5 15.5 13.5 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16.5" cy="8.5" r="2.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 13.6 C19 13.4 21.5 15.5 21.5 19.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>С другом</button>
     <button data-act="board" class="tab" id="tab-board"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 9 H20.5 M3.5 14 H20.5 M9 4 V20" stroke="currentColor" stroke-width="2"/></svg></span>Таблица</button>
+    <button data-act="rewards" class="tab" id="tab-rewards"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10 H20 V20.5 H4 Z M3 7 H21 V10 H3 Z M12 7 V20.5 M12 7 C10 3 6.5 3.5 7.5 6 C8 7 10 7 12 7 C14 7 16 7 16.5 6 C17.5 3.5 14 3 12 7 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>Награды<i class="rw-dot" hidden></i></button>
     <button data-act="profile" class="tab" id="tab-profile"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5 L20 5 V15 L12 21.5 L4 15 V5 Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="10" r="2.6" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 16 C8.5 13.8 10 13 12 13 C14 13 15.5 13.8 16 16" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>Профиль</button>
   </nav>
 
@@ -514,77 +524,78 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script defer src="js/core.js?v=20261006n"></script>
-<script defer src="js/music.js?v=20261006n"></script>
-<script defer src="js/players.js?v=20261006n"></script>
-<script defer src="js/careers.js?v=20261006n"></script>
-<script defer src="js/careers2.js?v=20261006n"></script>
-<script defer src="js/tttcats.js?v=20261006n"></script>
-<script defer src="js/quizdata.js?v=20261006n"></script>
-<script defer src="js/data/fcstats.js?v=20261006n"></script>
-<script defer src="js/media.js?v=20261006n"></script>
-<script defer src="js/pass.js?v=20261006n"></script>
-<script defer src="js/guess.js?v=20261006n"></script>
-<script defer src="js/career.js?v=20261006n"></script>
-<script defer src="js/club.js?v=20261006n"></script>
-<script defer src="js/transfer.js?v=20261006n"></script>
-<script defer src="js/ttt.js?v=20261006n"></script>
-<script defer src="js/compare.js?v=20261006n"></script>
-<script defer src="js/form.js?v=20261006n"></script>
-<script defer src="js/auction.js?v=20261006n"></script>
-<script defer src="js/nationxi.js?v=20261006n"></script>
-<script defer src="js/nation.js?v=20261006n"></script>
-<script defer src="js/daily.js?v=20261006n"></script>
-<script defer src="js/pick.js?v=20261006n"></script>
-<script defer src="js/howto.js?v=20261006n"></script>
-<script defer src="js/icons.js?v=20261006n"></script>
-<script defer src="js/pack3d.js?v=20261006n"></script>
-<script defer src="js/wheel.js?v=20261006n"></script>
-<script defer src="js/pz/shell.js?v=20261006n"></script>
-<script defer src="js/pz/sort.js?v=20261006n"></script>
-<script defer src="js/pz/pipes.js?v=20261006n"></script>
-<script defer src="js/pz/flood.js?v=20261006n"></script>
-<script defer src="js/pz/slide.js?v=20261006n"></script>
-<script defer src="js/pz/memory.js?v=20261006n"></script>
-<script defer src="js/pz/words.js?v=20261006n"></script>
-<script defer src="js/pz/g2048.js?v=20261006n"></script>
-<script defer src="js/pz/popcrests.js?v=20261006n"></script>
-<script defer src="js/pz/popit.js?v=20261006n"></script>
-<script defer src="js/ng/core.js?v=20261006n"></script>
-<script defer src="js/ng/lineup.js?v=20261006n"></script>
-<script defer src="js/ng/wordle.js?v=20261006n"></script>
-<script defer src="js/ng/treble.js?v=20261006n"></script>
-<script defer src="js/ng/false9.js?v=20261006n"></script>
-<script defer src="js/ng/connect.js?v=20261006n"></script>
-<script defer src="js/data/lists.js?v=20261006n"></script>
-<script defer src="js/ng/top10.js?v=20261006n"></script>
-<script defer src="js/ng/context.js?v=20261006n"></script>
-<script defer src="js/ng/whoami.js?v=20261006n"></script>
-<script defer src="js/ng/linkup.js?v=20261006n"></script>
-<script defer src="js/ng/rank.js?v=20261006n"></script>
-<script defer src="js/data/goals.js?v=20261006n"></script>
-<script defer src="js/ng/replay.js?v=20261006n"></script>
-<script defer src="js/data/wcmatches.js?v=20261006n"></script>
-<script defer src="js/ng/score.js?v=20261006n"></script>
-<script defer src="js/data/numhist.js?v=20261006n"></script>
-<script defer src="js/ng/numhist.js?v=20261006n"></script>
-<script defer src="js/data/elohist.js?v=20261006n"></script>
-<script defer src="js/ng/timemachine.js?v=20261006n"></script>
-<script defer src="js/ng/box2box.js?v=20261006n"></script>
-<script defer src="js/ng/bingo.js?v=20261006n"></script>
-<script defer src="js/ng/draft.js?v=20261006n"></script>
-<script defer src="js/ng/trumps.js?v=20261006n"></script>
-<script defer src="js/data/pop.js?v=20261006n"></script>
-<script defer src="js/ng/vs100.js?v=20261006n"></script>
-<script defer src="js/ng/darts.js?v=20261006n"></script>
-<script defer src="js/shop.js?v=20261006n"></script>
-<script defer src="js/config.js?v=20261006n"></script>
-<script defer src="js/donate.js?v=20261006n"></script>
-<script defer src="js/user.js?v=20261006n"></script>
-<script defer src="js/duel.js?v=20261006n"></script>
-<script defer src="js/release.js?v=20261006n"></script>
-<script defer src="js/board.js?v=20261006n"></script>
-<script defer src="js/track.js?v=20261006n"></script>
-<script defer src="js/app.js?v=20261006n"></script>
+<script defer src="js/core.js?v=20261006o"></script>
+<script defer src="js/music.js?v=20261006o"></script>
+<script defer src="js/players.js?v=20261006o"></script>
+<script defer src="js/careers.js?v=20261006o"></script>
+<script defer src="js/careers2.js?v=20261006o"></script>
+<script defer src="js/tttcats.js?v=20261006o"></script>
+<script defer src="js/quizdata.js?v=20261006o"></script>
+<script defer src="js/data/fcstats.js?v=20261006o"></script>
+<script defer src="js/media.js?v=20261006o"></script>
+<script defer src="js/pass.js?v=20261006o"></script>
+<script defer src="js/guess.js?v=20261006o"></script>
+<script defer src="js/career.js?v=20261006o"></script>
+<script defer src="js/club.js?v=20261006o"></script>
+<script defer src="js/transfer.js?v=20261006o"></script>
+<script defer src="js/ttt.js?v=20261006o"></script>
+<script defer src="js/compare.js?v=20261006o"></script>
+<script defer src="js/form.js?v=20261006o"></script>
+<script defer src="js/auction.js?v=20261006o"></script>
+<script defer src="js/nationxi.js?v=20261006o"></script>
+<script defer src="js/nation.js?v=20261006o"></script>
+<script defer src="js/daily.js?v=20261006o"></script>
+<script defer src="js/pick.js?v=20261006o"></script>
+<script defer src="js/howto.js?v=20261006o"></script>
+<script defer src="js/icons.js?v=20261006o"></script>
+<script defer src="js/pack3d.js?v=20261006o"></script>
+<script defer src="js/rewards.js?v=20261006o"></script>
+<script defer src="js/wheel.js?v=20261006o"></script>
+<script defer src="js/pz/shell.js?v=20261006o"></script>
+<script defer src="js/pz/sort.js?v=20261006o"></script>
+<script defer src="js/pz/pipes.js?v=20261006o"></script>
+<script defer src="js/pz/flood.js?v=20261006o"></script>
+<script defer src="js/pz/slide.js?v=20261006o"></script>
+<script defer src="js/pz/memory.js?v=20261006o"></script>
+<script defer src="js/pz/words.js?v=20261006o"></script>
+<script defer src="js/pz/g2048.js?v=20261006o"></script>
+<script defer src="js/pz/popcrests.js?v=20261006o"></script>
+<script defer src="js/pz/popit.js?v=20261006o"></script>
+<script defer src="js/ng/core.js?v=20261006o"></script>
+<script defer src="js/ng/lineup.js?v=20261006o"></script>
+<script defer src="js/ng/wordle.js?v=20261006o"></script>
+<script defer src="js/ng/treble.js?v=20261006o"></script>
+<script defer src="js/ng/false9.js?v=20261006o"></script>
+<script defer src="js/ng/connect.js?v=20261006o"></script>
+<script defer src="js/data/lists.js?v=20261006o"></script>
+<script defer src="js/ng/top10.js?v=20261006o"></script>
+<script defer src="js/ng/context.js?v=20261006o"></script>
+<script defer src="js/ng/whoami.js?v=20261006o"></script>
+<script defer src="js/ng/linkup.js?v=20261006o"></script>
+<script defer src="js/ng/rank.js?v=20261006o"></script>
+<script defer src="js/data/goals.js?v=20261006o"></script>
+<script defer src="js/ng/replay.js?v=20261006o"></script>
+<script defer src="js/data/wcmatches.js?v=20261006o"></script>
+<script defer src="js/ng/score.js?v=20261006o"></script>
+<script defer src="js/data/numhist.js?v=20261006o"></script>
+<script defer src="js/ng/numhist.js?v=20261006o"></script>
+<script defer src="js/data/elohist.js?v=20261006o"></script>
+<script defer src="js/ng/timemachine.js?v=20261006o"></script>
+<script defer src="js/ng/box2box.js?v=20261006o"></script>
+<script defer src="js/ng/bingo.js?v=20261006o"></script>
+<script defer src="js/ng/draft.js?v=20261006o"></script>
+<script defer src="js/ng/trumps.js?v=20261006o"></script>
+<script defer src="js/data/pop.js?v=20261006o"></script>
+<script defer src="js/ng/vs100.js?v=20261006o"></script>
+<script defer src="js/ng/darts.js?v=20261006o"></script>
+<script defer src="js/shop.js?v=20261006o"></script>
+<script defer src="js/config.js?v=20261006o"></script>
+<script defer src="js/donate.js?v=20261006o"></script>
+<script defer src="js/user.js?v=20261006o"></script>
+<script defer src="js/duel.js?v=20261006o"></script>
+<script defer src="js/release.js?v=20261006o"></script>
+<script defer src="js/board.js?v=20261006o"></script>
+<script defer src="js/track.js?v=20261006o"></script>
+<script defer src="js/app.js?v=20261006o"></script>
 </body>
 </html>

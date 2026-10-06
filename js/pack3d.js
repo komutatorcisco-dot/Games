@@ -339,7 +339,8 @@ const Pack3D = (() => {
   ];
   function rollRarity() { let r = Math.random() * RAR.reduce((a, x) => a + x.w, 0), i = 0; while ((r -= RAR[i].w) > 0 && i < RAR.length - 1) i++; return i; }
 
-  function dropCard(lv, prize) {
+  function dropCard(lv, it) {
+    const prize = it.coins;
     const R = RAR[lv], W = 512, H = 720, c = cv(W, H), g = c.getContext('2d');
     const shield = (inset) => { g.beginPath(); g.moveTo(W / 2, inset); g.lineTo(W - inset, H * 0.07 + inset * 0.5); g.lineTo(W - inset, H * 0.88 - inset * 0.3); g.lineTo(W / 2, H - inset); g.lineTo(inset, H * 0.88 - inset * 0.3); g.lineTo(inset, H * 0.07 + inset * 0.5); g.closePath(); };
     shield(0);
@@ -351,25 +352,35 @@ const Pack3D = (() => {
     shield(16); g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 6; g.stroke();
     g.textAlign = 'center'; g.fillStyle = '#fff'; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 10;
     g.font = `700 ${R.name.length > 9 ? 40 : 50}px Oswald, Rubik, sans-serif`; g.fillText(R.name, W / 2, 125);
-    g.shadowBlur = 0; coin(g, W / 2, 310, 130);
-    g.shadowBlur = 14; g.font = '700 150px Oswald, Rubik, sans-serif'; g.fillText(`+${prize}`, W / 2, 570);
-    g.font = '700 34px Oswald, Rubik, sans-serif'; g.fillText('М О Н Е Т', W / 2, 622);
+    g.shadowBlur = 0;
+    if (it.item) { // предмет: крупный значок и название, монеты — строкой ниже
+      g.font = '170px sans-serif'; g.textBaseline = 'middle'; g.fillText(it.item.emoji || '🎁', W / 2, 315); g.textBaseline = 'alphabetic';
+      g.shadowBlur = 12; g.font = '700 40px Oswald, Rubik, sans-serif';
+      const words = it.item.name.split(' '); const l1 = words.slice(0, Math.ceil(words.length / 2)).join(' '), l2 = words.slice(Math.ceil(words.length / 2)).join(' ');
+      g.fillText(l1, W / 2, 500); g.fillText(l2, W / 2, 548);
+      g.font = '700 46px Oswald, Rubik, sans-serif'; g.fillText(`+${prize} монет`, W / 2, 625);
+    } else {
+      coin(g, W / 2, 310, 130);
+      g.shadowBlur = 14; g.font = '700 150px Oswald, Rubik, sans-serif'; g.fillText(`+${prize}`, W / 2, 570);
+      g.font = '700 34px Oswald, Rubik, sans-serif'; g.fillText('М О Н Е Т', W / 2, 622);
+    }
     return c;
   }
 
   // gift — подпись «Подарок»; onTake(prize) — нажали «Забрать»
-  async function drop({ gift = false, onStart, onTake } = {}) {
+  async function drop({ gift = false, title = '', minLevel = 0, contents, onStart, onTake } = {}) {
     await three();
     const T = window.THREE;
-    const final = rollRarity(), R0 = RAR[final], prize = R0.prize[0] + Math.round(Math.random() * (R0.prize[1] - R0.prize[0]) / 5) * 5;
+    const final = Math.max(minLevel, rollRarity()), R0 = RAR[final];
+    const got = contents ? contents(final) : { coins: R0.prize[0] + Math.round(Math.random() * (R0.prize[1] - R0.prize[0]) / 5) * 5 }, prize = got.coins;
     const el = document.createElement('div'); el.className = 'drop';
     el.innerHTML = `<div class="drop-bg"></div><div class="drop-flash"></div><div class="drop-stage"></div>
-      <div class="drop-top"><small>${gift ? 'ПОДАРОК · ПАК ДНЯ' : 'ПАК ДНЯ'}</small><b class="drop-rar">${RAR[0].name}</b></div>
-      <div class="drop-steps">${RAR.map((r, i) => `<i style="--c:${r.css}" class="${i === 0 ? 'on' : ''}"></i>`).join('')}</div>
+      <div class="drop-top"><small>${title || (gift ? 'ПОДАРОК · ПАК ДНЯ' : 'ПАК ДНЯ')}</small><b class="drop-rar">${RAR[minLevel].name}</b></div>
+      <div class="drop-steps">${RAR.map((r, i) => `<i style="--c:${r.css}" class="${i <= minLevel ? 'on' : ''}"></i>`).join('')}</div>
       <p class="drop-hint">Жми на пак!</p><button class="drop-x" aria-label="Закрыть">✕</button><button class="btn gold drop-take" hidden></button>`;
     document.body.appendChild(el);
     const setCol = (lv) => { el.style.setProperty('--rc', RAR[lv].css); el.classList.toggle('jackson', RAR[lv].k === 'jackson'); };
-    setCol(0);
+    setCol(minLevel);
     const stage = $('.drop-stage', el);
     const renderer = new T.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
@@ -417,8 +428,8 @@ const Pack3D = (() => {
     }
 
     let card = null, started = false;
-    let level = 0, busy = false, phase = 'idle', t0 = performance.now(), last = t0, raf = 0, alive = true, hop = 0, hopT = 0;
-    const colNow = new T.Color(RAR[0].col), colTo = new T.Color(RAR[0].col);
+    let level = minLevel, busy = false, phase = 'idle', t0 = performance.now(), last = t0, raf = 0, alive = true, hop = 0, hopT = 0;
+    const colNow = new T.Color(RAR[minLevel].col), colTo = new T.Color(RAR[minLevel].col);
     const ease = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
     const back3 = (x) => { x = Math.min(1, Math.max(0, x)); const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
     const flash = () => { const f = $('.drop-flash', el); f.classList.remove('go'); void f.offsetWidth; f.classList.add('go'); };
@@ -461,7 +472,7 @@ const Pack3D = (() => {
         tint.intensity = 2.2 + k * 3; glow.scale.setScalar((1 + level * 0.12) * (1 + k * 0.6));
         if (k >= 1) {
           phase = 'tear'; t0 = now; pack.rotation.set(0, 0, 0); pack.position.set(0, 0, 0); flash(); burst(160, PH / 2 - 0.3, 1.4);
-          card = new T.Mesh(new T.PlaneGeometry(1.45, 2.04), new T.MeshStandardMaterial({ map: tex(dropCard(final, prize)), transparent: true, metalness: 0.25, roughness: 0.4, side: T.DoubleSide, emissive: 0xffffff, emissiveIntensity: 0.08 }));
+          card = new T.Mesh(new T.PlaneGeometry(1.45, 2.04), new T.MeshStandardMaterial({ map: tex(dropCard(final, got)), transparent: true, metalness: 0.25, roughness: 0.4, side: T.DoubleSide, emissive: 0xffffff, emissiveIntensity: 0.08 }));
           card.position.set(0, -0.1, 0); scene.add(card); Sound.play('kick'); haptic('ok');
         }
       } else if (phase === 'tear') {
@@ -476,7 +487,7 @@ const Pack3D = (() => {
         if (k >= 1) {
           phase = 'done'; t0 = now; burst(120, 0.3, 1.2); flash();
           Sound.play(final >= 3 ? 'goal' : 'coin');
-          const b = $('.drop-take', el); b.textContent = `Забрать +${prize}`; b.hidden = false;
+          const b = $('.drop-take', el); b.textContent = got.item ? 'Забрать' : `Забрать +${prize}`; b.hidden = false;
         }
       } else if (phase === 'done') {
         card.rotation.y = Math.sin(t * 1.3) * 0.2; card.position.y = 0.1 + Math.sin(t * 1.9) * 0.05; tint.intensity = 2.5;
@@ -497,7 +508,7 @@ const Pack3D = (() => {
       alive = false; cancelAnimationFrame(raf); removeEventListener('resize', size);
       el.classList.add('out'); setTimeout(() => { renderer.dispose(); el.remove(); }, 280);
     }
-    $('.drop-take', el).addEventListener('click', () => { close(); onTake && onTake(prize, RAR[final]); });
+    $('.drop-take', el).addEventListener('click', () => { close(); onTake && onTake(got, RAR[final]); });
     return { close, prize, rarity: RAR[final] };
   }
 
