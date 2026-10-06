@@ -3873,6 +3873,53 @@ const FreshFaces = (() => {
     const m = t && t.tagName === 'IMG' && !t.dataset.fb && t.src.match(/\/face\/(\d+)/);
     if (m) { t.dataset.fb = '1'; t.src = `img/players/${m[1]}.webp`; }
   }, true);
+  // у свежих лиц серый фон: вырезаем его на лету — заливка от верхнего и боковых краёв, мягкая кромка
+  const cutCache = new Map();
+  function cut(srcImg) {
+    const w = srcImg.naturalWidth, h = srcImg.naturalHeight;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.drawImage(srcImg, 0, 0);
+    const d = g.getImageData(0, 0, w, h), p = d.data;
+    const at = (x, y) => (y * w + x) * 4;
+    if (p[3] < 250) return null; // уже прозрачный — не трогаем
+    const ref = [0, 1, 2].map((k) => (p[at(1, 1) + k] + p[at(w - 2, 1) + k]) / 2);
+    const dist = (i, q) => Math.abs(p[i] - q[0]) + Math.abs(p[i + 1] - q[1]) + Math.abs(p[i + 2] - q[2]);
+    const bg = new Uint8Array(w * h), st = [];
+    const seed = (x, y) => { const i = y * w + x; if (!bg[i] && dist(i * 4, ref) < 60) { bg[i] = 1; st.push(i); } };
+    for (let x = 0; x < w; x++) seed(x, 0);
+    for (let y = 0; y < h * 0.8; y++) { seed(0, y); seed(w - 1, y); }
+    while (st.length) {
+      const i = st.pop(), x = i % w, y = (i / w) | 0, pi = i * 4;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const j = ny * w + nx; if (bg[j]) continue;
+        const pj = j * 4;
+        if (dist(pj, ref) < 54 && dist(pj, [p[pi], p[pi + 1], p[pi + 2]]) < 22) { bg[j] = 1; st.push(j); }
+      }
+    }
+    for (let i = 0; i < w * h; i++) {
+      if (bg[i]) { p[i * 4 + 3] = 0; continue; }
+      const x = i % w, y = (i / w) | 0; // мягкая кромка у границы с фоном
+      let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; if (xx >= 0 && yy >= 0 && xx < w && yy < h && bg[yy * w + xx]) n++; }
+      if (n) p[i * 4 + 3] = Math.round(255 * (1 - n / 12));
+    }
+    g.putImageData(d, 0, 0);
+    return c.toDataURL('image/png');
+  }
+  function process(el) {
+    const url = el.currentSrc || el.src;
+    if (cutCache.has(url)) { const v = cutCache.get(url); if (v && v !== 'wait') el.src = v; return; }
+    cutCache.set(url, 'wait');
+    const im = new Image(); im.crossOrigin = 'anonymous';
+    im.onload = () => {
+      let out = null; try { out = cut(im); } catch (e) { out = null; }
+      cutCache.set(url, out || '');
+      if (out) $$('img').forEach((x) => { if ((x.currentSrc || x.src) === url) x.src = out; });
+    };
+    im.onerror = () => cutCache.set(url, '');
+    im.src = url;
+  }
+  document.addEventListener('load', (e) => { const t = e.target; if (t && t.tagName === 'IMG' && /\/face\/\d+/.test(t.src)) process(t); }, true);
   return { on: () => on && !!api(), url: (id, s = 120) => `${api()}/face/${id}${s === 240 ? '?s=240' : ''}` };
 })();
 const faceSrc = (id) => FACE_DATA[id] || (FreshFaces.on() ? FreshFaces.url(id) : `img/players/${id}.webp`);
