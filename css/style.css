@@ -2348,3 +2348,7 @@ body[data-scr="hub"] { background:
 .ava-s { width: 36px; height: 36px; flex: none; } .ava-s b { font-size: 13px; }
 
 .modal-card .sub-h { text-transform: none !important; font: 900 24px/1.1 "Rubik", sans-serif !important; letter-spacing: -.01em; }
+/* Полноэкранный Telegram: не залезать под кнопки «Закрыть» и «⋯» и под вырез экрана */
+#app { padding-top: max(12px, env(safe-area-inset-top, 0px), calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px) + 6px)) !important; }
+.tabbar { padding-bottom: max(22px, calc(8px + env(safe-area-inset-bottom, 0px)), calc(8px + var(--tg-safe-area-inset-bottom, 0px))) !important; }
+.pitch-wrap { height: max(470px, calc(var(--tg-viewport-stable-height, 100vh) - 236px - var(--tg-content-safe-area-inset-top, 0px) - var(--tg-safe-area-inset-top, 0px))); }
