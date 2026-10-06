@@ -337,8 +337,39 @@ async function weekly(env) {
   return `отправлено: ${await broadcast(env, text)}`;
 }
 
+// Лица игроков FC 27/26: CDN sofifa отдаёт картинки только с Referer sofifa.com, браузер так не умеет.
+// Воркер забирает лицо сам и кладёт в кэш Cloudflare на 30 дней. /face/239085?s=240 (размеры 120 и 240).
+async function face(request, ctx) {
+  const u = new URL(request.url), m = u.pathname.match(/^\/face\/(\d{1,7})$/);
+  if (!m) return new Response('bad id', { status: 400 });
+  const size = u.searchParams.get('s') === '240' ? 240 : 120;
+  const cache = caches.default, key = new Request(`https://faces.local/${m[1]}_${size}`);
+  const hit = await cache.match(key);
+  if (hit) return hit;
+  const n = +m[1], path = `${String(Math.floor(n / 1000)).padStart(3, '0')}/${String(n % 1000).padStart(3, '0')}`;
+  const headers = { Referer: 'https://sofifa.com/', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36', Accept: 'image/webp,image/png,image/*' };
+  // сначала свежая версия, потом прошлогодняя; маленький размер есть у всех
+  const tries = [`27_${size}`, `26_${size}`, '27_120', '26_120'];
+  for (const v of [...new Set(tries)]) {
+    for (let a = 0; a < 2; a++) {
+      try {
+        const r = await fetch(`https://cdn.sofifa.net/players/${path}/${v}.png`, { headers, cf: { cacheTtl: 2592000, cacheEverything: true } });
+        if (r.ok) {
+          const out = new Response(r.body, { headers: { 'Content-Type': r.headers.get('content-type') || 'image/png', 'Cache-Control': 'public, max-age=2592000', 'Access-Control-Allow-Origin': '*' } });
+          ctx.waitUntil(cache.put(key, out.clone()));
+          return out;
+        }
+        if (r.status === 404 && a === 0) await new Promise((ok) => setTimeout(ok, 200));
+        else break;
+      } catch (e) { /* пробуем дальше */ }
+    }
+  }
+  return new Response('not found', { status: 404, headers: { 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=3600' } });
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
+    if (new URL(request.url).pathname.startsWith('/face/')) return face(request, ctx);
     const res = await route(request, env);
     return cors(new Response(res.body, res), request, env);
   },

@@ -84,7 +84,7 @@ const Cards = (() => {
 
   // ---------- вид карточки ----------
   const col = (club) => (typeof CLUB_COL !== 'undefined' && CLUB_COL[club]) || ['#3b4f8f', '#141a3a'];
-  const img = (id) => (FACE_DATA[id] || `img/cards/${id}.webp`);
+  const img = (id) => (FACE_DATA[id] || (FreshFaces.on() ? FreshFaces.url(id, 240) : `img/cards/${id}.webp`));
   // на плашке — фамилия; «ван Дейк» целиком, короткие тройные имена («Сон Хын Мин») — полностью
   const surname = (n) => {
     const w = n.split(' ');

@@ -3853,7 +3853,29 @@ const crestSrc = (f) => (f.startsWith('data:') ? f : `img/clubs/${f}`);
 
 // путь к фото игрока (в сборке-артефакте часть фото вшита в страницу как data:)
 const FACE_DATA = {};
-const faceSrc = (id) => FACE_DATA[id] || `img/players/${id}.webp`;
+// Свежие лица FC 27/26 идут через наш воркер (/face/<id>), если он отвечает; иначе — свои старые картинки.
+const FreshFaces = (() => {
+  const KEY = 'jx-fresh-faces';
+  let on = false;
+  try { on = localStorage.getItem(KEY) === '1'; } catch (e) { /* без памяти */ }
+  const api = () => (typeof CONFIG !== 'undefined' && CONFIG.api) || '';
+  // проверка раз за запуск: Месси грузится — значит воркер с лицами обновлён
+  setTimeout(() => {
+    if (!api()) return;
+    const im = new Image();
+    im.onload = () => { if (!on) { on = true; try { localStorage.setItem(KEY, '1'); } catch (e) { /* ок */ } } };
+    im.onerror = () => { on = false; try { localStorage.removeItem(KEY); } catch (e) { /* ок */ } };
+    im.src = `${api()}/face/158023?s=120&t=${Math.floor(Date.now() / 864e5)}`;
+  }, 1500);
+  // если свежее лицо не загрузилось — тихо подменяем на своё
+  addEventListener('error', (e) => {
+    const t = e.target;
+    const m = t && t.tagName === 'IMG' && !t.dataset.fb && t.src.match(/\/face\/(\d+)/);
+    if (m) { t.dataset.fb = '1'; t.src = `img/players/${m[1]}.webp`; }
+  }, true);
+  return { on: () => on && !!api(), url: (id, s = 120) => `${api()}/face/${id}${s === 240 ? '?s=240' : ''}` };
+})();
+const faceSrc = (id) => FACE_DATA[id] || (FreshFaces.on() ? FreshFaces.url(id) : `img/players/${id}.webp`);
 
 function crestImg(club, size = 's') {
   const f = CRESTS[club];
