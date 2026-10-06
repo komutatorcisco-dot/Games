@@ -25,7 +25,7 @@ const Board = (() => {
     }, 2000);
   }
 
-  const medal = (n) => (n === 1 ? '🥇' : n === 2 ? '🥈' : n === 3 ? '🥉' : n);
+  const medal = (n) => n;
   const unit = (sc, v) => (sc === 'day' ? `с ${v}-й попытки` : `${v.toLocaleString('ru-RU')} ${sc === 'week' || sc === 'friends' ? 'оч.' : 'опыта'}`);
   function left(t) {
     const ms = t - Date.now();

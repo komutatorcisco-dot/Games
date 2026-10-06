@@ -2171,7 +2171,7 @@ body { background: radial-gradient(90% 40% at 50% -8%, #2a2a33 0%, transparent 7
 :root { --gy: #ffd23f; --gr: #e3262f; --gd: #0d2f1b; --gm: #1d6a3b; --glass: rgba(0,0,0,.28); --gline: rgba(255,255,255,.14);
   --night: #0d2f1b; --night-2: rgba(0,0,0,.28); --night-3: rgba(0,0,0,.36); --muted: rgba(255,255,255,.7); }
 body { background: radial-gradient(120% 70% at 50% 0%, var(--gm), var(--gd) 75%) fixed !important; }
-body[data-scr="hub"][data-panel="home"] { background:
+body[data-grass] { background:
   radial-gradient(70% 28% at 8% 0%, rgba(255,255,230,.28), transparent 70%), radial-gradient(70% 28% at 92% 0%, rgba(255,255,230,.28), transparent 70%),
   radial-gradient(130% 90% at 50% 55%, transparent 50%, rgba(0,0,0,.5)), repeating-linear-gradient(180deg, #2f8f4e 0 58px, #2a8548 58px 116px) fixed !important; }
 
@@ -2489,7 +2489,7 @@ body::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-even
     linear-gradient(180deg, #1a1146 0%, #120c33 45%, #0b0820 100%); }
 body::after { content: ''; position: fixed; left: 50%; bottom: -170px; width: 340px; height: 340px; margin-left: -170px; z-index: -1; pointer-events: none;
   border-radius: 50%; border: 2px solid rgba(255,255,255,.05); box-shadow: 0 0 0 120px rgba(255,255,255,.012); }
-body[data-scr="hub"][data-panel="home"]::before, body[data-scr="hub"][data-panel="home"]::after { display: none; }
+body[data-grass]::before, body[data-grass]::after { display: none; }
 :root { --glass: rgba(255,255,255,.07); --gline: rgba(255,255,255,.12); }
 .modal-card { background: linear-gradient(180deg, #241a5a, #16103a) !important; }
 
@@ -2547,3 +2547,39 @@ body[data-scr="hub"][data-panel="home"]::before, body[data-scr="hub"][data-panel
   animation: pkBurst .9s ease-out both; }
 @keyframes pkBurst { from { opacity: 0; transform: scale(.3) rotate(-30deg); } 60% { opacity: 1; } to { opacity: .8; transform: scale(1) rotate(0); } }
 .pk.other { opacity: .45; filter: grayscale(.6); }
+/* поле тоже на ночном фоне стадиона */
+.tk.soon .tok::before { background: #1a1146 !important; }
+html, body { touch-action: manipulation; }
+
+/* ===== Таблица в духе EA FC: стеклянные строки со скошенными углами, узкий шрифт, акценты по местам ===== */
+#board-body { --cut: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+.bd-tabs { display: grid !important; grid-template-columns: repeat(4, 1fr); gap: 0 !important; padding: 0 !important; background: none !important;
+  border-bottom: 1px solid rgba(255,255,255,.14); border-radius: 0 !important; }
+.bd-tabs button { padding: 12px 2px 10px !important; border-radius: 0 !important; background: none !important; color: rgba(255,255,255,.55) !important;
+  font: 700 13px "Oswald", sans-serif !important; letter-spacing: .08em; text-transform: uppercase; position: relative; white-space: nowrap; }
+.bd-tabs button.on { background: none !important; color: #fff !important; }
+.bd-tabs button.on::after { content: ''; position: absolute; left: 18%; right: 18%; bottom: -1px; height: 3px; background: linear-gradient(90deg, #3ee6a8, #4fc3ff); box-shadow: 0 0 12px rgba(62,230,168,.7); }
+.bd-head { font: 600 12.5px/1.4 "Rubik", sans-serif !important; color: rgba(255,255,255,.55) !important; text-align: left !important; margin: 12px 2px 10px !important; }
+.bd-you { display: flex; align-items: baseline; gap: 8px; padding: 14px 16px !important; border-radius: 0 !important; clip-path: var(--cut);
+  background: linear-gradient(100deg, rgba(62,230,168,.22), rgba(79,195,255,.08) 60%, rgba(255,255,255,.04)) !important; box-shadow: none !important;
+  font: 700 13px "Oswald", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.7); }
+.bd-you b { font: 700 34px/1 "Oswald", sans-serif; color: #3ee6a8 !important; letter-spacing: 0; text-shadow: 0 0 16px rgba(62,230,168,.45); }
+.bd-list { display: grid; gap: 6px; margin-top: 12px; background: none !important; border-radius: 0 !important; overflow: visible !important; }
+.bd-row { position: relative; display: grid !important; grid-template-columns: 38px 34px 1fr auto; align-items: center; gap: 8px; min-height: 52px; padding: 0 14px 0 0 !important;
+  border-radius: 0 !important; clip-path: var(--cut); background: linear-gradient(90deg, rgba(255,255,255,.1), rgba(255,255,255,.04)) !important;
+  box-shadow: none !important; backdrop-filter: blur(6px); }
+.bd-row::before { display: none !important; }
+.bd-row .bd-place { align-self: stretch; display: grid; place-items: center; font: 700 20px "Oswald", sans-serif !important; color: rgba(255,255,255,.6);
+  background: rgba(255,255,255,.06); }
+.bd-row .bd-emo { font-size: 22px; text-align: center; }
+.bd-row .bd-nick { font: 700 16px "Rubik", sans-serif; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-row em { font: 700 19px "Oswald", sans-serif !important; color: #fff !important; font-style: normal; letter-spacing: .02em; }
+.bd-row:nth-child(1) .bd-place { background: linear-gradient(160deg, #fff1a8, #e9b93a 50%, #a8761a); color: #3a2600; }
+.bd-row:nth-child(2) .bd-place { background: linear-gradient(160deg, #ffffff, #c9cbd8 50%, #8d8fa3); color: #1b1340; }
+.bd-row:nth-child(3) .bd-place { background: linear-gradient(160deg, #ffd7b0, #c9824a 50%, #7a4521); color: #2a1406; }
+.bd-row:nth-child(1) { background: linear-gradient(90deg, rgba(233,185,58,.28), rgba(255,255,255,.05) 70%) !important; }
+.bd-row:nth-child(1) em { color: #ffd34a !important; }
+.bd-row.me { background: linear-gradient(90deg, rgba(62,230,168,.35), rgba(79,195,255,.12) 70%) !important; color: #fff !important; box-shadow: none !important; }
+.bd-row.me * { color: #fff !important; }
+.bd-row.me::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: #3ee6a8; box-shadow: 0 0 10px #3ee6a8; }
+.bd-row.pinned { margin-top: 10px; }
