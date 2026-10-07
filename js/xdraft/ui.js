@@ -7,6 +7,50 @@
 const XDraft = (() => {
   const SYS = { classic: 'Классическая химия', new: 'Новая химия' };
   let POOL = null, BY = null, sel = null, pick = null;
+  // анимации: что перелетает после следующей отрисовки, прошлые значения химии и связей — чтобы анимировать только изменения
+  let capFrom = null, fx = null, prevChem = {}, prevLinks = {}, prevTotal = null, entering = false;
+  const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const anim = (el, kf, o) => (el && el.animate && !RM ? el.animate(kf, o) : null);
+  const slotEl = (zone, i) => $(`#xd-body .fu[data-z="${zone}"][data-i="${i}"]`);
+  const rectOf = (el) => (el ? el.getBoundingClientRect() : null);
+  // FLIP: элемент «прилетает» из старого прямоугольника в новый, с дугой и 3D-поворотом
+  function flyFrom(el, from, { spin = 0, lift = 40, dur = 700 } = {}) {
+    if (!el || !from) return;
+    const to = el.getBoundingClientRect(), k = to.width / (el.offsetWidth || 1) || 1;
+    const dx = (from.left + from.width / 2 - (to.left + to.width / 2)) / k, dy = (from.top + from.height / 2 - (to.top + to.height / 2)) / k, sc = from.width / to.width;
+    anim(el, [
+      { transform: `translate(${dx}px, ${dy}px) scale(${sc}) rotateY(0deg)`, zIndex: 50 },
+      { transform: `translate(${dx * 0.45}px, ${dy * 0.45 - lift}px) scale(${(sc + 1) / 2 + 0.15}) rotateY(${spin / 2}deg)`, offset: 0.5 },
+      { transform: 'translate(0, 0) scale(1) rotateY(' + spin + 'deg)' },
+    ], { duration: dur, easing: 'cubic-bezier(.3,.8,.3,1)' });
+  }
+  function postFx(a, c) {
+    if (fx && fx.type === 'place') {
+      const el = slotEl(fx.zone, fx.i); flyFrom(el, fx.from, { spin: 360, lift: 60, dur: 760 });
+      setTimeout(() => { if (el) { el.classList.add('land'); setTimeout(() => el.classList.remove('land'), 700); } }, 700);
+    } else if (fx && fx.type === 'swap') {
+      flyFrom(slotEl(fx.b.zone, fx.b.i), fx.a.rect, { lift: 50, dur: 560 });
+      flyFrom(slotEl(fx.a.zone, fx.a.i), fx.b.rect, { lift: -30, dur: 560 });
+    }
+    fx = null;
+    // первый показ поля: карточки «падают» на свои места по очереди
+    if (entering) {
+      $$('#xd-body .xd-pitch .xd-slot .fu, #xd-body .xd-brow .fu').forEach((el, k) => anim(el, [{ transform: 'translateY(-40px) rotateX(75deg)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 520, delay: 40 * k, easing: 'cubic-bezier(.2,1.2,.4,1)', fill: 'backwards' }));
+      $$('#xd-body .xd-links line').forEach((l, k) => anim(l, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 500, delay: 300 + 20 * k, fill: 'backwards' }));
+      entering = false;
+    } else {
+      // связи, у которых сменился цвет, прорисовываются заново
+      $$('#xd-body .xd-links line[data-k]').forEach((l) => { if (prevLinks[l.dataset.k] !== l.getAttribute('class')) anim(l, [{ strokeDashoffset: 1 }, { strokeDashoffset: 0 }], { duration: 520, easing: 'ease-out' }); });
+      // химия игрока изменилась — значок подпрыгивает
+      $$('#xd-body .fu-ch[data-chem]').forEach((b) => { const k = b.dataset.chem, v = b.textContent || b.querySelectorAll('.on').length; if (prevChem[k] !== undefined && prevChem[k] !== String(v)) anim(b, [{ transform: 'scale(1)' }, { transform: 'scale(1.6) rotate(-8deg)', filter: 'brightness(1.6)' }, { transform: 'scale(1)' }], { duration: 520, easing: 'cubic-bezier(.2,1.6,.4,1)' }); });
+    }
+    prevChem = {}; $$('#xd-body .fu-ch[data-chem]').forEach((b) => { prevChem[b.dataset.chem] = String(b.textContent || b.querySelectorAll('.on').length); });
+    prevLinks = {}; $$('#xd-body .xd-links line[data-k]').forEach((l) => { prevLinks[l.dataset.k] = l.getAttribute('class'); });
+    // число химии в шапке докручивается
+    const cb = $('#xd-body .xd-ct');
+    if (cb && prevTotal !== null && prevTotal !== c.total && typeof countUp === 'function') countUp(cb, c.total, { from: prevTotal, dur: 600, fmt: (v) => v });
+    prevTotal = c.total;
+  }
 
   // ---------- данные ----------
   const loadPos = () => new Promise((ok, bad) => {
@@ -70,6 +114,7 @@ const XDraft = (() => {
 
   // ---------- экран выбора из пяти ----------
   function openPick(what, i) {
+    if ($('#xd-pick')) return; // уже открыт — второе нажатие не плодит экраны
     const a = A();
     let list, pos = null;
     if (what === 'capt') list = a.capt.map(P).filter(Boolean);
@@ -85,7 +130,7 @@ const XDraft = (() => {
     document.body.appendChild(el);
     const row = $('.xp-row', el), cards = $$('.xp-c', el);
     // карусель: центральная карточка крупная, соседние уменьшаются и разворачиваются
-    function fx() {
+    function fxc() {
       if (!pick || !el.isConnected) return;
       const mid = row.scrollLeft + row.clientWidth / 2;
       let best = 0, bd = 1e9;
@@ -105,8 +150,11 @@ const XDraft = (() => {
       if (what !== 'capt') { const pv = preview(what, i, p); $('.xp-sum', el).innerHTML = `<span>Рейтинг <b>${pv.before.r || '—'} → ${pv.after.r}</b></span><span>Химия <b>${pv.before.c} → ${pv.after.c}</b></span>`; }
     }
     const go = (k) => { const c = cards[k]; if (c) row.scrollTo({ left: c.offsetLeft - (row.clientWidth - c.offsetWidth) / 2, behavior: 'smooth' }); };
-    let raf = 0; row.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fx); }, { passive: true });
-    requestAnimationFrame(() => { el.classList.add('in'); go(0); fx(); });
+    let raf = 0; row.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fxc); }, { passive: true });
+    requestAnimationFrame(() => {
+      el.classList.add('in'); go(0); fxc();
+      cards.forEach((c, k) => anim($('.fu', c), [{ transform: 'translateY(180px) rotateX(65deg) rotateZ(' + (k - 2) * 6 + 'deg) scale(.7)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 620, delay: 70 * k, easing: 'cubic-bezier(.2,1.1,.3,1)', fill: 'backwards' }));
+    });
     el.addEventListener('click', (e) => {
       if (e.target.closest('.xp-x')) return closePick();
       const c = e.target.closest('.xp-c'), d = e.target.closest('.xp-dots i');
@@ -119,19 +167,22 @@ const XDraft = (() => {
     const pv = preview('xi', i, p), d = pv.after.c - pv.before.c;
     return `<span class="xp-d ${d > 0 ? 'up' : ''}">${d > 0 ? '+' + d : d} хим</span>`;
   }
-  function closePick() { const el = $('#xd-pick'); if (el) { el.classList.add('out'); setTimeout(() => el.remove(), 200); } pick = null; }
+  function closePick() { const el = $('#xd-pick'); if (el) { el.id = ''; el.classList.add('out'); setTimeout(() => el.remove(), 200); } pick = null; }
   function confirmPick() {
     const a = A(), p = pick.list[pick.chosen]; if (!p) return;
-    if (pick.zone === 'capt') { a.captPick = p.name; save(); closePick(); render(); return; }
+    const srcEl = $$('#xd-pick .xp-c')[pick.chosen], from = rectOf(srcEl && $('.fu', srcEl));
+    if (pick.zone === 'capt') { a.captPick = p.name; capFrom = from; save(); closePick(); render(); return; }
     const arr = pick.zone === 'xi' ? a.xi : a.bench;
     if (arr[pick.i]) return closePick(); // уже выбран — подборку не переигрываем
-    arr[pick.i] = p.name; save(); Sound.play('token'); haptic('pop'); closePick(); render();
+    arr[pick.i] = p.name; save(); Sound.play('token'); haptic('pop');
+    fx = { type: 'place', zone: pick.zone, i: pick.i, from }; closePick(); render();
   }
   function placeCaptain(i) {
     const a = A(), p = P(a.captPick), pos = XD.FORMATIONS[a.form].slots[i].pos;
     const ok = a.sys === 'new' ? p.pos.includes(pos) : p.pos[0] === pos;
     if (!ok) { toast(`${surname(p.name)} не играет на ${XD.RU[pos]}`); haptic('bad'); return; }
-    a.xi[i] = p.name; a.captSlot = i; a.captPick = null; a.stage = 'draft'; save(); Sound.play('token'); render();
+    a.xi[i] = p.name; a.captSlot = i; a.captPick = null; a.stage = 'draft'; save(); Sound.play('token');
+    fx = { type: 'place', zone: 'xi', i, from: capFrom || rectOf(slotEl('xi', i)) }; capFrom = null; render();
   }
 
   // ---------- перестановки: «выбрать игрока → выбрать место» ----------
@@ -146,6 +197,7 @@ const XDraft = (() => {
     if (sel.zone === zone && sel.i === i) { sel = null; render(); return; }
     if (!arr[i]) { toast('Сначала заполни эту позицию'); sel = null; render(); return; }
     const from = sel.zone === 'xi' ? a.xi : a.bench;
+    fx = { type: 'swap', a: { zone: sel.zone, i: sel.i, rect: rectOf(slotEl(sel.zone, sel.i)) }, b: { zone, i, rect: rectOf(slotEl(zone, i)) } };
     [from[sel.i], arr[i]] = [arr[i], from[sel.i]];
     if (a.captSlot !== undefined) { // капитан переезжает вместе с игроком
       if (sel.zone === 'xi' && sel.i === a.captSlot) a.captSlot = zone === 'xi' ? i : null;
@@ -198,7 +250,7 @@ const XDraft = (() => {
     const F_ = XD.FORMATIONS[a.form];
     const lines = a.sys === 'classic' ? `<svg class="xd-links" viewBox="0 0 100 100" preserveAspectRatio="none">${c.links.map((l) => {
       const p1 = proj(F_.slots[l.i].x, F_.slots[l.i].y), p2 = proj(F_.slots[l.j].x, F_.slots[l.j].y);
-      return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" class="ln ${l.color}"/>`;
+      return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" class="ln ${l.color}" data-k="${l.i}-${l.j}" ${l.color !== 'none' ? 'pathLength="1" stroke-dasharray="1"' : ''}/>`;
     }).join('')}</svg>` : '';
     return `<div class="xd-pitch ${a.sys} ${live && sel ? 'swapping' : ''} ${capt ? 'placing' : ''}">${field()}${lines}${F_.slots.map((s, i) => {
       const q = proj(s.x, s.y), glow = capt && (a.sys === 'new' ? capt.pos.includes(s.pos) : capt.pos[0] === s.pos) && !a.xi[i];
@@ -227,13 +279,14 @@ const XDraft = (() => {
     const capt = a.stage === 'capt' && a.captPick ? P(a.captPick) : null;
     const part = a.xi.filter(Boolean).length < 11;
     box.innerHTML = `<div class="xd-bar"><span class="xd-f">${a.form}</span><span class="xd-st"><small>Рейтинг</small><b>${rating || '—'}</b>${part ? '<i>предв.</i>' : ''}</span>
-        <button class="xd-st xd-chem" data-act2="chem"><small>Химия</small><b>${c.total}<em>/${c.max}</em></b>${part ? '<i>предв.</i>' : ''}<span class="xd-cbar"><i style="width:${(c.total / c.max) * 100}%"></i></span></button></div>
+        <button class="xd-st xd-chem" data-act2="chem"><small>Химия</small><b><span class="xd-ct">${c.total}</span><em>/${c.max}</em></b>${part ? '<i>предв.</i>' : ''}<span class="xd-cbar"><i style="width:${(c.total / c.max) * 100}%"></i></span></button></div>
       ${pitchHTML(a, xi, c, { capt })}
       <div class="xd-bench"><div class="xd-bh"><b>Скамейка</b><small>${bench.filter(Boolean).length}/${XD.BENCH}</small></div>
         <div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b ${sel && sel.zone === 'bench' && sel.i === i ? 'sel' : ''}">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
       <div class="xd-act">${a.stage === 'capt' ? `<button class="btn gold" data-act2="capt">${capt ? 'Сменить капитана' : 'Выбрать капитана'}</button>` : `<button class="btn gold" data-act2="finish" ${done < all ? 'disabled' : ''}>${done < all ? `Заполнено ${done}/${all}` : 'Завершить драфт'}</button>`}
         <button class="btn ghost" data-act2="reset">Новый драфт</button></div>`;
     Photos.hydrate(box);
+    postFx(a, c);
   }
 
   // ---------- объяснение химии ----------
@@ -298,7 +351,7 @@ const XDraft = (() => {
     try { await loadPos(); } catch (e) { $('#xd-body').innerHTML = '<p class="xd-lead">Не удалось загрузить базу позиций. Проверь интернет и попробуй ещё раз.</p>'; return; }
     pool();
     if (!A()) fresh();
-    sel = null;
+    sel = null; entering = true; prevTotal = null;
     if (S().match && !S().match.done && typeof XMatch !== 'undefined') return XMatch.resume();
     render();
   }

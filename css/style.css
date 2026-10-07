@@ -3318,3 +3318,24 @@ html, body { touch-action: manipulation; }
 .xp-c .fu { --cw: min(52vw, 210px); }
 .xp-row { padding: 10px calc(50% - min(26vw, 105px)); }
 .xd-slot.b { transform: none !important; position: static !important; }
+
+/* ===== анимации драфта ===== */
+.xd-pitch { perspective: 900px; }
+.xd-slot .fu { transform-style: preserve-3d; backface-visibility: visible; will-change: transform; }
+.fu.land { animation: fuLand .7s ease-out; }
+@keyframes fuLand { 0% { filter: drop-shadow(0 0 0 rgba(255,207,58,0)) brightness(1.6); } 40% { filter: drop-shadow(0 0 16px rgba(255,207,58,.95)) brightness(1.25); } 100% { filter: drop-shadow(0 4px 6px rgba(0,0,0,.45)); } }
+.xd-slot::after { content: ""; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; border-radius: 50%; pointer-events: none; }
+.xd-links line { transition: stroke .3s; }
+.xp-c .fu { transform-style: preserve-3d; }
+.xp-c.on .fu, .xp-c .fu { transition: filter .2s; }
+/* матч */
+.xm-stage { position: relative; perspective: 800px; }
+.xm-pitch { transform-origin: 50% 80%; will-change: transform; }
+.xm-p { transition-property: left, top; transition-timing-function: cubic-bezier(.45,.05,.35,1); will-change: left, top; }
+.xm-pitch .xm-ball { transition: none !important; will-change: left, top, transform; }
+.xm-stage .xm-goalfx { position: absolute; left: 50%; top: 50%; right: auto; transform: translate(-50%, -50%); margin: 0; animation: none; white-space: nowrap; z-index: 6; }
+.xm-feed { perspective: 600px; }
+.xm-ev { transform-origin: 50% 0; }
+.xm-s b { display: inline-block; transform-style: preserve-3d; }
+.xm-knob { transition: left .35s cubic-bezier(.3,1.5,.5,1) !important; }
+.xm-bar button.on { box-shadow: inset 0 0 0 3px rgba(13,10,38,.5); }
