@@ -1,5 +1,5 @@
-// Какие игры видны игрокам. На старте — 9 лучших, остальные выходят по одной каждую неделю:
-// в понедельник в 10:00 по центральноевропейскому времени (тогда же обнуляется рейтинг недели).
+// Какие игры видны игрокам: открываются за трофеи (см. UNLOCKS). Порядок поздних игр — по QUEUE.
+// Неделя (weekKey) по-прежнему нужна рейтингу: он обнуляется в понедельник в 10:00 по Европе.
 // Чтобы поменять порядок или выпустить игру раньше — переставь строки в QUEUE или поменяй дату.
 // Сервер (server/worker.js) держит копию названий и дат для сообщения бота — при правке обнови и там.
 'use strict';
@@ -61,26 +61,41 @@ const Release = (() => {
   // момент выхода игры с датой понедельника date
   function at(date) { const local = Date.parse(date) + HOUR * 3600e3; return local - tzOffset(local - tzOffset(local)); }
 
-  const out = new Set(START);
+  // Игры и разделы открываются за трофеи, как в Brawl Stars: сначала немного, дальше по шагу.
+  // [трофеи, название, ключи] — 'feat:cards' (паки и галерея) и 'feat:pass' (пропуск и задания) — разделы, не игры.
+  const UNLOCKS = [
+    [0, 'Первые игры', ['ng:wordle', 'act:nation', 'act:pick-duo']],
+    [25, 'Аукцион', ['act:auction-bot', 'act:auction-duo']],
+    [50, 'Тики-така', ['act:ttt', 'act:ttt-duo']],
+    [80, 'Паки и Галерея', ['feat:cards']],
+    [120, 'Козыри', ['ng:trumps']],
+    [170, 'Угадай игрока и Дуэль', ['act:guess-career', 'act:guess-duel', 'ng:duel']],
+    [230, 'Драфт', ['act:xdraft']],
+    [300, 'ИПК', ['act:sbc']],
+    [400, 'Пропуск и задания', ['feat:pass']],
+    ...QUEUE.map((q, i) => [500 + i * 100, q[1], q[2]]),
+  ];
+  const trophies = () => { try { return (Store.d.rw && Store.d.rw.trophies) || 0; } catch (e) { return 0; } };
+  const out = new Set();
   let cur = null, nxt = null;
   function refresh() {
-    const wk = weekKey();
-    out.clear(); START.forEach((k) => out.add(k)); cur = null; nxt = null;
-    for (const q of QUEUE) {
-      if (q[0] <= wk) { q[2].forEach((k) => out.add(k)); if (q[0] === wk) cur = q; } else if (!nxt) nxt = q;
-    }
+    const t = trophies();
+    out.clear(); cur = null; nxt = null;
+    for (const u of UNLOCKS) { if (u[0] <= t) { u[2].forEach((k) => out.add(k)); cur = u; } else if (!nxt) nxt = u; }
   }
   refresh();
 
-  // админ видит все игры (чтобы проверить заранее); игрокам — только вышедшие
+  // админ видит все игры (чтобы проверить заранее); игрокам — только открытые
   const isAdmin = () => !!(Store.d && Store.d.admin);
-  const known = (key) => START.includes(key) || QUEUE.some((q) => q[2].includes(key));
-  const isOut = (key) => !known(key) || out.has(key) || isAdmin();
+  const known = (key) => START.includes(key) || UNLOCKS.some((u) => u[2].includes(key));
+  const isOut = (key) => { refresh(); return !known(key) || out.has(key) || isAdmin(); };
   const soon = (key) => known(key) && !out.has(key);
+  const need = (key) => { const u = UNLOCKS.find((x) => x[2].includes(key)); return u ? u[0] : 0; };
   return {
-    isOut, soon, refresh, weekKey, at, known,
-    current: () => (cur ? { title: cur[1], keys: cur[2] } : null),
-    next: () => (nxt ? { title: nxt[1], keys: nxt[2], at: at(nxt[0]) } : null),
+    isOut, soon, refresh, weekKey, at, known, need, trophies, UNLOCKS,
+    feature: (f) => isOut('feat:' + f),
+    current: () => { refresh(); return cur ? { title: cur[1], keys: cur[2], at: cur[0] } : null; },
+    next: () => { refresh(); return nxt ? { title: nxt[1], keys: nxt[2], need: nxt[0] } : null; },
     count: () => out.size,
     // номер «тура»: первая неделя игр (с 5 октября 2026) — тур 1
     tour: () => Math.max(1, Math.round((Date.parse(weekKey()) - Date.parse('2026-10-05')) / 6048e5) + 1),

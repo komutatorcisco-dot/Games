@@ -38,8 +38,8 @@ const SBC = (() => {
   const RAR_RU = { bronze: 'бронзовые', silver: 'серебряные', gold: 'золотые', legend: 'легенды', jack: '«Джексон»' };
   const PACKNAME = ['Обычный пак', 'Сверхредкий пак', 'Эпический пак', 'Легендарный пак', 'Пак «ДЖЕКСОН!!»'];
   const PACKSHORT = ['Обычный', 'Сверхредкий', 'Эпический', 'Легендарный', 'Джексон!!'];
-  const PACK_N = [2, 3, 3, 4, 5];
-  const PACK_SURE = ['', 'серебро', 'золото', 'легенда', 'карточка «Джексон»'];
+  const PACK_N = [3, 5, 8, 15, 30];
+  const PACK_SURE = ['', 'одно золото', 'два золота', 'легенда и три золота', '«Джексон», две легенды и шесть золотых'];
   const DIFF = ['', 'Лёгкое', 'Среднее', 'Сложное', 'Элитное'];
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const anim = (el, k, o) => (el && el.animate && !reduce ? el.animate(k, o) : null);
@@ -83,15 +83,15 @@ const SBC = (() => {
     ][hash(D + 'q') % 5];
     const list = [
       { id: 'day:' + D, cat: 'day', ico: 'clock', diff: 1, title: 'Испытание дня', desc: 'Три карточки за сверхредкий пак. Новое каждый день.', n: 3, req: dayReq, reward: { pack: 1 }, limit: 1, ends: dayEnd() },
-      star && { id: 'pl:' + W, cat: 'pl', group: true, ico: 'star', diff: 4, cost: 80 + tier * 20, title: `Игрок недели: ${Cards.surname(star.name)}`, desc: `Пройди три испытания и забери ${star.name} ${star.r}. За каждый этап тоже дают пак.`, reward: { card: star.key }, ends: weekEnd(), limit: 1,
+      star && { id: 'pl:' + W, cat: 'pl', group: true, ico: 'star', diff: 4, cost: 70 + tier * 15, title: `Игрок недели: ${Cards.surname(star.name)}`, desc: `Пройди три испытания и забери ${star.name} ${star.r}. За каждый этап тоже дают пак.`, reward: { card: star.key }, ends: weekEnd(), limit: 1,
         items: [
-          { id: `pl:${W}:1`, ico: 'stadium', diff: 3, title: `Лига недели: ${L}`, desc: `Пятеро из ${L} в составе на ${81 + tier}`, n: 11, req: [{ t: 'from', k: 'lg', v: L, min: 5 }, { t: 'rating', v: 81 + tier }], reward: { pack: 2 }, limit: 1 },
-          { id: `pl:${W}:2`, ico: 'flame', diff: 3, title: 'Топ-форма', desc: 'Сильный полный состав', n: 11, req: [{ t: 'rating', v: 83 + tier }], reward: { pack: 2 }, limit: 1 },
-          { id: `pl:${W}:3`, ico: 'crown', diff: 4, title: 'Состав мечты', desc: 'С легендой и рейтингом элиты', n: 11, req: [{ t: 'rating', v: 85 + tier }, { t: 'rar', in: ['legend', 'jack'], min: 1 }], reward: { pack: 3 }, limit: 1 },
+          { id: `pl:${W}:1`, ico: 'stadium', diff: 3, title: `Лига недели: ${L}`, desc: `Пятеро из ${L} в составе на ${80 + tier}`, n: 11, req: [{ t: 'from', k: 'lg', v: L, min: 5 }, { t: 'rating', v: 80 + tier }], reward: { pack: 2 }, limit: 1 },
+          { id: `pl:${W}:2`, ico: 'flame', diff: 3, title: 'Топ-форма', desc: 'Сильный полный состав', n: 11, req: [{ t: 'rating', v: 82 + tier }], reward: { pack: 2 }, limit: 1 },
+          { id: `pl:${W}:3`, ico: 'crown', diff: 4, title: 'Состав мечты', desc: 'С легендой и рейтингом элиты', n: 11, req: [{ t: 'rating', v: 84 + tier }, { t: 'rar', in: ['legend', 'jack'], min: 1 }], reward: { pack: 3 }, limit: 1 },
         ] },
       { id: 'up:b', cat: 'up', ico: 'medal:#d9905a', diff: 1, title: 'Бронзовое улучшение', desc: 'Сдай пять бронзовых, получи пак с гарантированным серебром.', n: 5, req: [{ t: 'only', in: ['bronze'] }], reward: { pack: 1 }, limit: 0 },
       { id: 'up:s', cat: 'up', ico: 'medal:#d6dde6', diff: 1, title: 'Серебряное улучшение', desc: 'Сдай пять серебряных, получи пак с гарантированным золотом.', n: 5, req: [{ t: 'only', in: ['silver'] }], reward: { pack: 2 }, limit: 0 },
-      { id: 'up:g', cat: 'up', ico: 'medal:#ffcf3a', diff: 3, title: 'Улучшение 81+', desc: 'Сдай семь золотых, получи пак с гарантированной легендой.', n: 7, req: [{ t: 'only', in: GOLDUP }, { t: 'rating', v: 81 }], reward: { pack: 3 }, limit: 0 },
+      { id: 'up:g', cat: 'up', ico: 'medal:#ffcf3a', diff: 3, title: 'Улучшение 82+', desc: 'Сдай семь золотых, получи пак с гарантированной легендой.', n: 7, req: [{ t: 'only', in: GOLDUP }, { t: 'rating', v: 82 }], reward: { pack: 3 }, limit: 0 },
       { id: 'up:j:' + W, cat: 'up', ico: 'pack:#ff4f66', diff: 4, title: 'Пак «ДЖЕКСОН!!»', desc: 'Лучший пак игры: внутри точно «Джексон». Раз в неделю.', n: 11, req: [{ t: 'rating', v: 85 }, { t: 'rar', in: ['legend', 'jack'], min: 2 }], reward: { pack: 4 }, limit: 1, ends: weekEnd() },
       { id: 'b:first', cat: 'base', ico: '1', diff: 1, title: 'Первый состав', desc: 'Любые три карточки. Начни с простого.', n: 3, req: [], reward: { coins: 150 }, limit: 1 },
       { id: 'b:league', cat: 'base', ico: '2', diff: 1, title: 'Одна лига', desc: 'Все пятеро из одной лиги.', n: 5, req: [{ t: 'same', k: 'lg', min: 5 }], reward: { pack: 1 }, limit: 1 },
@@ -219,7 +219,8 @@ const SBC = (() => {
   }
 
   // ---------- модели: пак-коробка с толщиной, обжимом и голографией ----------
-  const packArt = (lv, sz = '') => `<span class="fpk p${lv} ${sz}"><span class="fpk-b">
+  const packArt = (lv, sz = '') => (typeof PackOpen !== 'undefined' ? PackOpen.art(lv, sz) : '');
+  const packArtOld = (lv, sz = '') => `<span class="fpk p${lv} ${sz}"><span class="fpk-b">
       <i class="fpk-f"><i class="fpk-holo"></i><i class="fpk-sh"></i><i class="fpk-crest"></i><b>JX</b><em>${PACKSHORT[lv]}</em></i>
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;
   function art(r, sz = '') {
@@ -478,7 +479,7 @@ const SBC = (() => {
     if (typeof Rewards !== 'undefined') Rewards.refresh();
     if (r.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(r.coins); toast(`ИПК выполнено! +${r.coins} монет`); then && then(); return; }
     if (r.pack !== undefined) { Rewards.openDrop({ title: ttl, minLevel: r.pack, label: 'И П К', onDone: () => then && then() }); return; }
-    if (r.card) { const res = Cards.add([r.card]); Cards.reveal(res, () => { const dup = res.reduce((s, x) => s + x.coins, 0); if (dup) Coins.add(dup); Rewards.refresh(); then && then(); }); }
+    if (r.card) { const res = Cards.add([r.card]); const dup = res.reduce((s, x) => s + x.coins, 0); if (dup) Coins.add(dup); Cards.reveal(res, () => { Rewards.refresh(); then && then(); }); }
   }
 
   function openItem(id) {

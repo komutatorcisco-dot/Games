@@ -16,6 +16,8 @@ const Rewards = (() => {
     if (!d.rw) d.rw = {};
     const r = d.rw;
     r.trophies = r.trophies || 0; r.road = r.road || []; r.pending = r.pending || 0;
+    // новая дорога (v2): что уже забрано по старой — считаем забранным до того же порога, чтобы не выдать дважды
+    if (r.rv !== 2) { const max = Math.max(0, ...r.road.map((i) => OLD_ROAD[i] || 0)); r.road = ROAD.map(([t], i) => (t <= max ? i : -1)).filter((i) => i >= 0); r.rv = 2; }
     r.drops = r.drops || { day: '', n: 0 };
     r.pass = r.pass || { season: 0, xp: 0, free: [], prem: [], premium: false };
     r.q = r.q || { day: '', list: [], week: '', wlist: [] };
@@ -30,58 +32,50 @@ const Rewards = (() => {
   // ---------- что может выпасть ----------
   // Содержимое пака по итоговой редкости: монеты и иногда предмет
   function contents(lv) {
-    const R = Pack3D.RAR[lv];
+    const R = PackOpen.LV[lv];
     const coins = R.prize[0] + Math.round((Math.random() * (R.prize[1] - R.prize[0])) / 5) * 5;
     // главное в паке — карточки футболистов; монеты идут довеском
     return { coins, cards: Cards.packCards(lv) };
   }
-  // карточки: в коллекцию и показать по одной; повторы — монетами
+  // записать содержимое пака: монеты, карточки (повторы — монетами); вернуть, что выпало
+  function commit(c) {
+    if (c.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(c.coins); }
+    const res = Cards.add(c.cards || []);
+    const dup = res.reduce((s, x) => s + x.coins, 0);
+    if (dup) Coins.add(dup);
+    quest('pack'); refresh();
+    return res;
+  }
+  // карточки без пака (дорога трофеев, награды): в коллекцию и показать
   function giveCards(keys, then) {
     const res = Cards.add(keys);
-    Cards.reveal(res, () => {
-      const dup = res.reduce((s, x) => s + x.coins, 0);
-      if (dup) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(dup); }
-      refresh(); then && then();
-    });
-  }
-  function grant(c, then) {
-    if (c.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(c.coins); }
-    if (c.cards && c.cards.length) { quest('pack'); refresh(); giveCards(c.cards, then); return; }
-    if (c.item) {
-      if (c.item.kind === 'life') Store.d.shop.lives += c.item.n || 1;
-      else { Store.d.shop.owned[`${c.item.kind}:${c.item.id}`] = true; setTimeout(() => toast(`${c.item.name} теперь твоя! Выбери её в магазине`), 900); }
-      Store.save();
-    }
-    quest('pack');
+    const dup = res.reduce((s, x) => s + x.coins, 0);
+    if (dup) Coins.add(dup);
     refresh();
-    then && then();
+    PackOpen.reveal(res, () => { refresh(); then && then(); });
   }
   // открыть пак: minLevel — гарантированная редкость (с пути трофеев и пропуска)
   async function openDrop({ title, minLevel = 0, onStart, onDone, label } = {}) {
-    try {
-      await Pack3D.drop({ title, minLevel, label, contents, onStart, onTake: (c) => grant(c, () => onDone && onDone(c)) });
-    } catch (e) { // нет 3D — просто выдаём содержимое
-      onStart && onStart();
-      const c = contents(minLevel);
-      toast(`Пак: +${c.coins} монет`); grant(c, () => onDone && onDone(c));
-    }
+    PackOpen.drop({ title, minLevel, label, contents, commit, onStart, onDone });
   }
 
   // ---------- путь трофеев ----------
+  // до 80 🏆 паков и карточек ещё нет (раздел открывается на 80) — ранние награды монетами
   const ROAD = [
-    [10, { coins: 50 }], [25, { pack: 1 }], [50, { card: 'gold' }], [80, { lives: 2 }], [120, { pack: 2 }],
-    [170, { coins: 150 }], [230, { pack: 1 }], [300, { card: 'legend' }], [380, { coins: 250 }], [470, { pack: 3 }],
-    [570, { pack: 2 }], [680, { card: 'legend' }], [800, { pack: 3 }], [950, { coins: 500 }], [1100, { pack: 2 }],
-    [1300, { card: 'jack' }], [1500, { pack: 3 }], [1750, { coins: 800 }], [2000, { pack: 4 }],
+    [10, { coins: 50 }], [25, { coins: 80 }], [50, { coins: 100 }], [80, { pack: 1 }], [100, { lives: 2 }],
+    [120, { pack: 1 }], [170, { card: 'gold' }], [230, { pack: 2 }], [300, { pack: 2 }], [400, { card: 'legend' }],
+    [500, { pack: 3 }], [600, { coins: 500 }], [700, { pack: 2 }], [800, { card: 'legend' }], [950, { pack: 3 }],
+    [1100, { pack: 2 }], [1300, { card: 'jack' }], [1500, { pack: 3 }], [1750, { coins: 800 }], [2000, { pack: 4 }],
   ];
-  const PACKNAME = ['Пак', 'Сверхредкий пак', 'Эпический пак', 'Легендарный пак', 'Пак «ДЖЕКСОН!!»'];
-  const PACKCOL = ['#3ee66b', '#4fc3ff', '#c27bff', '#ffcf3a', '#ff3b5c'];
+  const OLD_ROAD = [10, 25, 50, 80, 120, 170, 230, 300, 380, 470, 570, 680, 800, 950, 1100, 1300, 1500, 1750, 2000];
+  const PACKNAME = ['Обычный пак', 'Сверхредкий пак', 'Эпический пак', 'Легендарный пак', 'Пак «ДЖЕКСОН!!»'];
+  const PACKCOL = ['#7fe0a0', '#56d4ff', '#b98bff', '#f2cb5c', '#ff4f66'];
   const CARDNAME = { gold: 'Золотая карточка', legend: 'Карточка-легенда', jack: 'Карточка «Джексон»' };
   function rewardLabel(r) {
     if (r.coins) return { ico: '<i class="coin"></i>', txt: `${r.coins}`, art: '<span class="rs-coins"><i class="coin"></i><i class="coin"></i><i class="coin"></i></span>', name: `+${r.coins}` };
     if (r.lives) return { ico: `<span class="ui-red">${Ui.get('heart')}</span>`, txt: `×${r.lives}`, art: `<span class="rs-heart">${Ui.get('heart')}</span>`, name: `Жизни ×${r.lives}` };
     if (r.card) return { ico: `<span class="rs-card sm ${r.card}">?</span>`, txt: CARDNAME[r.card].split(' ')[0], art: `<span class="rs-card ${r.card}">?</span>`, name: CARDNAME[r.card].replace('Карточка-', '').replace('Карточка ', '') };
-    if (r.pack !== undefined) return { ico: `<span class="rw-pk" style="--c:${PACKCOL[r.pack]}"></span>`, txt: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«'), art: `<span class="rs-pack" style="--c:${PACKCOL[r.pack]}"><b>Д</b></span>`, name: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«') };
+    if (r.pack !== undefined) return { ico: `<span class="rw-pk" style="--c:${PACKCOL[r.pack]}"></span>`, txt: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«'), art: PackOpen.art(r.pack, 'rs'), name: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«') };
     return { ico: Ui.get('gift'), txt: '', art: Ui.get('gift'), name: '' };
   }
   function giveReward(r, title) {
@@ -202,7 +196,7 @@ const Rewards = (() => {
     s.trophies += WIN_TROPHIES;
     if (s.drops.day !== dayKey()) s.drops = { day: dayKey(), n: 0 };
     let note = `<span>${Ui.get('trophy')} +${WIN_TROPHIES}</span>`;
-    if (s.drops.n < DROPS_PER_DAY) { s.drops.n++; s.pending++; note += `<span class="rw-new"><i class="rw-pk"></i>+1 пак · ${s.drops.n}/${DROPS_PER_DAY} сегодня</span>`; }
+    if (Release.feature('cards') && s.drops.n < DROPS_PER_DAY) { s.drops.n++; s.pending++; note += `<span class="rw-new"><i class="rw-pk"></i>+1 пак · ${s.drops.n}/${DROPS_PER_DAY} сегодня</span>`; }
     Store.save(); refresh();
     return `<div class="rw-earn">${note}</div>`;
   }
@@ -229,6 +223,8 @@ const Rewards = (() => {
     $$('.mh-ava').forEach((el) => { el.textContent = u.emoji || '⚽'; });
     $$('.mh-tro').forEach((el) => { el.innerHTML = `${Ui.get('trophy')} ${S().trophies}`; });
     $$('.mh-cn').forEach((el) => { el.textContent = Cards.count(); });
+    const cardsOn = Release.feature('cards');
+    $$('.mh-cards').forEach((el) => { el.hidden = !cardsOn; });
     $$('.mh-cards').forEach((el) => el.classList.toggle('fresh', Cards.freshN() > 0));
   }
   function refresh() {
@@ -237,6 +233,7 @@ const Rewards = (() => {
     const ch = $('#hub-packs'); if (ch) { ch.hidden = !S().pending; ch.querySelector('b').textContent = S().pending; }
     header();
     if (Screens.current === 'rewards') render();
+    if (Screens.current === 'hub' && typeof Home !== 'undefined') safe('home2', () => Home.render());
   }
   function cell(r, state, i, line) {
     const l = rewardLabel(r);
@@ -244,13 +241,22 @@ const Rewards = (() => {
   }
   function road(s) {
     const next = ROAD.find(([t]) => s.trophies < t);
-    const steps = ROAD.map(([t, r], i) => {
-      const l = rewardLabel(r), got = s.road.includes(i), ready = !got && s.trophies >= t;
-      const prev = i ? ROAD[i - 1][0] : 0;
-      const fill = s.trophies >= t ? 100 : s.trophies <= prev ? 0 : Math.round(((s.trophies - prev) / (t - prev)) * 100);
-      return `<button class="rs ${got ? 'got' : ready ? 'ready' : 'lock'}" ${ready ? `data-road="${i}"` : ''}>
+    const items = [...ROAD.map(([t, r], i) => ({ t, r, i })), ...Release.UNLOCKS.filter((u) => u[0] > 0 && u[0] <= 2000).map((u) => ({ t: u[0], u }))].sort((a, b) => a.t - b.t || (a.u ? -1 : 1));
+    let prev = 0;
+    const steps = items.map((x) => {
+      const fill = s.trophies >= x.t ? 100 : s.trophies <= prev ? 0 : Math.round(((s.trophies - prev) / (x.t - prev)) * 100);
+      prev = x.t;
+      if (x.u) {
+        const k = x.u[2][0], g = Home.catalog().get(k), on = s.trophies >= x.t;
+        const ic = k === 'feat:cards' ? Ui.get('pack') : k === 'feat:pass' ? Ui.get('star') : g && typeof Icons !== 'undefined' ? Icons.get(g.ico) : Ui.get('lock');
+        return `<div class="rs un ${on ? 'got' : 'lock'}" style="--c1:${(g && g.c1) || '#ffcf3a'};--c2:${(g && g.c2) || '#ff8a2a'}">
+          <span class="rs-art"><span class="rs-hex">${ic}</span>${on ? '' : `<i class="rs-lk">${Ui.get('lock')}</i>`}</span><span class="rs-name">${esc(x.u[1])}</span>
+          <span class="rs-seg"><i style="width:${fill}%"></i></span><span class="rs-t">${x.t}</span></div>`;
+      }
+      const l = rewardLabel(x.r), got = s.road.includes(x.i), ready = !got && s.trophies >= x.t;
+      return `<button class="rs ${got ? 'got' : ready ? 'ready' : 'lock'}" ${ready ? `data-road="${x.i}"` : ''}>
         <span class="rs-art">${l.art}</span><span class="rs-name">${ready ? 'Забрать!' : l.name}</span>${got ? '<i class="rs-ok">✓</i>' : ''}
-        <span class="rs-seg"><i style="width:${fill}%"></i></span><span class="rs-t">${t}</span></button>`;
+        <span class="rs-seg"><i style="width:${fill}%"></i></span><span class="rs-t">${x.t}</span></button>`;
     }).join('');
     return `<div class="rw-sec"><div class="rw-row"><b>Дорога трофеев</b><small>${Ui.get('trophy')} ${s.trophies}${next ? ` → ${next[0]}` : ' · пройдена!'}</small></div>
       <div class="rs-strip">${steps}</div><p class="rw-sub">Победа +${WIN_TROPHIES} ${Ui.get('trophy')}, матч +${PLAY_TROPHIES}</p></div>`;
@@ -258,9 +264,14 @@ const Rewards = (() => {
   function render() {
     const s = S(), p = passSync(), q = questSync(), c = claimable();
     const packs = s.pending ? `<button class="rw-packs" data-act="rw-packs"><span class="rw-pk big"></span><span><b>${s.pending} ${plural(s.pending, 'пак', 'пака', 'паков')} за победы</b><small>Внутри карточки футболистов</small></span><em>Открыть</em></button>` : '';
-    const tabs = `<nav class="rw-tabs">${[['cards', 'Галерея', c.sets || (Cards.freshN() ? 'NEW' : '')], ['pass', 'Пропуск', c.pass], ['quests', 'Задания', c.qs]].map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}<button data-act="sbc" class="rw-sbc">ИПК${typeof SBC !== 'undefined' && SBC.ready() ? '<i>1</i>' : ''}</button></nav>`;
+    const TB = [Release.feature('cards') && ['cards', 'Галерея', c.sets || (Cards.freshN() ? 'NEW' : '')], Release.feature('pass') && ['pass', 'Пропуск', c.pass], Release.feature('pass') && ['quests', 'Задания', c.qs]].filter(Boolean);
+    if (TB.length && !TB.some(([k]) => k === tab)) tab = TB[0][0];
+    const sbcOn = Release.isOut('act:sbc');
+    const tabs = !TB.length ? '' : `<nav class="rw-tabs" style="--n:${TB.length + (sbcOn ? 1 : 0)}">${TB.map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}${sbcOn ? `<button data-act="sbc" class="rw-sbc">ИПК${typeof SBC !== 'undefined' && SBC.ready() ? '<i>1</i>' : ''}</button>` : ''}</nav>`;
     let body = '';
-    if (tab === 'cards') body = `<div class="rw-coll">${Cards.album()}</div>`;
+    const nx = Release.next();
+    if (!TB.length) body = nx ? `<div class="rw-soon"><span>${Ui.get('lock')}</span><b>${esc(nx.title)}</b><small>Откроется на ${nx.need} ${Ui.get('trophy')}. Побеждай в играх!</small></div>` : '';
+    else if (tab === 'cards') body = `<div class="rw-coll">${Cards.album()}</div>`;
     else if (tab === 'pass') {
       const L = passLevel(), left = Math.max(0, Math.ceil((seasonEnd() - Date.now()) / 864e5));
       body = `<div class="rw-head"><span class="rw-tro">Сезон ${season()} · ур. <b>${L}</b></span><small>${L < PASS_LEVELS ? `${p.xp % PASS_STEP}/${PASS_STEP} до уровня ${L + 1} · ` : ''}до конца сезона ${left} ${plural(left, 'день', 'дня', 'дней')}</small>

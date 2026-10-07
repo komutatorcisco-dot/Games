@@ -187,6 +187,7 @@ const App = (() => {
     src.forEach((el) => { const c = el.cloneNode(true); c.classList.remove('wide', 'duo'); $$('.limit-note', c).forEach((x) => x.remove()); $('#featured').appendChild(c); });
     paint();
     safe('pitch', renderPitch);
+    safe('home2', () => Home.render());
     // новинка недели и следующая игра
     const cur = Release.current(), nx = Release.next();
     const wk = $('#week-game');
@@ -344,7 +345,7 @@ const App = (() => {
     else if (PANELS.includes(where)) showPanel(where, false);
     else { showPanel(panel, false); if (scrollMem[panel]) window.scrollTo(0, scrollMem[panel]); }
     if (!Store.d.user.nick) later(() => User.ensure(), 250);
-    else { Track.maybeAsk(); claimDaily(); later(maybeSub, 1600); later(() => { if (!giftShown && Wheel.gift() && !Modal.isOpen && Screens.current === 'hub') { giftShown = true; Wheel.open(); } }, 2600); }
+    else { Track.maybeAsk(); claimDaily(); later(maybeSub, 1600); later(() => { if (!giftShown && Release.feature('cards') && Wheel.gift() && !Modal.isOpen && Screens.current === 'hub') { giftShown = true; Wheel.open(); } }, 2600); }
   }
 
   // нажатие на вкладку внизу: на главной просто листаем панели
@@ -456,7 +457,7 @@ const App = (() => {
     // каждый модуль подключаем отдельно: ошибка в одном не должна ломать весь экран
     [['Pass', () => Pass.bind()], ['Guess', () => Guess.bind()], ['Career', () => Career.bind()], ['Club', () => Club.bind()], ['Transfer', () => Transfer.bind()],
       ['TTT', () => TTT.bind()], ['Compare', () => Compare.bind()], ['Auction', () => Auction.bind()], ['Nation', () => Nation.bind()], ['Pick', () => Pick.bind()],
-      ['Daily', () => Daily.bind()], ['Shop', () => Shop.bind()], ['Board', () => Board.bind()], ['Rewards', () => Rewards.bind()], ['XDraft', () => { XDraft.bind(); XMatch.bind(); }], ['SBC', () => SBC.bind()],
+      ['Daily', () => Daily.bind()], ['Shop', () => Shop.bind()], ['Board', () => Board.bind()], ['Rewards', () => Rewards.bind()], ['XDraft', () => { XDraft.bind(); XMatch.bind(); }], ['SBC', () => SBC.bind()], ['Home', () => Home.bind()],
       ['Howto', () => Howto.addButtons()], ['Music', () => Music.arm()], ['Gate', () => Gate.start()]].forEach(([n, f]) => safe(n, f));
     document.addEventListener('pointerdown', (e) => {
       Coins.last = { x: e.clientX, y: e.clientY };

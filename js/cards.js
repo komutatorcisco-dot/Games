@@ -7,11 +7,11 @@
 
 const Cards = (() => {
   const RAR = {
-    bronze: { n: 'БРОНЗА', dup: 5 },
-    silver: { n: 'СЕРЕБРО', dup: 10 },
-    gold: { n: 'ЗОЛОТО', dup: 25 },
-    legend: { n: 'ЛЕГЕНДА', dup: 60 },
-    jack: { n: 'ДЖЕКСОН!!', dup: 120 },
+    bronze: { n: 'БРОНЗА', dup: 2 },
+    silver: { n: 'СЕРЕБРО', dup: 4 },
+    gold: { n: 'ЗОЛОТО', dup: 12 },
+    legend: { n: 'ЛЕГЕНДА', dup: 40 },
+    jack: { n: 'ДЖЕКСОН!!', dup: 100 },
   };
   const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack'];
   const LEAGUES = ['АПЛ', 'Ла Лига', 'Серия А', 'Бундеслига', 'Лига 1'];
@@ -49,27 +49,38 @@ const Cards = (() => {
   const count = () => Object.keys(S().own).filter((k) => BY && BY[k] || get(k)).length;
 
   // ---------- что выпадает ----------
+  // Внутри редкости чаще выпадают карточки пониже: у золота 78-й рейтинг частый, 85+ — редкость.
+  const DECAY = { bronze: 1, silver: 0.8, gold: 0.62, legend: 0.82, jack: 1 };
+  const MINR = {};
+  function pickWeighted(list, rar) {
+    const k = DECAY[rar] || 1;
+    if (k === 1) return list[Math.floor(Math.random() * list.length)];
+    if (MINR[rar] === undefined) MINR[rar] = Math.min(...all().filter((c) => c.rar === rar).map((c) => c.r));
+    let tot = 0; const w = list.map((c) => { const v = Math.pow(k, c.r - MINR[rar]); tot += v; return v; });
+    let x = Math.random() * tot;
+    for (let i = 0; i < list.length; i++) { x -= w[i]; if (x <= 0) return list[i]; }
+    return list[list.length - 1];
+  }
   function draw(rar) {
-    let pool = all().filter((c) => c.rar === rar);
-    for (let i = ORDER.indexOf(rar) + 1; !pool.length && i < ORDER.length; i++) pool = all().filter((c) => c.rar === ORDER[i]);
+    let pool = all().filter((c) => c.rar === rar), r = rar;
+    for (let i = ORDER.indexOf(rar) + 1; !pool.length && i < ORDER.length; i++) { r = ORDER[i]; pool = all().filter((c) => c.rar === r); }
     const fresh = pool.filter((c) => !owned(c.key));
-    // половина шанса — карточка, которой ещё нет: коллекция растёт заметно
-    const from = fresh.length && Math.random() < 0.5 ? fresh : pool;
-    return from[Math.floor(Math.random() * from.length)];
+    // треть шанса — карточка, которой ещё нет: коллекция растёт заметно
+    const from = fresh.length && Math.random() < 0.35 ? fresh : pool;
+    return pickWeighted(from, r);
   }
   function roll(w) { let x = Math.random() * w.reduce((s, [, v]) => s + v, 0); for (const [k, v] of w) { x -= v; if (x <= 0) return k; } return w[0][0]; }
-  // по уровню пака: сколько карточек и какая гарантирована
+  // по уровню пака: сколько карточек, что гарантировано и шансы остальных
   const PACKS = [
-    { n: 2, w: [['bronze', 75], ['silver', 25]] },
-    { n: 3, sure: 'silver', w: [['bronze', 55], ['silver', 38], ['gold', 7]] },
-    { n: 3, sure: 'gold', w: [['bronze', 45], ['silver', 40], ['gold', 15]] },
-    { n: 4, sure: 'legend', w: [['bronze', 35], ['silver', 40], ['gold', 25]] },
-    { n: 5, sure: 'jack', w: [['silver', 40], ['gold', 45], ['legend', 15]] },
+    { n: 3, sure: [], w: [['bronze', 62], ['silver', 30], ['gold', 7.5], ['legend', 0.5]] },
+    { n: 5, sure: ['gold'], w: [['bronze', 40], ['silver', 44], ['gold', 15], ['legend', 1]] },
+    { n: 8, sure: ['gold', 'gold'], w: [['bronze', 28], ['silver', 44], ['gold', 26], ['legend', 2]] },
+    { n: 15, sure: ['legend', 'gold', 'gold', 'gold'], w: [['bronze', 20], ['silver', 40], ['gold', 37], ['legend', 3]] },
+    { n: 30, sure: ['jack', 'legend', 'legend', 'gold', 'gold', 'gold', 'gold', 'gold', 'gold'], w: [['silver', 40], ['gold', 52], ['legend', 8]] },
   ];
   function packCards(lv) {
     const P = PACKS[Math.max(0, Math.min(4, lv))];
-    const out = [];
-    if (P.sure) out.push(draw(P.sure).key);
+    const out = P.sure.map((r) => draw(r).key);
     while (out.length < P.n) out.push(draw(roll(P.w)).key);
     return out;
   }
@@ -110,6 +121,7 @@ const Cards = (() => {
   // ---------- раскрытие паков: карточки по одной, лучшая — последней ----------
   function reveal(res, onDone) {
     if (!res.length) { onDone && onDone(); return; }
+    if (typeof PackOpen !== 'undefined') return PackOpen.reveal(res, onDone);
     const list = res.slice().sort((a, b) => ORDER.indexOf(a.c.rar) - ORDER.indexOf(b.c.rar) || a.c.r - b.c.r);
     const el = document.createElement('div');
     el.className = 'cr-wrap';
@@ -262,5 +274,5 @@ const Cards = (() => {
     return false;
   }
 
-  return { reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, spare, use, owned, surname, freshN: () => S().fresh.length, RAR };
+  return { reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, PACKS, spare, use, owned, surname, freshN: () => S().fresh.length, RAR };
 })();
