@@ -13,7 +13,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Загрузить код в Cloudflare
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -28,5 +28,5 @@ jobs:
             -F 'metadata={"main_module":"worker.js"};type=application/json' \
             -F 'worker.js=@server/worker.js;type=application/javascript+module')
           echo "$out" | head -c 600; echo
-          echo "$out" | grep -q '"success":true' || { echo "Cloudflare не принял код — смотри ответ выше"; exit 1; }
+          echo "$out" | grep -Eq '"success": *true' || { echo "Cloudflare не принял код — смотри ответ выше"; exit 1; }
           echo "Готово: сервер обновлён"
