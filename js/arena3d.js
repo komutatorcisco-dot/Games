@@ -291,17 +291,14 @@ const Arena3D = (() => {
   function island(scene) {
     const root = new THREE.Group(); scene.add(root);
     const std = (c, extra = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.85, flatShading: true, ...extra });
-    // вода и скалы
-    const water = new THREE.Mesh(new THREE.CircleGeometry(95, 48), new THREE.MeshStandardMaterial({ color: 0x1a7fb8, roughness: 0.3, metalness: 0.2, transparent: true, opacity: 0.92 }));
-    water.rotation.x = -Math.PI / 2; water.position.y = -9; root.add(water);
-    const rock = std(0x4a5878), rock2 = std(0x3a4663);
-    const rg = new THREE.DodecahedronGeometry(1, 0);
-    for (let i = 0; i < 70; i++) {
-      const t = (i / 70) * Math.PI * 2, rx = Math.cos(t) * (W / 2 + 22 + Math.random() * 4), rz = Math.sin(t) * (H / 2 + 22 + Math.random() * 4);
-      const m = new THREE.Mesh(rg, i % 3 ? rock : rock2); const s = 5 + Math.random() * 5;
-      m.scale.set(s, s * (1.2 + Math.random()), s); m.position.set(Math.max(-W / 2 - 26, Math.min(W / 2 + 26, rx)), -4 - Math.random() * 4, Math.max(-H / 2 - 26, Math.min(H / 2 + 26, rz)));
-      m.rotation.set(Math.random(), Math.random(), Math.random()); root.add(m);
-    }
+    // скалы: крупные блоки по краям и под плато (верх не выше песка), как на референсе
+    const rock = std(0x5a6a8c), rock2 = std(0x47557a);
+    const rg = new THREE.BoxGeometry(1, 1, 1);
+    const edge = (x, z, sx, sz, k) => { const m = new THREE.Mesh(rg, k % 2 ? rock : rock2); const h = 7 + (k % 3) * 2; m.scale.set(sx, h, sz); m.position.set(x, -3 - h / 2 + 2.5, z); m.rotation.y = ((k % 5) - 2) * 0.05; root.add(m); };
+    const PW = W + 52, PH = H + 52;
+    for (let i = 0; i < 12; i++) { const x = -PW / 2 + 6.5 + i * ((PW - 13) / 11); edge(x, PH / 2 + 1.5, 13, 6, i); edge(x, -PH / 2 - 1.5, 13, 6, i + 1); }
+    for (let i = 0; i < 8; i++) { const z = -PH / 2 + 6.5 + i * ((PH - 13) / 7); edge(PW / 2 + 1.5, z, 6, 13, i + 2); edge(-PW / 2 - 1.5, z, 6, 13, i + 3); }
+    const under = new THREE.Mesh(new THREE.BoxGeometry(PW - 6, 14, PH - 6), rock2); under.position.y = -9; root.add(under);
     // плато: песок, сверху трава
     const plate = new THREE.Mesh(new THREE.BoxGeometry(W + 52, 3, H + 52), std(0xe8b04a)); plate.position.y = -1.5; root.add(plate);
     const lawn = new THREE.Mesh(new THREE.BoxGeometry(W + 44, 0.4, H + 44), std(0x2f8f4a)); lawn.position.y = 0.1; root.add(lawn);
@@ -357,11 +354,11 @@ const Arena3D = (() => {
     });
     // облака вокруг
     const cloudM = new THREE.MeshStandardMaterial({ color: 0xc8d0ff, roughness: 1, flatShading: true, transparent: true, opacity: 0.85 }), clouds = [];
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 0; i++) {
       const c = new THREE.Group(); for (let k = 0; k < 4; k++) { const s = new THREE.Mesh(new THREE.IcosahedronGeometry(3 + Math.random() * 2, 0), cloudM); s.position.set(k * 3.2 - 5, Math.random() * 1.5, Math.random() * 2); c.add(s); }
       const t = (i / 7) * Math.PI * 2; c.position.set(Math.cos(t) * 110, 18 + Math.random() * 14, Math.sin(t) * 80); c.userData.t = t; scene.add(c); clouds.push(c);
     }
-    return { root, water, clouds, lights };
+    return { root, clouds, lights };
   }
   async function menu(host) {
     if (!supported()) return null;
@@ -376,15 +373,14 @@ const Arena3D = (() => {
       menuView.canvas.addEventListener('pointerdown', (e) => { sx = e.clientX; dragV = 0; menuView.canvas.setPointerCapture(e.pointerId); menuView.dragging = true; });
       menuView.canvas.addEventListener('pointermove', (e) => { if (!menuView.dragging) return; dragV = (e.clientX - sx) * 0.006; sx = e.clientX; drag += dragV; });
       const up = () => { menuView.dragging = false; }; menuView.canvas.addEventListener('pointerup', up); menuView.canvas.addEventListener('pointercancel', up);
-      let a = 0.35;
-      menuView.loop((dt, t) => {
-        if (!menuView.dragging) { dragV *= 0.94; drag += dragV; if (!RM) a += dt * 0.05; }
-        isl.root.rotation.y = a + drag;
-        isl.water.position.y = -9 + Math.sin(t * 0.8) * 0.3;
+            menuView.loop((dt, t) => {
+        if (!menuView.dragging) { dragV *= 0.92; drag += dragV; drag *= 0.985; }
+        isl.root.rotation.y = (RM ? 0 : Math.sin(t * 0.25) * 0.09) + drag;
         isl.clouds.forEach((c, i) => { c.userData.t += dt * 0.02; c.position.x = Math.cos(c.userData.t) * 110; c.position.z = Math.sin(c.userData.t) * 80; c.position.y += Math.sin(t + i) * 0.005; });
         // остров целиком в кадре: расстояние считаем от ширины кадра
-        camera.fov = 34; const hf = Math.atan(Math.tan((camera.fov * Math.PI) / 360) * camera.aspect), dist = Math.max(170, 92 / Math.tan(hf));
-        camera.position.set(0, dist * 0.58, dist * 0.8); camera.lookAt(0, 14, 0); camera.far = dist * 3; camera.updateProjectionMatrix();
+        // вид спереди сверху, как у прежнего поля; стадион занимает всю ширину кадра
+        camera.fov = 30; const hf = Math.atan(Math.tan((camera.fov * Math.PI) / 360) * camera.aspect), dist = 84 / Math.tan(hf);
+        camera.position.set(0, dist * 0.82, dist * 0.6); camera.lookAt(0, -4, 6); camera.far = dist * 3; camera.updateProjectionMatrix();
       }, () => Screens.current === 'hub' && !document.hidden && !document.querySelector('.po, .h2-un, .sx-sheet-wrap') && !(typeof Modal !== 'undefined' && Modal.isOpen));
     } else host.appendChild(menuView.canvas);
     menuView.size();

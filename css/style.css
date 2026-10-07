@@ -4231,8 +4231,8 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .xm-ball3.lock i { filter: grayscale(.6) brightness(.6); } .xm-ball3.lock span { color: rgba(255,255,255,.55); }
 
 /* ===== главная: 3D стадион-остров ===== */
-.h2-arena canvas.a3d { position: absolute; left: -16px; right: -16px; top: -70px; bottom: 0; width: calc(100% + 32px); height: calc(100% + 70px); z-index: 0; touch-action: pan-y; }
-.h2-arena.h2-3d .h2-bg, .h2-arena.h2-3d .h2-pitch, .h2-arena.h2-3d .h2-ped, .h2-arena.h2-3d .h2-shadow { display: none; }
+.h2-arena canvas.a3d { position: absolute; left: -16px; right: -16px; top: 30%; bottom: 0; width: calc(100% + 32px); height: 70%; z-index: 0; touch-action: pan-y; }
+.h2-arena.h2-3d .h2-pitch, .h2-arena.h2-3d .h2-ped, .h2-arena.h2-3d .h2-shadow { display: none; }
 .h2-arena.h2-3d .h2-game { pointer-events: none; z-index: 1; }
 .h2-arena.h2-3d .h2-hex, .h2-arena.h2-3d .h2-ban { pointer-events: auto; }
-.h2-arena.h2-3d .h2-hex { --hs: calc(var(--W) * .26); bottom: calc(var(--W) * .5); }
+.h2-arena.h2-3d .h2-hex { --hs: calc(var(--W) * .26); bottom: calc(var(--W) * .2); }
