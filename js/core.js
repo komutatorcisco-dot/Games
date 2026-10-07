@@ -55,6 +55,18 @@ const TG = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.
 try { if (TG) { TG.ready(); TG.expand(); } } catch (e) { /* открыто не в Telegram */ }
 // Свайп вниз в Telegram сворачивал мини-приложение, когда листаешь страницу вверх. Отключаем (Telegram 7.7+).
 try { if (TG && TG.disableVerticalSwipes) TG.disableVerticalSwipes(); } catch (e) { /* старый Telegram */ }
+// Сверху в полноэкранном Telegram висят кнопки «Закрыть» и «⌄ ⋯» — считаем, сколько места им оставить (--safe-top).
+function syncSafeTop() {
+  let t = 0;
+  try {
+    const sa = (TG && TG.safeAreaInset) || {}, ca = (TG && TG.contentSafeAreaInset) || {};
+    t = (sa.top || 0) + (ca.top || 0);
+    if (TG && TG.isFullscreen && !ca.top) t = Math.max(sa.top || 0, 44) + 48; // старый клиент не сообщает высоту кнопок
+  } catch (e) { /* не в Telegram */ }
+  document.documentElement.style.setProperty('--safe-top', t + 'px');
+}
+syncSafeTop();
+try { if (TG && TG.onEvent) ['safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged', 'viewportChanged'].forEach((ev) => TG.onEvent(ev, syncSafeTop)); } catch (e) { /* старый Telegram */ }
 
 // Гасит следующий клик по странице: нужен, когда выбор делается по отпусканию пальца,
 // а исчезающий список иначе «пропускает» нажатие на кнопку под ним.

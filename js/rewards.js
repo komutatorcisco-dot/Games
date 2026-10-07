@@ -270,6 +270,7 @@ const Rewards = (() => {
     if (r.pack !== undefined) return [PACKNAME[r.pack], `${PACK_CARDS[r.pack]} ${plural(PACK_CARDS[r.pack], 'карточка', 'карточки', 'карточек')} внутри`];
     return ['Награда', ''];
   }
+  const RDCOL = { coins: ['#ffd84a', '#e59a12'], lives: ['#ff6b7d', '#c9223e'], gold: ['#ffd84a', '#c98a12'], legend: ['#c99bff', '#6a3fd0'], jack: ['#ff6b7d', '#b0123a'] };
   function trophyRoad(s) {
     const t = s.trophies;
     const items = [...ROAD.map(([th, r], i) => ({ t: th, r, i })), ...Release.UNLOCKS.filter((u) => u[0] > 0).slice(0, 14).map((u) => ({ t: u[0], u }))]
@@ -278,12 +279,11 @@ const Rewards = (() => {
     const prevT = [...items].reverse().find((x) => x.t <= t), from = prevT ? prevT.t : 0;
     const pct = next ? Math.round(((t - from) / (next.t - from)) * 100) : 100;
     const nextName = next ? (next.u ? next.u[1] : roadTitle(next.r)[0]) : '';
-    const hero = `<div class="tr-hero"><span class="tr-cup">${Ui.get('trophy')}</span>
-      <div class="tr-hm"><b>${t}</b><small>трофеев</small></div>
-      <div class="tr-hn">${next ? `<small>Следующее: <b>${esc(nextName)}</b></small><span class="tr-bar"><i style="width:${pct}%"></i></span><small>ещё <b>${next.t - t}</b> ${Ui.get('trophy')}</small>` : '<small><b>Дорога пройдена!</b></small>'}</div>
-      <div class="tr-how"><span>Победа <b>+${WIN_TROPHIES}</b> ${Ui.get('trophy')}</span><span>Сыграл <b>+${PLAY_TROPHIES}</b> ${Ui.get('trophy')}</span></div></div>`;
-    let hereDone = false;
-    const here = () => `<div class="tr-here"><span class="tr-me">${esc((Store.d.user || {}).emoji || '⚽')}</span><b>Ты здесь</b><small>${t} ${Ui.get('trophy')}</small></div>`;
+    const hero = `<div class="rd-hero"><span class="rd-cup">${Ui.get('trophy')}</span><b class="rd-n">${t}</b>
+      <div class="rd-hn">${next ? `<small>До «${esc(nextName)}» — ещё <b>${next.t - t}</b></small><span class="rd-bar"><i style="width:${pct}%"></i></span>` : '<small><b>Дорога пройдена!</b></small>'}</div>
+      <div class="rd-how"><span>Победа <b>+${WIN_TROPHIES}</b></span><span>Матч <b>+${PLAY_TROPHIES}</b></span></div></div>`;
+    let hereDone = false, side = 0;
+    const here = () => `<div class="rd-here"><span class="rd-me">${esc((Store.d.user || {}).emoji || '⚽')}</span><b>Ты здесь</b></div>`;
     const rows = items.map((x) => {
       let out = '';
       if (!hereDone && x.t > t) { hereDone = true; out += here(); }
@@ -291,21 +291,23 @@ const Rewards = (() => {
       if (x.u) {
         const k = x.u[2][0], g = Home.catalog().get(k), feat = k.startsWith('feat:');
         const ic = k === 'feat:cards' ? Ui.get('pack') : k === 'feat:pass' ? Ui.get('star') : g && typeof Icons !== 'undefined' ? Icons.get(g.ico) : Ui.get('lock');
-        out += `<div class="tr-node un ${reached ? 'got' : 'lock'}" style="--c1:${(g && g.c1) || '#ffcf3a'};--c2:${(g && g.c2) || '#ff8a2a'}">
-          <span class="tr-dot">${x.t}</span>
-          <div class="tr-card"><span class="tr-art"><span class="tr-hex">${ic}</span></span>
-            <span class="tr-tx"><small>${feat ? 'Новый раздел' : 'Новая игра'}</small><b>${esc(x.u[1])}</b></span>
-            <span class="tr-st">${reached ? `<i class="tr-ok">${Ui.get('star')} Открыто</i>` : `<i class="tr-lk">${Ui.get('lock')}</i>`}</span></div></div>`;
+        out += `<div class="rd-gate ${reached ? 'got' : 'lock'}" style="--c1:${(g && g.c1) || '#ffcf3a'};--c2:${(g && g.c2) || '#ff8a2a'}">
+          <span class="rd-hex"><span>${ic}</span></span>
+          <span class="rd-gt"><small>${feat ? 'Новый раздел' : 'Новая игра'} · ${x.t} ${Ui.get('trophy')}</small><b>${esc(x.u[1])}</b></span>
+          <span class="rd-gs">${reached ? Ui.get('star') : Ui.get('lock')}</span></div>`;
       } else {
-        const got = s.road.includes(x.i), ready = !got && reached, [ti, sub] = roadTitle(x.r), l = rewardLabel(x.r);
-        out += `<div class="tr-node ${got ? 'got' : ready ? 'ready' : 'lock'}">
-          <span class="tr-dot">${x.t}</span>
-          <div class="tr-card"><span class="tr-art">${l.art}</span><span class="tr-tx"><small>Награда</small><b>${esc(ti)}</b><em>${esc(sub)}</em></span>
-            <span class="tr-st">${got ? `<i class="tr-done">✓</i>` : ready ? `<button class="btn gold tr-take" data-road="${x.i}">Забрать</button>` : `<i class="tr-need">ещё ${x.t - t}</i>`}</span></div></div>`;
+        const got = s.road.includes(x.i), ready = !got && reached, l = rewardLabel(x.r), [ti] = roadTitle(x.r);
+        const col = x.r.pack !== undefined ? [PACKCOL[x.r.pack], `color-mix(in srgb, ${PACKCOL[x.r.pack]} 45%, #1a1446)`] : RDCOL[x.r.card || (x.r.coins ? 'coins' : 'lives')] || RDCOL.coins;
+        const st = got ? 'got' : ready ? 'ready' : 'lock';
+        out += `<div class="rd-row ${side++ % 2 ? 'r' : 'l'} ${st}">
+          <button class="rd-tile" style="--t1:${col[0]};--t2:${col[1]}" ${ready ? `data-road="${x.i}"` : ''}>
+            <span class="rd-art">${l.art}</span><b class="rd-nm">${esc(ti)}</b>
+            ${got ? '<i class="rd-ok">✓</i>' : ready ? '<i class="rd-take">Забрать</i>' : ''}</button>
+          <span class="rd-sh">${x.t}</span></div>`;
       }
       return out;
     }).join('') + (hereDone ? '' : here());
-    return hero + `<div class="tr-list">${rows}</div>`;
+    return hero + `<div class="rd-path">${rows}</div>`;
   }
 
   function render() {
@@ -338,9 +340,9 @@ const Rewards = (() => {
     const keep = box.querySelector('.rs-strip'), sx = keep ? keep.scrollLeft : null;
     box.innerHTML = packs + tabs + body;
     if (tab === 'road') {
-      const here = box.querySelector('.tr-here');
+      const here = box.querySelector('.rd-here');
       if (here && !scrolled) { scrolled = true; requestAnimationFrame(() => scrollTo(0, Math.max(0, here.getBoundingClientRect().top + scrollY - innerHeight * 0.42))); }
-      if (!box.dataset.roadIn) { box.dataset.roadIn = 1; $$('.tr-node, .tr-here, .tr-hero', box).forEach((n, i) => n.animate && n.animate([{ transform: 'translateX(-14px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 360, delay: Math.min(600, i * 30), easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' })); }
+      if (!box.dataset.roadIn) { box.dataset.roadIn = 1; $$('.rd-row, .rd-gate, .rd-here, .rd-hero', box).forEach((n, i) => n.animate && n.animate([{ transform: 'translateY(18px) scale(.94)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 360, delay: Math.min(600, i * 30), easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' })); }
     }
     header();
   }

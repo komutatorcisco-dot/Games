@@ -52,27 +52,38 @@ const Home = (() => {
     const dly = Store.d.dly || {}, dlyDone = dly.done && dly.day === (typeof Daily !== 'undefined' && Daily.dayKey ? Daily.dayKey() : dly.day);
     const cards = Release.feature('cards'), pend = (Rewards.S().pending || 0), packReady = cards && typeof Wheel !== 'undefined' && Wheel.ready();
     box.innerHTML = `
-      <div class="h2-side l">
-        <button class="h2-sb ${dlyDone ? 'done' : 'hot'}" data-act="dly"><span class="h2-sbi dly"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b><small>${dlyDone ? 'Новый завтра' : 'Угадай'}</small></button>
-      </div>
-      <div class="h2-side r">
-        ${cards ? `<button class="h2-sb ${packReady ? 'hot' : 'done'}" data-act="wheel"><span class="h2-sbi">${PackOpen.art(packReady ? 1 : 0, 'rs')}</span><b>Пак дня</b><small>${packReady ? 'Открыть' : 'Завтра'}</small></button>` : ''}
-        ${cards && pend ? `<button class="h2-sb hot" data-act="rw-packs"><span class="h2-sbi">${PackOpen.art(0, 'rs')}<em>${pend}</em></span><b>За победы</b><small>Открыть</small></button>` : ''}
-      </div>
-      <div class="h2-main">
-        ${g ? `<button class="h2-game" data-h2="pick" style="--c1:${g.c1};--c2:${g.c2}">
-          <span class="h2-hex"><span class="h2-hex-in">${icon(g)}</span></span>
-          <span class="h2-gt"><b>${esc(g.title)}</b><small>${esc(g.sub)}</small></span>
-          <span class="h2-chg">Сменить игру <i>▾</i></span></button>
-        <button class="h2-play" ${attrs(g.data)}><span>ИГРАТЬ</span></button>` : ''}
-      </div>
       <button class="h2-road" data-act="road">
         <span class="h2-tro">${Ui.get('trophy')}<b>${t}</b></span>
         <span class="h2-bar"><i style="width:${pct}%"></i><small>${nx ? `${t} / ${nx.need}` : 'Всё открыто'}</small></span>
-        <span class="h2-next" title="${nx ? esc(nx.title) : ''}"><span class="h2-ni">${nxIco}</span><small>${nx ? esc(nx.title) : 'Максимум'}</small></span>
-      </button>`;
+        <span class="h2-ni" title="${nx ? esc(nx.title) : ''}">${nxIco}${nx ? `<em>${Ui.get('lock')}</em>` : ''}</span>
+      </button>
+      <div class="h2-arena">
+        <div class="h2-side l">
+          <button class="h2-sb ${dlyDone ? 'done' : 'hot'}" data-act="dly"><span class="h2-sbi dly"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>
+        </div>
+        <div class="h2-side r">
+          ${cards ? `<button class="h2-sb ${packReady ? 'hot' : 'done'}" data-act="wheel"><span class="h2-sbi">${PackOpen.art(packReady ? 1 : 0, 'rs')}</span><b>${packReady ? 'Пак дня' : 'Завтра'}</b></button>` : ''}
+          ${cards && pend ? `<button class="h2-sb hot cnt" data-act="rw-packs"><span class="h2-sbi">${PackOpen.art(0, 'rs')}<em>${pend}</em></span><b>За победы</b></button>` : ''}
+        </div>
+        ${g ? `<button class="h2-game" data-h2="pick" style="--c1:${g.c1};--c2:${g.c2}" aria-label="Сменить игру">
+          <span class="h2-stage"><span class="h2-pitch"><i></i></span><span class="h2-shadow"></span><span class="h2-hex"><span class="h2-hex-in">${icon(g)}</span></span></span>
+          <span class="h2-ban"><b>${esc(g.title)}</b></span></button>` : ''}
+      </div>
+      ${g ? `<div class="h2-cta"><button class="h2-play" ${attrs(g.data)}><span>ИГРАТЬ</span></button>
+        <button class="h2-all" data-h2="pick"><span>${Ui.get('gamepad')}</span><b>Игры</b></button></div>` : ''}`;
     if (typeof Icons !== 'undefined') Icons.fill(box);
+    fit();
     later(checkUnlocks, 500);
+  }
+  // главный экран целиком в один экран: от шапки до нижнего меню, без прокрутки
+  function fit() {
+    const box = $('#home2'); if (!box) return;
+    const on = Screens.current === 'hub';
+    document.body.classList.toggle('at-home', on);
+    if (!on || !box.offsetParent) return;
+    const tb = $('#tabbar'), top = box.getBoundingClientRect().top + scrollY;
+    const r = tb && !tb.hidden ? tb.getBoundingClientRect() : null, bottom = r && r.height ? r.top : innerHeight;
+    box.style.height = Math.max(380, Math.floor(bottom - top - 8)) + 'px';
   }
 
   // ---------- выбор игры ----------
@@ -105,7 +116,7 @@ const Home = (() => {
         Sound.play('tap'); haptic('tap');
         if (DUO.includes(k)) { close(); const g = catalog().get(k); const b = document.createElement('button'); Object.assign(b.dataset, g.data); b.hidden = true; $('#home2').appendChild(b); b.click(); b.remove(); return; }
         UI().sel = k; Store.save(); close(); render();
-        anim($('#home2 .h2-hex'), [{ transform: 'rotateY(-180deg) scale(.6)' }, { transform: 'none' }], { duration: 600, easing: 'cubic-bezier(.2,1.2,.4,1)' });
+        anim($('#home2 .h2-hex-in'), [{ transform: 'rotateY(-180deg) scale(.6)' }, { transform: 'none' }], { duration: 600, easing: 'cubic-bezier(.2,1.2,.4,1)' });
         return;
       }
       if (e.target.closest('.h2-pc.lock')) { toast('Открывается за трофеи — побеждай в играх'); haptic('bad'); }
@@ -158,7 +169,12 @@ const Home = (() => {
       const p = e.target.closest('#home2 .h2-play');
       if (p) { anim(p, [{ transform: 'scale(.94)' }, { transform: 'none' }], { duration: 220 }); }
     }, true);
+    addEventListener('resize', () => requestAnimationFrame(fit));
+    try { if (TG && TG.onEvent) TG.onEvent('viewportChanged', () => requestAnimationFrame(fit)); } catch (e) { /* не в Telegram */ }
+    // при уходе с главной снимаем «без прокрутки»
+    const show = Screens.show;
+    Screens.show = function (id) { const r = show.apply(this, arguments); requestAnimationFrame(fit); if (id !== 'hub') document.body.classList.remove('at-home'); return r; };
   }
 
-  return { render, bind, checkUnlocks, catalog };
+  return { render, bind, checkUnlocks, catalog, fit };
 })();
