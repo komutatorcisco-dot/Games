@@ -37,7 +37,8 @@ const Home = (() => {
 
   function selected() {
     const list = games().filter((g) => open(g) && !DUO.includes(g.key));
-    return list.find((g) => g.key === UI().sel) || list[0] || null;
+    // по умолчанию — аукцион: самая любимая игра канала
+    return list.find((g) => g.key === UI().sel) || list.find((g) => g.key === 'act:auction-bot') || list[0] || null;
   }
 
   // ---------- экран ----------

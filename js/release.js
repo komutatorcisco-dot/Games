@@ -64,9 +64,8 @@ const Release = (() => {
   // Игры и разделы открываются за трофеи, как в Brawl Stars: сначала немного, дальше по шагу.
   // [трофеи, название, ключи] — 'feat:cards' (паки и галерея) и 'feat:pass' (пропуск и задания) — разделы, не игры.
   const UNLOCKS = [
-    [0, 'Первые игры', ['ng:wordle', 'act:nation', 'act:pick-duo']],
-    [25, 'Аукцион', ['act:auction-bot', 'act:auction-duo']],
-    [50, 'Тики-така', ['act:ttt', 'act:ttt-duo']],
+    [0, 'Первые игры', ['act:auction-bot', 'act:auction-duo', 'ng:wordle', 'act:nation', 'act:pick-duo']],
+    [40, 'Тики-така', ['act:ttt', 'act:ttt-duo']],
     [80, 'Паки и Галерея', ['feat:cards']],
     [120, 'Козыри', ['ng:trumps']],
     [170, 'Угадай игрока и Дуэль', ['act:guess-career', 'act:guess-duel', 'ng:duel']],
