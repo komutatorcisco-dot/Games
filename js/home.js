@@ -150,6 +150,8 @@ const Home = (() => {
   }
 
   function bind() {
+    // значок пака дня в профиле — та же модель пака
+    const pk = $('.pf-pk2'); if (pk && typeof PackOpen !== 'undefined') pk.innerHTML = PackOpen.art(1, 'rs');
     document.addEventListener('click', (e) => {
       if (e.target.closest('#home2 [data-h2="pick"]')) { Sound.play('tap'); haptic('tap'); pick(); }
       const p = e.target.closest('#home2 .h2-play');

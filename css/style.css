@@ -3830,3 +3830,62 @@ body.home2 #hub::after { content: ''; position: fixed; left: -30%; right: -30%; 
 .rw-packs em { background: #ffcf3a !important; color: #1a1406 !important; }
 .rw-pkart { flex: none; display: grid; place-items: center; width: 46px; }
 #hub-packs { display: none !important; }
+
+/* ===================================================================================================
+   ЕДИНЫЙ ФОН И ШАПКИ (заменяет все прошлые слои: трибуны с огоньками, круг внизу, шум, жёсткие лучи)
+   Ночной стадион без лишнего: глубокий сине-фиолетовый, мягкий свет прожекторов сверху, газон снизу.
+   =================================================================================================== */
+body { background: #0c0b1d !important; }
+body::before { content: '' !important; position: fixed !important; inset: 0 !important; z-index: -1 !important; pointer-events: none !important; display: block !important;
+  background:
+    radial-gradient(60% 34% at 8% -6%, rgba(160,150,255,.20), transparent 70%),
+    radial-gradient(60% 34% at 92% -6%, rgba(160,150,255,.20), transparent 70%),
+    radial-gradient(130% 50% at 50% 118%, rgba(52,170,110,.20), transparent 66%),
+    linear-gradient(180deg, #19163f 0%, #121032 42%, #0c0b1f 100%) !important; }
+body::after { display: none !important; }
+body[data-grass]::before { display: block !important; }
+/* на главной — медленные мягкие лучи прожекторов поверх */
+body.home2 #hub::after { opacity: .35; }
+/* ИПК — тот же фон, без своего бирюзового */
+#sbc { background: transparent !important; }
+/* окна — тёмные, как плашки главной */
+.modal-card { background: #16152c !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 24px 60px rgba(0,0,0,.55) !important; }
+/* шапка игр — как шапка главной: тёмная плашка со стеклом */
+#app > .screen > .topbar { position: sticky; top: max(6px, env(safe-area-inset-top)); z-index: 20; padding: 6px 6px 6px 6px; border-radius: 18px;
+  background: rgba(16,14,40,.72) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); margin-top: 4px; }
+#app > .screen > .topbar .back { background: rgba(255,255,255,.08) !important; }
+#app > .screen > .topbar .help { width: 36px !important; height: 36px !important; font-size: 17px !important; box-shadow: none !important; }
+#app > .screen > .topbar .coins { background: rgba(255,255,255,.06); }
+
+/* ===== без белых плашек: всё в тёмном стиле главной, золото — только для главного действия ===== */
+:root { --plate: #211e4a; --plate-2: #2a2760; --plate-line: rgba(255,255,255,.12); }
+/* варианты ответа — тёмные клавиши; верно/неверно — цвет */
+:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt):not(.tb-fut):not(.right):not(.wrong) { background: var(--plate) !important; color: #fff !important; border-radius: 14px !important;
+  box-shadow: inset 0 0 0 1.5px var(--plate-line), 0 4px 0 #0b0a1d !important; }
+:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt):not(.tb-fut) small { color: rgba(255,255,255,.6) !important; }
+/* поля ввода и подсказки */
+.guess-input input, .ng-input input, .nick-input, .field input { background: var(--plate) !important; color: #fff !important; box-shadow: inset 0 0 0 1.5px var(--plate-line) !important; }
+.guess-input input::placeholder, .ng-input input::placeholder, .nick-input::placeholder, .field input::placeholder { color: rgba(255,255,255,.45); }
+.suggest { background: #1c1a40 !important; box-shadow: inset 0 0 0 1px var(--plate-line), 0 16px 34px rgba(0,0,0,.5) !important; }
+.suggest :is(button, li, div, b, span) { color: #fff; } .suggest small { color: rgba(255,255,255,.6) !important; }
+.suggest :is(button, li):hover, .suggest .on { background: rgba(255,255,255,.08) !important; }
+/* режимы дуэли */
+.dh-modes button { background: var(--plate) !important; color: #fff !important; box-shadow: inset 0 0 0 1.5px var(--plate-line), 0 4px 0 #0b0a1d !important; }
+.dh-modes button * { color: #fff !important; }
+.dh-ico.tile-ico { background: var(--plate-2) !important; box-shadow: 0 0 0 3px rgba(255,255,255,.15) !important; }
+/* выбранные вкладки-фишки: золотая обводка вместо белой заливки */
+:is(.bd-tabs, .cl-chips, .fx-tabs, .cat-nav) button.on { background: rgba(255,207,58,.14) !important; color: #ffcf3a !important; box-shadow: inset 0 0 0 1.5px #ffcf3a !important; border-color: #ffcf3a !important; }
+/* профиль: билет — тёмный, как плашки */
+.tix { background: linear-gradient(160deg, #262357, #1a1840) !important; color: #fff !important; box-shadow: inset 0 0 0 1px var(--plate-line), 0 14px 30px rgba(0,0,0,.4) !important; }
+.tix::before { background: repeating-linear-gradient(-45deg, transparent 0 14px, rgba(255,255,255,.03) 14px 15px) !important; }
+.tix-top { background: rgba(0,0,0,.25) !important; }
+.tix .pf-edit { background: rgba(255,255,255,.1) !important; color: #fff !important; }
+.tix-f { border-color: rgba(255,255,255,.12) !important; } .tix-f span + span { border-color: rgba(255,255,255,.12) !important; }
+.tix-f small, .tix-stub small, .tix-xp small { color: rgba(255,255,255,.6) !important; }
+.tix-xp .pf-bar { background: rgba(255,255,255,.12) !important; }
+.tix-stub { background: rgba(0,0,0,.18) !important; border-left-color: rgba(255,255,255,.2) !important; }
+.tix-stub b { color: #ffcf3a !important; }
+.tix-bc { background: repeating-linear-gradient(90deg, rgba(255,255,255,.75) 0 2px, transparent 2px 4px, rgba(255,255,255,.75) 4px 5px, transparent 5px 8px) !important; }
+.tix-hex { color: #15161c; }
+#prof-nick, .tix-nm, .tix-who { color: #fff !important; }
+.pf-pk2 { display: grid; place-items: start; height: 30px; } .pf-pk2 .fpk.rs { --pw: 22px; --ph: 30px; --d: 3px; } .pf-pk2 .fpk.rs b { font-size: 8px; } .pf-pk2 .fpk::after { display: none; }
