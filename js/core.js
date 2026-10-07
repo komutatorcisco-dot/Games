@@ -376,7 +376,7 @@ const Modal = {
     $('#modal').hidden = false;
     if (typeof Photos !== 'undefined') Photos.hydrate(card);
     const first = $('button', box); // не фокусируем поле ввода: на iPhone клавиатура ломает окно
-    if (first) setTimeout(() => first.focus(), 50);
+    if (first) setTimeout(() => { first.focus({ preventScroll: true }); card.scrollTop = 0; }, 50);
   },
   // Закрытие с короткой анимацией. Если сразу открыть новое окно, оно отменит скрытие.
   close() {

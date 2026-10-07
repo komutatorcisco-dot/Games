@@ -57,9 +57,9 @@ const Rewards = (() => {
     then && then();
   }
   // открыть пак: minLevel — гарантированная редкость (с пути трофеев и пропуска)
-  async function openDrop({ title, minLevel = 0, onStart, onDone } = {}) {
+  async function openDrop({ title, minLevel = 0, onStart, onDone, label } = {}) {
     try {
-      await Pack3D.drop({ title, minLevel, contents, onStart, onTake: (c) => grant(c, () => onDone && onDone(c)) });
+      await Pack3D.drop({ title, minLevel, label, contents, onStart, onTake: (c) => grant(c, () => onDone && onDone(c)) });
     } catch (e) { // нет 3D — просто выдаём содержимое
       onStart && onStart();
       const c = contents(minLevel);

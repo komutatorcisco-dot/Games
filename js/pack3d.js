@@ -73,7 +73,7 @@ const Pack3D = (() => {
     const by = H * 0.74, bh = H * 0.12, bgr = g.createLinearGradient(0, 0, W, 0);
     bgr.addColorStop(0, '#a87400'); bgr.addColorStop(0.3, '#ffe27a'); bgr.addColorStop(0.6, '#ffcf3a'); bgr.addColorStop(1, '#a87400');
     g.fillStyle = bgr; g.fillRect(0, by, W, bh);
-    g.fillStyle = '#1a0d52'; g.font = `700 ${bh * 0.42}px Oswald, Rubik, sans-serif`; g.fillText('ПАК  ДНЯ', cx, by + bh * 0.4);
+    g.fillStyle = '#1a0d52'; g.font = `700 ${bh * 0.42}px Oswald, Rubik, sans-serif`; g.fillText(LABEL, cx, by + bh * 0.4);
     g.font = `${bh * 0.22}px sans-serif`; g.fillText('★ ★ ★', cx, by + bh * 0.8);
     // искры
     g.fillStyle = '#fff';
@@ -114,7 +114,7 @@ const Pack3D = (() => {
       g.fillStyle = '#0b0b0b'; g.fillRect(0, H * 0.33, W, H * 0.2);
       smearWord(g, 'ДЖЕКСО', 'НЫ', cx - W * 0.03, H * 0.43, W * 0.115, '#fff');
       g.fillStyle = 'rgba(255,255,255,.55)'; g.font = `700 ${W * 0.045}px Oswald, sans-serif`; g.textAlign = 'center'; g.fillText('С Т А Р И К И', cx, H * 0.34);
-      band(g, W, H, H * 0.74, H * 0.12, '#bdbdbd', '#ffffff', 'ПАК  ДНЯ', '#0b0b0b'); crimp(g, W, H, 'rgba(255,255,255,.2)');
+      band(g, W, H, H * 0.74, H * 0.12, '#bdbdbd', '#ffffff', LABEL, '#0b0b0b'); crimp(g, W, H, 'rgba(255,255,255,.2)');
     } else if (th === 'toty') { // чёрный с золотом, как особые паки FC
       const bg = g.createRadialGradient(cx, H * 0.4, 10, cx, H * 0.4, H * 0.8); bg.addColorStop(0, '#2a2a33'); bg.addColorStop(1, '#050507'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
       g.strokeStyle = 'rgba(255,207,58,.22)'; g.lineWidth = 1.5;
@@ -123,7 +123,7 @@ const Pack3D = (() => {
       star(g, cx, H * 0.42, W * 0.27, W * 0.11); const sg = g.createLinearGradient(cx - W * 0.27, H * 0.3, cx + W * 0.27, H * 0.55); sg.addColorStop(0, '#fff6c4'); sg.addColorStop(0.45, '#ffcf3a'); sg.addColorStop(0.8, '#a8761a'); sg.addColorStop(1, '#ffe27a'); g.fillStyle = sg; g.fill();
       star(g, cx, H * 0.42, W * 0.2, W * 0.08); g.fillStyle = '#0b0b0f'; g.fill();
       g.fillStyle = '#ffd34a'; g.font = `700 ${W * 0.12}px Oswald, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Д', cx, H * 0.425);
-      band(g, W, H, H * 0.74, H * 0.12, '#7a5200', '#ffe27a', 'ПАК  ДНЯ', '#0b0b0f'); crimp(g, W, H, 'rgba(255,207,58,.35)');
+      band(g, W, H, H * 0.74, H * 0.12, '#7a5200', '#ffe27a', LABEL, '#0b0b0f'); crimp(g, W, H, 'rgba(255,207,58,.35)');
     } else if (th === 'night') { // ночной стадион, как фон игры
       const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#2a1a6e'); bg.addColorStop(0.6, '#120c33'); bg.addColorStop(1, '#0b0820'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
       [[0.05, -0.02], [0.95, -0.02]].forEach(([px, py]) => { const lg = g.createRadialGradient(W * px, H * py, 0, W * px, H * py, W * 0.9); lg.addColorStop(0, 'rgba(255,240,200,.55)'); lg.addColorStop(1, 'rgba(255,240,200,0)'); g.fillStyle = lg; g.fillRect(0, 0, W, H); });
@@ -131,7 +131,7 @@ const Pack3D = (() => {
       hex(g, cx, H * 0.42, W * 0.22); const hg = g.createLinearGradient(0, H * 0.3, 0, H * 0.55); hg.addColorStop(0, '#3ee6a8'); hg.addColorStop(1, '#4fc3ff'); g.fillStyle = hg; g.fill();
       g.shadowColor = '#3ee6a8'; g.shadowBlur = 40; hex(g, cx, H * 0.42, W * 0.18); g.fillStyle = '#0b0820'; g.fill(); g.shadowBlur = 0;
       g.fillStyle = '#3ee6a8'; g.font = `700 ${W * 0.16}px Oswald, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Д', cx, H * 0.425);
-      band(g, W, H, H * 0.74, H * 0.12, '#2aa37a', '#7fffd4', 'ПАК  ДНЯ', '#0b0820'); crimp(g, W, H, 'rgba(255,255,255,.2)');
+      band(g, W, H, H * 0.74, H * 0.12, '#2aa37a', '#7fffd4', LABEL, '#0b0820'); crimp(g, W, H, 'rgba(255,255,255,.2)');
     } else if (th === 'mix1' || th === 'mix2' || th === 'mix3' || th === 'mix4') {
       // смеси первых четырёх: основа, узор, эмблема и лента из разных вариантов
       const base = { mix1: ['#1a1a22', '#050507'], mix2: ['#2a1a6e', '#0b0820'], mix3: ['#4a25c9', '#170a45'], mix4: ['#101418', '#030405'] }[th];
@@ -166,27 +166,27 @@ const Pack3D = (() => {
       // логотип со смазом
       smearWord(g, 'ДЖЕКСО', 'НЫ', cx - W * 0.03, H * 0.6, W * 0.1, '#fff');
       g.fillStyle = 'rgba(255,255,255,.5)'; g.font = `700 ${W * 0.04}px Oswald, sans-serif`; g.textAlign = 'center'; g.fillText('С Т А Р И К И', cx, H * 0.535);
-      if (th === 'mix4') band(g, W, H, H * 0.74, H * 0.12, '#a87400', '#ffe27a', 'ПАК  ДНЯ', '#0b0820');
-      else band(g, W, H, H * 0.74, H * 0.12, '#7a5200', '#ffe27a', 'ПАК  ДНЯ', '#0b0b0f');
+      if (th === 'mix4') band(g, W, H, H * 0.74, H * 0.12, '#a87400', '#ffe27a', LABEL, '#0b0820');
+      else band(g, W, H, H * 0.74, H * 0.12, '#7a5200', '#ffe27a', LABEL, '#0b0b0f');
       crimp(g, W, H, 'rgba(255,207,58,.35)');
     } else if (th === 'grass') { // газон с разметкой и мячом
       for (let i = 0; i < 10; i++) { g.fillStyle = i % 2 ? '#2a8548' : '#2f8f4e'; g.fillRect(0, (i * H) / 10, W, H / 10 + 1); }
       g.strokeStyle = 'rgba(255,255,255,.8)'; g.lineWidth = 4; g.strokeRect(W * 0.08, H * 0.06, W * 0.84, H * 0.88);
       g.beginPath(); g.moveTo(W * 0.08, H * 0.5); g.lineTo(W * 0.92, H * 0.5); g.stroke(); g.strokeRect(W * 0.28, H * 0.06, W * 0.44, H * 0.12);
       ball(g, cx, H * 0.42, W * 0.2, '#111', '#fff');
-      band(g, W, H, H * 0.74, H * 0.12, '#a87400', '#ffe27a', 'ПАК  ДНЯ', '#0b3d1e'); crimp(g, W, H, 'rgba(255,255,255,.3)');
+      band(g, W, H, H * 0.74, H * 0.12, '#a87400', '#ffe27a', LABEL, '#0b3d1e'); crimp(g, W, H, 'rgba(255,255,255,.3)');
     } else if (th === 'holo') { // голографическая фольга
       const bg = g.createLinearGradient(0, 0, W, H); ['#ff9ad1', '#9ad8ff', '#c6ffb3', '#ffe89a', '#d1a8ff', '#9affea'].forEach((col, i, a) => bg.addColorStop(i / (a.length - 1), col)); g.fillStyle = bg; g.fillRect(0, 0, W, H);
       g.globalAlpha = 0.3; for (let i = -H; i < W + H; i += 22) { g.fillStyle = (i / 22) % 2 ? '#fff' : '#b9a8ff'; g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 11, 0); g.lineTo(i + 11 - H * 0.7, H); g.lineTo(i - H * 0.7, H); g.fill(); } g.globalAlpha = 1;
       smearWord(g, 'ДЖЕКСО', 'НЫ', cx - W * 0.03, H * 0.42, W * 0.115, '#111');
-      band(g, W, H, H * 0.74, H * 0.12, '#222', '#111', 'ПАК  ДНЯ', '#fff'); crimp(g, W, H, 'rgba(255,255,255,.5)');
+      band(g, W, H, H * 0.74, H * 0.12, '#222', '#111', LABEL, '#fff'); crimp(g, W, H, 'rgba(255,255,255,.5)');
     } else if (th === 'red') { // красно-чёрный, как акцент меню
       g.fillStyle = '#c8102e'; g.fillRect(0, 0, W, H);
       g.fillStyle = '#0b0b0b'; g.beginPath(); g.moveTo(0, H * 0.62); g.lineTo(W, H * 0.3); g.lineTo(W, H); g.lineTo(0, H); g.fill();
       g.fillStyle = 'rgba(0,0,0,.15)'; for (let i = 0; i < W; i += 10) g.fillRect(i, 0, 3, H);
       ball(g, cx, H * 0.4, W * 0.19, '#0b0b0b', '#fff');
       g.fillStyle = '#fff'; g.font = `900 ${W * 0.1}px Inter, Rubik, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ДЖЕКСОНЫ', cx, H * 0.66);
-      band(g, W, H, H * 0.76, H * 0.11, '#9a0c22', '#ff3b55', 'ПАК  ДНЯ', '#fff'); crimp(g, W, H, 'rgba(255,255,255,.25)');
+      band(g, W, H, H * 0.76, H * 0.11, '#9a0c22', '#ff3b55', LABEL, '#fff'); crimp(g, W, H, 'rgba(255,255,255,.25)');
     }
     return c;
   }
@@ -330,6 +330,7 @@ const Pack3D = (() => {
   // =====================================================================
   // Открытие на весь экран, как старр-дропы в Brawl Stars: каждое нажатие может поднять редкость,
   // последнее нажатие открывает пак. Редкость решается заранее (по весам), нажатия только раскрывают её.
+  let LABEL = 'ПАК  ДНЯ'; // надпись на ленте пака: откуда он
   const RAR = [
     { k: 'rare', name: 'РЕДКИЙ', col: 0x3ee66b, css: '#3ee66b', w: 55, prize: [10, 20] },
     { k: 'super', name: 'СВЕРХРЕДКИЙ', col: 0x3fa9ff, css: '#4fc3ff', w: 25, prize: [25, 40] },
@@ -380,8 +381,9 @@ const Pack3D = (() => {
   }
 
   // gift — подпись «Подарок»; onTake(prize) — нажали «Забрать»
-  async function drop({ gift = false, title = '', minLevel = 0, contents, onStart, onTake } = {}) {
+  async function drop({ gift = false, title = '', minLevel = 0, contents, onStart, onTake, label = '' } = {}) {
     await three();
+    LABEL = label || (/^ИПК/.test(title) ? 'И П К' : /ПОБЕД/.test(title) ? 'ЗА  ПОБЕДУ' : /СОБРАН|КЛУБ/.test(title) ? 'ГАЛЕРЕЯ' : /ПУТЬ|ПРОПУСК|СЕЗОН/.test(title) ? 'НАГРАДА' : 'ПАК  ДНЯ');
     const T = window.THREE;
     const final = Math.max(minLevel, rollRarity()), R0 = RAR[final];
     const got = contents ? contents(final) : { coins: R0.prize[0] + Math.round(Math.random() * (R0.prize[1] - R0.prize[0]) / 5) * 5 }, prize = got.coins;
