@@ -410,7 +410,7 @@ async function adminCommand(env, m) {
   await schema(db);
   const say = (t) => tg(env, 'sendMessage', { chat_id: chat, text: t });
   if (text.startsWith('/admin')) {
-    if (env.WEBHOOK_SECRET && text.split(/\s+/)[1] === env.WEBHOOK_SECRET && m.chat.type === 'private') {
+    if (env.WEBHOOK_SECRET && (text.split(/\s+/)[1] || '').replace(/[<>«»"']/g, '') === env.WEBHOOK_SECRET && m.chat.type === 'private') {
       await setSetting(db, 'admin', chat);
       await tg(env, 'setMyCommands', { commands: [{ command: 'start', description: 'Играть' }, { command: 'terms', description: 'Условия' }, { command: 'paysupport', description: 'Помощь с оплатой' }] });
       return say('✅ Ты админ. Сюда будут приходить ошибки от игроков.\n/stats — статистика\n/broadcast текст — сообщение всем игрокам\nВ приложении: Профиль → Админка.');
