@@ -3637,7 +3637,7 @@ html, body { touch-action: manipulation; }
 .gate.out { animation: sxFade .3s reverse forwards; }
 body.gated { overflow: hidden; }
 .gate-card { width: min(100%, 360px); display: grid; justify-items: center; gap: 10px; text-align: center; color: #fff; }
-.gate-ava { width: 112px; height: 112px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 3px #ffcf3a, 0 14px 30px rgba(0,0,0,.5); margin-bottom: 6px; }
+.gate-ava { width: 112px; height: 112px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px rgba(255,255,255,.22), 0 14px 30px rgba(0,0,0,.5); margin-bottom: 6px; }
 .gate-k { font: 800 12px var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: #ffcf3a; }
 .gate h2 { margin: 0; font: 900 30px/1.05 "Rubik", sans-serif; text-transform: uppercase; letter-spacing: -.01em; }
 .gate-t { margin: 0 0 8px; color: rgba(255,255,255,.8); font-size: 15px; line-height: 1.45; }

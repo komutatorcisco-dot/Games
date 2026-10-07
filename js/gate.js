@@ -24,7 +24,7 @@ const Gate = (() => {
       el = document.createElement('div');
       el.className = 'gate';
       el.innerHTML = `<div class="gate-card">
-          <img class="gate-ava" src="img/brand/bot-avatar-a.png" alt="">
+          <img class="gate-ava" src="img/brand/channel.jpg" alt="Старики Джексоны">
           <small class="gate-k">Игры канала</small>
           <h2>Старики Джексоны</h2>
           <p class="gate-t">Игры открыты для подписчиков канала. Подпишись, это бесплатно, и возвращайся.</p>
