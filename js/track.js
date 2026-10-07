@@ -35,6 +35,9 @@ const Track = (() => {
   function end(win) {
     if (!cur) return;
     const ms = Date.now() - cur.t;
+    // «Ещё раз» без выхода в меню — новая партия: считаем и её открытие, иначе доигранных выйдет больше 100%
+    if (cur.ended) push({ game: cur.game, kind: 'open', title: '' });
+    cur.ended = true;
     push({ game: cur.game, kind: 'end', ms });
     if (win) push({ game: cur.game, kind: 'win', ms });
     cur.t = Date.now(); // «Ещё раз» без выхода в меню — новая партия той же игры
