@@ -86,13 +86,21 @@ const Daily = (() => {
     const last = p.name.split(' ').slice(-1)[0];
     return `${last[0]}${'•'.repeat(Math.max(0, last.length - 1))} (${last.length} ${plural(last.length, 'буква', 'буквы', 'букв')})`;
   }
+  // карьера неизвестна — вместо «всю карьеру в одном клубе» даём рейтинг FC и сильную сторону
+  const STAT = ['скорость', 'удар', 'пас', 'дриблинг', 'защита', 'физика'];
+  function strength(p) {
+    const st = typeof FC_STATS !== 'undefined' && FC_STATS[p.name];
+    if (!st) return ['Рост в игре', `${p.tier === 1 ? 'Звезда мирового уровня' : p.tier === 2 ? 'Игрок сборной и основы' : 'Крепкий игрок основы'}`];
+    const s = st.slice(1, 7), k = s.indexOf(Math.max(...s));
+    return ['Рейтинг FC и сильная сторона', `${st[0]} · ${STAT[k]} ${s[k]}`];
+  }
   // Подсказки от сложных к лёгким: сначала цифры, в конце — клуб и первая буква
   function clues(p) {
     const past = careerOf(p);
     return [
       ['Возраст и номер', `${YEAR - p.born} лет · №${p.num}`],
       ['Позиция и лига', `${esc(p.pos)} · ${esc(p.lg)}`],
-      ['Где играл раньше', past.length ? past.map((c) => `<span class="dly-club">${crestImg(c, 'xs')}${esc(c)}</span>`).join('') : 'Всю карьеру в одном клубе'],
+      past.length ? ['Где играл раньше', past.map((c) => `<span class="dly-club">${crestImg(c, 'xs')}${esc(c)}</span>`).join('')] : strength(p),
       ['Сборная', `${p.flag} ${esc(p.nat)}`],
       ['Клуб сейчас', `<span class="dly-club">${crestImg(p.club, 'xs')}${esc(p.club)}</span>`],
       ['Фамилия', surnameMask(p)],

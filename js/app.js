@@ -206,7 +206,7 @@ const App = (() => {
   }
 
   // ---------- Поле: каждая вышедшая игра — фишка, «Игрок дня» — вратарь ----------
-  const SHORT = { 'act:xdraft': 'Драфт', 'act:sbc': 'ИПК', 'ng:wordle': 'Wordle', 'act:nation': 'Сборная', 'act:pick-duo': 'Этого или того', 'act:auction-bot': 'Аукцион', 'ng:duel': 'Дуэль',
+  const SHORT = { 'act:xdraft': 'Драфт', 'act:sbc': 'ИПК', 'ng:wordle': 'Wordle', 'act:nation': 'Сборная', 'act:pick-duo': 'Этого или того', 'act:pick-bot': 'Этого или того', 'act:auction-bot': 'Аукцион', 'ng:duel': 'Дуэль',
     'ng:trumps': 'Козыри', 'act:ttt': 'Тики-така', 'act:guess-career': 'Угадай игрока', 'act:career': 'Карьера', 'act:club': 'Клуб', 'act:transfer': 'Трансфер',
     'act:pick-solo': 'Легенды', 'act:fc': 'FC 27', 'act:value': 'Кто дороже', 'act:hl': 'Дороже?', 'act:pass-levels': 'Пас' };
   // сколько фишек в каждой линии — от защиты к атаке (как схема 4-3-3)
@@ -438,6 +438,7 @@ const App = (() => {
     'dly-share': () => Daily.share(),
     'dly-giveup': () => Daily.giveup(),
     'pick-duo': () => Pick.start('duo'),
+    'pick-bot': () => Pick.start('bot'),
     'pick-solo': () => Pick.start('solo'),
     'coins-info': () => Shop.open(),
     shop: () => Shop.open(),

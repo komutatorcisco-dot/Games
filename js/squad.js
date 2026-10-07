@@ -25,6 +25,7 @@ const Squad = (() => {
     return { name: c.name, key, r: c.r, st: Array(6).fill(c.r), pos: POSMAP[c.pos] || ['CM'], club: c.club, lg: c.lg, nat: c.nat || 'leg:' + c.name, flag: c.flag, face: c.face, rar: c.rar };
   }
   const xi = () => S().xi.map(obj);
+  const fits = (p, pos) => (S().sys === 'classic' ? p.pos[0] === pos : p.pos.includes(pos));
   // карточка могла уйти в ИПК — тогда место пустеет
   function prune() {
     const s = S(); let ch = false;
@@ -33,7 +34,7 @@ const Squad = (() => {
   }
   const mine = () => Cards.all().filter((c) => Cards.spare(c.key) > 0);
   const CTX = {
-    screen: 'squad', body: '#sq-body', st: S, form: () => S().form, sys: () => 'new', xi,
+    screen: 'squad', body: '#sq-body', st: S, form: () => S().form, sys: () => (S().sys === 'classic' ? 'classic' : 'new'), xi,
     back: () => { S().match = null; Store.save(); render(); }, title: () => `Мой состав ${S().form}`, link: 'squad',
     onEnd: (w) => { if (typeof Rewards !== 'undefined') Rewards.onEnd(w === 'win', 'squad'); },
   };
@@ -41,23 +42,24 @@ const Squad = (() => {
   // ---------- экран ----------
   function render() {
     prune();
-    const s = S(), F = XD.FORMATIONS[s.form], list = xi(), c = XD.chem('new', s.form, list);
+    const s = S(), F = XD.FORMATIONS[s.form], list = xi(), sys = s.sys === 'classic' ? 'classic' : 'new', c = XD.chem(sys, s.form, list), cls = sys === 'classic';
     const full = list.every(Boolean), r = XD.teamRating(list);
     const box = $('#sq-body');
     box.innerHTML = `<div class="sq-head">
         <div class="sq-k"><small>Рейтинг</small><b>${r || '—'}</b></div>
-        <div class="sq-k"><small>Химия</small><b>${c.total}<i>/33</i></b></div>
+        <button class="sq-k sq-sys" data-sq="sys"><small>Химия · ${cls ? 'старая' : 'новая'}</small><b>${c.total}<i>/${cls ? 100 : 33}</i></b></button>
         <button class="sq-form" data-sq="form"><small>Схема</small><b>${s.form}</b></button></div>
       <div class="sq-pitch"><svg viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true"><rect x="3" y="3" width="94" height="134" rx="2"/><line x1="3" y1="70" x2="97" y2="70"/><circle cx="50" cy="70" r="12"/><rect x="25" y="3" width="50" height="20"/><rect x="25" y="117" width="50" height="20"/></svg>
+        ${cls ? `<svg class="sq-links" viewBox="0 0 100 100" preserveAspectRatio="none">${c.links.filter((l) => l.color !== 'none').map((l) => `<line class="${l.color}" x1="${F.slots[l.i].x}" y1="${F.slots[l.i].y}" x2="${F.slots[l.j].x}" y2="${F.slots[l.j].y}"/>`).join('')}</svg>` : ''}
         ${F.slots.map((sl, i) => {
           const p = list[i], ch = c.per[i];
           return `<button class="sq-slot ${p ? 'on' : ''}" data-slot="${i}" style="left:${sl.x}%;top:${sl.y}%">
-            ${p ? `${Cards.html(Cards.get(p.key), { w: 58 })}<span class="sq-ch ${ch && !ch.onPos ? 'off' : ''}">${ch && ch.onPos ? '<i></i>'.repeat(ch.chem) + '<u></u>'.repeat(3 - ch.chem) : esc(XD.RU[sl.pos])}</span>`
+            ${p ? `${Cards.html(Cards.get(p.key), { w: 58, cls: 'sq-mini' })}${cls ? `<span class="sq-ch num ${ch.chem >= 7 ? 'g' : ch.chem >= 4 ? 'o' : 'r'}">${ch.chem}</span>` : `<span class="sq-ch ${ch && !ch.onPos ? 'off' : ''}">${ch && ch.onPos ? '<i></i>'.repeat(ch.chem) + '<u></u>'.repeat(3 - ch.chem) : esc(XD.RU[sl.pos])}</span>`}`
               : `<span class="sq-plus">+</span><small>${XD.RU[sl.pos]}</small>`}</button>`;
         }).join('')}</div>
       <div class="sq-act"><button class="btn ghost" data-sq="auto">Собрать лучших</button>
         <button class="btn gold" data-sq="play" ${full ? '' : 'disabled'}>${full ? 'Играть матч' : `Ещё ${list.filter((x) => !x).length} в состав`}</button></div>
-      <p class="sq-note">${mine().length ? 'Нажми на позицию и выбери карточку. Химия: один клуб, лига или сборная у соседей по составу.' : 'У тебя пока нет карточек — открывай паки за победы.'}</p>`;
+      <p class="sq-note">${mine().length ? (cls ? 'Старая химия (FIFA 19): линии между соседями — зелёная, если общие 2 из 3 (клуб, лига, сборная), оранжевая — 1. Игрок на своей позиции получает до 10.' : 'Новая химия: за общий клуб, лигу или сборную во всём составе, только на своей позиции.') : 'У тебя пока нет карточек — открывай паки за победы.'}</p>`;
     $('#sq-sub').textContent = `${list.filter(Boolean).length}/11 · ${mine().length} ${plural(mine().length, 'карточка', 'карточки', 'карточек')}`;
   }
 
@@ -76,8 +78,8 @@ const Squad = (() => {
     const s = S(), pos = XD.FORMATIONS[s.form].slots[i].pos, here = s.xi[i];
     const names = new Set(s.xi.map((k, j) => (k && j !== i ? Cards.get(k).name : null)).filter(Boolean));
     const cand = mine().map((c) => ({ c, p: obj(c.key) })).filter((x) => !names.has(x.c.name))
-      .sort((a, b) => (b.p.pos.includes(pos) - a.p.pos.includes(pos)) || b.c.r - a.c.r);
-    const cell = (x) => `<button class="sq-pc ${x.p.pos.includes(pos) ? '' : 'off'} ${x.c.key === here ? 'sel' : ''}" data-card="${esc(x.c.key)}">${Cards.html(x.c, { w: 76 })}${x.p.pos.includes(pos) ? '' : '<em>не своя позиция</em>'}</button>`;
+      .sort((a, b) => (fits(b.p, pos) - fits(a.p, pos)) || b.c.r - a.c.r);
+    const cell = (x) => `<button class="sq-pc ${fits(x.p, pos) ? '' : 'off'} ${x.c.key === here ? 'sel' : ''}" data-card="${esc(x.c.key)}">${Cards.html(x.c, { w: 76 })}${fits(x.p, pos) ? '' : '<em>не своя позиция</em>'}</button>`;
     const el = sheet(`${XD.RU[pos]} · выбери карточку`, cand.length ? `<div class="sq-grid">${cand.map(cell).join('')}</div>${here ? '<button class="btn ghost sq-rm" data-rm="1">Убрать из состава</button>' : ''}`
       : '<p class="sq-note">Нет свободных карточек. Открывай паки за победы.</p>', (e, close) => {
       if (e.target.closest('[data-rm]')) { s.xi[i] = null; Store.save(); close(); render(); return; }
@@ -99,11 +101,21 @@ const Squad = (() => {
     });
   }
 
+  function chooseSys() {
+    const s = S();
+    sheet('Система химии', `<div class="sq-sysl">
+      <button class="sq-sb ${s.sys !== 'classic' ? 'sel' : ''}" data-y="new"><b>Новая</b><small>Как в FC сейчас: клубы, лиги и сборные считаются по всему составу, до 3 на игрока, максимум 33</small></button>
+      <button class="sq-sb ${s.sys === 'classic' ? 'sel' : ''}" data-y="classic"><b>Старая сыгранность</b><small>Как в FIFA 19: связи с соседями по схеме (зелёные и оранжевые линии), до 10 на игрока, максимум 100</small></button></div>`, (e, close) => {
+      const b = e.target.closest('[data-y]'); if (!b) return;
+      s.sys = b.dataset.y; Store.save(); close(); render();
+    });
+  }
+
   // лучший состав: на каждую позицию — самая сильная своя карточка (сначала вратарь и защита)
   function auto() {
     const s = S(), F = XD.FORMATIONS[s.form], pool = mine().map((c) => ({ c, p: obj(c.key) })).sort((a, b) => b.c.r - a.c.r);
     const used = new Set(), xi = Array(11).fill(null);
-    F.slots.forEach((sl, i) => { const x = pool.find((q) => !used.has(q.c.name) && q.p.pos.includes(sl.pos)); if (x) { xi[i] = x.c.key; used.add(x.c.name); } });
+    F.slots.forEach((sl, i) => { const x = pool.find((q) => !used.has(q.c.name) && fits(q.p, sl.pos)); if (x) { xi[i] = x.c.key; used.add(x.c.name); } });
     F.slots.forEach((sl, i) => { if (xi[i]) return; const x = pool.find((q) => !used.has(q.c.name) && (sl.pos === 'GK') === q.p.pos.includes('GK')); if (x) { xi[i] = x.c.key; used.add(x.c.name); } });
     s.xi = xi; Store.save(); render();
     $$('#sq-body .sq-slot.on').forEach((el, k) => anim(el, [{ transform: 'translate(-50%,-50%) translateY(-30px) rotateX(70deg)', opacity: 0 }, { transform: 'translate(-50%,-50%)', opacity: 1 }], { duration: 480, delay: 35 * k, easing: 'cubic-bezier(.2,1.2,.4,1)', fill: 'backwards' }));
@@ -133,6 +145,7 @@ const Squad = (() => {
       const b = e.target.closest('[data-sq]'); if (!b) return;
       const k = b.dataset.sq;
       if (k === 'form') chooseForm();
+      if (k === 'sys') chooseSys();
       if (k === 'auto') auto();
       if (k === 'play' && !b.disabled) XMatch.choose(CTX);
     });

@@ -41,7 +41,7 @@ const Howto = (() => {
       'Одна ошибка, и серия закончена.']],
     ttt: ['Тики-Така-Тоу', 'ttt', [
       'Сетка 3×3: сверху и слева подсказки: клубы, сборные, страны чемпионатов, «был в аренде», «6+ клубов».',
-      'В каждую клетку впиши игрока, который подходит и под строку, и под столбец. Каждого можно один раз.',
+      'В каждую клетку впиши игрока, который подходит и под строку, и под столбец. Одного игрока можно вписать в разные клетки (вдвоём — только один раз).',
       'Сетки бывают трёх видов: «Клубы», «Клубы и сборные» и «Микс». После 3 ошибок игра заканчивается.']],
     'ttt-duo': ['Тики-Така-Тоу вдвоём', 'ttt-duo', [
       'Крестики-нолики, но клетку занимаешь, только назвав игрока, который подходит под строку и столбец.',
@@ -217,7 +217,7 @@ const Howto = (() => {
   // какая игра открывается каким действием
   const BY_ACT = { 'pass-levels': 'pass', 'guess-career': 'guess', 'guess-duel': 'duel', career: 'career', 'career-duel': 'career-duel', club: 'club',
     transfer: 'transfer', hl: 'hl', fc: 'fc', value: 'value', ttt: 'ttt', 'ttt-duo': 'ttt-duo', 'auction-bot': 'auction', 'auction-duo': 'auction',
-    nation: 'nation', dly: 'dly', b2b: 'ng-box2box', 'pick-duo': 'pick-duo', 'pick-solo': 'pick-solo', sbc: 'sbc' };
+    nation: 'nation', dly: 'dly', b2b: 'ng-box2box', 'pick-duo': 'pick-duo', 'pick-bot': 'pick-duo', 'pick-solo': 'pick-solo', sbc: 'sbc' };
   let cur = null;
 
   function show(key = cur) {

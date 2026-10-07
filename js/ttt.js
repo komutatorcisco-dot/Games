@@ -1,6 +1,6 @@
 // «Тики-Така-Тоу» (как на box2box): сетка 3×3, у строк и столбцов — клубы.
 // В клетку нужно вписать игрока, который подходит под строку и столбец: клуб, сборная, страна чемпионата
-// или особое условие (был в аренде, 6+ клубов). Каждого игрока можно назвать один раз.
+// или особое условие (был в аренде, 6+ клубов). Вдвоём каждого игрока можно назвать один раз, в соло — сколько угодно.
 // Соло: заполни все 9 клеток, 3 ошибки — конец. Вдвоём: крестики-нолики, неверный ответ передаёт ход.
 'use strict';
 
@@ -164,14 +164,15 @@ const TTT = (() => {
     if (over || sel < 0) return;
     const at = sel;
     const r = rows[Math.floor(sel / 3)], c = cols[sel % 3];
-    const ok = !used.has(name) && cat(r).set.has(name) && cat(c).set.has(name);
+    const dup = mode === 'duo' && used.has(name); // в соло одного игрока можно вписать в разные клетки
+    const ok = !dup && cat(r).set.has(name) && cat(c).set.has(name);
     if (ok) {
       cells[sel] = { by: turn, name };
       used.add(name);
       Sound.play('kick'); haptic('tap');
     } else {
       Sound.play('bad'); haptic('bad');
-      toast(used.has(name) ? `${name} уже был` : `${name} не подходит под обе подсказки`);
+      toast(dup ? `${name} уже был` : `${name} не подходит под обе подсказки`);
       if (mode === 'solo') lives--;
       if (mode === 'timed') { timeLeft = Math.max(1, timeLeft - 10); bump($('#ttt-sub'), 'shake'); }
       fx(at, [{ transform: 'translateX(0)', background: 'rgba(255,79,102,.5)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(7px)' }, { transform: 'translateX(-4px)' }, { transform: 'none' }], { duration: 420, easing: 'ease-out' });

@@ -7,7 +7,7 @@
 'use strict';
 
 const Rewards = (() => {
-  const DROPS_PER_DAY = 5, WIN_TROPHIES = 8, PLAY_TROPHIES = 1;
+  const DROPS_PER_DAY = 5, WIN_TROPHIES = 12, PLAY_TROPHIES = 3;
   const PASS_LEVELS = 30, PASS_STEP = 100, PASS_STARS = 100;
   const SEASON_START = Date.parse('2026-10-05T08:00:00Z'), SEASON_DAYS = 28;
 
@@ -350,6 +350,7 @@ const Rewards = (() => {
   }
   function open(t) { if (t) tab = t; scrolled = false; delete $('#rewards-body').dataset.roadIn; Modal.close(); Screens.show('rewards'); window.scrollTo(0, 0); render(); }
   function bind() {
+    $('#rewards-body').addEventListener('input', (e) => Cards.onInput(e));
     $('#rewards-body').addEventListener('click', (e) => {
       const t = e.target.closest('[data-rwtab]'); if (t) { tab = t.dataset.rwtab; Sound.play('tap'); render(); return; }
       const lk = e.target.closest('[data-rwlock]'); if (lk) { haptic('bad'); toast(`Откроется на ${lk.dataset.rwlock} трофеях — побеждай в играх`); return; }

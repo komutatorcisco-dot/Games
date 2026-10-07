@@ -501,9 +501,11 @@ const Limits = {
     if (L.day !== this.day()) { L.day = this.day(); L.auction = 0; L.pick = 0; Store.save(); }
     return L;
   },
-  left(k) { return Math.max(0, this.FREE - this.sync()[k]); },
-  label(k) { const n = this.left(k); return n ? `Бесплатно сегодня: ${n} из ${this.FREE}` : `Сегодня за ${this.COST} монет`; },
+  OFF: true, // пока лимиты выключены: играй сколько хочешь
+  left(k) { return this.OFF ? this.FREE : Math.max(0, this.FREE - this.sync()[k]); },
+  label(k) { if (this.OFF) return 'Без ограничений'; const n = this.left(k); return n ? `Бесплатно сегодня: ${n} из ${this.FREE}` : `Сегодня за ${this.COST} монет`; },
   take(k, go) {
+    if (this.OFF) { go(); return; }
     const L = this.sync();
     if (L[k] < this.FREE) { L[k]++; Store.save(); go(); return; }
     Modal.open(

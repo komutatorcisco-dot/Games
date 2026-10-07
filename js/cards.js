@@ -172,7 +172,7 @@ const Cards = (() => {
   const groupPrize = (g) => (g === 'Джексон' ? { pack: 4, coins: 2000 } : g === 'Легенды' ? { pack: 4, coins: 1000 } : { pack: 4, coins: 500 });
   const PACKN = ['пак', 'сверхредкий пак', 'эпический пак', 'легендарный пак', 'пак «ДЖЕКСОН!!»'];
   const prizeTxt = (r) => [r.pack !== undefined ? PACKN[r.pack] : '', r.coins ? `${r.coins} монет` : ''].filter(Boolean).join(' + ');
-  const prizeChip = (r) => `<span class="gl-prize">${r.pack !== undefined ? `<i class="rw-pk" style="--c:${['#3ee66b', '#4fc3ff', '#c27bff', '#ffcf3a', '#ff3b5c'][r.pack]}"></i>` : ''}${r.coins ? `<i class="coin"></i>${r.coins}` : ''}</span>`;
+  const prizeChip = (r) => `<span class="gl-prize" title="Награда за сбор">${Ui.get('lock')}${r.pack !== undefined ? `<i class="rw-pk" style="--c:${['#3ee66b', '#4fc3ff', '#c27bff', '#ffcf3a', '#ff3b5c'][r.pack]}"></i>` : ''}${r.coins ? `<i class="coin"></i>${r.coins}` : ''}</span>`;
   const claimed = () => { const s = S(); if (!Array.isArray(s.sets)) s.sets = []; return s.sets; };
   function sets(group) {
     const list = all().filter((c) => groupOf(c) === group);
@@ -189,14 +189,55 @@ const Cards = (() => {
     return prizeChip(prize);
   }
   let view = { g: '', club: null }, jump = false;
+  // готовые к получению награды (клубы и лиги, где собраны все карточки)
+  function ready() {
+    const out = [];
+    for (const g of GROUPS) {
+      const cards = all().filter((c) => groupOf(c) === g);
+      if (have(cards) === cards.length && !claimed().includes('g:' + g)) out.push({ id: 'g:' + g, name: g, ico: GROUP_ICO[g], prize: groupPrize(g) });
+      if (g !== 'Джексон') sets(g).forEach(({ club, cards: cc }) => { const id = `c:${g}:${club}`; if (have(cc) === cc.length && !claimed().includes(id)) out.push({ id, name: club, crest: CRESTS[club], prize: clubPrize(cc.length) }); });
+    }
+    return out;
+  }
+  // почти собранные клубы: где уже есть карточки и осталось меньше всего
+  function almost() {
+    const out = [];
+    for (const g of LEAGUES.concat(['Другие', 'Легенды'])) sets(g).forEach(({ club, cards }) => {
+      const h = have(cards), id = `c:${g}:${club}`;
+      if (h > 0 && h < cards.length && !claimed().includes(id)) out.push({ g, club, h, n: cards.length, left: cards.length - h });
+    });
+    return out.sort((a, b) => a.left - b.left || b.h / b.n - a.h / a.n).slice(0, 8);
+  }
+  const cell = (c) => `<div class="cl-cell">${owned(c.key) ? html(c, { w: 102 }) + (spare(c.key) > 1 ? `<i class="cl-n">×${spare(c.key)}</i>` : !spare(c.key) ? '<i class="cl-n out">сдан</i>' : '') + (S().fresh.includes(c.key) ? '<i class="cl-new">NEW</i>' : '') : html(c, { w: 102, locked: true }) + (view.q ? `<small class="cl-nm">${esc(c.name)} · ${c.r}</small>` : '')}</div>`;
+  const norm = (x) => x.toLowerCase().replace(/ё/g, 'е');
+  function results() {
+    const q = norm((view.q || '').trim());
+    if (view.mine) {
+      const list = all().filter((c) => owned(c.key)).sort((a, b) => b.r - a.r);
+      return list.length ? `<div class="cl-grid">${list.map(cell).join('')}</div>` : '<p class="rw-note">Карточек пока нет — открывай паки.</p>';
+    }
+    if (q.length < 2) return '';
+    const list = all().filter((c) => norm(c.name).includes(q) || norm(c.club).includes(q)).sort((a, b) => (owned(b.key) ? 1 : 0) - (owned(a.key) ? 1 : 0) || b.r - a.r).slice(0, 48);
+    return list.length ? `<div class="cl-grid">${list.map(cell).join('')}</div>` : '<p class="rw-note">Никого не нашли</p>';
+  }
+  function tools() {
+    return `<div class="gl-tools"><label class="gl-q">${Ui.get('search')}<input id="gl-q" type="search" placeholder="Найти игрока или клуб" value="${esc(view.q || '')}" autocomplete="off"></label>
+      <button class="gl-mine ${view.mine ? 'on' : ''}" data-glmine="1">Мои</button></div><div class="gl-res">${results()}</div>`;
+  }
   function album() {
     const total = all().length, got = count();
     let out = `<div class="cl-head"><b>Галерея</b><small>${got} / ${total}</small></div>${bar(got, total, 'cl-bar')}`;
     if (!view.g) {
+      out += tools();
+      if (view.mine || (view.q || '').trim().length >= 2) return out;
+      const rd = ready(), al = almost();
+      if (rd.length) out += `<h3 class="gl-h">${Ui.get('gift')} Можно забрать</h3><div class="gl-ready">${rd.map((r) => `<div class="gl-rd">${r.crest ? `<img src="img/clubs/${r.crest}" alt="">` : `<span class="gl-noc">${r.ico || Ui.get('ball')}</span>`}<b>${esc(r.name)}</b>${prizeTxt(r.prize) ? `<small>${prizeTxt(r.prize)}</small>` : ''}<button class="btn gold gl-claim" data-claim="${esc(r.id)}">Забрать</button></div>`).join('')}</div>`;
+      if (al.length) out += `<h3 class="gl-h">Почти собраны</h3><div class="gl-almost">${al.map((a) => `<button class="gl-al" data-glg="${esc(a.g)}" data-glc="${esc(a.club)}">${CRESTS[a.club] ? `<img src="img/clubs/${CRESTS[a.club]}" alt="">` : `<span class="gl-noc">${Ui.get('ball')}</span>`}<span><b>${esc(a.club)}</b>${bar(a.h, a.n)}<small>ещё ${a.left} ${a.left === 1 ? 'карточка' : a.left < 5 ? 'карточки' : 'карточек'}</small></span></button>`).join('')}</div>`;
+      out += `<h3 class="gl-h">Лиги</h3>`;
       out += `<div class="gl-list">${GROUPS.map((g) => {
         const cards = all().filter((c) => groupOf(c) === g), h = have(cards), id = 'g:' + g;
         return `<button class="gl-row" data-gl="${esc(g)}"><span class="gl-ico">${GROUP_ICO[g]}</span><span class="gl-mid"><b>${g}</b>${bar(h, cards.length)}<small>${h} / ${cards.length}${g === 'Джексон' ? '' : ` · клубов ${sets(g).length}`}</small></span>${claimBtn(id, h === cards.length, groupPrize(g))}</button>`;
-      }).join('')}</div><p class="rw-note">Собери всех игроков клуба — получишь пак. Собери всю лигу — пак «ДЖЕКСОН!!» и монеты.</p>`;
+      }).join('')}</div><p class="rw-note gl-foot">Собери всех игроков клуба — получишь пак. Собери всю лигу — пак «ДЖЕКСОН!!» и монеты.</p>`;
       return out;
     }
     const g = view.g, all_ = all().filter((c) => groupOf(c) === g), hg = have(all_);
@@ -266,7 +307,8 @@ const Cards = (() => {
   }
   function onClick(e) {
     const g = e.target.closest('[data-gl]'); if (g) { view = { g: g.dataset.gl, club: null }; Sound.play('tap'); jump = true; return true; }
-    const c = e.target.closest('[data-glc]'); if (c) { view = { ...view, club: c.dataset.glc }; Sound.play('tap'); jump = true; return true; }
+    if (e.target.closest('[data-glmine]')) { view = { g: '', club: null, q: '', mine: !view.mine }; Sound.play('tap'); return true; }
+    const c = e.target.closest('[data-glc]'); if (c) { view = { ...view, g: c.dataset.glg || view.g, club: c.dataset.glc, q: '', mine: false }; Sound.play('tap'); jump = true; return true; }
     if (e.target.closest('[data-glback]')) { view = view.club !== null ? { g: view.g, club: null } : { g: '', club: null }; if (view.g === 'Джексон') view = { g: '', club: null }; Sound.play('tap'); jump = true; return true; }
     const cl = e.target.closest('[data-claim]'); if (cl) { claim(cl.dataset.claim); return true; }
     const k = e.target.closest('.cl-cell [data-card]'); if (k) { details(k.dataset.card); return 'modal'; }
@@ -274,5 +316,14 @@ const Cards = (() => {
     return false;
   }
 
-  return { reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, PACKS, details, spare, use, owned, surname, freshN: () => S().fresh.length, RAR };
+  // поиск в галерее: меняем только результаты, поле ввода остаётся в фокусе
+  function onInput(e) {
+    if (!e.target || e.target.id !== 'gl-q') return;
+    view.q = e.target.value; view.mine = false;
+    const box = e.target.closest('.gl-tools') && e.target.closest('.gl-tools').nextElementSibling;
+    if (box) box.innerHTML = results();
+    const rest = $$('.gl-h, .gl-ready, .gl-almost, .gl-list, .rw-note.gl-foot');
+    rest.forEach((el) => { el.hidden = (view.q || '').trim().length >= 2; });
+  }
+  return { onInput, reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, PACKS, details, spare, use, owned, surname, freshN: () => S().fresh.length, RAR };
 })();
