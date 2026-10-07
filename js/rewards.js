@@ -258,7 +258,7 @@ const Rewards = (() => {
   function render() {
     const s = S(), p = passSync(), q = questSync(), c = claimable();
     const packs = s.pending ? `<button class="rw-packs" data-act="rw-packs"><span class="rw-pk big"></span><span><b>${s.pending} ${plural(s.pending, 'пак', 'пака', 'паков')} за победы</b><small>Внутри карточки футболистов</small></span><em>Открыть</em></button>` : '';
-    const tabs = `<nav class="rw-tabs">${[['cards', 'Галерея', c.sets || (Cards.freshN() ? 'NEW' : '')], ['pass', 'Пропуск', c.pass], ['quests', 'Задания', c.qs]].map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}</nav>`;
+    const tabs = `<nav class="rw-tabs">${[['cards', 'Галерея', c.sets || (Cards.freshN() ? 'NEW' : '')], ['pass', 'Пропуск', c.pass], ['quests', 'Задания', c.qs]].map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}<button data-act="sbc" class="rw-sbc">ИПК${typeof SBC !== 'undefined' && SBC.ready() ? '<i>1</i>' : ''}</button></nav>`;
     let body = '';
     if (tab === 'cards') body = `<div class="rw-coll">${Cards.album()}</div>`;
     else if (tab === 'pass') {

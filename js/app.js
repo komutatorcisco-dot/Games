@@ -181,6 +181,7 @@ const App = (() => {
       `<button class="tile-card" data-act="auction-bot" style="--c1:#ff5f6d;--c2:#7b2b8a"><span class="tile-ico" data-ico="auction"></span><b>Аукцион</b><small>Против бота или вдвоём</small></button>`,
       `<button class="tile-card" data-ng="duel" style="--c1:#ff8a5c;--c2:#c2348d"><span class="tile-ico" data-ico="ng-duel"></span><b>Футбольная дуэль</b><small>С другом онлайн или рядом</small></button>`,
       `<button class="tile-card" data-act="xdraft" style="--c1:#34c46a;--c2:#2f6fe4"><span class="tile-ico" data-ico="ng-draft"></span><b>Драфт</b><small>Собери состав и сыграй матч</small></button>`,
+      `<button class="tile-card" data-act="sbc" style="--c1:#5fe0d0;--c2:#5a46c8"><span class="tile-ico" data-ico="ng-draft"></span><b>ИПК</b><small>Сдай карточки — получи паки</small></button>`,
     ];
     $('#featured').innerHTML = extra.join('');
     src.forEach((el) => { const c = el.cloneNode(true); c.classList.remove('wide', 'duo'); $$('.limit-note', c).forEach((x) => x.remove()); $('#featured').appendChild(c); });
@@ -201,7 +202,7 @@ const App = (() => {
   }
 
   // ---------- Поле: каждая вышедшая игра — фишка, «Игрок дня» — вратарь ----------
-  const SHORT = { 'act:xdraft': 'Драфт', 'ng:wordle': 'Wordle', 'act:nation': 'Сборная', 'act:pick-duo': 'Этого или того', 'act:auction-bot': 'Аукцион', 'ng:duel': 'Дуэль',
+  const SHORT = { 'act:xdraft': 'Драфт', 'act:sbc': 'ИПК', 'ng:wordle': 'Wordle', 'act:nation': 'Сборная', 'act:pick-duo': 'Этого или того', 'act:auction-bot': 'Аукцион', 'ng:duel': 'Дуэль',
     'ng:trumps': 'Козыри', 'act:ttt': 'Тики-така', 'act:guess-career': 'Угадай игрока', 'act:career': 'Карьера', 'act:club': 'Клуб', 'act:transfer': 'Трансфер',
     'act:pick-solo': 'Легенды', 'act:fc': 'FC 27', 'act:value': 'Кто дороже', 'act:hl': 'Дороже?', 'act:pass-levels': 'Пас' };
   // сколько фишек в каждой линии — от защиты к атаке (как схема 4-3-3)
@@ -279,7 +280,7 @@ const App = (() => {
 
   // у каждой игры свой сочный цвет — одинаковый на главной, во вкладках и в заданиях дня
   const KOLORS = ['#c6f432', '#ff7a2f', '#ff5fa2', '#4fc3ff', '#ffd23f', '#a98bff', '#3ee6a8', '#ff4d4d'];
-  const FIXED = { 'act:xdraft': '#34c46a', 'ng:wordle': '#ffd23f', 'act:nation': '#3ee6a8', 'act:pick-duo': '#4fc3ff', 'act:auction-bot': '#ff7a2f', 'ng:duel': '#ff5fa2', 'ng:trumps': '#a98bff', 'act:ttt': '#4fc3ff', 'act:guess-career': '#c6f432' };
+  const FIXED = { 'act:xdraft': '#34c46a', 'act:sbc': '#5fe0d0', 'ng:wordle': '#ffd23f', 'act:nation': '#3ee6a8', 'act:pick-duo': '#4fc3ff', 'act:auction-bot': '#ff7a2f', 'ng:duel': '#ff5fa2', 'ng:trumps': '#a98bff', 'act:ttt': '#4fc3ff', 'act:guess-career': '#c6f432' };
   function kolor(k) {
     if (FIXED[k]) return FIXED[k];
     let h = 0; for (const ch of k) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -369,6 +370,7 @@ const App = (() => {
     rewards: () => Rewards.open(),
     collection: () => Rewards.open('cards'),
     xdraft: () => XDraft.open(),
+    sbc: () => SBC.open(),
     'rw-packs': () => Rewards.openPending(),
     'rw-buy': () => Rewards.buyPass(),
     // позвать друга: ссылка с твоим id — кто откроет игры по ней, попадёт к тебе в «Друзья» в таблице
@@ -449,7 +451,7 @@ const App = (() => {
     // каждый модуль подключаем отдельно: ошибка в одном не должна ломать весь экран
     [['Pass', () => Pass.bind()], ['Guess', () => Guess.bind()], ['Career', () => Career.bind()], ['Club', () => Club.bind()], ['Transfer', () => Transfer.bind()],
       ['TTT', () => TTT.bind()], ['Compare', () => Compare.bind()], ['Auction', () => Auction.bind()], ['Nation', () => Nation.bind()], ['Pick', () => Pick.bind()],
-      ['Daily', () => Daily.bind()], ['Shop', () => Shop.bind()], ['Board', () => Board.bind()], ['Rewards', () => Rewards.bind()], ['XDraft', () => { XDraft.bind(); XMatch.bind(); }],
+      ['Daily', () => Daily.bind()], ['Shop', () => Shop.bind()], ['Board', () => Board.bind()], ['Rewards', () => Rewards.bind()], ['XDraft', () => { XDraft.bind(); XMatch.bind(); }], ['SBC', () => SBC.bind()],
       ['Howto', () => Howto.addButtons()], ['Music', () => Music.arm()]].forEach(([n, f]) => safe(n, f));
     document.addEventListener('pointerdown', (e) => {
       Coins.last = { x: e.clientX, y: e.clientY };
@@ -504,7 +506,7 @@ const App = (() => {
     // Ссылка вида ...#pass открывает игру сразу
     let h = location.hash.replace('#', '');
     try { if (TG && TG.initDataUnsafe && TG.initDataUnsafe.start_param) h = TG.initDataUnsafe.start_param; } catch (e) { /* не в Telegram */ }
-    const deep = { board: 'board', top: 'board', puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop', xdraft: 'xdraft' };
+    const deep = { board: 'board', top: 'board', puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop', xdraft: 'xdraft', sbc: 'sbc' };
     safe('renderHub', renderHub);
     if (Duel.deep(h)) { /* вызов на дуэль или комната */ }
     else if (h !== 'puzzles' && (PANELS.includes(h) || CATS.includes(h))) { home(h); }

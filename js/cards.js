@@ -22,7 +22,7 @@ const Cards = (() => {
     if (ALL) return ALL;
     const cur = PLAYERS.filter((p) => FACES[p.name] && FC_STATS[p.name]).map((p) => {
       const r = FC_STATS[p.name][0];
-      return { key: p.name, name: p.name, r, pos: POS[p.pos] || p.pos, club: p.club, flag: p.flag, lg: p.lg, face: FACES[p.name], rar: r >= 78 ? 'gold' : r >= 73 ? 'silver' : 'bronze' };
+      return { key: p.name, name: p.name, r, pos: POS[p.pos] || p.pos, club: p.club, flag: p.flag, nat: p.nat, lg: p.lg, face: FACES[p.name], rar: r >= 78 ? 'gold' : r >= 73 ? 'silver' : 'bronze' };
     });
     const legs = CARD_LEGENDS.map(([name, r, club, pos]) => ({ key: name, name, r, pos, club, flag: '', lg: 'Легенды', face: FACES[name], rar: 'legend' }));
     // «Джексон»: особые версии лучших — 12 действующих и 6 легенд, рейтинг выше обычного
@@ -39,9 +39,13 @@ const Cards = (() => {
     if (!d.cards || typeof d.cards !== 'object') d.cards = {};
     if (!d.cards.own) d.cards.own = {};
     if (!Array.isArray(d.cards.fresh)) d.cards.fresh = [];
+    if (!d.cards.used || typeof d.cards.used !== 'object') d.cards.used = {};
     return d.cards;
   };
   const owned = (key) => S().own[key] || 0;
+  // own — сколько всего выпало (галерея помнит навсегда), used — сколько сдано в ИПК; свободные копии — разница
+  const spare = (key) => Math.max(0, owned(key) - (S().used[key] || 0));
+  function use(keys) { const u = S().used; keys.forEach((k) => { if (spare(k) > 0) u[k] = (u[k] || 0) + 1; }); Store.save(); }
   const count = () => Object.keys(S().own).filter((k) => BY && BY[k] || get(k)).length;
 
   // ---------- что выпадает ----------
@@ -201,7 +205,7 @@ const Cards = (() => {
     const fresh = S().fresh;
     out += `<div class="gl-top"><button class="gl-back" data-glback="1">← ${g === 'Джексон' ? 'Лиги' : g}</button><span class="gl-ttl">${cr ? `<img src="img/clubs/${cr}" alt="">` : GROUP_ICO[g]} ${esc(set.club || g)}</span></div>
       <div class="gl-sum"><span>${h} / ${set.cards.length}${bar(h, set.cards.length)}</span><span class="gl-for">Награда: ${prizeTxt(prize)}</span>${claimBtn(id, h === set.cards.length, prize)}</div>
-      <div class="cl-grid">${set.cards.map((c) => `<div class="cl-cell">${owned(c.key) ? html(c, { w: 102 }) + (owned(c.key) > 1 ? `<i class="cl-n">×${owned(c.key)}</i>` : '') + (fresh.includes(c.key) ? '<i class="cl-new">NEW</i>' : '') : html(c, { w: 102, locked: true })}</div>`).join('')}</div>`;
+      <div class="cl-grid">${set.cards.map((c) => `<div class="cl-cell">${owned(c.key) ? html(c, { w: 102 }) + (spare(c.key) > 1 ? `<i class="cl-n">×${spare(c.key)}</i>` : !spare(c.key) ? '<i class="cl-n out">сдан</i>' : '') + (fresh.includes(c.key) ? '<i class="cl-new">NEW</i>' : '') : html(c, { w: 102, locked: true })}</div>`).join('')}</div>`;
     return out;
   }
   function claim(id) {
@@ -232,7 +236,7 @@ const Cards = (() => {
     const stats = st ? `<div class="cd-st">${names.map((n, i) => `<span><b>${st[i + 1]}</b>${n}</span>`).join('')}</div>` : '';
     const s = S(); s.fresh = s.fresh.filter((k) => k !== key); Store.save();
     Modal.open(`<div class="cd">${html(c, { w: 220 })}<h2>${esc(c.name)}</h2><p class="cd-m">${esc(c.club)}${c.rar === 'legend' || c.rar === 'jack' ? '' : ` · ${esc(c.lg || '')}`}</p>${stats}
-      <p class="cd-own">В коллекции: ×${owned(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
+      <p class="cd-own">В клубе: ×${spare(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
   }
   // купить недостающую карточку: как трансферный рынок
   const price = (c) => (c.rar === 'jack' ? 0 : c.rar === 'legend' ? 600 : c.rar === 'gold' ? 150 + Math.max(0, c.r - 78) * 30 : c.rar === 'silver' ? 80 : 40);
@@ -257,5 +261,5 @@ const Cards = (() => {
     return false;
   }
 
-  return { reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, freshN: () => S().fresh.length, RAR };
+  return { reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, spare, use, owned, surname, freshN: () => S().fresh.length, RAR };
 })();
