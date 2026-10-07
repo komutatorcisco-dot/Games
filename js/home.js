@@ -58,7 +58,7 @@ const Home = (() => {
         <span class="h2-ni" title="${nx ? esc(nx.title) : ''}">${nxIco}${nx ? `<em>${Ui.get('lock')}</em>` : ''}</span>
       </button>
       <div class="h2-arena">
-        <img class="h2-bg" src="img/bg/stadium.svg?v=1" alt="" aria-hidden="true">
+        <img class="h2-bg" src="img/bg/stadium.svg?v=2" alt="" aria-hidden="true">
         <div class="h2-side l">
           <button class="h2-sb ${dlyDone ? 'done' : 'hot'}" data-act="dly"><span class="h2-sbi dly"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>
         </div>
@@ -67,7 +67,7 @@ const Home = (() => {
           ${cards && pend ? `<button class="h2-sb hot cnt" data-act="rw-packs"><span class="h2-sbi">${PackOpen.art(0, 'rs')}<em>${pend}</em></span><b>За победы</b></button>` : ''}
         </div>
         ${g ? `<button class="h2-game" data-h2="pick" style="--c1:${g.c1};--c2:${g.c2}" aria-label="Сменить игру">
-          <span class="h2-stage"><span class="h2-pitch"><i></i></span><span class="h2-shadow"></span><span class="h2-hex"><span class="h2-hex-in">${icon(g)}</span></span></span>
+          <span class="h2-stage"><span class="h2-pitch"><i></i><b class="h2-goal l"></b><b class="h2-goal r"></b><u class="h2-flag a"></u><u class="h2-flag b"></u><u class="h2-flag c"></u><u class="h2-flag d"></u></span><span class="h2-ped"></span><span class="h2-shadow"></span><span class="h2-hex"><span class="h2-hex-in">${icon(g)}</span></span></span>
           <span class="h2-ban"><b>${esc(g.title)}</b></span></button>` : ''}
       </div>
       ${g ? `<div class="h2-cta"><button class="h2-play" ${attrs(g.data)}><span>ИГРАТЬ</span></button>
