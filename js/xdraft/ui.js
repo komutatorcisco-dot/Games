@@ -71,37 +71,40 @@ const XDraft = (() => {
   // ---------- экран выбора из пяти ----------
   function openPick(what, i) {
     const a = A();
-    let list, title, zone = what;
-    if (what === 'capt') { list = a.capt.map(P).filter(Boolean); title = 'Выбери капитана'; }
-    else { list = offerFor(what, i); title = what === 'xi' ? `${XD.RU[XD.FORMATIONS[a.form].slots[i].pos]} · выбери игрока` : `Скамейка · место ${i + 1}`; }
-    pick = { zone, i, list, chosen: null };
+    let list, pos = null;
+    if (what === 'capt') list = a.capt.map(P).filter(Boolean);
+    else { list = offerFor(what, i); pos = what === 'xi' ? XD.FORMATIONS[a.form].slots[i].pos : null; }
+    pick = { zone: what, i, list, chosen: null };
     const el = document.createElement('div');
     el.className = 'xp'; el.id = 'xd-pick';
-    const max = XD.chem(a.sys, a.form, []).max;
-    el.innerHTML = `<div class="xp-top"><b>${title}</b><button class="xp-x" aria-label="Закрыть">✕</button></div>
-      ${list.length < XD.CFG.offerSize ? `<p class="xp-note">Подходящих игроков в базе меньше пяти — показываем всех, кто есть (${list.length}).</p>` : ''}
-      <div class="xp-grid">${list.map((p, k) => {
-        const pv = what === 'capt' ? null : preview(zone, i, p);
-        const part = filled(a) + (what === 'capt' ? 0 : 1) < 11 + XD.BENCH;
-        return `<button class="xp-c" data-k="${k}">${cardBig(p, what === 'xi' ? XD.FORMATIONS[a.form].slots[i].pos : null)}
-          <span class="xp-meta"><span>${p.flag} ${esc(p.nat)}</span><span>${esc(p.lg)}</span><span>${esc(p.club)}</span><span class="xp-pos">${p.pos.map((q) => XD.RU[q]).join(' · ')}</span></span>
-          ${pv ? `<span class="xp-pv"><span>Рейтинг ${pv.before.r} → <b>${pv.after.r}</b></span><span>Химия ${pv.before.c} → <b>${pv.after.c}</b>/${max}${part ? ' <i>предв.</i>' : ''}</span></span>` : ''}</button>`;
-      }).join('')}</div>
-      <div class="xp-foot"><button class="btn gold xp-ok" disabled>Выбери игрока</button></div>`;
+    const title = what === 'capt' ? 'Капитан' : pos ? XD.RU[pos] : 'Запасной';
+    el.innerHTML = `<div class="xp-top"><span class="xp-pos">${title}</span><b>${what === 'capt' ? 'Выбери капитана' : 'Выбери игрока'}</b><button class="xp-x" aria-label="Закрыть">✕</button></div>
+      <div class="xp-grid n${list.length}">${list.map((p, k) => `<button class="xp-c" data-k="${k}">${cardBig(p)}${what === 'xi' ? chemDelta(i, p) : ''}</button>`).join('')}</div>
+      <div class="xp-foot"><div class="xp-sum"></div><button class="btn gold xp-ok" disabled>Выбери карточку</button></div>`;
     document.body.appendChild(el);
     requestAnimationFrame(() => el.classList.add('in'));
     el.addEventListener('click', (e) => {
       if (e.target.closest('.xp-x')) return closePick();
       const c = e.target.closest('.xp-c');
-      if (c) { pick.chosen = +c.dataset.k; $$('.xp-c', el).forEach((b) => b.classList.toggle('on', b === c)); const ok = $('.xp-ok', el); ok.disabled = false; ok.textContent = `Взять: ${surname(list[pick.chosen].name)}`; Sound.play('tap'); return; }
+      if (c) {
+        if (pick.chosen === +c.dataset.k) return confirmPick(); // второе нажатие — взять
+        pick.chosen = +c.dataset.k; $$('.xp-c', el).forEach((b) => b.classList.toggle('on', b === c));
+        const ok = $('.xp-ok', el); ok.disabled = false; ok.textContent = `Взять ${surname(list[pick.chosen].name)}`;
+        if (what !== 'capt') { const pv = preview(what, i, list[pick.chosen]); $('.xp-sum', el).innerHTML = `<span>Рейтинг <b>${pv.before.r || '—'} → ${pv.after.r}</b></span><span>Химия <b>${pv.before.c} → ${pv.after.c}</b></span>`; }
+        Sound.play('tap'); return;
+      }
       if (e.target.closest('.xp-ok') && pick.chosen !== null) confirmPick();
     });
-    Photos.hydrate(el);
+  }
+  // маленький значок под карточкой: на сколько вырастет химия команды
+  function chemDelta(i, p) {
+    const pv = preview('xi', i, p), d = pv.after.c - pv.before.c;
+    return `<span class="xp-d ${d > 0 ? 'up' : ''}">${d > 0 ? '+' + d : d} хим</span>`;
   }
   function closePick() { const el = $('#xd-pick'); if (el) { el.classList.add('out'); setTimeout(() => el.remove(), 200); } pick = null; }
   function confirmPick() {
     const a = A(), p = pick.list[pick.chosen]; if (!p) return;
-    if (pick.zone === 'capt') { a.captPick = p.name; save(); closePick(); render(); toast('Поставь капитана на подходящую позицию'); return; }
+    if (pick.zone === 'capt') { a.captPick = p.name; save(); closePick(); render(); return; }
     const arr = pick.zone === 'xi' ? a.xi : a.bench;
     if (arr[pick.i]) return closePick(); // уже выбран — подборку не переигрываем
     arr[pick.i] = p.name; save(); Sound.play('token'); haptic('pop'); closePick(); render();
@@ -140,12 +143,12 @@ const XDraft = (() => {
   function faceImg(p) { return p.face ? `<img class="xc-f" src="${(FreshFaces.on() ? FreshFaces.url(p.face, 120) : faceSrc(p.face))}" alt="">` : '<span class="xc-sil"></span>'; }
   function cardBig(p, slotPos) {
     const c = { key: p.name, name: p.name, r: p.r, pos: XD.RU[p.pos[0]], club: p.club, flag: p.flag, face: p.face, rar: rarOf(p.r) };
-    return typeof Cards !== 'undefined' && p.face ? Cards.html(c, { w: 132 }) : `<div class="xc big ${c.rar}"><b class="xc-r">${p.r}</b><small>${c.pos}</small>${faceImg(p)}<span class="xc-n">${esc(surname(p.name))}</span></div>`;
+    return typeof Cards !== 'undefined' ? Cards.html(c, { w: 132 }) : `<div class="xc big ${c.rar}"><b class="xc-r">${p.r}</b><small>${c.pos}</small>${faceImg(p)}<span class="xc-n">${esc(surname(p.name))}</span></div>`;
   }
   function mini(p, opts) {
-    const { slotPos, ch, chMax, sys, cls = '', idx, zone } = opts;
-    if (!p) return `<button class="xc empty ${cls}" data-z="${zone}" data-i="${idx}"><span class="xc-plus">+</span><small>${slotPos ? XD.RU[slotPos] : 'запас'}</small></button>`;
-    const [k1, k2] = colOf(p.club);
+    const { slotPos, ch, sys, cls = '', idx, zone } = opts;
+    if (!p) return `<button class="xc empty ${cls}" data-z="${zone}" data-i="${idx}"><span class="xc-plus">+</span><small>${slotPos ? XD.RU[slotPos] : ''}</small></button>`;
+    const [k1, k2] = colOf(p.club), cr = CRESTS[p.club];
     const off = slotPos && (sys === 'new' ? !p.pos.includes(slotPos) : p.pos[0] !== slotPos);
     let chem = '';
     if (ch && zone === 'xi') {
@@ -154,8 +157,8 @@ const XDraft = (() => {
         : `<span class="xc-ch cl c${ch.chem >= 7 ? 'g' : ch.chem >= 4 ? 'y' : 'r'}" data-chem="${idx}">${ch.chem}</span>`;
     }
     return `<button class="xc ${rarOf(p.r)} ${cls} ${off ? 'off' : ''}" data-z="${zone}" data-i="${idx}" style="--k1:${k1};--k2:${k2}">
-      <span class="xc-top"><b>${p.r}</b><small>${XD.RU[slotPos || p.pos[0]]}</small></span>${faceImg(p)}<span class="xc-n">${esc(surname(p.name))}</span>
-      ${zone === 'xi' && A().captSlot === idx ? '<i class="xc-c">C</i>' : ''}</button>${chem}`;
+      <span class="xc-r"><b>${p.r}</b><small>${XD.RU[slotPos || p.pos[0]]}</small></span>${cr ? `<img class="xc-cr" src="img/clubs/${cr}" alt="">` : ''}${faceImg(p)}
+      <span class="xc-n">${esc(surname(p.name))}</span>${zone === 'xi' && A().captSlot === idx ? '<i class="xc-c">C</i>' : ''}${chem}</button>`;
   }
 
   // ---------- экраны ----------
@@ -164,13 +167,13 @@ const XDraft = (() => {
     const best = S().best;
     $('#xd-sub').textContent = a && a.sys ? `${a.form || ''} · ${SYS[a.sys]}` : 'Собери состав из пятёрок';
     if (!a || a.stage === 'sys') {
-      box.innerHTML = `<p class="xd-lead">Выбери систему химии. Она не меняется до конца драфта.</p>
-        <button class="xd-opt" data-sys="classic"><b>Классическая</b><span>Как в FIFA 19: связи с соседями по схеме (красные, жёлтые, зелёные) и своя позиция. Химия игрока 0–10, команды — до 100.</span>${best.classic ? `<em>Рекорд: рейтинг ${best.classic.r} · химия ${best.classic.c}/100</em>` : ''}</button>
-        <button class="xd-opt" data-sys="new"><b>Новая</b><span>Как в FIFA 23: соседство не важно — считаются клубы, лиги и сборные всего состава. До 3 у игрока, команды — до 33.</span>${best.new ? `<em>Рекорд: рейтинг ${best.new.r} · химия ${best.new.c}/33</em>` : ''}</button>`;
+      box.innerHTML = `<p class="xd-lead">Система химии</p>
+        <button class="xd-opt" data-sys="classic"><b>Классическая</b><span>FIFA 19 · связи с соседями · до 100</span>${best.classic ? `<em>Рекорд: рейтинг ${best.classic.r} · химия ${best.classic.c}/100</em>` : ''}</button>
+        <button class="xd-opt" data-sys="new"><b>Новая</b><span>FIFA 23 · клубы, лиги, сборные · до 33</span>${best.new ? `<em>Рекорд: рейтинг ${best.new.r} · химия ${best.new.c}/33</em>` : ''}</button>`;
       return;
     }
     if (a.stage === 'form') {
-      box.innerHTML = `<p class="xd-lead">Выбери схему — одну из пяти.</p><div class="xd-forms">${a.forms.map((f) => `<button class="xd-form" data-form="${f}"><span class="xd-mini">${XD.FORMATIONS[f].slots.map((s) => `<i style="left:${s.x}%;top:${s.y}%"></i>`).join('')}</span><b>${f}</b></button>`).join('')}</div>`;
+      box.innerHTML = `<p class="xd-lead">Схема</p><div class="xd-forms">${a.forms.map((f) => `<button class="xd-form" data-form="${f}"><span class="xd-mini">${XD.FORMATIONS[f].slots.map((s) => `<i style="left:${s.x}%;top:${s.y}%"></i>`).join('')}</span><b>${f}</b></button>`).join('')}</div>`;
       return;
     }
     if (a.stage === 'done') return renderResult();
@@ -181,10 +184,10 @@ const XDraft = (() => {
       return `<line x1="${s1.x}" y1="${s1.y}" x2="${s2.x}" y2="${s2.y}" class="ln ${l.color}"/>`;
     }).join('')}</svg>` : '';
     const capt = a.stage === 'capt' && a.captPick ? P(a.captPick) : null;
-    box.innerHTML = `<div class="xd-bar"><span><small>Схема</small><b>${a.form}</b></span><span><small>Рейтинг${a.xi.filter(Boolean).length < 11 ? ' · предв.' : ''}</small><b>${rating || '—'}</b></span>
-        <button class="xd-chem" data-act2="chem"><small>Химия${done < all ? ' · предв.' : ''}</small><b>${c.total}<i>/${c.max}</i></b></button></div>
-      ${a.stage === 'capt' ? `<p class="xd-tip">${capt ? `Нажми на подсвеченную позицию для капитана: <b>${esc(capt.name)}</b>` : 'Выбери капитана из пяти'}</p>` : sel ? '<p class="xd-tip">Выбери, с кем поменять (или нажми ещё раз, чтобы отменить)</p>' : ''}
-      <div class="xd-pitch ${a.sys}">${lines}${F_.slots.map((s, i) => {
+    const part = a.xi.filter(Boolean).length < 11;
+    box.innerHTML = `<div class="xd-bar"><span class="xd-f">${a.form}</span><span class="xd-st"><small>Рейтинг</small><b>${rating || '—'}</b>${part ? '<i>предв.</i>' : ''}</span>
+        <button class="xd-st xd-chem" data-act2="chem"><small>Химия</small><b>${c.total}<em>/${c.max}</em></b>${part ? '<i>предв.</i>' : ''}<span class="xd-cbar"><i style="width:${(c.total / c.max) * 100}%"></i></span></button></div>
+      <div class="xd-pitch ${a.sys} ${sel ? 'swapping' : ''} ${capt ? 'placing' : ''}"><span class="xd-mk"><i class="pa t"></i><i class="pa b"></i><i class="ga t"></i><i class="ga b"></i></span>${lines}${F_.slots.map((s, i) => {
         const glow = capt && (a.sys === 'new' ? capt.pos.includes(s.pos) : capt.pos[0] === s.pos) && !a.xi[i];
         return `<div class="xd-slot ${sel && sel.zone === 'xi' && sel.i === i ? 'sel' : ''} ${glow ? 'glow' : ''}" style="left:${s.x}%;top:${s.y}%">${mini(xi[i], { slotPos: s.pos, ch: c.per[i], sys: a.sys, idx: i, zone: 'xi' })}</div>`;
       }).join('')}</div>
@@ -200,11 +203,11 @@ const XDraft = (() => {
     const a = A(), xi = xiOf(a), p = xi[i]; if (!p) return;
     if (a.sys === 'classic') {
       const x = XD.ChemClassic.explain(a.form, xi, i);
-      Modal.open(`<h3 class="xd-h">${esc(p.name)}<b>химия ${x.chem}/10</b></h3><p class="xd-ex">Позиция: <b>${x.fit}</b>. Средняя сила связей: <b>${x.li.toFixed(2)}</b> (зелёная +2, жёлтая +1, красная −1).</p>
+      Modal.open(`<h3 class="xd-h">${esc(p.name)}<b>химия ${x.chem}/10</b></h3><p class="xd-ex">${x.fit} · ${x.base} + лояльность 1</p>
         <div class="xd-exl">${x.lines.map((l) => `<span class="${l.color}"><i></i>${esc(l.who)} — ${l.why}</span>`).join('')}</div><p class="xd-ex">${x.next}</p>`, [{ label: 'Понятно', cls: 'ghost' }]);
     } else {
       const x = XD.ChemNew.explain(a.form, xi, i);
-      Modal.open(`<h3 class="xd-h">${esc(p.name)}<b>химия ${x.chem}/3</b></h3>${x.off ? '' : `<div class="xd-exn">${x.rows.map((r) => `<span><b>${r.name}: ${esc(r.value)}</b><small>${r.n} в составе · пороги ${r.th.join(' / ')} · даёт +${r.got}</small></span>`).join('')}</div>`}<p class="xd-ex">${x.next}</p>`, [{ label: 'Понятно', cls: 'ghost' }]);
+      Modal.open(`<h3 class="xd-h">${esc(p.name)}<b>химия ${x.chem}/3</b></h3>${x.off ? '' : `<div class="xd-exn">${x.rows.map((r) => `<span><b>${r.name}: ${esc(r.value)}</b><small>${r.n} в составе · +${r.got}</small></span>`).join('')}</div>`}<p class="xd-ex">${x.next}</p>`, [{ label: 'Понятно', cls: 'ghost' }]);
     }
   }
   // панель: для новой — прогресс по клубам, лигам, сборным; для классики — подсказка по цветам
@@ -212,12 +215,12 @@ const XDraft = (() => {
     const a = A(), xi = xiOf(a);
     if (a.sys === 'classic') {
       const c = XD.chem('classic', a.form, xi), n = { green: 0, orange: 0, red: 0 }; c.links.forEach((l) => { if (n[l.color] !== undefined) n[l.color]++; });
-      Modal.open(`<h3 class="xd-h">Классическая химия<b>${c.total}/100</b></h3><p class="xd-ex">Связи по схеме ${a.form}: зелёных ${n.green}, жёлтых ${n.orange}, красных ${n.red}. Зелёная — два и больше общего (клуб, лига, сборная), жёлтая — одно, красная — ничего. Химия игрока зависит от своей позиции и средней силы его связей. Нажми на число под карточкой, чтобы увидеть подробности.</p>`, [{ label: 'Понятно', cls: 'ghost' }]);
+      Modal.open(`<h3 class="xd-h">Классическая химия<b>${c.total}/100</b></h3><div class="xd-lk"><span class="green"><i></i>${n.green}</span><span class="orange"><i></i>${n.orange}</span><span class="red"><i></i>${n.red}</span></div>`, [{ label: 'Понятно', cls: 'ghost' }]);
       return;
     }
     const r = XD.ChemNew.calc(a.form, xi), TH = XD.ChemNew.TH, NAMES = { club: 'Клубы', lg: 'Лиги', nat: 'Сборные' };
-    const block = (k) => { const e = Object.entries(r.counts[k]).sort((x, y) => y[1] - x[1]).slice(0, 6); return `<h3 class="section-label">${NAMES[k]} · пороги ${TH[k].join('/')}</h3>${e.map(([v, n]) => { const nx = TH[k].find((t) => n < t); return `<div class="xd-pr"><span>${esc(v)}</span><span class="xd-prb"><i style="width:${Math.min(100, (n / TH[k][2]) * 100)}%"></i>${TH[k].map((t) => `<em style="left:${(t / TH[k][2]) * 100}%"></em>`).join('')}</span><b>${n}${nx ? ` <small>до +1: ${nx - n}</small>` : ' ✓'}</b></div>`; }).join('') || '<p class="xd-ex">пока никого</p>'}`; };
-    Modal.open(`<h3 class="xd-h">Новая химия<b>${r.total}/33</b></h3><p class="xd-ex">Считаются только игроки основы на своих позициях.</p>${block('club')}${block('lg')}${block('nat')}`, [{ label: 'Понятно', cls: 'ghost' }]);
+    const block = (k) => { const e = Object.entries(r.counts[k]).sort((x, y) => y[1] - x[1]).slice(0, 6); return `<h3 class="section-label">${NAMES[k]}</h3>${e.map(([v, n]) => { const nx = TH[k].find((t) => n < t); return `<div class="xd-pr"><span>${esc(v)}</span><span class="xd-prb"><i style="width:${Math.min(100, (n / TH[k][2]) * 100)}%"></i>${TH[k].map((t) => `<em style="left:${(t / TH[k][2]) * 100}%"></em>`).join('')}</span><b>${n}</b></div>`; }).join('') || '<p class="xd-ex">пока никого</p>'}`; };
+    Modal.open(`<h3 class="xd-h">Новая химия<b>${r.total}/33</b></h3>${block('club')}${block('lg')}${block('nat')}`, [{ label: 'Понятно', cls: 'ghost' }]);
   }
 
   // ---------- итог ----------
@@ -238,7 +241,7 @@ const XDraft = (() => {
       <div class="xd-pitch sm ${a.sys}">${F_.slots.map((s, i) => `<div class="xd-slot" style="left:${s.x}%;top:${s.y}%">${mini(xi[i], { slotPos: s.pos, ch: c.per[i], sys: a.sys, idx: i, zone: 'xi' })}</div>`).join('')}</div>
       <div class="xd-bench"><div class="xd-bh"><b>Скамейка</b></div><div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
       <div class="xd-act col"><button class="btn gold" data-act2="bot">Играть против бота</button><button class="btn ghost" data-act2="share">Поделиться составом</button><button class="btn ghost" data-act2="reset">Новый драфт</button></div>
-      <p class="rw-note">Рейтинг команды — формула рейтинга состава FUT: сумма рейтингов 11 основных плюс превышение над средним у тех, кто выше среднего, делённая на 11, с округлением вниз. Скамейка не учитывается.</p></div>`;
+</div>`;
     Photos.hydrate($('#xd-body'));
   }
   function share() {

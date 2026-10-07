@@ -3101,3 +3101,108 @@ html, body { touch-action: manipulation; }
 .xd-act .btn { font-size: 14px; padding-left: 8px; padding-right: 8px; white-space: nowrap; }
 .xd-bar b { white-space: nowrap; font-size: clamp(15px, 5vw, 20px); }
 @media (max-width: 360px) { .xd-act { grid-template-columns: 1fr; } }
+
+/* ===== Драфт v2: поле, карточки, выбор ===== */
+.xd-lead { font: 900 20px "Rubik", sans-serif; color: #fff; margin: 8px 2px 12px; }
+.xd-opt { padding: 18px; gap: 4px; }
+.xd-opt span { font: 700 13px Inter, sans-serif; color: rgba(255,255,255,.7); }
+.xd-bar { display: grid; grid-template-columns: auto 1fr 1.3fr; gap: 6px; align-items: stretch; margin-bottom: 10px; padding: 6px; border-radius: 18px; background: rgba(12,8,34,.55); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); }
+.xd-bar > * { box-shadow: none !important; background: none !important; padding: 4px 10px !important; }
+.xd-f { display: grid; place-items: center; padding: 0 12px !important; border-radius: 12px; background: rgba(255,255,255,.08) !important; font: 900 16px "Rubik", sans-serif; white-space: nowrap; }
+.xd-st { position: relative; display: grid !important; gap: 0 !important; align-content: center; border: 0; color: #fff; text-align: left; }
+.xd-st small { font: 800 11px "Rubik", sans-serif !important; color: rgba(255,255,255,.6) !important; text-transform: uppercase; letter-spacing: .04em; }
+.xd-st b { font: 900 26px/1 "Rubik", sans-serif !important; }
+.xd-st b em { font-style: normal; font-size: 14px; color: rgba(255,255,255,.55); }
+.xd-st > i { position: absolute; right: 8px; top: 6px; font: 700 10px Inter, sans-serif; font-style: normal; color: rgba(255,255,255,.5); }
+.xd-chem b { color: var(--gold) !important; }
+.xd-cbar { display: block; height: 4px; margin-top: 5px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; }
+.xd-cbar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #ffcf3a, #3ee66b); transition: width .4s; }
+/* поле с разметкой */
+.xd-pitch { aspect-ratio: .7; border-radius: 18px; box-shadow: inset 0 0 0 2px rgba(255,255,255,.5);
+  background: repeating-linear-gradient(180deg, rgba(255,255,255,.025) 0 10%, transparent 10% 20%), radial-gradient(90% 50% at 50% 0%, rgba(140,110,255,.22), transparent 70%), linear-gradient(180deg, #221763, #120c3a) !important; }
+.xd-pitch::before, .xd-pitch::after { border-color: rgba(255,255,255,.28) !important; }
+.xd-mk { position: absolute; inset: 0; pointer-events: none; }
+.xd-mk i { position: absolute; left: 50%; transform: translateX(-50%); border: 2px solid rgba(255,255,255,.28); }
+.xd-mk .pa { width: 56%; height: 15%; } .xd-mk .ga { width: 26%; height: 6%; }
+.xd-mk .t { top: -2px; border-top: 0; border-radius: 0 0 6px 6px; } .xd-mk .b { bottom: -2px; border-bottom: 0; border-radius: 6px 6px 0 0; }
+/* карточка на поле */
+#xdraft { --cw: clamp(46px, 14.6vw, 64px); }
+.xc { aspect-ratio: .72 !important; border-radius: 10px !important; overflow: visible !important; box-shadow: 0 6px 14px rgba(0,0,0,.4), inset 0 0 0 2px var(--rc) !important; grid-template-rows: 1fr auto !important; }
+.xc::before { content: ""; position: absolute; inset: 0; border-radius: 10px; background: repeating-linear-gradient(-45deg, rgba(255,255,255,.06) 0 5px, transparent 5px 10px); pointer-events: none; }
+.xc-r { position: absolute; left: 4px; top: 3px; z-index: 2; display: grid; justify-items: center; line-height: 1; text-shadow: 0 1px 0 rgba(0,0,0,.45); }
+.xc-r b { font: 900 calc(var(--cw) * .3) "Rubik", sans-serif; }
+.xc-r small { font: 700 calc(var(--cw) * .15) "Oswald", sans-serif; letter-spacing: .04em; }
+.xc.off .xc-r small { color: #ff8a9a; }
+.xc-cr { position: absolute; right: 3px; top: 3px; z-index: 2; width: calc(var(--cw) * .26); height: calc(var(--cw) * .26); padding: 1px; border-radius: 50%; background: #fff; object-fit: contain; }
+.xc-f { bottom: calc(var(--cw) * .3) !important; width: 80% !important; z-index: 1; border-radius: 0 0 4px 4px; }
+.xc-n { grid-row: 2 !important; border-radius: 0 0 9px 9px; font-size: calc(var(--cw) * .17) !important; padding: 3px 2px !important; text-align: center; }
+.xc-top { display: none; }
+.xc-c { top: auto !important; bottom: calc(var(--cw) * .34) !important; right: -5px !important; width: 18px !important; height: 18px !important; box-shadow: 0 0 0 2px #120c38; }
+/* химия: на краю карточки */
+.xc-ch { position: absolute; left: 50%; bottom: -12px; transform: translateX(-50%); z-index: 3; margin: 0 !important; }
+.xc-ch.cl { min-width: 22px; height: 22px; display: grid; place-items: center; padding: 0 5px; border-radius: 99px; background: #120c38 !important; box-shadow: 0 0 0 2px currentColor; font: 900 12px "Rubik", sans-serif; }
+.xc-ch.new { padding: 4px 6px; box-shadow: 0 0 0 1.5px rgba(255,255,255,.25); }
+.xd-slot { padding-bottom: 6px; }
+.xc.empty { box-shadow: inset 0 0 0 2px rgba(255,255,255,.3) !important; background: rgba(255,255,255,.05) !important; grid-template-rows: auto !important; }
+.xc.empty::before { display: none; }
+.xc.empty small { font-size: calc(var(--cw) * .2) !important; }
+.xd-pitch.swapping .xd-slot:not(.sel) .xc:not(.empty) { animation: xdWiggle 1.2s ease-in-out infinite; }
+@keyframes xdWiggle { 50% { box-shadow: 0 6px 14px rgba(0,0,0,.4), inset 0 0 0 2px var(--rc), 0 0 0 3px rgba(255,255,255,.35) !important; } }
+.xd-slot.sel .xc { transform: translateY(-4px) scale(1.08); box-shadow: 0 0 0 3px var(--gold), 0 10px 22px rgba(255,207,58,.45) !important; }
+.xd-pitch.placing .xd-slot:not(.glow) { opacity: .45; }
+.xd-brow { gap: 8px; padding: 6px 2px 14px; }
+.xd-bh small { color: rgba(255,255,255,.6) !important; }
+.xd-links .ln { stroke-width: 3.5; }
+/* экран выбора из пяти */
+.xp { grid-template-rows: auto 1fr auto !important; background: radial-gradient(80% 40% at 50% 0%, rgba(150,120,255,.35), transparent 70%), linear-gradient(180deg, #1b1250, #0b0824) !important; }
+.xp-top { gap: 10px; justify-content: flex-start !important; }
+.xp-top b { flex: 1; font: 900 20px "Rubik", sans-serif; }
+.xp-pos { padding: 6px 10px; border-radius: 10px; background: var(--gold); color: #1c1400; font: 900 15px "Rubik", sans-serif; }
+.xp-grid { display: flex !important; flex-wrap: wrap; justify-content: center; align-content: center; gap: 14px 10px !important; overflow-y: auto; }
+.xp-c { --cardw: min(126px, calc((100vw - 60px) / 3)); padding: 0 !important; background: none !important; box-shadow: none !important; gap: 8px !important; transition: transform .15s; }
+.xp-c .cc { --w: var(--cardw) !important; }
+.xp-c.on { transform: translateY(-6px); }
+.xp-c.on .cc { box-shadow: 0 0 0 3px var(--gold), 0 14px 30px rgba(255,207,58,.35) !important; }
+.xp-grid:has(.xp-c.on) .xp-c:not(.on) { opacity: .55; }
+.xp-d { padding: 3px 9px; border-radius: 99px; background: rgba(255,255,255,.08); font: 800 12px "Rubik", sans-serif; color: rgba(255,255,255,.6); }
+.xp-d.up { background: rgba(62,230,107,.16); color: #5dff8a; }
+.xp-foot { display: grid; gap: 8px; }
+.xp-sum { display: flex; justify-content: center; gap: 16px; min-height: 20px; font: 700 14px Inter, sans-serif; color: rgba(255,255,255,.7); }
+.xp-sum b { color: #fff; }
+.xp-meta, .xp-pv, .xp-note { display: none !important; }
+
+/* ===== матч v2 ===== */
+.xm { position: relative; gap: 10px !important; }
+.xm-board { grid-template-columns: 1fr auto 1fr !important; padding: 14px 12px !important; background: linear-gradient(180deg, rgba(30,20,80,.9), rgba(12,8,34,.9)) !important; }
+.xm-t { display: grid !important; justify-items: start; gap: 6px; } .xm-t.r { justify-items: end; }
+.xm-b { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; font: 900 15px "Rubik", sans-serif; font-style: normal; }
+.xm-b.us { background: linear-gradient(135deg, #ffcf3a, #ff9a3a); color: #1c1400; } .xm-b.them { background: linear-gradient(135deg, #ff5a6e, #8a1f3a); color: #fff; }
+.xm-t b { font: 900 13px "Rubik", sans-serif !important; max-width: 100%; }
+.xm-sc b { font-size: 44px !important; }
+.xm-sc small { justify-self: center; margin-top: 4px; padding: 2px 10px; border-radius: 99px; background: rgba(255,207,58,.16); }
+.xm-field { position: relative; height: 92px; border-radius: 14px; overflow: hidden; box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,.03) 0 10%, transparent 10% 20%), linear-gradient(180deg, #221763, #150e44); }
+.xm-half { position: absolute; left: 50%; top: 0; bottom: 0; border-left: 2px solid rgba(255,255,255,.28); }
+.xm-half::after { content: ""; position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; transform: translate(-50%, -50%); margin-left: -1px; border: 2px solid rgba(255,255,255,.28); border-radius: 50%; }
+.xm-goal { position: absolute; top: 28%; bottom: 28%; width: 14%; border: 2px solid rgba(255,255,255,.28); }
+.xm-goal.l { left: -2px; border-left: 0; } .xm-goal.r { right: -2px; border-right: 0; }
+.xm-ball { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #cfd6e0); box-shadow: 0 0 12px rgba(255,255,255,.7); transition: left 1.2s cubic-bezier(.4,0,.2,1); }
+.xm-flag { position: absolute; top: 6px; padding: 2px 8px; border-radius: 99px; font: 800 10px "Rubik", sans-serif; }
+.xm-flag.us { left: 6px; background: rgba(255,207,58,.2); color: #ffe7a0; } .xm-flag.them { right: 6px; background: rgba(255,90,110,.2); color: #ffb3bd; }
+.xm-prog { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--gold); transition: width .5s; }
+.xm-tac { padding: 10px !important; box-shadow: inset 0 0 0 1.5px rgba(255,207,58,.45) !important; }
+.xm-zones { gap: 5px !important; }
+.xm-zones button { height: 62px !important; display: grid !important; place-items: center; align-content: center; gap: 6px; color: rgba(255,255,255,.7); }
+.xm-zones button span { font: 800 10px "Rubik", sans-serif; }
+.xm-zones button.on { color: #fff; }
+.xm-axis { display: flex; justify-content: space-between; margin: 8px 2px 0; font: 800 10px "Rubik", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.45); }
+.xm-feed { gap: 5px !important; }
+.xm-ev { grid-template-columns: 34px 24px 1fr !important; }
+.xm-goalfx { position: absolute; left: 0; right: 0; top: 18%; z-index: 5; text-align: center; font: 900 72px "Rubik", sans-serif; color: var(--gold); text-shadow: 0 6px 0 rgba(0,0,0,.35), 0 0 40px rgba(255,207,58,.6); pointer-events: none; animation: xmGoal 1.4s cubic-bezier(.2,1.4,.4,1) both; }
+.xm-goalfx.them { color: #ff6b80; text-shadow: 0 6px 0 rgba(0,0,0,.35), 0 0 40px rgba(255,90,110,.6); }
+@keyframes xmGoal { 0% { opacity: 0; transform: scale(.4); } 25% { opacity: 1; transform: scale(1.15); } 70% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.05) translateY(-20px); } }
+.xm-note { margin: 0; text-align: center; font: 700 13px Inter, sans-serif; color: rgba(255,255,255,.65); }
+.xc-ch { bottom: -19px !important; }
+.xd-slot { padding-bottom: 12px; }
+.xc-n { position: relative; z-index: 2 !important; }
+.cc:not(.lock) .cc-sil { clip-path: ellipse(32% 40% at 50% 40%); }

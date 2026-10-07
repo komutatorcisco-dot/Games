@@ -16,9 +16,10 @@ t('связь: ничего общего — красная', () => assert.stric
 const form = '4-4-2', slots = XD.FORMATIONS[form].slots;
 const sameClub = slots.map((s, i) => P('p' + i, s.pos, 'Реал', 'Ла Лига', 'Испания'));
 t('весь клуб на своих позициях: 10 у каждого, команда 100', () => { const r = C.calc(form, sameClub); assert.strictEqual(r.total, 100); assert(r.per.every((x) => x.chem === 10)); });
-t('чужая позиция режет химию (ST в воротах)', () => { const xi = sameClub.slice(); xi[0] = P('x', 'ST', 'Реал', 'Ла Лига', 'Испания'); const r = C.calc(form, xi); assert.strictEqual(r.per[0].fit, 'wrong'); assert.strictEqual(r.per[0].chem, 3); });
-t('смежная позиция (CM на CDM) — максимум 8', () => { const f = '4-2-3-1', xi = XD.FORMATIONS[f].slots.map((s, i) => P('q' + i, s.pos, 'Реал', 'Ла Лига', 'Испания')); xi[5] = P('cm', 'CM', 'Реал', 'Ла Лига', 'Испания'); assert.strictEqual(C.calc(f, xi).per[5].chem, 8); });
-t('все красные связи: своя позиция = 3', () => { const xi = slots.map((s, i) => P('r' + i, s.pos, 'К' + i, 'Л' + i, 'С' + i)); const r = C.calc(form, xi); assert(r.per.every((x) => x.chem === 3)); assert.strictEqual(r.total, 33); });
+t('чужая позиция режет химию (ST в воротах)', () => { const xi = sameClub.slice(); xi[0] = P('x', 'ST', 'Реал', 'Ла Лига', 'Испания'); const r = C.calc(form, xi); assert.strictEqual(r.per[0].fit, 'wrong'); assert.strictEqual(r.per[0].chem, 4); });
+t('смежная позиция (CM на CDM) — максимум 9 (8 + лояльность)', () => { const f = '4-2-3-1', xi = XD.FORMATIONS[f].slots.map((s, i) => P('q' + i, s.pos, 'Реал', 'Ла Лига', 'Испания')); xi[5] = P('cm', 'CM', 'Реал', 'Ла Лига', 'Испания'); assert.strictEqual(C.calc(f, xi).per[5].chem, 9); });
+t('все красные связи: своя позиция = 3 + лояльность = 4', () => { const xi = slots.map((s, i) => P('r' + i, s.pos, 'К' + i, 'Л' + i, 'С' + i)); const r = C.calc(form, xi); assert(r.per.every((x) => x.chem === 4)); assert.strictEqual(r.total, 44); });
+t('своя позиция и все жёлтые связи = 10 (9 + лояльность)', () => { const xi = slots.map((s, i) => P('y' + i, s.pos, 'К' + i, 'Л' + i, 'Испания')); const r = C.calc(form, xi); assert(r.per.every((x) => x.chem === 10)); assert.strictEqual(r.total, 100); });
 t('граф связей задан явно: у вратаря 4-4-2 две связи', () => { const r = C.calc(form, sameClub); assert.strictEqual(r.per[0].links.length, 2); });
 
 // ---- НОВАЯ ----

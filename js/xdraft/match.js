@@ -37,7 +37,7 @@ const XMatch = (() => {
     const m = S().match, a = XDraft.A(), b = M.away;
     $('#xd-body').innerHTML = `<div class="xm-intro"><div class="xm-vs"><span><b>${esc(Store.d.user.nick || 'Ты')}</b><small>${a.form} · рейтинг ${M.home.rating} · химия ${M.home.chem}</small></span><i>VS</i>
       <span><b>Бот · ${XD.BOTS[m.level].name}</b><small>${m.bot.form} · рейтинг ${b.rating} · химия ${b.chem}</small></span></div>
-      <p class="xd-lead">Матч длится ${XD.CFG.match.minutes} игровых минут — около ${Math.max(1, Math.round((XD.CFG.match.minutes / XD.CFG.match.stepMin) * XD.CFG.match.tickMs / 6000) / 10)} мин. Двигай регулятор «Защита ↔ Атака»: атака даёт больше моментов, но открывает тебя для контратак.</p>
+      <p class="xm-note">Атака — больше моментов, но больше риска сзади</p>
       <button class="btn gold" data-xm="go">Начать матч</button></div>`;
   }
   function run() {
@@ -57,22 +57,27 @@ const XMatch = (() => {
     render(evs);
   }
   function feed() {
-    return M.ev.slice(-6).reverse().map((e) => `<div class="xm-ev ${e.s ? 'them' : 'us'} k-${e.t}"><b>${e.m}'</b><span>${EV[e.t][0]}</span><em>${EV[e.t][1]}</em><small>${e.s ? 'соперник' : 'твоя команда'}</small></div>`).join('') || '<p class="xd-lead">Матч начался</p>';
+    return M.ev.slice(-4).reverse().map((e) => `<div class="xm-ev ${e.s ? 'them' : 'us'} k-${e.t}"><b>${e.m}'</b><span>${EV[e.t][0]}</span><em>${EV[e.t][1]}</em></div>`).join('');
   }
+  const SHORT = ['Оборона', 'Осторожно', 'Баланс', 'Атака', 'Ва-банк'];
+  let ballX = 50;
   function render(evs = []) {
-    const box = $('#xd-body'), m = S().match;
-    const goal = evs.find((e) => e.t === 'goal');
+    const box = $('#xd-body'), m = S().match, me = Store.d.user.nick || 'Ты';
+    const goal = evs.find((e) => e.t === 'goal'), last = evs[evs.length - 1];
+    // мяч: к воротам того, кто атаковал; без событий — гуляет в сторону более активной команды
+    if (last) ballX = last.s === 0 ? 86 : 14;
+    else ballX = Math.max(22, Math.min(78, 50 + (tac - botTac) * 6 + (Math.random() - 0.5) * 30));
+    const ini = (n) => esc(String(n).replace(/[^A-Za-zА-Яа-яЁё0-9]/g, '').slice(0, 2).toUpperCase() || '?');
     box.innerHTML = `<div class="xm">
-      <div class="xm-board ${goal ? 'flash' : ''}"><span class="xm-t"><b>${esc(Store.d.user.nick || 'Ты')}</b><small>${XD.TACTICS[tac]}</small></span>
+      <div class="xm-board"><span class="xm-t"><i class="xm-b us">${ini(me)}</i><b>${esc(me)}</b></span>
         <span class="xm-sc"><b>${M.score[0]}</b><i>:</i><b>${M.score[1]}</b><small>${M.min}'</small></span>
-        <span class="xm-t r"><b>Бот · ${XD.BOTS[m.level].name}</b><small>${XD.TACTICS[botTac]}</small></span></div>
-      <span class="xm-time"><i style="width:${(M.min / XD.CFG.match.minutes) * 100}%"></i></span>
-      <div class="xm-tac"><div class="xm-tl"><span>Защита</span><b>${XD.TACTICS[tac]}</b><span>Атака</span></div>
-        <div class="xm-zones">${XD.TACTICS.map((t, i) => `<button class="z${i} ${i === tac ? 'on' : ''}" data-tac="${i}" aria-label="${t}"><i></i></button>`).join('')}</div>
-        <input type="range" min="0" max="4" step="1" value="${tac}" class="xm-range" aria-label="Тактика">
-        <p class="xm-hint">${['Почти без моментов, но и сзади надёжно', 'Меньше риска, меньше угрозы', 'Поровну атаки и защиты', 'Больше моментов, но ловим контратаки', 'Всё вперёд: много моментов и много риска'][tac]}</p></div>
-      <div class="xm-stats"><span>Моменты <b>${M.stats.ch[0]} : ${M.stats.ch[1]}</b></span><span>В створ <b>${M.stats.on[0]} : ${M.stats.on[1]}</b></span></div>
-      <div class="xm-feed">${feed()}</div></div>`;
+        <span class="xm-t r"><i class="xm-b them">${XD.BOTS[m.level].name[0]}</i><b>${XD.BOTS[m.level].name}</b></span></div>
+      <div class="xm-field"><span class="xm-half"></span><span class="xm-goal l"></span><span class="xm-goal r"></span><i class="xm-ball" style="left:${ballX}%"></i>
+        <span class="xm-flag us">${SHORT[tac]}</span><span class="xm-flag them">${SHORT[botTac]}</span><span class="xm-prog" style="width:${(M.min / XD.CFG.match.minutes) * 100}%"></span></div>
+      <div class="xm-tac"><div class="xm-zones">${XD.TACTICS.map((t, i) => `<button class="z${i} ${i === tac ? 'on' : ''}" data-tac="${i}" aria-label="${t}"><i></i><span>${SHORT[i]}</span></button>`).join('')}</div>
+        <div class="xm-axis"><span>Защита</span><span>Атака</span></div></div>
+      <div class="xm-stats"><span>Моменты <b>${M.stats.ch[0]}:${M.stats.ch[1]}</b></span><span>В створ <b>${M.stats.on[0]}:${M.stats.on[1]}</b></span></div>
+      <div class="xm-feed">${feed()}</div>${goal ? `<div class="xm-goalfx ${goal.s ? 'them' : 'us'}">ГОЛ!</div>` : ''}</div>`;
   }
   function setTac(t) { t = Math.max(0, Math.min(4, t)); if (t === tac) return; tac = t; Sound.play('tap'); haptic('pop'); render(); }
   function end() {
