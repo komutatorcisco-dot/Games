@@ -1,0 +1,142 @@
+// «Мой состав» (как в MADFUT): собираешь 11 из своих карточек, видишь рейтинг и химию, играешь матч против бота.
+// Химия — «новая» из драфта (клуб, лига, сборная + своя позиция), матч — тот же движок XMatch.
+// Сохранение: Store.d.squad = { form, xi: [ключи карточек], match }.
+'use strict';
+
+const Squad = (() => {
+  const POSMAP = { НАП: ['ST'], ПЗ: ['CM'], ЗАЩ: ['CB'], ВРТ: ['GK'] };
+  const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const anim = (el, k, o) => (el && el.animate && !RM ? el.animate(k, o) : null);
+  const S = () => {
+    const d = Store.d;
+    if (!d.squad || typeof d.squad !== 'object') d.squad = {};
+    const s = d.squad;
+    if (!XD.FORMATIONS[s.form]) s.form = '4-3-3';
+    if (!Array.isArray(s.xi) || s.xi.length !== 11) s.xi = Array(11).fill(null);
+    if (s.match === undefined) s.match = null;
+    return s;
+  };
+
+  // карточка → игрок для движка драфта (у легенд нет статистики FC — берём рейтинг и позицию с карточки)
+  function obj(key) {
+    const c = key && Cards.get(key); if (!c) return null;
+    const b = XDraft.P(c.name), up = c.rar === 'jack' ? 4 : 0;
+    if (b) return { ...b, key, r: c.r, st: b.st.map((v) => Math.min(99, v + up)), rar: c.rar };
+    return { name: c.name, key, r: c.r, st: Array(6).fill(c.r), pos: POSMAP[c.pos] || ['CM'], club: c.club, lg: c.lg, nat: c.nat || 'leg:' + c.name, flag: c.flag, face: c.face, rar: c.rar };
+  }
+  const xi = () => S().xi.map(obj);
+  // карточка могла уйти в ИПК — тогда место пустеет
+  function prune() {
+    const s = S(); let ch = false;
+    s.xi = s.xi.map((k) => { if (k && Cards.spare(k) <= 0) { ch = true; return null; } return k; });
+    if (ch) Store.save();
+  }
+  const mine = () => Cards.all().filter((c) => Cards.spare(c.key) > 0);
+  const CTX = {
+    screen: 'squad', body: '#sq-body', st: S, form: () => S().form, sys: () => 'new', xi,
+    back: () => { S().match = null; Store.save(); render(); }, title: () => `Мой состав ${S().form}`, link: 'squad',
+    onEnd: (w) => { if (typeof Rewards !== 'undefined') Rewards.onEnd(w === 'win', 'squad'); },
+  };
+
+  // ---------- экран ----------
+  function render() {
+    prune();
+    const s = S(), F = XD.FORMATIONS[s.form], list = xi(), c = XD.chem('new', s.form, list);
+    const full = list.every(Boolean), r = XD.teamRating(list);
+    const box = $('#sq-body');
+    box.innerHTML = `<div class="sq-head">
+        <div class="sq-k"><small>Рейтинг</small><b>${r || '—'}</b></div>
+        <div class="sq-k"><small>Химия</small><b>${c.total}<i>/33</i></b></div>
+        <button class="sq-form" data-sq="form"><small>Схема</small><b>${s.form}</b></button></div>
+      <div class="sq-pitch"><svg viewBox="0 0 100 140" preserveAspectRatio="none" aria-hidden="true"><rect x="3" y="3" width="94" height="134" rx="2"/><line x1="3" y1="70" x2="97" y2="70"/><circle cx="50" cy="70" r="12"/><rect x="25" y="3" width="50" height="20"/><rect x="25" y="117" width="50" height="20"/></svg>
+        ${F.slots.map((sl, i) => {
+          const p = list[i], ch = c.per[i];
+          return `<button class="sq-slot ${p ? 'on' : ''}" data-slot="${i}" style="left:${sl.x}%;top:${sl.y}%">
+            ${p ? `${Cards.html(Cards.get(p.key), { w: 58 })}<span class="sq-ch ${ch && !ch.onPos ? 'off' : ''}">${ch && ch.onPos ? '<i></i>'.repeat(ch.chem) + '<u></u>'.repeat(3 - ch.chem) : esc(XD.RU[sl.pos])}</span>`
+              : `<span class="sq-plus">+</span><small>${XD.RU[sl.pos]}</small>`}</button>`;
+        }).join('')}</div>
+      <div class="sq-act"><button class="btn ghost" data-sq="auto">Собрать лучших</button>
+        <button class="btn gold" data-sq="play" ${full ? '' : 'disabled'}>${full ? 'Играть матч' : `Ещё ${list.filter((x) => !x).length} в состав`}</button></div>
+      <p class="sq-note">${mine().length ? 'Нажми на позицию и выбери карточку. Химия: один клуб, лига или сборная у соседей по составу.' : 'У тебя пока нет карточек — открывай паки за победы.'}</p>`;
+    $('#sq-sub').textContent = `${list.filter(Boolean).length}/11 · ${mine().length} ${plural(mine().length, 'карточка', 'карточки', 'карточек')}`;
+  }
+
+  function sheet(title, inner, onClick) {
+    const el = document.createElement('div');
+    el.className = 'sx-sheet-wrap sq-sheet';
+    el.innerHTML = `<div class="sx-sheet"><div class="sx-grab"></div><div class="sx-sh"><b>${title}</b><button class="sx-x" data-sh="close" aria-label="Закрыть">✕</button></div><div class="sq-pl">${inner}</div></div>`;
+    document.body.appendChild(el);
+    anim($('.sx-sheet', el), [{ transform: 'translateY(100%)' }, { transform: 'none' }], { duration: 340, easing: 'cubic-bezier(.2,.9,.3,1)' });
+    const close = () => { el.classList.add('out'); const a = anim($('.sx-sheet', el), [{ transform: 'none' }, { transform: 'translateY(100%)' }], { duration: 200, easing: 'ease-in', fill: 'forwards' }); if (a) a.onfinish = () => el.remove(); else el.remove(); };
+    el.addEventListener('click', (e) => { if (e.target === el || e.target.closest('[data-sh="close"]')) return close(); onClick(e, close); });
+    return el;
+  }
+
+  function pickFor(i) {
+    const s = S(), pos = XD.FORMATIONS[s.form].slots[i].pos, here = s.xi[i];
+    const names = new Set(s.xi.map((k, j) => (k && j !== i ? Cards.get(k).name : null)).filter(Boolean));
+    const cand = mine().map((c) => ({ c, p: obj(c.key) })).filter((x) => !names.has(x.c.name))
+      .sort((a, b) => (b.p.pos.includes(pos) - a.p.pos.includes(pos)) || b.c.r - a.c.r);
+    const cell = (x) => `<button class="sq-pc ${x.p.pos.includes(pos) ? '' : 'off'} ${x.c.key === here ? 'sel' : ''}" data-card="${esc(x.c.key)}">${Cards.html(x.c, { w: 76 })}${x.p.pos.includes(pos) ? '' : '<em>не своя позиция</em>'}</button>`;
+    const el = sheet(`${XD.RU[pos]} · выбери карточку`, cand.length ? `<div class="sq-grid">${cand.map(cell).join('')}</div>${here ? '<button class="btn ghost sq-rm" data-rm="1">Убрать из состава</button>' : ''}`
+      : '<p class="sq-note">Нет свободных карточек. Открывай паки за победы.</p>', (e, close) => {
+      if (e.target.closest('[data-rm]')) { s.xi[i] = null; Store.save(); close(); render(); return; }
+      const b = e.target.closest('[data-card]'); if (!b) return;
+      const k = b.dataset.card;
+      s.xi = s.xi.map((x) => (x === k ? null : x)); s.xi[i] = k; Store.save();
+      Sound.play('tap'); haptic('tap'); close(); render();
+      const slot = $(`#sq-body [data-slot="${i}"]`);
+      anim(slot, [{ transform: 'translate(-50%,-50%) translateY(-60px) rotateY(180deg) scale(1.3)', opacity: 0 }, { transform: 'translate(-50%,-50%) rotateY(-10deg) scale(1.08)', opacity: 1, offset: 0.7 }, { transform: 'translate(-50%,-50%)' }], { duration: 560, easing: 'cubic-bezier(.2,.9,.3,1)' });
+    });
+    if (typeof Icons !== 'undefined') Icons.fill(el);
+  }
+
+  function chooseForm() {
+    const s = S();
+    sheet('Схема', `<div class="sq-forms">${Object.keys(XD.FORMATIONS).map((f) => `<button class="sq-fb ${f === s.form ? 'sel' : ''}" data-f="${f}">${f}</button>`).join('')}</div>`, (e, close) => {
+      const b = e.target.closest('[data-f]'); if (!b) return;
+      s.form = b.dataset.f; Store.save(); close(); render();
+    });
+  }
+
+  // лучший состав: на каждую позицию — самая сильная своя карточка (сначала вратарь и защита)
+  function auto() {
+    const s = S(), F = XD.FORMATIONS[s.form], pool = mine().map((c) => ({ c, p: obj(c.key) })).sort((a, b) => b.c.r - a.c.r);
+    const used = new Set(), xi = Array(11).fill(null);
+    F.slots.forEach((sl, i) => { const x = pool.find((q) => !used.has(q.c.name) && q.p.pos.includes(sl.pos)); if (x) { xi[i] = x.c.key; used.add(x.c.name); } });
+    F.slots.forEach((sl, i) => { if (xi[i]) return; const x = pool.find((q) => !used.has(q.c.name) && (sl.pos === 'GK') === q.p.pos.includes('GK')); if (x) { xi[i] = x.c.key; used.add(x.c.name); } });
+    s.xi = xi; Store.save(); render();
+    $$('#sq-body .sq-slot.on').forEach((el, k) => anim(el, [{ transform: 'translate(-50%,-50%) translateY(-30px) rotateX(70deg)', opacity: 0 }, { transform: 'translate(-50%,-50%)', opacity: 1 }], { duration: 480, delay: 35 * k, easing: 'cubic-bezier(.2,1.2,.4,1)', fill: 'backwards' }));
+    Sound.play('whistle'); haptic('ok');
+  }
+
+  const loadPos = () => new Promise((ok, bad) => {
+    if (typeof FC_POS !== 'undefined') return ok();
+    const sc = document.createElement('script'); sc.src = 'js/data/fcpos.js?v=1'; sc.onload = ok; sc.onerror = bad; document.head.appendChild(sc);
+  });
+  async function open() {
+    if (typeof Release !== 'undefined' && !Release.feature('cards')) { toast('Состав откроется вместе с паками'); return; }
+    Modal.close();
+    Screens.show('squad');
+    $('#sq-body').innerHTML = '<p class="sq-note">Загружаем карточки…</p>';
+    try { await loadPos(); } catch (e) { $('#sq-body').innerHTML = '<p class="sq-note">Не получилось загрузить. Проверь интернет.</p>'; return; }
+    XMatch.bind('#sq-body', CTX);
+    const m = S().match;
+    if (m && !m.done) return XMatch.resume(CTX);
+    S().match = null; render();
+  }
+
+  function bind() {
+    $('#sq-body').addEventListener('click', (e) => {
+      if ($('#sq-body .xm, #sq-body .xm-intro, #sq-body .xd-res')) return; // идёт матч — кнопки матча ловит XMatch
+      const sl = e.target.closest('[data-slot]'); if (sl) { Sound.play('tap'); return pickFor(+sl.dataset.slot); }
+      const b = e.target.closest('[data-sq]'); if (!b) return;
+      const k = b.dataset.sq;
+      if (k === 'form') chooseForm();
+      if (k === 'auto') auto();
+      if (k === 'play' && !b.disabled) XMatch.choose(CTX);
+    });
+  }
+
+  return { open, bind, render, S };
+})();

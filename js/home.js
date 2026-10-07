@@ -61,6 +61,7 @@ const Home = (() => {
         <img class="h2-bg" src="img/bg/stadium.svg?v=2" alt="" aria-hidden="true">
         <div class="h2-side l">
           <button class="h2-sb ${dlyDone ? 'done' : 'hot'}" data-act="dly"><span class="h2-sbi dly"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>
+          ${cards ? `<button class="h2-sb sq" data-act="squad"><span class="h2-sbi">${Ui.get('shirt')}</span><b>Состав</b></button>` : ''}
         </div>
         <div class="h2-side r">
           ${cards ? `<button class="h2-sb ${packReady ? 'hot' : 'done'}" data-act="wheel"><span class="h2-sbi">${PackOpen.art(packReady ? 1 : 0, 'rs')}</span><b>${packReady ? 'Пак дня' : 'Завтра'}</b></button>` : ''}

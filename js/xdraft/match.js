@@ -5,28 +5,35 @@
 
 const XMatch = (() => {
   let M = null, timer = null, tac = 2, botTac = 2;
-  const S = () => XDraft.S();
+  // откуда матч: драфт (по умолчанию) или «Мой состав» из карточек — у каждого свой экран, состав и сохранение
+  const DRAFT = { screen: 'xdraft', body: '#xd-body', st: () => XDraft.S(), form: () => XDraft.A().form, sys: () => XDraft.A().sys, xi: () => XDraft.xiOf(), back: () => { XDraft.S().match = null; Store.save(); XDraft.render(); }, title: () => `Драфт ${XDraft.A().form} · ${XDraft.SYS[XDraft.A().sys]}`, link: 'xdraft' };
+  let C = DRAFT;
+  const S = () => C.st();
+  const BODY = () => $(C.body);
   const EV = { goal: [Ui.get('ball'), 'ГОЛ!'], save: [Ui.get('shield'), 'Сейв вратаря'], miss: [Ui.get('target'), 'Удар мимо'] };
 
-  function choose() {
+  function use(ctx) { C = ctx || DRAFT; }
+  function choose(ctx) {
+    if (ctx) C = ctx;
     Modal.open(`<h2>Матч против бота</h2><p>Боты собраны из той же базы и играют по тем же правилам. Сложность — в силе состава и в том, как бот меняет тактику.</p>`,
       Object.entries(XD.BOTS).map(([k, b]) => ({ label: `${b.name}`, cls: k === 'normal' ? '' : 'ghost', onClick: () => start(k) })).concat([{ label: 'Отмена', cls: 'ghost' }]));
   }
   function side(sys, form, xi) { const c = XD.chem(sys, form, xi).total; return { lines: XD.lines(sys, form, xi, c), rating: XD.teamRating(xi), chem: c }; }
   function build(m) {
-    const a = XDraft.A(), xi = XDraft.xiOf();
+    const xi = C.xi();
     const bxi = m.bot.xi.map(XDraft.P);
-    return XD.matchNew(side(a.sys, a.form, xi), side(a.sys, m.bot.form, bxi), m.seed);
+    return XD.matchNew(side(C.sys(), C.form(), xi), side(C.sys(), m.bot.form, bxi), m.seed);
   }
   function start(level) {
-    const a = XDraft.A(), seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
-    const bt = XD.botTeam(level, XDraft.pool(), a.sys, XD.rng(seed ^ 0x5bd1));
+    const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
+    const bt = XD.botTeam(level, XDraft.pool(), C.sys(), XD.rng(seed ^ 0x5bd1));
     S().match = { seed, level, bot: { form: bt.form, xi: bt.xi.map((p) => p && p.name) }, hist: [], done: false };
     Store.save();
     tac = 2; botTac = 2; M = build(S().match);
     intro();
   }
-  function resume() {
+  function resume(ctx) {
+    if (ctx) C = ctx;
     const m = S().match; if (!m) return;
     M = build(m); m.hist.forEach((t) => XD.matchStep(M, t));
     const last = m.hist[m.hist.length - 1] || [2, 2]; tac = last[0]; botTac = last[1];
@@ -34,8 +41,8 @@ const XMatch = (() => {
     render(); run();
   }
   function intro() {
-    const m = S().match, a = XDraft.A(), b = M.away;
-    $('#xd-body').innerHTML = `<div class="xm-intro"><div class="xm-vs"><span><b>${esc(Store.d.user.nick || 'Ты')}</b><small>${a.form} · рейтинг ${M.home.rating} · химия ${M.home.chem}</small></span><i>VS</i>
+    const m = S().match, b = M.away;
+    BODY().innerHTML = `<div class="xm-intro"><div class="xm-vs"><span><b>${esc(Store.d.user.nick || 'Ты')}</b><small>${C.form()} · рейтинг ${M.home.rating} · химия ${M.home.chem}</small></span><i>VS</i>
       <span><b>Бот · ${XD.BOTS[m.level].name}</b><small>${m.bot.form} · рейтинг ${b.rating} · химия ${b.chem}</small></span></div>
       <p class="xm-note">Атака — больше моментов, но больше риска сзади</p>
       <button class="btn gold" data-xm="go">Начать матч</button></div>`;
@@ -45,7 +52,7 @@ const XMatch = (() => {
     timer = setInterval(tick, XD.CFG.match.tickMs);
   }
   function tick() {
-    if (Screens.current !== 'xdraft' || !M) { clearInterval(timer); return; } // ушли с экрана — пауза, вернёмся — продолжим
+    if (Screens.current !== C.screen || !M) { clearInterval(timer); return; } // ушли с экрана — пауза, вернёмся — продолжим
     const m = S().match;
     botTac = XD.botTactic(m.level, M, 1, botTac);
     const evs = XD.matchStep(M, [tac, botTac]);
@@ -62,14 +69,14 @@ const XMatch = (() => {
   const sur = (n) => { const w = String(n || '').split(' '); return w.length > 1 ? w.slice(1).join(' ') : n; };
   // кто бил и кто тащил: только для текста, выбор детерминирован (зерно + минута), поэтому после перезапуска тот же
   function who(side, minute) {
-    const m = S().match, a = XDraft.A();
-    const form = side ? m.bot.form : a.form, xi = side ? m.bot.xi.map(XDraft.P) : XDraft.xiOf();
+    const m = S().match;
+    const form = side ? m.bot.form : C.form(), xi = side ? m.bot.xi.map(XDraft.P) : C.xi();
     const R = XD.rng((m.seed ^ (minute * 2654435761)) >>> 0);
     const W = { ST: 6, LW: 4, RW: 4, CAM: 4, LM: 2, RM: 2, CM: 1.5, CDM: 0.6, CB: 0.4, LB: 0.5, RB: 0.5, GK: 0 };
     const sl = XD.FORMATIONS[form].slots, tot = sl.reduce((t, q) => t + (W[q.pos] || 0), 0);
     let x = R() * tot, shooter = xi[0];
     for (let k = 0; k < sl.length; k++) { x -= W[sl[k].pos] || 0; if (x <= 0) { shooter = xi[k]; break; } }
-    const oform = side ? a.form : m.bot.form, oxi = side ? XDraft.xiOf() : m.bot.xi.map(XDraft.P);
+    const oform = side ? C.form() : m.bot.form, oxi = side ? C.xi() : m.bot.xi.map(XDraft.P);
     const gk = oxi[XD.FORMATIONS[oform].slots.findIndex((q) => q.pos === 'GK')];
     return { shooter: shooter ? sur(shooter.name) : '', gk: gk ? sur(gk.name) : 'вратарь' };
   }
@@ -82,19 +89,19 @@ const XMatch = (() => {
   }
   // вид сверху: наши атакуют вправо, соперник — влево; линии смещаются за мячом
   function dotPos() {
-    const m = S().match, a = XDraft.A(), sh = (ballX - 50) * 0.22;
+    const m = S().match, sh = (ballX - 50) * 0.22;
     const team = (form, side) => XD.FORMATIONS[form].slots.map((q) => {
       const depth = (100 - q.y) / 100;
       const x = (side ? 96 - depth * 44 : 4 + depth * 44) + sh + (Math.random() - 0.5) * 2.5;
       return [Math.max(2, Math.min(98, x)), 8 + q.x * 0.84 + (Math.random() - 0.5) * 3];
     });
-    return [...team(a.form, 0), ...team(m.bot.form, 1)];
+    return [...team(C.form(), 0), ...team(m.bot.form, 1)];
   }
   const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const anim = (el, kf, o) => { if (el && el.animate && !RM) return el.animate(kf, o); return null; };
   // экран матча строится один раз; дальше двигаются только игроки, мяч, счёт и лента — отсюда плавность
   function buildView() {
-    const box = $('#xd-body'), m = S().match, me = Store.d.user.nick || 'Ты';
+    const box = BODY(), m = S().match, me = Store.d.user.nick || 'Ты';
     const ab = (n) => esc(String(n).replace(/[^A-Za-zА-Яа-яЁё0-9]/g, '').slice(0, 3).toUpperCase() || '?');
     box.innerHTML = `<div class="xm">
       <div class="xm-bug"><span class="xm-tm us"><i>${ab(me)}</i></span><span class="xm-s"><b class="d0">${M.score[0]}</b><em>–</em><b class="d1">${M.score[1]}</b></span><span class="xm-tm them"><i>${ab(XD.BOTS[m.level].name)}</i></span>
@@ -113,7 +120,7 @@ const XMatch = (() => {
   }
   let shownEv = 0;
   function update(evs = [], first = false) {
-    const box = $('#xd-body'); if (!$('.xm-pitch', box)) return buildView();
+    const box = BODY(); if (!$('.xm-pitch', box)) return buildView();
     const last = evs[evs.length - 1];
     const ball = $('.xm-ball', box), from = [parseFloat(ball.style.left) || 50, parseFloat(ball.style.top) || 50];
     if (last) { ballX = last.s === 0 ? 91 : 9; ballY = 38 + Math.random() * 24; }
@@ -150,35 +157,37 @@ const XMatch = (() => {
     }
   }
   function render(evs = []) { update(evs); }
-  function setTac(t) { t = Math.max(0, Math.min(4, t)); if (t === tac) return; tac = t; Sound.play('tap'); haptic('pop'); const box = $('#xd-body'); $('.xm-tn', box).textContent = SHORT[tac]; $$('.xm-bar button', box).forEach((b, k) => b.classList.toggle('on', k === tac)); $('.xm-knob', box).style.left = tac * 20 + 10 + '%'; }
+  function setTac(t) { t = Math.max(0, Math.min(4, t)); if (t === tac) return; tac = t; Sound.play('tap'); haptic('pop'); const box = BODY(); $('.xm-tn', box).textContent = SHORT[tac]; $$('.xm-bar button', box).forEach((b, k) => b.classList.toggle('on', k === tac)); $('.xm-knob', box).style.left = tac * 20 + 10 + '%'; }
   function end() {
-    const m = S().match; m.done = true; Store.save();
+    const m = S().match, first = !m.done; m.done = true; Store.save();
     const w = M.score[0] > M.score[1] ? 'win' : M.score[0] < M.score[1] ? 'lose' : 'draw';
-    $('#xd-body').innerHTML = `<div class="xd-res"><div class="sb"><div class="sb-k">ФИНАЛЬНЫЙ СВИСТОК · БОТ «${XD.BOTS[m.level].name.toUpperCase()}»</div>
+    if (first && C.onEnd) C.onEnd(w, m.level);
+    BODY().innerHTML = `<div class="xd-res"><div class="sb"><div class="sb-k">ФИНАЛЬНЫЙ СВИСТОК · БОТ «${XD.BOTS[m.level].name.toUpperCase()}»</div>
       <div class="xm-final ${w}"><b>${M.score[0]}</b><i>:</i><b>${M.score[1]}</b></div><div class="xd-best">${w === 'win' ? 'Победа!' : w === 'lose' ? 'Поражение' : 'Ничья'} · моменты ${M.stats.ch[0]}:${M.stats.ch[1]} · в створ ${M.stats.on[0]}:${M.stats.on[1]}</div></div>
       <div class="xm-feed all">${M.ev.filter((e) => e.t === 'goal').map((e) => `<div class="xm-ev ${e.s ? 'them' : 'us'} k-goal"><b>${e.m}'</b><span>${Ui.get('ball')}</span><em>${esc(who(e.s, e.m).shooter)}</em></div>`).join('') || '<p class="xm-note">Без голов</p>'}</div>
       <div class="xd-act col"><button class="btn gold" data-xm="again">Ещё матч</button><button class="btn ghost" data-xm="share">Поделиться результатом</button><button class="btn ghost" data-xm="squad">К составу</button></div></div>`;
     if (w === 'win' && typeof confetti === 'function') confetti();
   }
   function share() {
-    const m = S().match, a = XDraft.A();
-    const text = `⚽ Драфт ${a.form} · ${XDraft.SYS[a.sys]}\nМатч с ботом «${XD.BOTS[m.level].name}»: ${M.score[0]}:${M.score[1]}\nСтарики Джексоны`;
-    const url = appLink('xdraft');
+    const m = S().match;
+    const text = `⚽ ${C.title()}\nМатч с ботом «${XD.BOTS[m.level].name}»: ${M.score[0]}:${M.score[1]}\nСтарики Джексоны`;
+    const url = appLink(C.link);
     try { if (TG && TG.openTelegramLink) { TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`); return; } } catch (e) { /* не в Telegram */ }
     if (navigator.share) navigator.share({ text, url }).catch(() => {}); else toast(text);
   }
-  function bind() {
-    const box = $('#xd-body');
+  function bind(sel = '#xd-body', ctx = DRAFT) {
+    const box = $(sel); if (!box || box.dataset.xmb) return; box.dataset.xmb = 1;
     box.addEventListener('click', (e) => {
+      C = ctx;
       const z = e.target.closest('[data-tac]'); if (z) return setTac(+z.dataset.tac);
       const b = e.target.closest('[data-xm]'); if (!b) return;
       const k = b.dataset.xm;
       if (k === 'go') { render(); run(); }
       if (k === 'again') choose();
       if (k === 'share') share();
-      if (k === 'squad') { S().match = null; Store.save(); XDraft.render(); }
+      if (k === 'squad') C.back();
     });
     box.addEventListener('change', (e) => { if (e.target.classList.contains('xm-range')) setTac(+e.target.value); });
   }
-  return { choose, start, resume, bind };
+  return { choose, start, resume, bind, use, DRAFT };
 })();

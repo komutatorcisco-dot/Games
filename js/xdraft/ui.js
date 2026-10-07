@@ -352,7 +352,7 @@ const XDraft = (() => {
     pool();
     if (!A()) fresh();
     sel = null; entering = true; prevTotal = null;
-    if (S().match && !S().match.done && typeof XMatch !== 'undefined') return XMatch.resume();
+    if (S().match && !S().match.done && typeof XMatch !== 'undefined') return XMatch.resume(XMatch.DRAFT);
     render();
   }
   function bind() {
@@ -367,7 +367,7 @@ const XDraft = (() => {
         if (k === 'capt') return openPick('capt');
         if (k === 'finish') return finish();
         if (k === 'share') return share();
-        if (k === 'bot') return XMatch.choose();
+        if (k === 'bot') return XMatch.choose(XMatch.DRAFT);
         if (k === 'reset') {
           const a = A();
           if (a && a.stage !== 'done' && a.stage !== 'sys') return Modal.open('<h2>Начать новый драфт?</h2><p>Текущий состав пропадёт.</p>', [{ label: 'Начать заново', onClick: () => { fresh(); render(); } }, { label: 'Отмена', cls: 'ghost' }]);

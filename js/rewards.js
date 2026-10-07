@@ -317,7 +317,7 @@ const Rewards = (() => {
     const sbcOn = Release.isOut('act:sbc');
     const locked = [!Release.feature('cards') && ['Галерея', 'feat:cards'], !Release.feature('pass') && ['Задания', 'feat:pass']].filter(Boolean);
     const lockBtns = locked.map(([n, k]) => `<button class="rw-lk" data-rwlock="${Release.need(k)}">${Ui.get('lock')} ${n}<small>${Release.need(k)} ${Ui.get('trophy')}</small></button>`).join('');
-    const tabs = !TB.length ? '' : `<nav class="rw-tabs" style="--n:${TB.length + (sbcOn ? 1 : 0) + locked.length}">${TB.map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}${sbcOn ? `<button data-act="sbc" class="rw-sbc">ИПК${typeof SBC !== 'undefined' && SBC.ready() ? '<i>1</i>' : ''}</button>` : ''}${lockBtns}</nav>`;
+    const tabs = !TB.length ? '' : `<nav class="rw-tabs" style="--n:${TB.length + (sbcOn ? 1 : 0) + locked.length + (Release.feature('cards') ? 1 : 0)}">${TB.map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}${Release.feature('cards') ? '<button data-act="squad" class="rw-sbc rw-sq">Состав</button>' : ''}${sbcOn ? `<button data-act="sbc" class="rw-sbc">ИПК${typeof SBC !== 'undefined' && SBC.ready() ? '<i>1</i>' : ''}</button>` : ''}${lockBtns}</nav>`;
     let body = '';
     const nx = Release.next();
     if (tab === 'road') body = trophyRoad(s);
