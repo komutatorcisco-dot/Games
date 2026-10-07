@@ -1,0 +1,32 @@
+# Обновить сервер игр (Cloudflare Worker «jackson-games») кодом из server/worker.js.
+# Запускается сам, когда меняется server/worker.js, или вручную: Actions → «Обновить сервер» → Run workflow.
+# Меняется только код: ключ бота, база, расписание и остальные настройки воркера остаются как есть.
+# Нужны секреты репозитория: CF_API_TOKEN (токен «Edit Cloudflare Workers») и CF_ACCOUNT_ID.
+name: Обновить сервер
+
+on:
+  push:
+    paths: ['server/worker.js']
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Загрузить код в Cloudflare
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CF_API_TOKEN" ] || [ -z "$CF_ACCOUNT_ID" ]; then
+            echo "Нет секретов CF_API_TOKEN или CF_ACCOUNT_ID — добавь их в Settings → Secrets and variables → Actions"; exit 1
+          fi
+          ACC=$(echo "$CF_ACCOUNT_ID" | tr -d '[:space:]')
+          out=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACC/workers/scripts/jackson-games/content" \
+            -H "Authorization: Bearer $(echo "$CF_API_TOKEN" | tr -d '[:space:]')" \
+            -F 'metadata={"main_module":"worker.js"};type=application/json' \
+            -F 'worker.js=@server/worker.js;type=application/javascript+module')
+          echo "$out" | head -c 600; echo
+          echo "$out" | grep -q '"success":true' || { echo "Cloudflare не принял код — смотри ответ выше"; exit 1; }
+          echo "Готово: сервер обновлён"
