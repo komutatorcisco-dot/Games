@@ -3947,54 +3947,67 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .rd-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 8px; background: linear-gradient(180deg, #ffe680, #ffc21f 55%, #e89a0c); box-shadow: inset 0 2px 0 rgba(255,255,255,.6); transition: width .8s cubic-bezier(.2,.9,.3,1); }
 .rd-how { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .rd-how span { padding: 6px; border-radius: 10px; background: rgba(6,10,30,.5); box-shadow: inset 0 2px 3px rgba(0,0,0,.4); text-align: center; font: 700 12.5px var(--font-body); color: rgba(255,255,255,.75); } .rd-how b { color: #fff; }
-/* сам путь — толстая дорожка по центру, пройденная часть золотая */
-.rd-path { position: relative; display: grid; gap: 14px; padding: 6px 0 30px; }
-.rd-path::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 16px; margin-left: -8px; border-radius: 8px; background: #0f0c2e; box-shadow: inset 0 0 0 2.5px var(--ink-0), inset 4px 0 0 rgba(255,255,255,.06); }
+/* путь — одна непрерывная дорожка по центру; золото залито до «Ты здесь» */
+.rd-path { position: relative; display: grid; gap: 16px; padding: 6px 0 30px; }
+.rd-path::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 18px; margin-left: -9px; border-radius: 9px; background: #0f0c2e; box-shadow: inset 0 0 0 3px var(--ink-0), inset 5px 0 0 rgba(255,255,255,.05); }
+.rd-fill { position: absolute; left: 50%; top: 0; width: 12px; margin-left: -6px; border-radius: 6px; background: linear-gradient(90deg, #ffe680, #ffc21f 45%, #e08a0a); box-shadow: inset 3px 0 0 rgba(255,255,255,.45); transition: height .6s cubic-bezier(.2,.9,.3,1); }
 .rd-row, .rd-gate, .rd-here { position: relative; z-index: 1; }
-.rd-row::before, .rd-gate::before { content: ''; position: absolute; left: 50%; top: -26px; bottom: 0; width: 10px; margin-left: -5px; z-index: -1; }
-:is(.rd-row.got, .rd-row.ready, .rd-gate.got)::before { background: linear-gradient(90deg, #ffe680, #ffc21f 50%, #e89a0c); }
-.rd-row { display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); align-items: center; }
+/* награда: значок с трофеями на дорожке, перемычка к плитке */
+.rd-row { display: grid; grid-template-columns: minmax(0, 1fr) 70px minmax(0, 1fr); align-items: center; }
 .rd-row.l .rd-tile { grid-column: 1; grid-row: 1; justify-self: end; } .rd-row.r .rd-tile { grid-column: 3; grid-row: 1; justify-self: start; }
-.rd-sh { grid-column: 2; grid-row: 1; justify-self: center; display: grid; place-items: center; min-width: 52px; height: 30px; padding: 0 6px; border-radius: 10px; font: 900 14px "Rubik", sans-serif; color: rgba(255,255,255,.75);
-  background: linear-gradient(180deg, #3a3670, #24204f); box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 0 0 2.5px var(--ink-0), 0 3px 0 var(--ink-0); }
-:is(.rd-row.got, .rd-row.ready) .rd-sh { color: #3b2200; background: linear-gradient(180deg, #ffe680, #ffc21f 60%, #f0a012); box-shadow: inset 0 2px 0 rgba(255,255,255,.6), 0 0 0 2.5px #3b2200, 0 3px 0 #3b2200; }
-/* плитка награды: толстая цветная плашка */
-.rd-tile { position: relative; display: grid; justify-items: center; align-content: center; gap: 4px; width: min(100%, 150px); min-height: 118px; padding: 12px 6px 10px; border: 0; border-radius: 18px; color: #fff;
-  background: radial-gradient(120% 80% at 50% 0%, color-mix(in srgb, var(--t1) 70%, #fff) 0%, var(--t1) 35%, var(--t2, color-mix(in srgb, var(--t1) 45%, #1a1446)) 100%);
-  box-shadow: inset 0 2px 0 rgba(255,255,255,.45), inset 0 -5px 0 rgba(0,0,0,.25), 0 0 0 2.5px var(--ink-0), 0 6px 0 var(--ink-0), 0 12px 18px rgba(0,0,0,.4); transition: transform .12s; }
-.rd-art { display: grid; place-items: center; height: 64px; filter: drop-shadow(0 4px 0 rgba(0,0,0,.3)); }
-.rd-art .fpk { --pw: 44px; --ph: 60px; --d: 5px; } .rd-art .fpk em, .rd-art .fpk .fpk-sh, .rd-art .fpk::after { display: none; }
-.rd-nm { font: 900 12.5px/1.12 "Rubik", sans-serif; text-transform: uppercase; text-align: center; color: #fff; -webkit-text-stroke: 3px var(--ink-0); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink-0); }
-.rd-row.lock .rd-tile { filter: saturate(.45) brightness(.8); }
-.rd-row.lock .rd-art { opacity: .75; }
-.rd-row.got .rd-tile { filter: saturate(.5) brightness(.7); }
-.rd-ok { position: absolute; right: -8px; top: -8px; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font: 900 16px "Rubik", sans-serif; font-style: normal; color: #fff;
-  background: linear-gradient(180deg, #5cf08a, #22a84b); box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 0 0 2.5px var(--ink-0); }
-.rd-row.ready .rd-tile { animation: rdReady 1.6s ease-in-out infinite; }
+.rd-row::after { content: ''; position: absolute; top: 50%; height: 12px; margin-top: -6px; width: 46px; z-index: -1; background: #1c1848; box-shadow: inset 0 0 0 2.5px var(--ink-0); }
+.rd-row.l::after { right: 50%; } .rd-row.r::after { left: 50%; }
+:is(.rd-row.got, .rd-row.ready)::after { background: linear-gradient(180deg, #ffe680, #e89a0c); }
+.rd-sh { grid-column: 2; grid-row: 1; justify-self: center; position: relative; display: grid; place-items: center; width: 50px; height: 50px; border-radius: 50%; font: 900 14px "Rubik", sans-serif; color: #c9c6ff;
+  background: radial-gradient(circle at 50% 30%, #4a4590, #24204f 70%); box-shadow: inset 0 2px 0 rgba(255,255,255,.25), inset 0 -3px 0 rgba(0,0,0,.3), 0 0 0 3px var(--ink-0), 0 4px 0 var(--ink-0); }
+:is(.rd-row.got, .rd-row.ready) .rd-sh { color: #fff; -webkit-text-stroke: 3px #5a3300; paint-order: stroke fill; background: radial-gradient(circle at 50% 30%, #ffe680, #ffc21f 55%, #e08a0a); box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -3px 0 rgba(150,80,0,.35), 0 0 0 3px #3b2200, 0 4px 0 #3b2200; }
+/* плитка награды */
+.rd-tile { position: relative; display: grid; justify-items: center; align-content: start; width: min(100%, 148px); padding: 0; border: 0; border-radius: 18px; overflow: visible; color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--t1) 80%, #fff) 0%, var(--t1) 30%, var(--t2, color-mix(in srgb, var(--t1) 45%, #1a1446)) 100%);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.5), inset 0 0 0 5px rgba(255,255,255,.1), 0 0 0 3px var(--ink-0), 0 6px 0 var(--ink-0), 0 12px 18px rgba(0,0,0,.4); transition: transform .12s; }
+.rd-tile::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: .12;
+  background: repeating-linear-gradient(135deg, #fff 0 6px, transparent 6px 14px); -webkit-mask: linear-gradient(180deg, #000, transparent 70%); mask: linear-gradient(180deg, #000, transparent 70%); }
+.rd-art { position: relative; display: grid; place-items: center; height: 86px; width: 100%; filter: drop-shadow(0 5px 0 rgba(0,0,0,.3)); }
+.rd-art .fpk { --pw: 46px; --ph: 64px; --d: 5px; } .rd-art .fpk em, .rd-art .fpk .fpk-sh, .rd-art .fpk::after { display: none; }
+.rd-art .rs-coins .coin { width: 34px !important; height: 34px !important; margin-left: -15px; } .rd-art .rs-coins .coin:first-child { margin-left: 0; }
+.rd-nm { display: grid; place-items: center; width: 100%; min-height: 34px; padding: 5px 6px 7px; border-radius: 0 0 16px 16px; background: rgba(6,8,30,.55); box-shadow: inset 0 2px 0 rgba(0,0,0,.25); }
+.rd-nm span { font: 900 12px/1.1 "Rubik", sans-serif; text-transform: uppercase; text-align: center; color: #fff; -webkit-text-stroke: 3px var(--ink-0); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink-0); }
+.rd-row.lock .rd-tile { background: linear-gradient(180deg, color-mix(in srgb, var(--t1) 45%, #3a3a6a), color-mix(in srgb, var(--t1) 25%, #1d1b44)); }
+.rd-row.lock .rd-art { opacity: .8; filter: saturate(.6) drop-shadow(0 5px 0 rgba(0,0,0,.3)); }
+.rd-row.got .rd-tile::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: rgba(8,8,30,.5); pointer-events: none; }
+.rd-ok { position: absolute; z-index: 2; left: 50%; top: 30px; width: 40px; height: 40px; margin-left: -20px; border-radius: 50%; display: grid; place-items: center; font: 900 20px "Rubik", sans-serif; font-style: normal; color: #fff;
+  background: linear-gradient(180deg, #5cf08a, #22a84b); box-shadow: inset 0 2px 0 rgba(255,255,255,.5), inset 0 -3px 0 rgba(0,0,0,.2), 0 0 0 3px var(--ink-0), 0 3px 0 var(--ink-0); }
+.rd-row.ready .rd-tile { animation: rdReady 1.8s ease-in-out infinite; }
 .rd-row.ready .rd-tile:active { transform: translateY(4px); animation: none; }
-@keyframes rdReady { 0%, 100% { transform: translateY(0) rotate(0); } 25% { transform: translateY(-5px) rotate(-2deg); } 50% { transform: translateY(0) rotate(0); } 75% { transform: translateY(-3px) rotate(2deg); } }
-.rd-take { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); padding: 5px 12px 6px; border-radius: 10px; white-space: nowrap; font: 900 12.5px "Rubik", sans-serif; font-style: normal; text-transform: uppercase; color: #fff;
-  -webkit-text-stroke: 2.5px #0b3a17; paint-order: stroke fill; background: linear-gradient(180deg, #6ff59a, #22b04f); box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 0 0 2.5px #0b3a17, 0 3px 0 #0b3a17; }
-.rd-row.ready { margin-bottom: 10px; }
-/* открытие игры — широкий баннер поперёк пути */
-.rd-gate { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; margin: 6px 0; padding: 10px 14px 10px 10px; border-radius: 18px;
-  background: linear-gradient(120deg, color-mix(in srgb, var(--c1) 60%, #1a1446), color-mix(in srgb, var(--c2) 50%, #120e36)); box-shadow: inset 0 2px 0 rgba(255,255,255,.3), inset 0 -5px 0 rgba(0,0,0,.25), 0 0 0 2.5px var(--ink-0), 0 6px 0 var(--ink-0), 0 12px 18px rgba(0,0,0,.4); }
-.rd-gate::before { display: none; }
-.rd-gate.lock { filter: saturate(.5) brightness(.82); }
-.rd-hex { position: relative; width: 58px; height: 64px; display: grid; place-items: center; }
+@keyframes rdReady { 0%, 60%, 100% { transform: none; } 70% { transform: translateY(-6px) rotate(-2deg); } 80% { transform: translateY(0) rotate(1.5deg); } 90% { transform: translateY(-3px) rotate(-1deg); } }
+.rd-take { position: absolute; left: 50%; bottom: -16px; z-index: 2; transform: translateX(-50%); padding: 6px 14px 7px; border-radius: 11px; white-space: nowrap; font: 900 13px "Rubik", sans-serif; font-style: normal; text-transform: uppercase; color: #fff;
+  -webkit-text-stroke: 3px #0b3a17; paint-order: stroke fill; background: linear-gradient(180deg, #6ff59a, #22b04f); box-shadow: inset 0 2px 0 rgba(255,255,255,.5), inset 0 -3px 0 rgba(0,0,0,.18), 0 0 0 3px #0b3a17, 0 4px 0 #0b3a17; }
+.rd-row.ready { margin-bottom: 12px; }
+/* новая игра: шестигранник прямо на дорожке и табличка под ним */
+.rd-gate { display: grid; justify-items: center; margin: 4px 0; }
+.rd-hex { position: relative; z-index: 2; width: 74px; height: 82px; display: grid; place-items: center; filter: drop-shadow(0 5px 0 var(--ink-0)); }
 .rd-hex::before, .rd-hex > span { clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
-.rd-hex::before { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, #fff, #9fb2ef); }
-.rd-hex > span { position: absolute; inset: 4px; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, var(--c1), var(--c2)); } .rd-hex svg { width: 60%; height: 60%; }
-.rd-gt { display: grid; gap: 2px; min-width: 0; text-align: left; }
-.rd-gt small { font: 800 11px var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.8); } .rd-gt small .ui-ic { width: 12px; height: 12px; color: #ffcf3a; vertical-align: -2px; }
-.rd-gt b { font: 900 20px/1.1 "Rubik", sans-serif; text-transform: uppercase; color: #fff; -webkit-text-stroke: 3.5px var(--ink-0); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink-0); }
-.rd-gs { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: #fff; background: rgba(6,10,30,.55); box-shadow: inset 0 2px 3px rgba(0,0,0,.4); } .rd-gs .ui-ic { width: 20px; height: 20px; }
-.rd-gate.got .rd-gs { color: #ffcf3a; }
+.rd-hex::before { content: ''; position: absolute; inset: -3px; background: var(--ink-0); }
+.rd-hex > span { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; background: linear-gradient(180deg, #fff, #a9bbf2); }
+.rd-hex > span::after { content: ''; position: absolute; inset: 5px; clip-path: inherit; background: linear-gradient(160deg, color-mix(in srgb, var(--c1) 80%, #fff), var(--c1) 35%, var(--c2)); }
+.rd-hex svg { position: relative; z-index: 1; width: 58%; height: 58%; filter: drop-shadow(0 3px 0 rgba(0,0,0,.3)); }
+.rd-hex > i { position: absolute; z-index: 2; right: -4px; bottom: 2px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: #1a1446; box-shadow: 0 0 0 2.5px var(--ink-0); color: #fff; font-style: normal; } .rd-hex > i .ui-ic { width: 14px; height: 14px; }
+.rd-gp { position: relative; display: grid; justify-items: center; gap: 1px; margin-top: -14px; padding: 18px 26px 10px; min-width: 210px; border-radius: 16px; text-align: center;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--c1) 55%, #1a1446), color-mix(in srgb, var(--c2) 45%, #120e36)); box-shadow: inset 0 2px 0 rgba(255,255,255,.3), inset 0 -4px 0 rgba(0,0,0,.25), 0 0 0 3px var(--ink-0), 0 6px 0 var(--ink-0), 0 12px 18px rgba(0,0,0,.4); }
+.rd-gp small { font: 800 10.5px var(--font-body); letter-spacing: .1em; text-transform: uppercase; color: rgba(255,255,255,.8); }
+.rd-gp b { font: 900 21px/1.1 "Rubik", sans-serif; text-transform: uppercase; color: #fff; -webkit-text-stroke: 3.5px var(--ink-0); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink-0); }
+.rd-gp em { margin-top: 4px; padding: 3px 10px; border-radius: 8px; font: 900 12px "Rubik", sans-serif; font-style: normal; color: #ffcf3a; background: rgba(6,8,30,.55); } .rd-gp em .ui-ic { width: 12px; height: 12px; vertical-align: -2px; }
+.rd-gate.got .rd-gp em { color: #6ff59a; }
+.rd-gate.lock .rd-gp { background: linear-gradient(180deg, color-mix(in srgb, var(--c1) 30%, #2a2858), color-mix(in srgb, var(--c2) 20%, #17143c)); }
+.rd-gate.lock .rd-hex > span::after { filter: saturate(.5) brightness(.8); }
 /* «Ты здесь» */
-.rd-here { display: grid; justify-items: center; gap: 2px; margin: -2px 0; }
-.rd-me { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; font-size: 28px; background: linear-gradient(180deg, #ffe07a, #f2a71b); box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -4px 0 rgba(150,80,0,.35), 0 0 0 3px var(--ink-0), 0 5px 0 var(--ink-0); animation: rdMe 1.8s ease-in-out infinite; }
+.rd-here { display: grid; justify-items: center; gap: 4px; margin: -2px 0; }
+.rd-me { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; font-size: 28px; background: radial-gradient(circle at 50% 30%, #ffe680, #f2a71b 70%); box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -4px 0 rgba(150,80,0,.35), 0 0 0 3px var(--ink-0), 0 5px 0 var(--ink-0); animation: rdMe 1.8s ease-in-out infinite; }
 @keyframes rdMe { 50% { transform: translateY(-5px); } }
-.rd-here b { padding: 2px 10px; border-radius: 8px; background: var(--ink-0); font: 900 12px "Rubik", sans-serif; text-transform: uppercase; color: #ffcf3a; }
+.rd-here b { padding: 3px 10px; border-radius: 8px; background: var(--ink-0); font: 900 12px "Rubik", sans-serif; text-transform: uppercase; color: #ffcf3a; }
+/* закрытые разделы в шапке наград */
+.rw-tabs .rw-lk { display: grid; justify-items: center; gap: 1px; color: rgba(255,255,255,.4); } .rw-tabs .rw-lk .ui-ic { width: 12px; height: 12px; vertical-align: -1px; }
+.rw-tabs .rw-lk small { font: 800 10px "Rubik", sans-serif; letter-spacing: 0; color: #ffcf3a; opacity: .8; }
 @media (prefers-reduced-motion: reduce) { .rd-row.ready .rd-tile, .rd-me { animation: none; } }
 /* выбор игры — такие же объёмные плитки */
 .h2-pc { box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -4px 0 rgba(0,0,0,.22), 0 0 0 2.5px var(--ink-0), 0 5px 0 var(--ink-0) !important; margin-bottom: 4px; transition: transform .1s; }
@@ -4003,3 +4016,47 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .h2-pc b { -webkit-text-stroke: 3px var(--ink-0); paint-order: stroke fill; }
 .h2-pc.lock { box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.1) !important; }
 .h2-pci svg { filter: drop-shadow(0 3px 0 rgba(0,0,0,.3)); }
+
+/* стадион за ареной: трибуны с болельщиками, мачты, вспышки */
+.h2-arena { isolation: isolate; }
+.h2-bg { position: absolute; left: -16px; right: -16px; top: -90px; bottom: -60px; width: calc(100% + 32px); height: calc(100% + 150px); z-index: -1; object-fit: cover; object-position: 50% 100%; pointer-events: none;
+  -webkit-mask: linear-gradient(180deg, transparent 0, #000 18%, #000 80%, transparent 100%); mask: linear-gradient(180deg, transparent 0, #000 18%, #000 80%, transparent 100%); }
+.h2-road, .h2-cta { position: relative; z-index: 2; }
+
+/* ===== профиль: карточка игрока в объёме, как в Clash Royale ===== */
+#profile .topbar { display: none; }
+.pc { position: relative; display: grid; gap: 12px; margin: 4px 0 14px; padding: 14px; border-radius: 22px; background: linear-gradient(180deg, #2c3f8e, #1a2560); box-shadow: var(--bev); }
+.pc-who { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+#prof-badge.pc-ava { display: grid !important; place-items: center; width: 74px !important; height: 74px !important; border-radius: 20px !important; font-size: 42px !important;
+  background: radial-gradient(circle at 50% 30%, #ffe680, #f2a71b 70%) !important; box-shadow: inset 0 3px 0 rgba(255,255,255,.6), inset 0 -5px 0 rgba(150,80,0,.35), 0 0 0 3px var(--ink-0), 0 5px 0 var(--ink-0) !important; }
+.pc-nm { display: grid; gap: 4px; min-width: 0; }
+.pc-nm > b { font: 900 22px/1.05 "Rubik", sans-serif; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; -webkit-text-stroke: 3.5px var(--ink-0); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink-0); }
+.pc-rk { justify-self: start; padding: 2px 9px; border-radius: 8px; background: rgba(6,10,30,.55); font: 900 12px "Rubik", sans-serif; text-transform: uppercase; color: #ffcf3a; }
+.pc-xp .xpbar { display: block; height: 12px; border-radius: 6px; background: #0d0b2a; box-shadow: inset 0 2px 3px rgba(0,0,0,.55), 0 1px 0 rgba(255,255,255,.15); overflow: hidden; margin: 0; }
+.pc-xp .xpbar i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(180deg, #a8f0ff, #4fb4ff 55%, #2f78e0); box-shadow: inset 0 2px 0 rgba(255,255,255,.5); }
+.pc-nx { font: 600 11.5px/1.2 var(--font-body); color: rgba(255,255,255,.65); }
+.pc .pf-edit { width: 42px; height: 42px; border: 0; border-radius: 13px; font-size: 18px; color: #fff; background: linear-gradient(180deg, var(--bl1), var(--bl2)); box-shadow: inset 0 2px 0 rgba(255,255,255,.4), 0 0 0 2.5px var(--ink-0), 0 4px 0 var(--ink-0); }
+.pc .pf-edit:active { transform: translateY(3px); }
+.pc-big { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pc-big > div { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; align-items: center; column-gap: 8px; padding: 10px 12px; border-radius: 16px; background: rgba(6,10,30,.5); box-shadow: inset 0 3px 4px rgba(0,0,0,.4), 0 1px 0 rgba(255,255,255,.12); }
+.pc-big span { grid-row: 1 / 3; color: #ffcf3a; } .pc-big span .ui-ic { width: 34px; height: 34px; filter: drop-shadow(0 2px 0 var(--ink-0)); }
+.pc-big b { font: 900 26px/1 "Rubik", sans-serif; color: #fff; -webkit-text-stroke: 3.5px var(--ink-0); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink-0); }
+.pc-big small { font: 700 11px var(--font-body); color: rgba(255,255,255,.65); }
+.pc-meta { display: flex; justify-content: space-between; gap: 6px; font: 600 12px var(--font-body); color: rgba(255,255,255,.6); } .pc-meta b { color: #fff; }
+.pc-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+.pc-st { display: grid; justify-items: center; gap: 2px; padding: 10px 4px 9px; border-radius: 16px; text-align: center; background: linear-gradient(180deg, #34308a, #211d5c);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.25), inset 0 -4px 0 rgba(0,0,0,.22), 0 0 0 2.5px var(--ink-0), 0 4px 0 var(--ink-0); }
+.pc-st i { display: grid; place-items: center; width: 34px; height: 34px; color: #fff; font-style: normal; } .pc-st i svg, .pc-st i .ui-ic { width: 30px; height: 30px; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+.pc-st b { font: 900 22px/1 "Rubik", sans-serif; color: #fff; -webkit-text-stroke: 3px var(--ink-0); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink-0); }
+.pc-st small { font: 700 10.5px/1.15 var(--font-body); color: rgba(255,255,255,.65); }
+#profile .pf-tiles { gap: 10px; margin: 0 0 16px; }
+#profile .pf-tiles button { justify-items: center; text-align: center; padding: 12px 6px 10px; border-radius: 16px; background: linear-gradient(180deg, var(--bl1), var(--bl2)) !important;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.38), inset 0 -4px 0 rgba(0,0,0,.22), 0 0 0 2.5px var(--ink-0), 0 5px 0 var(--ink-0) !important; transition: transform .1s; }
+#profile .pf-tiles button:active { transform: translateY(4px); }
+#profile .pf-tiles b { -webkit-text-stroke: 3px var(--ink-0); paint-order: stroke fill; text-transform: uppercase; font-size: 13px; } #profile .pf-tiles small { color: rgba(255,255,255,.8); }
+#profile .pf-tiles span .ui-ic { width: 30px; height: 30px; filter: drop-shadow(0 2px 0 var(--ink-0)); }
+#profile .settings { display: grid; gap: 10px; }
+#profile .set-row { padding: 14px 16px !important; border-radius: 14px !important; color: #fff; background: linear-gradient(180deg, #2a2766, #1c1a4a) !important;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.14), 0 0 0 2.5px var(--ink-0), 0 4px 0 var(--ink-0) !important; font: 800 15px var(--font-body); transition: transform .1s; }
+#profile .set-row:active { transform: translateY(3px); }
+#profile .set-row b { color: #ffcf3a !important; font: 900 14px "Rubik", sans-serif; }

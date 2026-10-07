@@ -292,22 +292,21 @@ const Rewards = (() => {
         const k = x.u[2][0], g = Home.catalog().get(k), feat = k.startsWith('feat:');
         const ic = k === 'feat:cards' ? Ui.get('pack') : k === 'feat:pass' ? Ui.get('star') : g && typeof Icons !== 'undefined' ? Icons.get(g.ico) : Ui.get('lock');
         out += `<div class="rd-gate ${reached ? 'got' : 'lock'}" style="--c1:${(g && g.c1) || '#ffcf3a'};--c2:${(g && g.c2) || '#ff8a2a'}">
-          <span class="rd-hex"><span>${ic}</span></span>
-          <span class="rd-gt"><small>${feat ? 'Новый раздел' : 'Новая игра'} · ${x.t} ${Ui.get('trophy')}</small><b>${esc(x.u[1])}</b></span>
-          <span class="rd-gs">${reached ? Ui.get('star') : Ui.get('lock')}</span></div>`;
+          <span class="rd-hex"><span>${ic}</span>${reached ? '' : `<i>${Ui.get('lock')}</i>`}</span>
+          <span class="rd-gp"><small>${feat ? 'Новый раздел' : 'Новая игра'}</small><b>${esc(x.u[1])}</b><em>${reached ? 'Открыто' : `${x.t} ${Ui.get('trophy')}`}</em></span></div>`;
       } else {
         const got = s.road.includes(x.i), ready = !got && reached, l = rewardLabel(x.r), [ti] = roadTitle(x.r);
         const col = x.r.pack !== undefined ? [PACKCOL[x.r.pack], `color-mix(in srgb, ${PACKCOL[x.r.pack]} 45%, #1a1446)`] : RDCOL[x.r.card || (x.r.coins ? 'coins' : 'lives')] || RDCOL.coins;
         const st = got ? 'got' : ready ? 'ready' : 'lock';
         out += `<div class="rd-row ${side++ % 2 ? 'r' : 'l'} ${st}">
           <button class="rd-tile" style="--t1:${col[0]};--t2:${col[1]}" ${ready ? `data-road="${x.i}"` : ''}>
-            <span class="rd-art">${l.art}</span><b class="rd-nm">${esc(ti)}</b>
+            <span class="rd-art">${l.art}</span><b class="rd-nm"><span>${esc(ti)}</span></b>
             ${got ? '<i class="rd-ok">✓</i>' : ready ? '<i class="rd-take">Забрать</i>' : ''}</button>
           <span class="rd-sh">${x.t}</span></div>`;
       }
       return out;
     }).join('') + (hereDone ? '' : here());
-    return hero + `<div class="rd-path">${rows}</div>`;
+    return hero + `<div class="rd-path"><i class="rd-fill"></i>${rows}</div>`;
   }
 
   function render() {
@@ -316,7 +315,9 @@ const Rewards = (() => {
     const TB = [['road', 'Путь', c.road], Release.feature('cards') && ['cards', 'Галерея', c.sets || (Cards.freshN() ? 'NEW' : '')], Release.feature('pass') && ['pass', 'Пропуск', c.pass], Release.feature('pass') && ['quests', 'Задания', c.qs]].filter(Boolean);
     if (TB.length && !TB.some(([k]) => k === tab)) tab = TB[0][0];
     const sbcOn = Release.isOut('act:sbc');
-    const tabs = !TB.length ? '' : `<nav class="rw-tabs" style="--n:${TB.length + (sbcOn ? 1 : 0)}">${TB.map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}${sbcOn ? `<button data-act="sbc" class="rw-sbc">ИПК${typeof SBC !== 'undefined' && SBC.ready() ? '<i>1</i>' : ''}</button>` : ''}</nav>`;
+    const locked = [!Release.feature('cards') && ['Галерея', 'feat:cards'], !Release.feature('pass') && ['Задания', 'feat:pass']].filter(Boolean);
+    const lockBtns = locked.map(([n, k]) => `<button class="rw-lk" data-rwlock="${Release.need(k)}">${Ui.get('lock')} ${n}<small>${Release.need(k)} ${Ui.get('trophy')}</small></button>`).join('');
+    const tabs = !TB.length ? '' : `<nav class="rw-tabs" style="--n:${TB.length + (sbcOn ? 1 : 0) + locked.length}">${TB.map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}${sbcOn ? `<button data-act="sbc" class="rw-sbc">ИПК${typeof SBC !== 'undefined' && SBC.ready() ? '<i>1</i>' : ''}</button>` : ''}${lockBtns}</nav>`;
     let body = '';
     const nx = Release.next();
     if (tab === 'road') body = trophyRoad(s);
@@ -340,7 +341,8 @@ const Rewards = (() => {
     const keep = box.querySelector('.rs-strip'), sx = keep ? keep.scrollLeft : null;
     box.innerHTML = packs + tabs + body;
     if (tab === 'road') {
-      const here = box.querySelector('.rd-here');
+      const here = box.querySelector('.rd-here'), path = box.querySelector('.rd-path'), fill = box.querySelector('.rd-fill');
+      if (path && fill) fill.style.height = (here ? here.offsetTop + 26 : path.offsetHeight) + 'px';
       if (here && !scrolled) { scrolled = true; requestAnimationFrame(() => scrollTo(0, Math.max(0, here.getBoundingClientRect().top + scrollY - innerHeight * 0.42))); }
       if (!box.dataset.roadIn) { box.dataset.roadIn = 1; $$('.rd-row, .rd-gate, .rd-here, .rd-hero', box).forEach((n, i) => n.animate && n.animate([{ transform: 'translateY(18px) scale(.94)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 360, delay: Math.min(600, i * 30), easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' })); }
     }
@@ -350,6 +352,7 @@ const Rewards = (() => {
   function bind() {
     $('#rewards-body').addEventListener('click', (e) => {
       const t = e.target.closest('[data-rwtab]'); if (t) { tab = t.dataset.rwtab; Sound.play('tap'); render(); return; }
+      const lk = e.target.closest('[data-rwlock]'); if (lk) { haptic('bad'); toast(`Откроется на ${lk.dataset.rwlock} трофеях — побеждай в играх`); return; }
       const cl = Cards.onClick(e); if (cl === true) { render(); if (Cards.takeJump()) { const g = $('#rewards-body .rw-coll'); if (g) scrollTo(0, g.getBoundingClientRect().top + scrollY - 70); } return; } if (cl) return;
       const r = e.target.closest('[data-road]'); if (r) return claimRoad(+r.dataset.road);
       const f = e.target.closest('[data-free]'); if (f) return claimPass(+f.dataset.free, 'free');

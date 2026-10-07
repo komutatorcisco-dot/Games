@@ -125,7 +125,8 @@ const App = (() => {
       ['угадано', (Store.d.dly && Store.d.dly.wins) || 0], ['лучшая серия', (Store.d.dly && Store.d.dly.best) || 0],
       ['побед в дуэлях', fd.filter((x) => x.res === 'win').length], ['аукционов', (Store.d.auction && Store.d.auction.wins) || 0],
       ['рекорд сборной', (Store.d.nation && Store.d.nation.best) || 0], ['тики-така', (Store.d.ttt && Store.d.ttt.wins) || 0],
-    ].map(([k, v]) => `<span><b>${v}</b>${k}</span>`).join('');
+    ].map(([k, v], i) => `<span class="pc-st"><i>${Ui.get(['eye', 'flame', 'swords', 'coin', 'flag', 'hash'][i])}</i><b>${v}</b><small>${k}</small></span>`).join('');
+    $('#pc-tro').textContent = Rewards.S().trophies;
     $('#prof-nick').textContent = Store.d.user.nick || 'Игрок';
     const dh = (Store.d.fduel && Store.d.fduel.hist) || [];
     const stats = [

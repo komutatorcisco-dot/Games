@@ -58,6 +58,7 @@ const Home = (() => {
         <span class="h2-ni" title="${nx ? esc(nx.title) : ''}">${nxIco}${nx ? `<em>${Ui.get('lock')}</em>` : ''}</span>
       </button>
       <div class="h2-arena">
+        <img class="h2-bg" src="img/bg/stadium.svg?v=1" alt="" aria-hidden="true">
         <div class="h2-side l">
           <button class="h2-sb ${dlyDone ? 'done' : 'hot'}" data-act="dly"><span class="h2-sbi dly"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>
         </div>
