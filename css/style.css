@@ -4198,3 +4198,41 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .gl-prize { opacity: .75; } .gl-prize > .ui-ic { width: 12px; height: 12px; color: rgba(255,255,255,.6); }
 .gl-res:empty { display: none; }
 .cl-nm { display: block; margin-top: 4px; font: 800 11px/1.2 var(--font-body); color: rgba(255,255,255,.75); text-align: center; }
+
+/* ===== 3D-матч ===== */
+.xm-stage.is3d { position: relative; height: min(58vh, 480px); border-radius: 18px; overflow: hidden; box-shadow: 0 0 0 2.5px var(--ink-0), 0 5px 0 var(--ink-0); background: #0b0f2c; }
+.xm-stage.is3d .xm-pitch { display: none; }
+.xm-stage canvas.a3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: pan-y; }
+.xm-stage .xm-goalfx { z-index: 3; }
+
+/* ===== турнир драфта и выбор мяча ===== */
+.xt-round { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 10px; padding: 6px 12px; border-radius: 10px; background: linear-gradient(180deg, #ffe07a, #f2b21c); color: #2a1a00; font: 900 13px "Rubik", sans-serif; text-transform: uppercase; box-shadow: 0 0 0 2.5px var(--ink-0), 0 3px 0 var(--ink-0); } .xt-round .ui-ic { width: 15px; height: 15px; }
+.xt-br { display: grid; gap: 8px; margin: 14px 0 6px; }
+.xt-r { display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; column-gap: 10px; padding: 10px 14px; border-radius: 14px; background: linear-gradient(180deg, #2a2766, #1c1a4a); box-shadow: 0 0 0 2.5px var(--ink-0), 0 4px 0 var(--ink-0); }
+.xt-r b { font: 900 15px "Rubik", sans-serif; color: #fff; } .xt-r small { grid-column: 1; font: 700 12px var(--font-body); color: rgba(255,255,255,.6); }
+.xt-r span { grid-column: 2; grid-row: 1 / 3; align-self: center; font: 900 18px "Rubik", sans-serif; color: rgba(255,255,255,.55); text-align: right; } .xt-r span em { display: block; font: 800 11px var(--font-body); font-style: normal; color: #ffcf3a; }
+.xt-r.win { background: linear-gradient(180deg, #2fbf5c, #1a7f3a); } .xt-r.win span { color: #fff; }
+.xt-r.lose { background: linear-gradient(180deg, #c9223e, #7a1426); } .xt-r.lose span { color: #fff; }
+.xt-r.next { box-shadow: inset 0 0 0 3px #ffcf3a, 0 0 0 2.5px var(--ink-0), 0 4px 0 var(--ink-0); } .xt-r.next span { font-size: 13px; color: #ffcf3a; }
+.xt-ladder { display: grid; gap: 6px; margin-bottom: 8px; }
+.xt-p { display: grid; grid-template-columns: 30px auto 1fr; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 12px; background: rgba(6,10,30,.45); }
+.xt-p b { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #2a2766; font: 900 13px "Rubik", sans-serif; color: #fff; }
+.xt-p span { font: 900 12.5px "Rubik", sans-serif; color: #fff; white-space: nowrap; } .xt-p small { font: 700 11.5px/1.25 var(--font-body); color: rgba(255,255,255,.7); text-align: right; } .xt-p small .ui-ic { width: 11px; height: 11px; color: #ffcf3a; vertical-align: -1px; }
+.xt-p.got { box-shadow: inset 0 0 0 2px #ffcf3a; background: rgba(255,207,58,.12); } .xt-p.got b { background: #ffcf3a; color: #2a1a00; }
+.xt-pens { display: grid; gap: 4px; margin: 6px 0; font: 800 12px var(--font-body); color: rgba(255,255,255,.8); } .xt-pens span { display: flex; align-items: center; justify-content: center; gap: 4px; }
+.xt-pens i { width: 12px; height: 12px; border-radius: 50%; } .xt-pens i.in { background: #3ee66b; } .xt-pens i.out { background: #ff4f66; }
+.xt-note { margin: 10px 4px; text-align: center; font: 600 12.5px/1.35 var(--font-body); color: rgba(255,255,255,.65); }
+.xm-balls { margin: 14px 0 6px; } .xm-balls > small { display: block; margin-bottom: 6px; font: 900 11px "Rubik", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.6); }
+.xm-balls > div { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.xm-ball3 { display: grid; justify-items: center; gap: 5px; padding: 8px 2px; border: 0; border-radius: 12px; background: linear-gradient(180deg, #2a2766, #1c1a4a); color: #fff; box-shadow: 0 0 0 2px var(--ink-0), 0 3px 0 var(--ink-0); }
+.xm-ball3 i { width: 34px; height: 34px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.7), transparent 30%), radial-gradient(circle at 50% 50%, var(--b2) 0 18%, transparent 19%), radial-gradient(circle at 15% 70%, var(--b2) 0 12%, transparent 13%), radial-gradient(circle at 85% 70%, var(--b2) 0 12%, transparent 13%), radial-gradient(circle at 50% 8%, var(--b2) 0 10%, transparent 11%), var(--b1); box-shadow: inset -3px -4px 0 rgba(0,0,0,.25), 0 0 0 2px var(--ink-0); }
+.xm-ball3 span { font: 800 10px/1.15 var(--font-body); text-align: center; } .xm-ball3 span .ui-ic { width: 10px; height: 10px; vertical-align: -1px; }
+.xm-ball3.on { box-shadow: inset 0 0 0 2.5px #ffcf3a, 0 0 0 2px var(--ink-0), 0 3px 0 var(--ink-0); }
+.xm-ball3.lock i { filter: grayscale(.6) brightness(.6); } .xm-ball3.lock span { color: rgba(255,255,255,.55); }
+
+/* ===== главная: 3D стадион-остров ===== */
+.h2-arena canvas.a3d { position: absolute; left: -16px; right: -16px; top: -70px; bottom: 0; width: calc(100% + 32px); height: calc(100% + 70px); z-index: 0; touch-action: pan-y; }
+.h2-arena.h2-3d .h2-bg, .h2-arena.h2-3d .h2-pitch, .h2-arena.h2-3d .h2-ped, .h2-arena.h2-3d .h2-shadow { display: none; }
+.h2-arena.h2-3d .h2-game { pointer-events: none; z-index: 1; }
+.h2-arena.h2-3d .h2-hex, .h2-arena.h2-3d .h2-ban { pointer-events: auto; }
+.h2-arena.h2-3d .h2-hex { --hs: calc(var(--W) * .26); bottom: calc(var(--W) * .5); }

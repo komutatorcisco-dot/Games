@@ -75,7 +75,16 @@ const Home = (() => {
         <button class="h2-all" data-h2="pick"><span>${Ui.get('gamepad')}</span><b>Игры</b></button></div>` : ''}`;
     if (typeof Icons !== 'undefined') Icons.fill(box);
     fit();
+    island();
     later(checkUnlocks, 500);
+  }
+  // 3D стадион-остров вместо нарисованного: грузится после старта, нет WebGL — остаётся рисунок
+  let islandAt = 0;
+  function island() {
+    const ar = $('#home2 .h2-arena'); if (!ar || typeof Arena3D === 'undefined' || !Arena3D.supported() || UI().no3d) return;
+    // арену ищем заново: главная могла перерисоваться, пока грузился three.js
+    const go = () => { const a = $('#home2 .h2-arena'); if (a) Arena3D.menu(a).then((v) => { if (v && a.isConnected) a.classList.add('h2-3d'); }).catch(() => {}); };
+    if (window.THREE) go(); else if (!islandAt) { islandAt = 1; setTimeout(go, 1200); }
   }
   // главный экран целиком в один экран: от шапки до нижнего меню, без прокрутки
   function fit() {

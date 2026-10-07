@@ -4,7 +4,27 @@
 'use strict';
 
 const XMatch = (() => {
-  let M = null, timer = null, tac = 2, botTac = 2;
+  let M = null, timer = null, tac = 2, botTac = 2, A3 = null;
+  const stop3d = () => { if (A3) { A3.stop(); A3 = null; } };
+  // цвета формы: клуб, из которого больше всего игроков; если формы похожи — гости в белом
+  function kitOf(xi, fallback) {
+    const n = {}; xi.filter(Boolean).forEach((p) => { n[p.club] = (n[p.club] || 0) + 1; });
+    const club = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
+    return (typeof CLUB_COL !== 'undefined' && CLUB_COL[club]) || fallback;
+  }
+  function mount3d(box) {
+    stop3d();
+    if (typeof Arena3D === 'undefined' || !Arena3D.supported()) return;
+    const stage = $('.xm-stage', box), m = S().match, ctx = C;
+    const home = kitOf(C.xi(), ['#ffc21f', '#1a1446']);
+    let away = kitOf(m.bot.xi.map(XDraft.P), ['#e3243f', '#ffffff']);
+    const rgb = (x) => { const v = String(x).replace('#', ''); return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) || 0); };
+    const dist = (a, b) => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
+    if (dist(home[0], away[0]) < 150) away = dist(home[0], '#f4f4f4') < 150 ? ['#e3243f', '#ffffff'] : ['#f4f4f4', '#1a1446'];
+    Arena3D.match(stage, { form: [C.form(), m.bot.form], slots: XD.FORMATIONS, kits: [home, away], ball: Arena3D.ballState().ball, names: [String(Store.d.user.nick || 'ДЖЕКСОНЫ').toUpperCase()], visible: () => Screens.current === ctx.screen })
+      .then((a) => { if (!a) return; if (!stage.isConnected || !M || M.over) { a.stop(); return; } A3 = a; stage.classList.add('is3d'); })
+      .catch(() => { /* без 3D — остаётся вид сверху */ });
+  }
   // откуда матч: драфт (по умолчанию) или «Мой состав» из карточек — у каждого свой экран, состав и сохранение
   const DRAFT = { screen: 'xdraft', body: '#xd-body', st: () => XDraft.S(), form: () => XDraft.A().form, sys: () => XDraft.A().sys, xi: () => XDraft.xiOf(), back: () => { XDraft.S().match = null; Store.save(); XDraft.render(); }, title: () => `Драфт ${XDraft.A().form} · ${XDraft.SYS[XDraft.A().sys]}`, link: 'xdraft' };
   let C = DRAFT;
@@ -24,10 +44,11 @@ const XMatch = (() => {
     const bxi = m.bot.xi.map(XDraft.P);
     return XD.matchNew(side(C.sys(), C.form(), xi), side(C.sys(), m.bot.form, bxi), m.seed);
   }
-  function start(level) {
+  function start(level, tourRound) {
     const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
     const bt = XD.botTeam(level, XDraft.pool(), C.sys(), XD.rng(seed ^ 0x5bd1));
     S().match = { seed, level, bot: { form: bt.form, xi: bt.xi.map((p) => p && p.name) }, hist: [], done: false };
+    if (tourRound !== undefined) S().match.tour = tourRound;
     Store.save();
     tac = 2; botTac = 2; M = build(S().match);
     intro();
@@ -42,22 +63,32 @@ const XMatch = (() => {
   }
   function intro() {
     const m = S().match, b = M.away;
-    BODY().innerHTML = `<div class="xm-intro"><div class="xm-vs"><span><b>${esc(Store.d.user.nick || 'Ты')}</b><small>${C.form()} · рейтинг ${M.home.rating} · химия ${M.home.chem}</small></span><i>VS</i>
+    const tr = m.tour !== undefined ? `<div class="xt-round">${Ui.get('trophy')} Турнир драфта · ${TOUR[m.tour][1]}</div>` : '';
+    BODY().innerHTML = `<div class="xm-intro">${tr}<div class="xm-vs"><span><b>${esc(Store.d.user.nick || 'Ты')}</b><small>${C.form()} · рейтинг ${M.home.rating} · химия ${M.home.chem}</small></span><i>VS</i>
       <span><b>Бот · ${XD.BOTS[m.level].name}</b><small>${m.bot.form} · рейтинг ${b.rating} · химия ${b.chem}</small></span></div>
       <p class="xm-note">Атака — больше моментов, но больше риска сзади</p>
+      ${typeof Arena3D !== 'undefined' ? ballPicker() : ''}
       <button class="btn gold" data-xm="go">Начать матч</button></div>`;
+  }
+  // мяч матча: открытые — выбрать, закрытые — подсказка, как получить
+  const BALLCSS = { classic: ['#f5f5f2', '#15151a'], noir: ['#18181d', '#d8a51f'], ivory: ['#f5f5f2', '#d8a51f'], gold: ['#e6b62a', '#15151a'] };
+  function ballPicker() {
+    const u = Arena3D.ballState();
+    return `<div class="xm-balls"><small>Мяч</small><div>${Object.entries(Arena3D.BALLS).map(([k, b]) => {
+      const own = u.balls.includes(k), [c1, c2] = BALLCSS[k];
+      return `<button class="xm-ball3 ${u.ball === k ? 'on' : ''} ${own ? '' : 'lock'}" data-ball="${k}" style="--b1:${c1};--b2:${c2}" aria-label="${esc(b.name)}"><i></i><span>${own ? esc(b.name) : `${Ui.get('lock')} ${Arena3D.BALL_NEED[k] === 4 ? 'чемпион' : Arena3D.BALL_NEED[k] + ' победы'}`}</span></button>`;
+    }).join('')}</div></div>`;
   }
   function run() {
     clearInterval(timer);
     timer = setInterval(tick, XD.CFG.match.tickMs);
   }
   function tick() {
-    if (Screens.current !== C.screen || !M) { clearInterval(timer); return; } // ушли с экрана — пауза, вернёмся — продолжим
+    if (Screens.current !== C.screen || !M) { clearInterval(timer); stop3d(); return; } // ушли с экрана — пауза, вернёмся — продолжим
     const m = S().match;
     botTac = XD.botTactic(m.level, M, 1, botTac);
     const evs = XD.matchStep(M, [tac, botTac]);
     m.hist.push([tac, botTac]);
-    if (M.over) m.done = true;
     Store.save(true);
     evs.forEach((e) => { if (e.t === 'goal') { Sound.play(e.s === 0 ? 'goal' : 'lose'); haptic(e.s === 0 ? 'ok' : 'bad'); } });
     if (M.over) { clearInterval(timer); Sound.play('whistle'); Store.save(); return setTimeout(end, 900); }
@@ -117,10 +148,12 @@ const XMatch = (() => {
     anim($('.xm-pitch', box), [{ transform: 'rotateX(55deg) scale(.85)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,.9,.3,1)' });
     shownEv = M.ev.length;
     update([], true);
+    mount3d(box);
   }
   let shownEv = 0;
   function update(evs = [], first = false) {
     const box = BODY(); if (!$('.xm-pitch', box)) return buildView();
+    if (A3 && evs.length) A3.events(evs);
     const last = evs[evs.length - 1];
     const ball = $('.xm-ball', box), from = [parseFloat(ball.style.left) || 50, parseFloat(ball.style.top) || 50];
     if (last) { ballX = last.s === 0 ? 91 : 9; ballY = 38 + Math.random() * 24; }
@@ -159,9 +192,11 @@ const XMatch = (() => {
   function render(evs = []) { update(evs); }
   function setTac(t) { t = Math.max(0, Math.min(4, t)); if (t === tac) return; tac = t; Sound.play('tap'); haptic('pop'); const box = BODY(); $('.xm-tn', box).textContent = SHORT[tac]; $$('.xm-bar button', box).forEach((b, k) => b.classList.toggle('on', k === tac)); $('.xm-knob', box).style.left = tac * 20 + 10 + '%'; }
   function end() {
+    stop3d();
     const m = S().match, first = !m.done; m.done = true; Store.save();
     const w = M.score[0] > M.score[1] ? 'win' : M.score[0] < M.score[1] ? 'lose' : 'draw';
     if (first && C.onEnd) C.onEnd(w, m.level);
+    if (m.tour !== undefined && C === DRAFT) return tourAfter(m, first);
     BODY().innerHTML = `<div class="xd-res"><div class="sb"><div class="sb-k">ФИНАЛЬНЫЙ СВИСТОК · БОТ «${XD.BOTS[m.level].name.toUpperCase()}»</div>
       <div class="xm-final ${w}"><b>${M.score[0]}</b><i>:</i><b>${M.score[1]}</b></div><div class="xd-best">${w === 'win' ? 'Победа!' : w === 'lose' ? 'Поражение' : 'Ничья'} · моменты ${M.stats.ch[0]}:${M.stats.ch[1]} · в створ ${M.stats.on[0]}:${M.stats.on[1]}</div></div>
       <div class="xm-feed all">${M.ev.filter((e) => e.t === 'goal').map((e) => `<div class="xm-ev ${e.s ? 'them' : 'us'} k-goal"><b>${e.m}'</b><span>${Ui.get('ball')}</span><em>${esc(who(e.s, e.m).shooter)}</em></div>`).join('') || '<p class="xm-note">Без голов</p>'}</div>
@@ -175,19 +210,81 @@ const XMatch = (() => {
     try { if (TG && TG.openTelegramLink) { TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`); return; } } catch (e) { /* не в Telegram */ }
     if (navigator.share) navigator.share({ text, url }).catch(() => {}); else toast(text);
   }
+  // ---------- турнир драфта: 4 матча, соперники сильнее с каждым раундом; ничья — пенальти ----------
+  const TOUR = [['easy', '1/8 финала'], ['normal', 'Четвертьфинал'], ['hard', 'Полуфинал'], ['hard', 'Финал']];
+  const PRIZE = [{ coins: 60 }, { pack: 0, coins: 40 }, { pack: 1, ball: 'noir' }, { pack: 2, ball: 'ivory' }, { pack: 3, coins: 300, ball: 'gold' }];
+  const TROPHY = [3, 8, 14, 22, 40];
+  const prizeLine = (p) => [p.pack !== undefined ? ['Обычный', 'Сверхредкий', 'Эпический', 'Легендарный'][p.pack] + ' пак' : '', p.coins ? `${p.coins} монет` : '', p.ball ? `мяч «${Arena3D.BALLS[p.ball].name}»` : ''].filter(Boolean).join(' + ');
+  function tourStart() { C = DRAFT; S().tour = { round: 0, res: [], over: false, paid: false }; Store.save(); start(TOUR[0][0], 0); }
+  function penalties() {
+    const rA = M.home.rating, rB = M.away.rating, pA = Math.min(0.9, Math.max(0.6, 0.75 + (rA - rB) * 0.01)), pB = Math.min(0.9, Math.max(0.6, 0.75 + (rB - rA) * 0.01));
+    const a = [], b = [];
+    for (let i = 0; i < 5 || a.filter(Boolean).length === b.filter(Boolean).length; i++) { a.push(Math.random() < pA); b.push(Math.random() < pB); if (i > 14) break; }
+    return { a, b, sa: a.filter(Boolean).length, sb: b.filter(Boolean).length };
+  }
+  function tourAfter(m, first) {
+    const T = S().tour; if (!T) return;
+    if (first && T.res.length === m.tour) {
+      let win = M.score[0] > M.score[1], pens = null;
+      if (M.score[0] === M.score[1]) { pens = penalties(); win = pens.sa > pens.sb; }
+      T.res.push({ s: M.score.slice(), pens: pens ? { a: pens.a, b: pens.b } : null, win });
+      if (!win || m.tour === 3) T.over = true; else T.round = m.tour + 1;
+      Store.save();
+      if (win && typeof confetti === 'function') confetti();
+      Sound.play(win ? 'goal' : 'lose');
+    }
+    tourScreen();
+  }
+  function tourScreen() {
+    const T = S().tour, wins = T.res.filter((r) => r.win).length;
+    const last = T.res[T.res.length - 1];
+    const dots = (arr) => arr.map((x) => `<i class="${x ? 'in' : 'out'}"></i>`).join('');
+    const rows = TOUR.map(([lv, name], i) => {
+      const r = T.res[i], st = r ? (r.win ? 'win' : 'lose') : i === T.round && !T.over ? 'next' : 'wait';
+      return `<div class="xt-r ${st}"><b>${name}</b><small>Бот · ${XD.BOTS[lv].name}</small><span>${r ? `${r.s[0]}:${r.s[1]}${r.pens ? ` <em>пен. ${r.pens.a.filter(Boolean).length}:${r.pens.b.filter(Boolean).length}</em>` : ''}` : st === 'next' ? 'следующий' : '—'}</span></div>`;
+    }).join('');
+    const ladder = PRIZE.map((p, i) => `<div class="xt-p ${T.over && wins === i ? 'got' : ''}"><b>${i}</b><span>${i === 4 ? 'Чемпион' : `${i} ${i === 1 ? 'победа' : i > 1 && i < 5 ? 'победы' : 'побед'}`}</span><small>${prizeLine(p)} · +${TROPHY[i]} ${Ui.get('trophy')}</small></div>`).join('');
+    const head = last ? `<div class="sb"><div class="sb-k">ТУРНИР ДРАФТА · ${TOUR[T.res.length - 1][1].toUpperCase()}</div>
+      <div class="xm-final ${last.win ? 'win' : 'lose'}"><b>${last.s[0]}</b><i>:</i><b>${last.s[1]}</b></div>
+      ${last.pens ? `<div class="xt-pens"><span>Ты ${dots(last.pens.a)}</span><span>Бот ${dots(last.pens.b)}</span></div>` : ''}
+      <div class="xd-best">${T.over ? (wins === 4 ? 'Чемпион турнира!' : `Турнир окончен · побед: ${wins}`) : 'Победа! Проходишь дальше'}</div></div>` : '';
+    const btn = T.over ? (T.paid ? '<button class="btn gold" data-xm="tnew">Новый драфт</button>' : '<button class="btn gold" data-xm="tprize">Забрать награду</button>') : `<button class="btn gold" data-xm="tnext">Играть: ${TOUR[T.round][1]}</button>`;
+    BODY().innerHTML = `<div class="xd-res xt">${head}<div class="xt-br">${rows}</div><h3 class="gl-h">Награды за турнир</h3><div class="xt-ladder">${ladder}</div>
+      <div class="xd-act col">${btn}<button class="btn ghost" data-xm="squad">К составу</button></div></div>`;
+    if (T.over && wins === 4 && typeof confetti === 'function') confetti();
+  }
+  function tourNext() { const T = S().tour; if (!T || T.over) return; start(TOUR[T.round][0], T.round); }
+  function tourPrize() {
+    const T = S().tour; if (!T || !T.over || T.paid) return;
+    const wins = T.res.filter((r) => r.win).length, p = PRIZE[wins];
+    T.paid = true;
+    const u = Arena3D.ballState(); if (p.ball && !u.balls.includes(p.ball)) { u.balls.push(p.ball); u.ball = p.ball; }
+    const rs = Rewards.S(); rs.trophies += TROPHY[wins]; Store.save();
+    if (p.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(p.coins); }
+    if (p.pack !== undefined) Rewards.openDrop({ title: wins === 4 ? 'ЧЕМПИОН ТУРНИРА ДРАФТА' : `ТУРНИР ДРАФТА · ПОБЕД: ${wins}`, minLevel: p.pack });
+    toast(`+${TROPHY[wins]} трофеев${p.ball ? ` · новый мяч «${Arena3D.BALLS[p.ball].name}»` : ''}`);
+    Rewards.refresh(); tourScreen();
+  }
+  const tourState = () => S().tour;
+
   function bind(sel = '#xd-body', ctx = DRAFT) {
     const box = $(sel); if (!box || box.dataset.xmb) return; box.dataset.xmb = 1;
     box.addEventListener('click', (e) => {
       C = ctx;
       const z = e.target.closest('[data-tac]'); if (z) return setTac(+z.dataset.tac);
+      const bl = e.target.closest('[data-ball]');
+      if (bl) { const u = Arena3D.ballState(), k = bl.dataset.ball; if (!u.balls.includes(k)) { toast(`Открывается в турнире драфта: ${Arena3D.BALL_NEED[k] === 4 ? 'стань чемпионом' : `${Arena3D.BALL_NEED[k]} победы подряд`}`); return; } u.ball = k; Store.save(); Sound.play('tap'); return intro(); }
       const b = e.target.closest('[data-xm]'); if (!b) return;
       const k = b.dataset.xm;
       if (k === 'go') { render(); run(); }
       if (k === 'again') choose();
       if (k === 'share') share();
       if (k === 'squad') C.back();
+      if (k === 'tnext') tourNext();
+      if (k === 'tprize') tourPrize();
+      if (k === 'tnew') { S().tour = null; S().match = null; Store.save(); C.back(); }
     });
     box.addEventListener('change', (e) => { if (e.target.classList.contains('xm-range')) setTac(+e.target.value); });
   }
-  return { choose, start, resume, bind, use, DRAFT };
+  return { choose, start, resume, bind, use, DRAFT, tourStart, tourScreen, tourState };
 })();

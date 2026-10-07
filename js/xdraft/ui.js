@@ -76,6 +76,7 @@ const XDraft = (() => {
 
   // ---------- новая попытка ----------
   function fresh() {
+    S().tour = null;
     S().cur = { id: Date.now(), stage: 'sys', sys: null, forms: null, form: null, capt: null, captPick: null, xi: Array(11).fill(null), bench: Array(XD.BENCH).fill(null), offers: {} };
     S().match = null; save();
   }
@@ -331,7 +332,9 @@ const XDraft = (() => {
         <div class="xd-best">Лучшее в режиме «${SYS[a.sys]}»: рейтинг ${b.r} · химия ${b.c}/${c.max}</div></div>
       ${pitchHTML(a, xi, c, { live: false })}
       <div class="xd-bench"><div class="xd-bh"><b>Скамейка</b></div><div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
-      <div class="xd-act col"><button class="btn gold" data-act2="bot">Играть против бота</button><button class="btn ghost" data-act2="share">Поделиться составом</button><button class="btn ghost" data-act2="reset">Новый драфт</button></div>
+      <div class="xd-act col">${S().tour && !S().tour.paid ? `<button class="btn gold" data-act2="tour-go">${S().tour.over ? 'Итоги турнира' : 'Продолжить турнир'}</button>` : '<button class="btn gold" data-act2="tour">Турнир драфта · 4 матча</button>'}
+        <button class="btn ghost" data-act2="bot">Товарищеский матч</button><button class="btn ghost" data-act2="share">Поделиться составом</button><button class="btn ghost" data-act2="reset">Новый драфт</button></div>
+      <p class="xt-note">Турнир: 4 матча против ботов, каждый сильнее. Проиграл — вылетел. Награды: паки, монеты, трофеи и золотые мячи.</p>
 </div>`;
     Photos.hydrate($('#xd-body'));
   }
@@ -368,6 +371,8 @@ const XDraft = (() => {
         if (k === 'finish') return finish();
         if (k === 'share') return share();
         if (k === 'bot') return XMatch.choose(XMatch.DRAFT);
+        if (k === 'tour') return XMatch.tourStart();
+        if (k === 'tour-go') { XMatch.use(XMatch.DRAFT); return XMatch.tourScreen(); }
         if (k === 'reset') {
           const a = A();
           if (a && a.stage !== 'done' && a.stage !== 'sys') return Modal.open('<h2>Начать новый драфт?</h2><p>Текущий состав пропадёт.</p>', [{ label: 'Начать заново', onClick: () => { fresh(); render(); } }, { label: 'Отмена', cls: 'ghost' }]);
