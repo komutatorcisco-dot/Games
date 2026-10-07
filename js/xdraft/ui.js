@@ -74,29 +74,47 @@ const XDraft = (() => {
     let list, pos = null;
     if (what === 'capt') list = a.capt.map(P).filter(Boolean);
     else { list = offerFor(what, i); pos = what === 'xi' ? XD.FORMATIONS[a.form].slots[i].pos : null; }
-    pick = { zone: what, i, list, chosen: null };
+    pick = { zone: what, i, list, chosen: 0 };
     const el = document.createElement('div');
     el.className = 'xp'; el.id = 'xd-pick';
-    const title = what === 'capt' ? 'Капитан' : pos ? XD.RU[pos] : 'Запасной';
+    const title = what === 'capt' ? 'Капитан' : pos ? XD.RU[pos] : 'Запас';
     el.innerHTML = `<div class="xp-top"><span class="xp-pos">${title}</span><b>${what === 'capt' ? 'Выбери капитана' : 'Выбери игрока'}</b><button class="xp-x" aria-label="Закрыть">✕</button></div>
-      <div class="xp-grid n${list.length}">${list.map((p, k) => `<button class="xp-c" data-k="${k}">${cardBig(p)}${what === 'xi' ? chemDelta(i, p) : ''}</button>`).join('')}</div>
-      <div class="xp-foot"><div class="xp-sum"></div><button class="btn gold xp-ok" disabled>Выбери карточку</button></div>`;
+      <div class="xp-row">${list.map((p, k) => `<div class="xp-c" data-k="${k}">${mini(p, { slotPos: pos, idx: k, zone: 'pick', sys: a.sys, big: true })}${what === 'xi' ? chemDelta(i, p) : ''}</div>`).join('')}</div>
+      <div class="xp-dots">${list.map((_, k) => `<i data-k="${k}"></i>`).join('')}</div>
+      <div class="xp-foot"><div class="xp-sum"></div><button class="btn gold xp-ok">Взять</button></div>`;
     document.body.appendChild(el);
-    requestAnimationFrame(() => el.classList.add('in'));
+    const row = $('.xp-row', el), cards = $$('.xp-c', el);
+    // карусель: центральная карточка крупная, соседние уменьшаются и разворачиваются
+    function fx() {
+      if (!pick || !el.isConnected) return;
+      const mid = row.scrollLeft + row.clientWidth / 2;
+      let best = 0, bd = 1e9;
+      cards.forEach((c, k) => {
+        const cx = c.offsetLeft + c.offsetWidth / 2, d = (cx - mid) / c.offsetWidth, ad = Math.min(1.6, Math.abs(d));
+        c.style.transform = `perspective(700px) rotateY(${Math.max(-1, Math.min(1, d)) * -24}deg) scale(${1 - ad * 0.2})`;
+        c.style.opacity = String(1 - ad * 0.35); c.style.zIndex = String(10 - Math.round(ad * 5));
+        if (Math.abs(d) < bd) { bd = Math.abs(d); best = k; }
+      });
+      if (best !== pick.chosen || !el.dataset.ready) { pick.chosen = best; el.dataset.ready = '1'; sync(); }
+    }
+    function sync() {
+      if (!pick) return;
+      const p = list[pick.chosen]; if (!p) return;
+      $$('.xp-dots i', el).forEach((d, k) => d.classList.toggle('on', k === pick.chosen));
+      $('.xp-ok', el).textContent = `Взять ${surname(p.name)}`;
+      if (what !== 'capt') { const pv = preview(what, i, p); $('.xp-sum', el).innerHTML = `<span>Рейтинг <b>${pv.before.r || '—'} → ${pv.after.r}</b></span><span>Химия <b>${pv.before.c} → ${pv.after.c}</b></span>`; }
+    }
+    const go = (k) => { const c = cards[k]; if (c) row.scrollTo({ left: c.offsetLeft - (row.clientWidth - c.offsetWidth) / 2, behavior: 'smooth' }); };
+    let raf = 0; row.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fx); }, { passive: true });
+    requestAnimationFrame(() => { el.classList.add('in'); go(0); fx(); });
     el.addEventListener('click', (e) => {
       if (e.target.closest('.xp-x')) return closePick();
-      const c = e.target.closest('.xp-c');
-      if (c) {
-        if (pick.chosen === +c.dataset.k) return confirmPick(); // второе нажатие — взять
-        pick.chosen = +c.dataset.k; $$('.xp-c', el).forEach((b) => b.classList.toggle('on', b === c));
-        const ok = $('.xp-ok', el); ok.disabled = false; ok.textContent = `Взять ${surname(list[pick.chosen].name)}`;
-        if (what !== 'capt') { const pv = preview(what, i, list[pick.chosen]); $('.xp-sum', el).innerHTML = `<span>Рейтинг <b>${pv.before.r || '—'} → ${pv.after.r}</b></span><span>Химия <b>${pv.before.c} → ${pv.after.c}</b></span>`; }
-        Sound.play('tap'); return;
-      }
-      if (e.target.closest('.xp-ok') && pick.chosen !== null) confirmPick();
+      const c = e.target.closest('.xp-c'), d = e.target.closest('.xp-dots i');
+      if (c || d) { const k = +(c || d).dataset.k; if (k === pick.chosen && c) return confirmPick(); go(k); Sound.play('tap'); return; }
+      if (e.target.closest('.xp-ok')) confirmPick();
     });
   }
-  // маленький значок под карточкой: на сколько вырастет химия команды
+  // под карточкой: на сколько вырастет химия команды
   function chemDelta(i, p) {
     const pv = preview('xi', i, p), d = pv.after.c - pv.before.c;
     return `<span class="xp-d ${d > 0 ? 'up' : ''}">${d > 0 ? '+' + d : d} хим</span>`;
@@ -145,20 +163,47 @@ const XDraft = (() => {
     const c = { key: p.name, name: p.name, r: p.r, pos: XD.RU[p.pos[0]], club: p.club, flag: p.flag, face: p.face, rar: rarOf(p.r) };
     return typeof Cards !== 'undefined' ? Cards.html(c, { w: 132 }) : `<div class="xc big ${c.rar}"><b class="xc-r">${p.r}</b><small>${c.pos}</small>${faceImg(p)}<span class="xc-n">${esc(surname(p.name))}</span></div>`;
   }
+  // карточка-щит как в FUT: цвет — редкость, слева рейтинг/позиция/флаг/клуб, справа лицо, снизу фамилия
   function mini(p, opts) {
-    const { slotPos, ch, sys, cls = '', idx, zone } = opts;
-    if (!p) return `<button class="xc empty ${cls}" data-z="${zone}" data-i="${idx}"><span class="xc-plus">+</span><small>${slotPos ? XD.RU[slotPos] : ''}</small></button>`;
-    const [k1, k2] = colOf(p.club), cr = CRESTS[p.club];
+    const { slotPos, ch, sys, idx, zone, big } = opts;
+    const cap = zone === 'xi' && A() && A().captSlot === idx;
+    if (!p) return `<button class="fu empty" data-z="${zone}" data-i="${idx}"><span class="fu-plus">+</span><small>${slotPos ? XD.RU[slotPos] : ''}</small></button>`;
+    const cr = CRESTS[p.club];
     const off = slotPos && (sys === 'new' ? !p.pos.includes(slotPos) : p.pos[0] !== slotPos);
     let chem = '';
     if (ch && zone === 'xi') {
       chem = sys === 'new'
-        ? `<span class="xc-ch new" data-chem="${idx}">${[0, 1, 2].map((d) => `<i class="${d < ch.chem ? 'on' : ''}"></i>`).join('')}</span>`
-        : `<span class="xc-ch cl c${ch.chem >= 7 ? 'g' : ch.chem >= 4 ? 'y' : 'r'}" data-chem="${idx}">${ch.chem}</span>`;
+        ? `<span class="fu-ch new" data-chem="${idx}">${[0, 1, 2].map((d) => `<i class="${d < ch.chem ? 'on' : ''}"></i>`).join('')}</span>`
+        : `<span class="fu-ch cl c${ch.chem >= 7 ? 'g' : ch.chem >= 4 ? 'y' : 'r'}" data-chem="${idx}">${ch.chem}</span>`;
     }
-    return `<button class="xc ${rarOf(p.r)} ${cls} ${off ? 'off' : ''}" data-z="${zone}" data-i="${idx}" style="--k1:${k1};--k2:${k2}">
-      <span class="xc-r"><b>${p.r}</b><small>${XD.RU[slotPos || p.pos[0]]}</small></span>${cr ? `<img class="xc-cr" src="img/clubs/${cr}" alt="">` : ''}${faceImg(p)}
-      <span class="xc-n">${esc(surname(p.name))}</span>${zone === 'xi' && A().captSlot === idx ? '<i class="xc-c">C</i>' : ''}${chem}</button>`;
+    return `<button class="fu ${rarOf(p.r)} ${off ? 'off' : ''} ${big ? 'big' : ''}" data-z="${zone}" data-i="${idx}">
+      <span class="fu-l"><b>${p.r}</b><small>${XD.RU[slotPos || p.pos[0]]}</small><em>${p.flag}</em>${cr ? `<img src="img/clubs/${cr}" alt="">` : ''}</span>
+      ${p.face ? `<img class="fu-f" src="${FreshFaces.on() ? FreshFaces.url(p.face, big ? 240 : 120) : faceSrc(p.face)}" alt="">` : '<span class="fu-sil"></span>'}
+      <span class="fu-n">${esc(surname(p.name))}</span>${cap ? '<i class="fu-c">C</i>' : ''}</button>${chem}`;
+  }
+  // перспектива как у телекамеры: дальняя сторона уже, игроки там чуть меньше
+  const proj = (x, y) => { const t = y / 100, k = 0.74 + 0.26 * t; return { x: 50 + (x - 50) * k, y: 2 + 96 * Math.pow(t, 1.08), k: 0.84 + 0.16 * t }; };
+  function field() {
+    const P2 = (x, y) => { const q = proj(x, y); return `${q.x.toFixed(2)},${q.y.toFixed(2)}`; };
+    const poly = (pts) => `<polygon points="${pts.map(([x, y]) => P2(x, y)).join(' ')}"/>`;
+    const stripes = Array.from({ length: 10 }, (_, k) => (k % 2 ? poly([[0, k * 10], [100, k * 10], [100, k * 10 + 10], [0, k * 10 + 10]]) : '')).join('');
+    const c = proj(50, 50), h1 = proj(0, 50), h2 = proj(100, 50);
+    return `<svg class="xd-field" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <g class="st">${stripes}</g>
+      <g class="mk">${poly([[0, 0], [100, 0], [100, 100], [0, 100]])}<line x1="${h1.x}" y1="${h1.y}" x2="${h2.x}" y2="${h2.y}"/>
+      <ellipse cx="${c.x}" cy="${c.y}" rx="${13 * c.k}" ry="${8 * c.k}"/>${poly([[22, 0], [78, 0], [78, 14], [22, 14]])}${poly([[22, 100], [78, 100], [78, 86], [22, 86]])}
+      ${poly([[37, 0], [63, 0], [63, 5], [37, 5]])}${poly([[37, 100], [63, 100], [63, 95], [37, 95]])}</g></svg>`;
+  }
+  function pitchHTML(a, xi, c, { live = true, capt = null } = {}) {
+    const F_ = XD.FORMATIONS[a.form];
+    const lines = a.sys === 'classic' ? `<svg class="xd-links" viewBox="0 0 100 100" preserveAspectRatio="none">${c.links.map((l) => {
+      const p1 = proj(F_.slots[l.i].x, F_.slots[l.i].y), p2 = proj(F_.slots[l.j].x, F_.slots[l.j].y);
+      return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" class="ln ${l.color}"/>`;
+    }).join('')}</svg>` : '';
+    return `<div class="xd-pitch ${a.sys} ${live && sel ? 'swapping' : ''} ${capt ? 'placing' : ''}">${field()}${lines}${F_.slots.map((s, i) => {
+      const q = proj(s.x, s.y), glow = capt && (a.sys === 'new' ? capt.pos.includes(s.pos) : capt.pos[0] === s.pos) && !a.xi[i];
+      return `<div class="xd-slot ${live && sel && sel.zone === 'xi' && sel.i === i ? 'sel' : ''} ${glow ? 'glow' : ''}" style="left:${q.x}%;top:${q.y}%;--k:${q.k}">${mini(xi[i], { slotPos: s.pos, ch: c.per[i], sys: a.sys, idx: i, zone: 'xi' })}</div>`;
+    }).join('')}</div>`;
   }
 
   // ---------- экраны ----------
@@ -179,18 +224,11 @@ const XDraft = (() => {
     if (a.stage === 'done') return renderResult();
     const xi = xiOf(a), bench = benchOf(a), c = XD.chem(a.sys, a.form, xi), F_ = XD.FORMATIONS[a.form];
     const done = filled(a), all = 11 + XD.BENCH, rating = XD.teamRating(xi);
-    const lines = a.sys === 'classic' ? `<svg class="xd-links" viewBox="0 0 100 100" preserveAspectRatio="none">${c.links.map((l) => {
-      const s1 = F_.slots[l.i], s2 = F_.slots[l.j];
-      return `<line x1="${s1.x}" y1="${s1.y}" x2="${s2.x}" y2="${s2.y}" class="ln ${l.color}"/>`;
-    }).join('')}</svg>` : '';
     const capt = a.stage === 'capt' && a.captPick ? P(a.captPick) : null;
     const part = a.xi.filter(Boolean).length < 11;
     box.innerHTML = `<div class="xd-bar"><span class="xd-f">${a.form}</span><span class="xd-st"><small>Рейтинг</small><b>${rating || '—'}</b>${part ? '<i>предв.</i>' : ''}</span>
         <button class="xd-st xd-chem" data-act2="chem"><small>Химия</small><b>${c.total}<em>/${c.max}</em></b>${part ? '<i>предв.</i>' : ''}<span class="xd-cbar"><i style="width:${(c.total / c.max) * 100}%"></i></span></button></div>
-      <div class="xd-pitch ${a.sys} ${sel ? 'swapping' : ''} ${capt ? 'placing' : ''}"><span class="xd-mk"><i class="pa t"></i><i class="pa b"></i><i class="ga t"></i><i class="ga b"></i></span>${lines}${F_.slots.map((s, i) => {
-        const glow = capt && (a.sys === 'new' ? capt.pos.includes(s.pos) : capt.pos[0] === s.pos) && !a.xi[i];
-        return `<div class="xd-slot ${sel && sel.zone === 'xi' && sel.i === i ? 'sel' : ''} ${glow ? 'glow' : ''}" style="left:${s.x}%;top:${s.y}%">${mini(xi[i], { slotPos: s.pos, ch: c.per[i], sys: a.sys, idx: i, zone: 'xi' })}</div>`;
-      }).join('')}</div>
+      ${pitchHTML(a, xi, c, { capt })}
       <div class="xd-bench"><div class="xd-bh"><b>Скамейка</b><small>${bench.filter(Boolean).length}/${XD.BENCH}</small></div>
         <div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b ${sel && sel.zone === 'bench' && sel.i === i ? 'sel' : ''}">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
       <div class="xd-act">${a.stage === 'capt' ? `<button class="btn gold" data-act2="capt">${capt ? 'Сменить капитана' : 'Выбрать капитана'}</button>` : `<button class="btn gold" data-act2="finish" ${done < all ? 'disabled' : ''}>${done < all ? `Заполнено ${done}/${all}` : 'Завершить драфт'}</button>`}
@@ -238,7 +276,7 @@ const XDraft = (() => {
     $('#xd-body').innerHTML = `<div class="xd-res"><div class="sb"><div class="sb-k">ДРАФТ · ${a.form} · ${SYS[a.sys].toUpperCase()}</div>
         <div class="xd-rs"><span><small>Рейтинг</small><b>${a.result.r}</b>${a.result.newR ? '<em>рекорд!</em>' : ''}</span><span><small>Химия</small><b>${a.result.c}<i>/${c.max}</i></b>${a.result.newC ? '<em>рекорд!</em>' : ''}</span></div>
         <div class="xd-best">Лучшее в режиме «${SYS[a.sys]}»: рейтинг ${b.r} · химия ${b.c}/${c.max}</div></div>
-      <div class="xd-pitch sm ${a.sys}">${F_.slots.map((s, i) => `<div class="xd-slot" style="left:${s.x}%;top:${s.y}%">${mini(xi[i], { slotPos: s.pos, ch: c.per[i], sys: a.sys, idx: i, zone: 'xi' })}</div>`).join('')}</div>
+      ${pitchHTML(a, xi, c, { live: false })}
       <div class="xd-bench"><div class="xd-bh"><b>Скамейка</b></div><div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
       <div class="xd-act col"><button class="btn gold" data-act2="bot">Играть против бота</button><button class="btn ghost" data-act2="share">Поделиться составом</button><button class="btn ghost" data-act2="reset">Новый драфт</button></div>
 </div>`;
@@ -283,7 +321,7 @@ const XDraft = (() => {
           fresh(); return render();
         }
       }
-      const sl = e.target.closest('.xc[data-z]'); if (sl && A().stage !== 'done') return tapSlot(sl.dataset.z, +sl.dataset.i);
+      const sl = e.target.closest('.fu[data-z]'); if (sl && A().stage !== 'done') return tapSlot(sl.dataset.z, +sl.dataset.i);
     });
   }
   return { open, bind, render, P, xiOf: () => xiOf(A()), A, S, pool, mini, SYS };
