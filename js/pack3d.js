@@ -86,7 +86,7 @@ const Pack3D = (() => {
   // ---------- другие варианты оформления пака ----------
   // слово с «уезжающими» буквами, как на аватарке канала
   function smearWord(g, solid, smear, x, y, size, col) {
-    g.save(); g.font = `900 ${size}px Inter, Rubik, sans-serif`; g.textBaseline = 'middle'; g.textAlign = 'left'; g.fillStyle = col;
+    g.save(); g.font = `900 ${size}px Rubik, sans-serif`; g.textBaseline = 'middle'; g.textAlign = 'left'; g.fillStyle = col;
     const w1 = g.measureText(solid).width, w2 = g.measureText(smear).width, x0 = x - (w1 + w2) / 2;
     g.fillText(solid, x0, y);
     for (let i = 0; i < 18; i++) { g.globalAlpha = 0.16 * (1 - i / 18); g.filter = `blur(${1 + i * 0.5}px)`; g.fillText(smear, x0 + w1 + i * size * 0.035, y); }
@@ -109,7 +109,7 @@ const Pack3D = (() => {
     const c = cv(W, H), g = c.getContext('2d'), cx = W / 2;
     if (th === 'mono') { // чёрный матовый с логотипом как на аватарке
       g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, W, H);
-      g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 2; g.font = `900 ${W * 0.2}px Inter, Rubik, sans-serif`; g.textAlign = 'left';
+      g.strokeStyle = 'rgba(255,255,255,.07)'; g.lineWidth = 2; g.font = `900 ${W * 0.2}px Rubik, sans-serif`; g.textAlign = 'left';
       for (let r = 0; r < 9; r++) g.strokeText('ДЖЕКСОНЫ', -W * 0.3 * (r % 2), H * 0.08 + r * H * 0.12);
       g.fillStyle = '#0b0b0b'; g.fillRect(0, H * 0.33, W, H * 0.2);
       smearWord(g, 'ДЖЕКСО', 'НЫ', cx - W * 0.03, H * 0.43, W * 0.115, '#fff');
@@ -185,7 +185,7 @@ const Pack3D = (() => {
       g.fillStyle = '#0b0b0b'; g.beginPath(); g.moveTo(0, H * 0.62); g.lineTo(W, H * 0.3); g.lineTo(W, H); g.lineTo(0, H); g.fill();
       g.fillStyle = 'rgba(0,0,0,.15)'; for (let i = 0; i < W; i += 10) g.fillRect(i, 0, 3, H);
       ball(g, cx, H * 0.4, W * 0.19, '#0b0b0b', '#fff');
-      g.fillStyle = '#fff'; g.font = `900 ${W * 0.1}px Inter, Rubik, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ДЖЕКСОНЫ', cx, H * 0.66);
+      g.fillStyle = '#fff'; g.font = `900 ${W * 0.1}px Rubik, sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('ДЖЕКСОНЫ', cx, H * 0.66);
       band(g, W, H, H * 0.76, H * 0.11, '#9a0c22', '#ff3b55', LABEL, '#fff'); crimp(g, W, H, 'rgba(255,255,255,.25)');
     }
     return c;

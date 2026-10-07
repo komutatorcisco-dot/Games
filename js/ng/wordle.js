@@ -58,7 +58,7 @@
         $('.wd-grid', b).innerHTML = rows.map((r, i) => `<div class="wd-row ${i === curRow && bad ? 'ng-bad' : ''} ${st.won && i === st.rows.length - 1 && fresh === i ? 'win' : ''}">${r}</div>`).join('');
         fresh = -1; bad = false;
         const miss = st.rows.length - (st.won ? 1 : 0);
-        $('.ng-clue', b).innerHTML = [miss >= 3 ? `Сборная: ${ans.flag} ${esc(ans.nat || '')}` : '', miss >= 5 ? `Клуб: ${esc(ans.club)}` : ''].filter(Boolean).join(' · ') || 'После 3-го промаха — сборная, после 5-го — клуб';
+        $('.ng-clue', b).innerHTML = [miss >= 3 ? `Сборная: ${ans.flag} ${esc(ans.nat || '')}` : '', miss >= 5 ? `Клуб: ${esc(ans.club)}` : ''].filter(Boolean).join(' · ') || 'После 3-го промаха откроется сборная, после 5-го клуб';
         const keyState = {};
         st.rows.forEach((g) => score(g, ans.w).forEach((s, i) => { const ch = g[i]; if (keyState[ch] !== 'hit') keyState[ch] = s === 'hit' ? 'hit' : keyState[ch] === 'near' ? 'near' : s; }));
         $('.wd-kb', b).innerHTML = KB.map((r, ri) => `<div>${ri === 2 ? '<button data-k="enter" class="wide">ВВОД</button>' : ''}${[...r].map((ch) => `<button data-k="${ch}" class="${keyState[ch] || ''}">${ch}</button>`).join('')}${ri === 2 ? '<button data-k="del" class="wide">⌫</button>' : ''}</div>`).join('');
@@ -68,7 +68,7 @@
         if (k === 'del') cur = cur.slice(0, -1);
         else if (k === 'enter') {
           if (cur.length < L) { toast(`Нужно ${L} ${plural(L, 'буква', 'буквы', 'букв')}`); bad = true; haptic('bad'); render(); return; }
-          if (!dict().has(cur)) { toast('Нет такого футболиста — попробуй другую фамилию'); bad = true; haptic('bad'); render(); return; }
+          if (!dict().has(cur)) { toast('Нет такого футболиста, попробуй другую фамилию'); bad = true; haptic('bad'); render(); return; }
           st.rows.push(cur); cur = ''; fresh = st.rows.length - 1;
           if (st.rows[st.rows.length - 1] === ans.w) { st.won = true; render(); return later(finish, L * 110 + 400); }
           Sound.play('tap');

@@ -39,16 +39,16 @@ const Board = (() => {
     const bt = $('#bd-tour'); if (bt) bt.textContent = `Тур ${Release.tour()}${data && data.weekEnd ? ` · до конца ${left(data.weekEnd)}` : ''}`;
     const tabs = `<nav class="bd-tabs">${SCOPES.map(([k, n]) => `<button data-bd="${k}" class="${k === scope ? 'on' : ''}">${n}</button>`).join('')}</nav>`;
     if (!api()) {
-      box.innerHTML = `${tabs}<div class="bd-empty"><span>🏆</span><h3>Рейтинг канала скоро запустится</h3><p>Здесь будут лучшие игроки недели и всех времён. Играй — опыт уже копится и попадёт в таблицу.</p></div>`;
+      box.innerHTML = `${tabs}<div class="bd-empty"><span>${Ui.get('trophy')}</span><h3>Рейтинг канала скоро запустится</h3><p>Здесь будут лучшие игроки недели и всех времён. Играй — опыт уже копится и попадёт в таблицу.</p></div>`;
       return;
     }
     if (!TG || !TG.initData) {
-      box.innerHTML = `${tabs}<div class="bd-empty"><span>📱</span><h3>Рейтинг работает в Telegram</h3><p>Открой игры через бота <b>@JacksonGamesbot</b> — там твои очки попадут в таблицу канала.</p></div>`;
+      box.innerHTML = `${tabs}<div class="bd-empty"><span>${Ui.get('phone')}</span><h3>Рейтинг работает в Telegram</h3><p>Открой игры через бота <b>@JacksonGamesbot</b> — там твои очки попадут в таблицу канала.</p></div>`;
       return;
     }
     if (!data) { box.innerHTML = `${tabs}<div class="bd-empty"><div class="bd-spin"></div><p>Загружаем таблицу…</p></div>`; return; }
-    if (data.error) { box.innerHTML = `${tabs}<div class="bd-empty"><span>📡</span><h3>Не удалось загрузить</h3><p>Проверь интернет и попробуй ещё раз.</p><button class="btn gold" data-bd="${scope}">Обновить</button></div>`; return; }
-    const head = scope === 'week' ? `Неделя закончится через ${left(data.weekEnd)}. Очки — опыт за победы с понедельника 10:00 (по Европе).`
+    if (data.error) { box.innerHTML = `${tabs}<div class="bd-empty"><span>${Ui.get('signal')}</span><h3>Не удалось загрузить</h3><p>Проверь интернет и попробуй ещё раз.</p><button class="btn gold" data-bd="${scope}">Обновить</button></div>`; return; }
+    const head = scope === 'week' ? `Неделя закончится через ${left(data.weekEnd)}. Очки начисляются за победы с понедельника 10:00 (по Европе).`
       : scope === 'day' ? 'Кто быстрее всех угадал сегодняшнего «Игрока дня». Подсказки тоже считаются попыткой.'
         : scope === 'friends' ? 'Ты и друзья: те, кого ты позвал по своей ссылке, и тот, кто позвал тебя. Очки за эту неделю.'
           : 'Весь опыт за победы во всех играх.';
@@ -58,9 +58,9 @@ const Board = (() => {
       ? `<div class="bd-row me pinned"><b class="bd-place">${data.me.place}</b><span class="bd-emo">${esc(Store.d.user.emoji)}</span><span class="bd-nick">${esc(Store.d.user.nick || 'Ты')}</span><em>${unit(scope, data.me.score)}</em></div>` : '';
     const you = data.me ? `<div class="bd-you">Ты <b>${data.me.place}-й</b> из ${data.total}</div>`
       : `<div class="bd-you muted">${scope === 'day' ? 'Угадай «Игрока дня», чтобы попасть в таблицу' : 'Выиграй любую игру, чтобы попасть в таблицу'}</div>`;
-    const inv = scope === 'friends' ? `<button class="btn gold bd-invite" data-act="invite">${data.rows.length <= 1 ? 'Позвать друга — и соревнуйтесь' : 'Позвать ещё друга'}</button>` : '';
+    const inv = scope === 'friends' ? `<button class="btn gold bd-invite" data-act="invite">${data.rows.length <= 1 ? 'Позови друга и соревнуйтесь' : 'Позвать ещё друга'}</button>` : '';
     box.innerHTML = `${tabs}<p class="bd-head">${head}</p>${scope === 'friends' ? inv : you}
-      ${data.rows.length ? `<div class="bd-list">${rows}</div>` : '<div class="bd-empty"><span>🌱</span><p>Пока никого — будь первым!</p></div>'}${mine}`;
+      ${data.rows.length ? `<div class="bd-list">${rows}</div>` : `<div class="bd-empty"><span>${Ui.get('ball')}</span><p>Пока никого. Будь первым!</p></div>`}${mine}`;
   }
 
   async function load(sc = scope, force = false) {
@@ -94,7 +94,7 @@ const Board = (() => {
   function teaser() {
     const p = Store.d.boardPlace;
     if (!ready() || !p || p.week < Date.now()) return '';
-    return `🏆 Ты <b>${p.place}-й</b> в рейтинге недели из ${p.total}`;
+    return `${Ui.get('trophy')} Ты <b>${p.place}-й</b> в рейтинге недели из ${p.total}`;
   }
 
   return { submit, open, bind, teaser, ready };

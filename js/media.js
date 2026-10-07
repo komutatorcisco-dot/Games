@@ -3918,12 +3918,18 @@ const FreshFaces = (() => {
     im.onload = () => {
       let out = null; try { out = cut(im); } catch (e) { out = null; }
       cutCache.set(url, out || '');
-      if (out) $$('img').forEach((x) => { if ((x.currentSrc || x.src) === url) x.src = out; });
+      $$('img').forEach((x) => { if ((x.currentSrc || x.src) === url) { if (out) x.src = out; else x.classList.add('ok'); } });
     };
-    im.onerror = () => cutCache.set(url, '');
+    im.onerror = () => { cutCache.set(url, ''); $$('img').forEach((x) => { if ((x.currentSrc || x.src) === url) x.classList.add('ok'); }); };
     im.src = url;
   }
-  document.addEventListener('load', (e) => { const t = e.target; if (t && t.tagName === 'IMG' && /\/face\/\d+/.test(t.src)) process(t); }, true);
+  document.addEventListener('load', (e) => {
+    const t = e.target; if (!t || t.tagName !== 'IMG') return;
+    const raw = /\/face\/\d+/.test(t.src);
+    if (raw) process(t);
+    // лицо показываем, когда оно готово: свежее — уже без серого фона, иначе сразу
+    if (!raw || cutCache.get(t.currentSrc || t.src) === '') t.classList.add('ok');
+  }, true);
   return { local: (src) => { const m = String(src).match(/\/face\/(\d+)/); return m && LOCAL.has(m[1]) ? `img/players/${m[1]}.webp` : ''; }, fix: (im) => { if (/\/face\/\d+/.test(im.src)) process(im); }, on: () => on && !!api(), url: (id, s = 120) => `${api()}/face/${id}${s === 240 ? '?s=240' : ''}` };
 })();
 const faceSrc = (id) => FACE_DATA[id] || (FreshFaces.on() ? FreshFaces.url(id) : `img/players/${id}.webp`);

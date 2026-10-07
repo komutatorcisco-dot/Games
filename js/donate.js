@@ -15,7 +15,7 @@ const Donate = (() => {
     Store.save();
     if (typeof Shop !== 'undefined') Shop.apply();
     confetti(); Sound.play('goal');
-    Modal.open(`<h2>Спасибо! 🙌</h2><p>${stars} ⭐ — это очень помогает каналу. Тебе открыта золотая рамка «Спонсор».</p>`, [{ label: 'Круто', onClick: () => {} }]);
+    Modal.open(`<h2>Спасибо!</h2><p>${stars} звёзд очень помогают каналу. Тебе открыта золотая рамка «Спонсор».</p>`, [{ label: 'Круто', onClick: () => {} }]);
   }
 
   async function pay(stars) {

@@ -110,12 +110,12 @@ const Daily = (() => {
   function render() {
     const s = S(), p = answer;
     const lvl = s.done ? MAX : s.level;
-    $('#dly-sub').textContent = `#${dayNum()} · серия ${s.streak}${s.streak ? ' 🔥' : ''}`;
+    $('#dly-sub').textContent = `#${dayNum()} · серия ${s.streak}`;
     $('#dly-photo').style.setProperty('--b', (s.done ? 0 : BLUR[lvl]) + 'px');
     $('#dly-photo').innerHTML = `<img src="${faceSrc(FACES[p.name])}" alt="">`;
     $('#dly-clues').innerHTML = clues(p).map(([k, v], i) => (i < lvl
       ? `<div class="dly-clue open" style="--i:${i}"><span>${k}</span><b>${v}</b></div>`
-      : `<div class="dly-clue"><span>${k}</span><b>🔒 Подсказка ${i + 1}</b></div>`)).join('');
+      : `<div class="dly-clue"><span>${k}</span><b>${Ui.get('lock')} Подсказка ${i + 1}</b></div>`)).join('');
     const tr = s.ev.filter((e) => e !== 'h'); // точки — только догадки, подсказки их не тратят
     $('#dly-tries').innerHTML = tr.map((e) => `<i class="ev-${e}"></i>`).join('') + '<i></i>'.repeat(Math.max(0, MAX - tr.length));
     $('#dly-guesses').innerHTML = s.guessed.map((id) => guessRow(PLAYERS[id])).join('');
@@ -256,7 +256,7 @@ const Daily = (() => {
       if (TG && TG.openTelegramLink) { TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`); return; }
     } catch (e) { /* не в Telegram */ }
     if (navigator.share) { navigator.share({ text, url }).catch(() => {}); return; }
-    const done = () => toast('Результат скопирован — вставь в комментарии канала');
+    const done = () => toast('Результат скопирован, вставь его в комментарии канала');
     if (navigator.clipboard) navigator.clipboard.writeText(text + '\n' + url).then(done, () => toast(text));
     else toast(text);
   }
@@ -277,7 +277,7 @@ const Daily = (() => {
     $('#dly-card-state').textContent = s.done
       ? (s.won ? `Угадал с ${s.level}-й подсказки ✓` : 'Сегодня не угадал') + ' · новый завтра'
       : s.ev.length ? `Догадок: ${s.ev.filter((e) => e !== 'h').length}, подсказок: ${s.level}` : 'Новый футболист уже ждёт';
-    $('#dly-card-streak').textContent = s.streak ? `🔥 ${s.streak}` : '';
+    $('#dly-card-streak').innerHTML = s.streak ? `${Ui.get('flame')} ${s.streak}` : '';
     $('#dly-card').classList.toggle('done', s.done);
   }
 

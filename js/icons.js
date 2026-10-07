@@ -113,3 +113,60 @@ const Icons = (() => {
   }
   return { get, fill };
 })();
+
+// Мелкие значки интерфейса 24×24 вместо эмодзи: одна толщина линий, цвет текста + золотой акцент.
+const Ui = (() => {
+  const A = 'var(--ic-a, #ffcf3a)';
+  const s = (d, w = 2.2) => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round"/>`;
+  const f = (d, c = 'currentColor', extra = '') => `<path d="${d}" fill="${c}" ${extra}/>`;
+  const c = (x, y, r, col = 'currentColor') => `<circle cx="${x}" cy="${y}" r="${r}" fill="${col}"/>`;
+  const star = (x, y, r, col) => { const p = [...Array(10).keys()].map((k) => { const a = -Math.PI / 2 + (k * Math.PI) / 5, rr = k % 2 ? r * 0.45 : r; return `${(x + Math.cos(a) * rr).toFixed(1)},${(y + Math.sin(a) * rr).toFixed(1)}`; }).join(' '); return `<polygon points="${p}" fill="${col}"/>`; };
+  const ball = (x, y, r) => { const pt = (k, rr) => { const a = -Math.PI / 2 + (k * 2 * Math.PI) / 5; return `${(x + Math.cos(a) * rr).toFixed(1)},${(y + Math.sin(a) * rr).toFixed(1)}`; };
+    return `${c(x, y, r)}<polygon points="${[0, 1, 2, 3, 4].map((k) => pt(k, r * 0.42)).join(' ')}" fill="var(--ic-bg, #1b1340)"/>`; };
+  const G = {
+    trophy: f('M7 3h10v5a5 5 0 0 1-10 0z') + s('M7 5H4.5a3 3 0 0 0 3 4.5 M17 5h2.5a3 3 0 0 1-3 4.5', 2) + f('M10.8 12.5h2.4v4h-2.4z') + f('M7.5 17h9v3.5h-9z', A),
+    heart: f('M12 20.5s-8-4.6-8-10.5a4.3 4.3 0 0 1 8-2.4 4.3 4.3 0 0 1 8 2.4c0 5.9-8 10.5-8 10.5z'),
+    gift: f('M4 10.5h16v9.5H4z') + f('M3 7h18v3.5H3z') + f('M10.8 7h2.4v13h-2.4z', A) + s('M12 7C10 2.5 5.5 3.8 7.6 6.6 M12 7c2-4.5 6.5-3.2 4.4-.4', 2),
+    lock: '<rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor"/>' + s('M8 11V8a4 4 0 0 1 8 0v3', 2.4),
+    star: star(12, 12.5, 10, 'currentColor'),
+    flame: f('M12 2c1.2 4 6 6 6 12a6 6 0 0 1-12 0c0-3 1.8-5 3-6.2.1 2.1 1 3.3 2.2 3.3C11 8 10.5 5 12 2z') + f('M12 13c.6 1.8 2.4 2.6 2.4 4.6a2.4 2.4 0 0 1-4.8 0c0-1.6 1.2-2.6 2.4-4.6z', A),
+    clock: s('M12 3a9 9 0 1 0 .01 0z') + s('M12 7v5l3.5 2'),
+    crown: f('M3 8l4.5 4.2L12 5l4.5 7.2L21 8l-2 11H5z') + c(12, 15, 1.6, A),
+    stadium: '<ellipse cx="12" cy="12" rx="10.2" ry="7.6" fill="currentColor"/>' + `<ellipse cx="12" cy="12" rx="6.6" ry="4.3" fill="${A}"/>` + s('M12 7.8v8.4', 1.4).replace('currentColor', 'var(--ic-bg, #1b1340)'),
+    medal: f('M7 2h4l2.4 6.5h-4z', 'currentColor', 'opacity=".55"') + f('M13 2h4l-2.4 6.5h-4z', 'currentColor', 'opacity=".55"') + c(12, 15, 6.3, A) + star(12, 15.2, 3.3, 'var(--ic-bg, #1b1340)'),
+    pack: `<g transform="rotate(-8 12 12)">${f('M6.5 3h11v18h-11z')}${s('M6.5 5.2h11 M6.5 18.8h11', 1.2).replace('currentColor', 'var(--ic-bg, #1b1340)')}${f('M9.5 8.5h5v5.3c0 1.5-1.2 2.6-2.5 3.2-1.3-.6-2.5-1.7-2.5-3.2z', A)}</g>`,
+    bolt: f('M13.5 2L4.5 13.5h6.5L10 22l9.5-12h-6.5z'),
+    link: s('M10 14a4.2 4.2 0 0 0 6 0l3-3a4.2 4.2 0 0 0-6-6l-1.2 1.2 M14 10a4.2 4.2 0 0 0-6 0l-3 3a4.2 4.2 0 0 0 6 6l1.2-1.2'),
+    phone: s('M8 2.5h8a1.5 1.5 0 0 1 1.5 1.5v16a1.5 1.5 0 0 1-1.5 1.5H8A1.5 1.5 0 0 1 6.5 20V4A1.5 1.5 0 0 1 8 2.5z') + c(12, 18, 1.3),
+    target: s('M12 3a9 9 0 1 0 .01 0z M12 7.5a4.5 4.5 0 1 0 .01 0z') + c(12, 12, 1.8, A),
+    send: f('M2.5 11.2L21 3l-7.6 18-2.6-7.4z') + f('M10.8 13.6L21 3l-7.6 18z', 'currentColor', 'opacity=".55"'),
+    swords: s('M4 4l9.5 9.5 M20 4l-9.5 9.5 M7 15.5l1.5 1.5 M17 15.5L15.5 17 M4 20l3.2-3.2 M20 20l-3.2-3.2'),
+    draw: s('M12 3a9 9 0 1 0 .01 0z') + s('M8 10h8 M8 14h8', 2.4),
+    search: s('M10.5 4a6.5 6.5 0 1 0 .01 0z M15.5 15.5L21 21', 2.6),
+    scroll: s('M6 3.5h10.5A2.5 2.5 0 0 1 19 6v14.5H8.5A2.5 2.5 0 0 1 6 18z M9.5 8h6 M9.5 11.5h6 M9.5 15h4'),
+    plane: f('M21 15.5v-2l-8-5V3.6a1.5 1.5 0 0 0-3 0V8.5l-8 5v2l8-2.5V18l-2 1.5V21l3.5-1 3.5 1v-1.5L13 18v-5z'),
+    gem: f('M6.5 3.5h11l4 5.5L12 21 2.5 9z') + s('M2.5 9h19 M9 3.5L12 21l3-17.5', 1.3).replace(/currentColor/g, 'var(--ic-bg, #1b1340)'),
+    coin: c(12, 12, 9.5, A) + `<polygon points="12,7.6 16.2,10.6 14.6,15.6 9.4,15.6 7.8,10.6" fill="var(--ic-bg, #1b1340)"/>`,
+    puzzle: f('M4 8h4.2a2.3 2.3 0 1 1 4.6 0H17v4.2a2.3 2.3 0 1 1 0 4.6V21H4v-4.2a2.3 2.3 0 1 0 0-4.6z'),
+    gamepad: f('M7 7.5h10a5 5 0 0 1 5 5v2.2a3.3 3.3 0 0 1-6 1.9L15 15H9l-1 1.6a3.3 3.3 0 0 1-6-1.9v-2.2a5 5 0 0 1 5-5z') + s('M7.5 10.5v4 M5.5 12.5h4', 1.8).replace('currentColor', 'var(--ic-bg, #1b1340)') + c(16, 11.5, 1.2, A) + c(18.2, 13.6, 1.2, A),
+    flag: s('M5 21.5V3', 2.4) + f('M5 3.5h13l-2.5 4.5 2.5 4.5H5z'),
+    finish: s('M5 21.5V3', 2.4) + f('M5 3.5h14v9H5z', 'currentColor', 'opacity=".35"') + f('M5 3.5h3.5V8H5z M12 3.5h3.5V8H12z M8.5 8H12v4.5H8.5z M15.5 8H19v4.5h-3.5z'),
+    shield: f('M12 2l8.5 3v6.5c0 5-3.6 9-8.5 10.8C7.1 20.5 3.5 16.5 3.5 11.5V5z') + f('M12 6l4.5 1.6v3.9c0 2.8-1.9 5-4.5 6.1z', A),
+    ball: ball(12, 12, 9.5),
+    shirt: f('M8.5 3h2.2c.4 1.3 2.2 1.3 2.6 0h2.2L21 6.6l-2.3 4-2.2-1.2V21h-9V9.4l-2.2 1.2L3 6.6z'),
+    signal: s('M2.5 9.5a14 14 0 0 1 19 0 M5.5 13a9.5 9.5 0 0 1 13 0 M8.8 16.4a4.8 4.8 0 0 1 6.4 0') + c(12, 19.6, 1.5),
+    cloud: f('M7 19a5 5 0 0 1-.6-9.96A6 6 0 0 1 18 9.6 4.7 4.7 0 0 1 17.3 19z'),
+    camera: f('M3 7.5h4l1.6-2.5h6.8L17 7.5h4V19H3z') + c(12, 13, 3.6, 'var(--ic-bg, #1b1340)') + c(12, 13, 2, A),
+    hash: s('M9.5 3L7.5 21 M16.5 3l-2 18 M4 8.5h16.5 M3.5 15.5H20'),
+    globe: s('M12 3a9 9 0 1 0 .01 0z M3 12h18 M12 3c-3 3-3 15 0 18 M12 3c3 3 3 15 0 18'),
+    refresh: s('M20 11a8 8 0 0 0-14.5-4 M4 13a8 8 0 0 0 14.5 4 M5.5 3v4h4 M18.5 21v-4h-4'),
+    eye: s('M2 12s3.8-6.5 10-6.5S22 12 22 12s-3.8 6.5-10 6.5S2 12 2 12z') + c(12, 12, 3, A),
+    elder: c(10, 6.8, 3.8) + f('M3.5 21c0-4.3 2.9-7.5 6.5-7.5 2.2 0 4.1 1.1 5.3 2.9L14 21z') + s('M18 21v-8.5c0-1.4 2.6-1.4 2.6 0', 2.2),
+    league: f('M12 2.5l8 3v6.2c0 4.8-3.4 8.6-8 10.3-4.6-1.7-8-5.5-8-10.3V5.5z') + ball(12, 11.5, 4.6),
+    users: c(9, 8, 3.5) + f('M2.5 20c0-3.8 2.9-6.5 6.5-6.5s6.5 2.7 6.5 6.5z') + c(17, 9, 2.8, 'currentColor') + f('M15.5 13.6c3.3-.6 6 1.6 6 5.4h-4.3c0-2.2-.6-4-1.7-5.4z', 'currentColor', 'opacity=".6"'),
+    medal1: f('M7 2h4l2.4 6.5h-4z', 'currentColor', 'opacity=".55"') + f('M13 2h4l-2.4 6.5h-4z', 'currentColor', 'opacity=".55"') + c(12, 15, 6.3, A) + `<text x="12" y="18.4" text-anchor="middle" font-size="9" font-weight="900" fill="var(--ic-bg, #1b1340)" font-family="Rubik, sans-serif">1</text>`,
+  };
+  const get = (name, cls = '') => (G[name] ? `<svg class="ui-ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${G[name]}</svg>` : '');
+  return { get, has: (n) => !!G[n] };
+})();
+document.addEventListener('DOMContentLoaded', () => { document.querySelectorAll('[data-ui]').forEach((el) => { el.innerHTML = Ui.get(el.dataset.ui); }); });

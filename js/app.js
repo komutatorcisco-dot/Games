@@ -33,9 +33,9 @@ const App = (() => {
     ['Старик Джексон', 'Высшее звание', () => Store.d.stats.xp >= 4000],
   ];
 
-  const TROPHY = { 'Первый гол': '⚽', 'Хет-трик звёзд': '⭐', 'Финал тура': '🏁', 'Скаут': '🔎', 'Историк': '📜', 'Клубный эксперт': '🛡️', 'Трансферный гуру': '✈️',
-    'Финансист': '💶', 'Тики-така': '❌', 'Геймер': '🎮', 'Скаут-оценщик': '💎', 'Богач': '💰', 'Головоломщик': '🧩', 'Неделя с нами': '🔥', 'Сборник': '🏳️',
-    'Игрок дня': '🏆', 'Неделя без промаха': '🎯', 'Агент': '🥇', 'Суперагент': '👑', 'Дуэлянт': '⚡', 'Профи': '🎖️', 'Старик Джексон': '🧓' };
+  const TROPHY = { 'Первый гол': 'ball', 'Хет-трик звёзд': 'star', 'Финал тура': 'finish', 'Скаут': 'search', 'Историк': 'scroll', 'Клубный эксперт': 'shield', 'Трансферный гуру': 'plane',
+    'Финансист': 'coin', 'Тики-така': 'hash', 'Геймер': 'gamepad', 'Скаут-оценщик': 'gem', 'Богач': 'coin', 'Головоломщик': 'puzzle', 'Неделя с нами': 'flame', 'Сборник': 'flag',
+    'Игрок дня': 'trophy', 'Неделя без промаха': 'target', 'Агент': 'medal1', 'Суперагент': 'crown', 'Дуэлянт': 'bolt', 'Профи': 'medal', 'Старик Джексон': 'elder' };
   function rankUi(nameSel, barSel, nextSel) {
     const r = Profile.rank();
     $(nameSel).textContent = r.name;
@@ -106,8 +106,8 @@ const App = (() => {
     $('#dly-progress').innerHTML = `<div class="dp-row ${games.length <= 2 ? 'few' : ''}">${games.map((g) => `<button class="dp-game ${doneOf(g) ? 'ok' : ''}" data-ng="${g.id}" style="--c1:${g.c1};--c2:${g.c2}">
         <span class="tile-ico" data-ico="ng-${g.id}"></span><b>${esc(games.length <= 2 ? g.title : g.title.replace(/ дня$/, '').replace('Футбольный ', ''))}</b>${doneOf(g) ? '<i>✓</i>' : ''}</button>`).join('')}</div>
       <div class="dp-foot"><div class="dp-bar"><i style="width:${(done / st.length) * 100}%"></i></div><span>${done}/${st.length}</span></div>
-      ${all && !claimed ? `<button class="btn gold dp-chest" data-act="chest">🎁 Все задания сделаны — забрать сундук +${CHEST}</button>`
-        : `<small class="dp-note">${claimed ? 'Сундук получен ✓ Новые задания в полночь по МСК' : `Сделай все ${st.length} задания дня — сундук +${CHEST} монет`}</small>`}`;
+      ${all && !claimed ? `<button class="btn gold dp-chest" data-act="chest">${Ui.get('gift')} Все задания сделаны — забрать сундук +${CHEST}</button>`
+        : `<small class="dp-note">${claimed ? 'Сундук получен ✓ Новые задания в полночь по МСК' : `Сделай все ${st.length} задания дня и получи сундук: +${CHEST} монет`}</small>`}`;
     Icons.fill($('#dly-progress'));
     paint($('#dly-progress'));
   }
@@ -139,7 +139,7 @@ const App = (() => {
     const achs = ACHIEVEMENTS.filter((a) => !a[3] || Release.isOut(a[3])); // только для вышедших игр
     $('#prof-achs').innerHTML = achs.map(([name, desc, test]) => {
       const ok = test(); if (ok) got++;
-      return `<div class="ach ${ok ? 'ok' : ''}"><i>${TROPHY[name] || '🏆'}</i><div><b>${name}</b><small>${desc}</small></div></div>`;
+      return `<div class="ach ${ok ? 'ok' : ''}"><i>${Ui.get(TROPHY[name] || 'trophy')}</i><div><b>${name}</b><small>${desc}</small></div></div>`;
     }).join('');
     $('#pf-ach').textContent = `${got} из ${achs.length}`;
     $('#ach-sub').textContent = `${got} из ${achs.length}`;
@@ -181,7 +181,7 @@ const App = (() => {
       `<button class="tile-card" data-act="auction-bot" style="--c1:#ff5f6d;--c2:#7b2b8a"><span class="tile-ico" data-ico="auction"></span><b>Аукцион</b><small>Против бота или вдвоём</small></button>`,
       `<button class="tile-card" data-ng="duel" style="--c1:#ff8a5c;--c2:#c2348d"><span class="tile-ico" data-ico="ng-duel"></span><b>Футбольная дуэль</b><small>С другом онлайн или рядом</small></button>`,
       `<button class="tile-card" data-act="xdraft" style="--c1:#34c46a;--c2:#2f6fe4"><span class="tile-ico" data-ico="ng-draft"></span><b>Драфт</b><small>Собери состав и сыграй матч</small></button>`,
-      `<button class="tile-card" data-act="sbc" style="--c1:#5fe0d0;--c2:#5a46c8"><span class="tile-ico" data-ico="ng-draft"></span><b>ИПК</b><small>Сдай карточки — получи паки</small></button>`,
+      `<button class="tile-card" data-act="sbc" style="--c1:#5fe0d0;--c2:#5a46c8"><span class="tile-ico" data-ico="ng-draft"></span><b>ИПК</b><small>Сдавай карточки, получай паки</small></button>`,
     ];
     $('#featured').innerHTML = extra.join('');
     src.forEach((el) => { const c = el.cloneNode(true); c.classList.remove('wide', 'duo'); $$('.limit-note', c).forEach((x) => x.remove()); $('#featured').appendChild(c); });
@@ -194,7 +194,7 @@ const App = (() => {
     if (cur) {
       const t = src.find((el) => cur.keys.includes(keyOf(el))) || $$('#hub :is(.tile-card, .game-card, .auction-hero)').find((el) => cur.keys.includes(keyOf(el)));
       wk.dataset.key = cur.keys[0];
-      wk.innerHTML = `<span class="wg-tag">Новинка недели</span><b>${esc(cur.title)}</b><small>Сыграй первым — в понедельник вышла новая игра</small>${t ? `<span class="tile-ico" data-ico="${esc(($('[data-ico]', t) || {}).dataset.ico || '')}"></span>` : ''}`;
+      wk.innerHTML = `<span class="wg-tag">Новинка недели</span><b>${esc(cur.title)}</b><small>Новая игра этой недели. Сыграй первым</small>${t ? `<span class="tile-ico" data-ico="${esc(($('[data-ico]', t) || {}).dataset.ico || '')}"></span>` : ''}`;
     }
     const days = nx ? Math.ceil((nx.at - Date.now()) / 864e5) : 0;
     $('#unlock-next').innerHTML = nx ? `Следующая игра — <b>«${esc(nx.title)}»</b> — ${days <= 1 ? 'завтра' : `через ${days} ${plural(days, 'день', 'дня', 'дней')}`}, в понедельник в 10:00` : '';
@@ -381,6 +381,11 @@ const App = (() => {
     },
     achievements: () => { Modal.close(); renderProfile(); Screens.show('achievements'); window.scrollTo(0, 0); },
     report: () => Track.report(),
+    terms: () => Modal.open(`<div class="terms"><h2>Условия</h2>
+      <p>Игры бесплатные. За звёзды Telegram можно купить премиум-пропуск сезона и поддержать канал. Это цифровые товары внутри игры, на деньги они не обмениваются.</p>
+      <p>Пропуск действует до конца сезона (28 дней) и появляется сразу после оплаты.</p>
+      <p>Если покупка не пришла или списалась дважды, вернём звёзды. Напиши боту <b>/paysupport</b> и опиши, что случилось.</p>
+      <p>Мы храним ник, прогресс и Telegram ID для таблицы лидеров. Никому их не передаём, удалим по просьбе через <b>/paysupport</b>.</p></div>`, [{ label: 'Понятно' }]),
     admin: () => Track.admin(),
     'duel-live': () => NG.open('duel', { mode: 'live' }),
     'duel-link': () => NG.open('duel', { mode: 'link' }),
@@ -521,7 +526,7 @@ const App = (() => {
       if (!got) return;
       Shop.apply(); Coins.render();
       if (Screens.current === 'hub') { renderHub(); if (Store.d.user.nick && $('#nick-in')) Modal.close(); }
-      toast('Прогресс загружен из облака Telegram ☁️');
+      toast('Прогресс загружен из облака Telegram');
     });
   }
 

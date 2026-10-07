@@ -153,7 +153,7 @@ const Cards = (() => {
 
   // ---------- галерея как в EA FC: лиги → клубы → игроки; собрал клуб или лигу — награда ----------
   const GROUPS = [...LEAGUES, 'Другие', 'Легенды', 'Джексон'];
-  const GROUP_ICO = { 'АПЛ': '🦁', 'Ла Лига': '🇪🇸', 'Серия А': '🇮🇹', 'Бундеслига': '🇩🇪', 'Лига 1': '🇫🇷', 'Другие': '🌍', 'Легенды': '👑', 'Джексон': '🔥' };
+  const GROUP_ICO = { 'АПЛ': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Ла Лига': '🇪🇸', 'Серия А': '🇮🇹', 'Бундеслига': '🇩🇪', 'Лига 1': '🇫🇷', 'Другие': Ui.get('globe'), 'Легенды': Ui.get('crown'), 'Джексон': Ui.get('flame') };
   const groupOf = (c) => (c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
   // награда за клуб — по числу карточек в нём; за лигу — легендарный пак и монеты
   const clubPrize = (n) => (n <= 1 ? { coins: 30 } : n <= 3 ? { coins: 75 } : n <= 7 ? { pack: 0 } : n <= 12 ? { pack: 1 } : n <= 16 ? { pack: 2 } : { pack: 3 });
@@ -194,7 +194,7 @@ const Cards = (() => {
         <div class="gl-clubs">${sets(g).map(({ club, cards }) => {
           const h = have(cards), cr = CRESTS[club], id = `c:${g}:${club}`, done = h === cards.length;
           return `<button class="gl-club ${done ? 'done' : ''} ${claimed().includes(id) ? 'got' : ''}" data-glc="${esc(club)}">
-            ${cr ? `<img src="img/clubs/${cr}" alt="" loading="lazy">` : '<span class="gl-noc">⚽</span>'}<b>${esc(club)}</b>${bar(h, cards.length)}<small>${h}/${cards.length}</small>
+            ${cr ? `<img src="img/clubs/${cr}" alt="" loading="lazy">` : `<span class="gl-noc">${Ui.get('ball')}</span>`}<b>${esc(club)}</b>${bar(h, cards.length)}<small>${h}/${cards.length}</small>
             ${done && !claimed().includes(id) ? '<i class="gl-dot">!</i>' : claimed().includes(id) ? '<i class="gl-ok">✓</i>' : ''}</button>`;
         }).join('')}</div>`;
       return out;
@@ -245,7 +245,7 @@ const Cards = (() => {
     const c = get(key); if (!c || owned(key)) return;
     const p = price(c);
     const body = `<div class="cd">${html(c, { w: 180, locked: true })}<h2>${c.rar === 'jack' ? 'Только из паков' : 'Купить карточку?'}</h2>
-      <p class="cd-m">${c.rar === 'jack' ? 'Карточки «Джексон» выпадают только из паков' : `${RAR[c.rar].n} · ${esc(c.club)} · рейтинг ${c.r}. Кто внутри — узнаешь после покупки`}</p></div>`;
+      <p class="cd-m">${c.rar === 'jack' ? 'Карточки «Джексон» выпадают только из паков' : `${RAR[c.rar].n} · ${esc(c.club)} · рейтинг ${c.r}. Кто внутри, узнаешь после покупки`}</p></div>`;
     if (!p) { Modal.open(body, [{ label: 'Понятно', cls: 'ghost' }]); return; }
     Modal.open(body, [
       { label: `Купить за ${p} монет`, onClick: () => { if (!Coins.spend(p)) return; Modal.close(); const res = add([key]); reveal(res, () => { if (typeof Rewards !== 'undefined') Rewards.refresh(); }); } },

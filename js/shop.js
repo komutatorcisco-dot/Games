@@ -39,8 +39,8 @@ const Shop = (() => {
       `<h2>${title}</h2><p>${text}</p><p class="muted">Запасных жизней: <b>${n}</b></p>`,
       [
         n > 0
-          ? { label: `❤ Использовать жизнь (${n})`, onClick: use }
-          : { label: `❤ Купить жизнь и продолжить · ${LIFE_COST}`, onClick: () => { if (Coins.spend(LIFE_COST)) { S().lives++; use(); } else onNo(); } },
+          ? { label: `Использовать жизнь (${n})`, onClick: use }
+          : { label: `Купить жизнь и продолжить · ${LIFE_COST}`, onClick: () => { if (Coins.spend(LIFE_COST)) { S().lives++; use(); } else onNo(); } },
         { label: 'Закончить', cls: 'ghost', onClick: onNo },
       ],
     );
@@ -65,7 +65,7 @@ const Shop = (() => {
         <small>Вход, колесо, сундук и игры дня платят всегда полностью. Лимит обновляется в полночь по МСК.</small></div>
       <h3 class="section-label">Бонусы</h3>
       <div class="shop-row">
-        <div class="shop-item wide"><span class="shop-ico life">❤</span><div><b>Запасная жизнь</b><small>Продолжить серию в «Угадай сборную» или +2 попытки в «Угадай футболиста». У тебя: ${s.lives}</small></div>
+        <div class="shop-item wide"><span class="shop-ico life">${Ui.get('heart')}</span><div><b>Запасная жизнь</b><small>Продолжить серию в «Угадай сборную» или +2 попытки в «Угадай футболиста». У тебя: ${s.lives}</small></div>
           <button class="btn gold" data-shop="life"><span class="coin"></span>${LIFE_COST}</button></div>
       </div>
       <h3 class="section-label">Паки испытаний · 10 сложных уровней, монеты ×2</h3>

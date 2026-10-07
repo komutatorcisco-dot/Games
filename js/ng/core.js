@@ -161,7 +161,7 @@ const NG = (() => {
       if (TG && TG.openTelegramLink) { TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`); return; }
     } catch (e) { /* не в Telegram */ }
     if (navigator.share) { navigator.share({ text, url }).catch(() => {}); return; }
-    const done = () => toast('Результат скопирован — вставь в комментарии канала');
+    const done = () => toast('Результат скопирован, вставь его в комментарии канала');
     if (navigator.clipboard) navigator.clipboard.writeText(text + '\n' + url).then(done, () => toast(text)); else toast(text);
   }
 

@@ -60,7 +60,7 @@
         last = `<div class="vs-chart"><small>Что называла толпа в прошлом раунде</small>${top.slice(0, 5).map(([n, c], i) => `<div class="vs-b ${i === 0 ? 'out' : ''} ${n === name ? 'me' : ''}"><span>${esc(surname(n))}${n === name ? ' (ты)' : ''}</span><i style="width:${(c / mx) * 100}%"></i><b>${c}</b></div>`).join('')}
           <p>Вылетело ${out}: ${topCnt} за «${esc(surname(topName))}» и ${wrong} ошиблись</p></div>`;
         if (!ok) return finish(false, `${name} не подходит под «${cat.label}»`);
-        if (name === topName) return finish(false, `${surname(name)} — самый популярный ответ, ты вылетел вместе с толпой`);
+        if (name === topName) return finish(false, `${surname(name)} : самый популярный ответ, ты вылетел вместе с толпой`);
         Sound.play('kick'); haptic('ok');
         toast(mine ? `Ещё ${mine} ${plural(mine, 'соперник', 'соперника', 'соперников')} назвали так же` : 'Уникальный ответ!');
         if (rivals <= 0) return finish(true, 'Ты пережил всех соперников!');

@@ -380,6 +380,28 @@ export default {
 };
 export { weekly, stats };
 
+// Условия и поддержка по оплатам: Telegram требует их у ботов, которые продают цифровые товары за звёзды
+const TERMS = [
+  'Условия «Джексоны» (мини-игры канала «Старики Джексоны»)',
+  '',
+  '1. Игры бесплатные. За звёзды Telegram можно купить премиум-пропуск сезона и поддержать канал донатом. Это цифровые товары внутри игры, они не обмениваются на деньги.',
+  '2. Премиум-пропуск действует до конца текущего сезона (28 дней) и открывает дополнительные награды. После покупки он появляется сразу.',
+  '3. Возврат звёзд возможен, если покупка не пришла или списалась дважды. Напиши /paysupport и опиши проблему.',
+  '4. Мы храним ник, прогресс в играх и Telegram ID для таблицы лидеров. Данные никому не передаём, удалить их можно по запросу через /paysupport.',
+  '5. Игры могут меняться: баланс, награды и состав игр обновляются.',
+].join('\n');
+async function infoCommand(env, m) {
+  const chat = m.chat.id, text = m.text || '';
+  const say = (t) => tg(env, 'sendMessage', { chat_id: chat, text: t });
+  if (/^\/terms\b/.test(text)) return say(TERMS);
+  const msg = text.replace(/^\/\w+(@\w+)?\s*/, '').trim();
+  if (!msg) return say('Проблема с оплатой или покупкой? Напиши одним сообщением: /paysupport и что случилось. Например: /paysupport купил пропуск, а он не открылся.');
+  const admin = env.DB ? await adminId(env) : null;
+  const who = [m.from && m.from.first_name, m.from && m.from.username ? '@' + m.from.username : '', `id ${m.from ? m.from.id : chat}`].filter(Boolean).join(' · ');
+  if (admin) await tg(env, 'sendMessage', { chat_id: admin, text: `Поддержка по оплате\n${who}\n\n${msg.slice(0, 1500)}` });
+  return say('Передали администратору. Ответим здесь или в личные сообщения.');
+}
+
 // Команды админа в боте: /admin <секрет> — стать админом; /stats — статистика; /broadcast <текст> — написать всем
 async function adminCommand(env, m) {
   const db = env.DB, chat = m.chat.id, text = m.text || '';
@@ -389,6 +411,7 @@ async function adminCommand(env, m) {
   if (text.startsWith('/admin')) {
     if (env.WEBHOOK_SECRET && text.split(/\s+/)[1] === env.WEBHOOK_SECRET && m.chat.type === 'private') {
       await setSetting(db, 'admin', chat);
+      await tg(env, 'setMyCommands', { commands: [{ command: 'start', description: 'Играть' }, { command: 'terms', description: 'Условия' }, { command: 'paysupport', description: 'Помощь с оплатой' }] });
       return say('✅ Ты админ. Сюда будут приходить ошибки от игроков.\n/stats — статистика\n/broadcast текст — сообщение всем игрокам\nВ приложении: Профиль → Админка.');
     }
     return say('Неверный код.');
@@ -471,6 +494,8 @@ async function route(request, env) {
       } else {
         await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Спасибо за ${p.total_amount} ⭐! Это очень помогает каналу 🙌` });
       }
+    } else if (u.message && /^\/(terms|paysupport|support)\b/.test(u.message.text || '')) {
+      await infoCommand(env, u.message);
     } else if (u.message && /^\/(admin|stats|broadcast)\b/.test(u.message.text || '')) {
       await adminCommand(env, u.message);
     } else if (u.message && /^\/start\b/.test(u.message.text || '')) {

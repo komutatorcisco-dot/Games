@@ -93,7 +93,7 @@
       const lines = x.links.map((l) => { const o = xi[l.i === i ? l.j : l.i]; return { color: l.color, who: o.name, why: [p.club === o.club && 'клуб', p.lg === o.lg && 'лига', p.nat === o.nat && 'сборная'].filter(Boolean).join(' + ') || 'ничего общего' }; });
       const b = x.bucket, row = TABLE[x.fit];
       const nb = row.findIndex((v, k) => k > b && Math.min(10, v + LOYALTY) > x.chem);
-      const next = x.chem >= 10 ? 'Максимум.' : nb > 0 ? `Нужно больше общих связей (средняя сила ≥ ${BUCKETS[nb - 1]}).` : `Поставь на ${RU[p.pos[0]]} — там можно до 10.`;
+      const next = x.chem >= 10 ? 'Максимум.' : nb > 0 ? `Нужно больше общих связей (средняя сила ≥ ${BUCKETS[nb - 1]}).` : `Поставь на ${RU[p.pos[0]]} , там можно до 10.`;
       return { chem: x.chem, base: x.base, max: 10, fit: FIT_RU[x.fit], li: x.li, lines, next };
     }
     return { calc, explain, fit, link, TABLE, FIT_RU };

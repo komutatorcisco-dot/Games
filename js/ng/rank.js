@@ -40,7 +40,7 @@
         api.sub(`Раунд ${round}/${ROUNDS} · очки: ${total}`);
         const correct = [...cur.items].sort((a, c) => c.v - a.v).map((x) => x.key);
         b.innerHTML = `<div class="rk-rounds">${[...Array(ROUNDS).keys()].map((i) => `<i class="${i < roundPts.length ? 'done' : i === round - 1 ? 'now' : ''}">${i < roundPts.length ? roundPts[i] : i + 1}</i>`).join('')}<b>${total} очк.</b></div>
-          <h3 class="ng-q">${esc(cur.title)}</h3><p class="ng-lead">${checked ? `Раунд: <b>${roundPts[roundPts.length - 1]}/5</b> на своих местах` : 'Нажимай по порядку: первый — №1. Нажми ещё раз, чтобы убрать.'}</p>
+          <h3 class="ng-q">${esc(cur.title)}</h3><p class="ng-lead">${checked ? `Раунд: <b>${roundPts[roundPts.length - 1]}/5</b> на своих местах` : 'Нажимай по порядку: первый станет №1. Нажми ещё раз, чтобы убрать.'}</p>
           <div class="rk-list">${cur.items.map((it) => {
             const pos = order.indexOf(it.key);
             const st = checked ? (correct.indexOf(it.key) === pos ? 'ok' : 'bad') : '';

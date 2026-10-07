@@ -49,7 +49,7 @@ const Rewards = (() => {
     if (c.cards && c.cards.length) { quest('pack'); refresh(); giveCards(c.cards, then); return; }
     if (c.item) {
       if (c.item.kind === 'life') Store.d.shop.lives += c.item.n || 1;
-      else { Store.d.shop.owned[`${c.item.kind}:${c.item.id}`] = true; setTimeout(() => toast(`${c.item.name} — теперь твоя! Выбери в магазине`), 900); }
+      else { Store.d.shop.owned[`${c.item.kind}:${c.item.id}`] = true; setTimeout(() => toast(`${c.item.name} теперь твоя! Выбери её в магазине`), 900); }
       Store.save();
     }
     quest('pack');
@@ -79,10 +79,10 @@ const Rewards = (() => {
   const CARDNAME = { gold: 'Золотая карточка', legend: 'Карточка-легенда', jack: 'Карточка «Джексон»' };
   function rewardLabel(r) {
     if (r.coins) return { ico: '<i class="coin"></i>', txt: `${r.coins}`, art: '<span class="rs-coins"><i class="coin"></i><i class="coin"></i><i class="coin"></i></span>', name: `+${r.coins}` };
-    if (r.lives) return { ico: '❤️', txt: `×${r.lives}`, art: '<span class="rs-heart">❤️</span>', name: `Жизни ×${r.lives}` };
+    if (r.lives) return { ico: `<span class="ui-red">${Ui.get('heart')}</span>`, txt: `×${r.lives}`, art: `<span class="rs-heart">${Ui.get('heart')}</span>`, name: `Жизни ×${r.lives}` };
     if (r.card) return { ico: `<span class="rs-card sm ${r.card}">?</span>`, txt: CARDNAME[r.card].split(' ')[0], art: `<span class="rs-card ${r.card}">?</span>`, name: CARDNAME[r.card].replace('Карточка-', '').replace('Карточка ', '') };
     if (r.pack !== undefined) return { ico: `<span class="rw-pk" style="--c:${PACKCOL[r.pack]}"></span>`, txt: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«'), art: `<span class="rs-pack" style="--c:${PACKCOL[r.pack]}"><b>Д</b></span>`, name: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«') };
-    return { ico: '🎁', txt: '', art: '🎁', name: '' };
+    return { ico: Ui.get('gift'), txt: '', art: Ui.get('gift'), name: '' };
   }
   function giveReward(r, title) {
     if (r.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(r.coins); }
@@ -94,7 +94,7 @@ const Rewards = (() => {
   function claimRoad(i) {
     const s = S(); if (s.road.includes(i) || s.trophies < ROAD[i][0]) return;
     s.road.push(i); Store.save(); Sound.play('coin'); haptic('ok');
-    giveReward(ROAD[i][1], `ПУТЬ ТРОФЕЕВ · ${ROAD[i][0]} 🏆`);
+    giveReward(ROAD[i][1], `ДОРОГА ТРОФЕЕВ · ${ROAD[i][0]}`);
   }
 
   // ---------- сезонный пропуск ----------
@@ -201,7 +201,7 @@ const Rewards = (() => {
     quest('win', game);
     s.trophies += WIN_TROPHIES;
     if (s.drops.day !== dayKey()) s.drops = { day: dayKey(), n: 0 };
-    let note = `<span>🏆 +${WIN_TROPHIES}</span>`;
+    let note = `<span>${Ui.get('trophy')} +${WIN_TROPHIES}</span>`;
     if (s.drops.n < DROPS_PER_DAY) { s.drops.n++; s.pending++; note += `<span class="rw-new"><i class="rw-pk"></i>+1 пак · ${s.drops.n}/${DROPS_PER_DAY} сегодня</span>`; }
     Store.save(); refresh();
     return `<div class="rw-earn">${note}</div>`;
@@ -227,7 +227,7 @@ const Rewards = (() => {
     const u = Store.d.user || {};
     $$('.mh-nick').forEach((el) => { el.textContent = u.nick || 'Игрок'; });
     $$('.mh-ava').forEach((el) => { el.textContent = u.emoji || '⚽'; });
-    $$('.mh-tro').forEach((el) => { el.textContent = `🏆 ${S().trophies}`; });
+    $$('.mh-tro').forEach((el) => { el.innerHTML = `${Ui.get('trophy')} ${S().trophies}`; });
     $$('.mh-cn').forEach((el) => { el.textContent = Cards.count(); });
     $$('.mh-cards').forEach((el) => el.classList.toggle('fresh', Cards.freshN() > 0));
   }
@@ -240,7 +240,7 @@ const Rewards = (() => {
   }
   function cell(r, state, i, line) {
     const l = rewardLabel(r);
-    return `<button class="rw-cell ${state}" ${state === 'ready' ? `data-${line}="${i}"` : ''}><span class="rw-ico">${l.ico}</span><b>${l.txt}</b>${state === 'got' ? '<i class="rw-ok">✓</i>' : state === 'lock' ? '<i class="rw-lock">🔒</i>' : ''}</button>`;
+    return `<button class="rw-cell ${state}" ${state === 'ready' ? `data-${line}="${i}"` : ''}><span class="rw-ico">${l.ico}</span><b>${l.txt}</b>${state === 'got' ? '<i class="rw-ok">✓</i>' : state === 'lock' ? `<i class="rw-lock">${Ui.get('lock')}</i>` : ''}</button>`;
   }
   function road(s) {
     const next = ROAD.find(([t]) => s.trophies < t);
@@ -252,8 +252,8 @@ const Rewards = (() => {
         <span class="rs-art">${l.art}</span><span class="rs-name">${ready ? 'Забрать!' : l.name}</span>${got ? '<i class="rs-ok">✓</i>' : ''}
         <span class="rs-seg"><i style="width:${fill}%"></i></span><span class="rs-t">${t}</span></button>`;
     }).join('');
-    return `<div class="rw-sec"><div class="rw-row"><b>Дорога трофеев</b><small>🏆 ${s.trophies}${next ? ` → ${next[0]}` : ' · пройдена!'}</small></div>
-      <div class="rs-strip">${steps}</div><p class="rw-sub">За победу +${WIN_TROPHIES} 🏆, за матч +${PLAY_TROPHIES}</p></div>`;
+    return `<div class="rw-sec"><div class="rw-row"><b>Дорога трофеев</b><small>${Ui.get('trophy')} ${s.trophies}${next ? ` → ${next[0]}` : ' · пройдена!'}</small></div>
+      <div class="rs-strip">${steps}</div><p class="rw-sub">Победа +${WIN_TROPHIES} ${Ui.get('trophy')}, матч +${PLAY_TROPHIES}</p></div>`;
   }
   function render() {
     const s = S(), p = passSync(), q = questSync(), c = claimable();
@@ -265,8 +265,8 @@ const Rewards = (() => {
       const L = passLevel(), left = Math.max(0, Math.ceil((seasonEnd() - Date.now()) / 864e5));
       body = `<div class="rw-head"><span class="rw-tro">Сезон ${season()} · ур. <b>${L}</b></span><small>${L < PASS_LEVELS ? `${p.xp % PASS_STEP}/${PASS_STEP} до уровня ${L + 1} · ` : ''}до конца сезона ${left} ${plural(left, 'день', 'дня', 'дней')}</small>
           <span class="rw-bar"><i style="width:${L >= PASS_LEVELS ? 100 : (p.xp % PASS_STEP)}%"></i></span>
-          ${p.premium ? '<span class="rw-prem on">Премиум открыт ⭐</span>' : `<button class="btn gold rw-buy" data-act="rw-buy">Премиум-пропуск · ${PASS_STARS} ⭐</button>`}</div>
-        <div class="rw-pass"><div class="rw-ph"><span></span><b>Бесплатно</b><b class="pr">Премиум ⭐</b></div>
+          ${p.premium ? `<span class="rw-prem on">Премиум открыт ${Ui.get('star')}</span>` : `<button class="btn gold rw-buy" data-act="rw-buy">Премиум-пропуск · ${PASS_STARS} ⭐</button>`}</div>
+        <div class="rw-pass"><div class="rw-ph"><span></span><b>Бесплатно</b><b class="pr">Премиум ${Ui.get('star')}</b></div>
         ${PASS.map(([f, pr], i) => `<div class="rw-prow ${L > i ? 'reach' : ''}"><span class="rw-lv">${i + 1}</span>${cell(f, p.free.includes(i) ? 'got' : L > i ? 'ready' : 'lock', i, 'free')}${cell(pr, p.prem.includes(i) ? 'got' : L > i && p.premium ? 'ready' : 'lock', i, 'prem')}</div>`).join('')}</div>
         <p class="rw-note">Очки пропуска: за победу +20, за матч +5, за задания — больше всего.</p>`;
     } else {

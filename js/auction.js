@@ -116,7 +116,7 @@ const Auction = (() => {
     passes++;
     if (passes >= 2) {
       busy = true;
-      $('#auction-status').textContent = 'Никто не взял — игрок уходит';
+      $('#auction-status').textContent = 'Никто не взял, игрок уходит';
       render(false);
       later(nextLot, 900);
       return;

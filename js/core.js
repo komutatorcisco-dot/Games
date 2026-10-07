@@ -489,7 +489,7 @@ const Limits = {
     const L = this.sync();
     if (L[k] < this.FREE) { L[k]++; Store.save(); go(); return; }
     Modal.open(
-      `<h2>Бесплатные игры закончились</h2><p>${this.NAMES[k]}: ${this.FREE} бесплатных игр в день. Новые — в полночь по Москве.</p>`,
+      `<h2>Бесплатные игры закончились</h2><p>${this.NAMES[k]}: ${this.FREE} бесплатных игр в день. Новые появятся в полночь по Москве.</p>`,
       [
         { label: `Сыграть за ${this.COST} монет`, onClick: () => { if (Coins.spend(this.COST)) { Modal.close(); go(); } } },
         { label: 'В меню', cls: 'ghost', onClick: () => App.home() },
@@ -524,7 +524,7 @@ const Econ = {
     e.earned += n; Store.save();
     Coins.add(got);
     const now = this.mult();
-    if (now < was) later(() => toast(now === 0.5 ? 'За игры сегодня уже 200 монет: дальше награда вполовину. Игры дня платят полностью' : 'Дневной запас монет за игры исчерпан: дальше 10% награды. Новый день — в полночь по МСК'), 1200);
+    if (now < was) later(() => toast(now === 0.5 ? 'За игры сегодня уже 200 монет: дальше награда вполовину. Игры дня платят полностью' : 'Дневной запас монет за игры исчерпан: дальше 10% награды. Новый день начнётся в полночь по МСК'), 1200);
     return got;
   },
   mult() { const at = this.sync().earned; return this.TIERS.find(([to]) => at < to)[1]; },

@@ -9,7 +9,7 @@ const Duel = (() => {
   const PEER_PREFIX = 'jacksongames-';
   const ELO_TOP = ['Барселона', 'Реал Мадрид', 'Бавария', 'Манчестер Сити', 'Ливерпуль', 'Манчестер Юнайтед', 'Челси', 'Арсенал', 'Ювентус', 'Милан',
     'Интер', 'Атлетико', 'ПСЖ', 'Боруссия Дортмунд', 'Тоттенхэм', 'Наполи', 'Рома', 'Валенсия', 'Севилья', 'Порту', 'Бенфика', 'Аякс', 'Лион', 'Байер'];
-  const KIND = { face: '📸 Лицо', club: '🏟 Клуб', num: '🔢 Номер', nation: '🌍 Сборная', goal: '⚽ Гол', score: '🏆 Счёт', fc: '🎮 FC 27', elo: '⏳ История' };
+  const KIND = { face: [Ui.get('camera'), 'Лицо'], club: [Ui.get('shield'), 'Клуб'], num: [Ui.get('hash'), 'Номер'], nation: [Ui.get('globe'), 'Сборная'], goal: [Ui.get('ball'), 'Гол'], score: [Ui.get('trophy'), 'Счёт'], fc: [Ui.get('gamepad'), 'FC 27'], elo: [Ui.get('clock'), 'История'] };
 
   const D = () => Store.d.fduel || (Store.d.fduel = { hist: [], played: {} });
   const me = () => ({ nick: Store.d.user.nick || 'Игрок', emo: Store.d.user.emoji || '⚽' });
@@ -75,7 +75,7 @@ const Duel = (() => {
       const team = g[7] ? g[4] : g[3];
       return {
         q: 'Кто забил этот гол?',
-        media: `<div class="du-card"><small>🏆 ${esc(g[0])} ${esc(g[1])}${g[2] ? ' · ' + esc(g[2]) : ''}</small><b>${esc(g[3])} — ${esc(g[4])} ${g[5]}:${g[6]}</b><small>⏱ ${g[8]}-я минута · гол за ${esc(team)}</small></div>`,
+        media: `<div class="du-card"><small>${Ui.get('trophy')} ${esc(g[0])} ${esc(g[1])}${g[2] ? ' · ' + esc(g[2]) : ''}</small><b>${esc(g[3])} — ${esc(g[4])} ${g[5]}:${g[6]}</b><small>${Ui.get('clock')} ${g[8]}-я минута · гол за ${esc(team)}</small></div>`,
         ...four(r, ans, others(r, pool, ans)),
       };
     },
@@ -89,7 +89,7 @@ const Duel = (() => {
       const wrong = others(r, [...new Set(cand)], right);
       return {
         q: 'С каким счётом закончился матч?',
-        media: `<div class="du-card"><small>🏆 Чемпионат мира ${m[0]} · ${esc(m[1])}</small><b>${m[3]} ${esc(m[2])} — ${esc(m[4])} ${m[5]}</b><small>с учётом доп. времени, без серии пенальти</small></div>`,
+        media: `<div class="du-card"><small>${Ui.get('trophy')} Чемпионат мира ${m[0]} · ${esc(m[1])}</small><b>${m[3]} ${esc(m[2])} — ${esc(m[4])} ${m[5]}</b><small>с учётом доп. времени, без серии пенальти</small></div>`,
         ...four(r, right, wrong, (s) => `<b class="du-num">${s}</b>`),
       };
     },
@@ -142,7 +142,7 @@ const Duel = (() => {
       if (TG && TG.openTelegramLink) { TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`); return; }
     } catch (e) { /* не в Telegram */ }
     if (navigator.share) { navigator.share({ text, url }).catch(() => {}); return; }
-    if (navigator.clipboard) navigator.clipboard.writeText(text + '\n' + url).then(() => toast('Ссылка скопирована — отправь другу'), () => toast(url));
+    if (navigator.clipboard) navigator.clipboard.writeText(text + '\n' + url).then(() => toast('Ссылка скопирована, отправь её другу'), () => toast(url));
     else toast(url);
   }
 
@@ -188,7 +188,7 @@ const Duel = (() => {
       function ask(q, i, head, cb) {
         onPick = null;
         b.innerHTML = `${head || ''}<div class="du-q" style="--T:${TIME}ms">
-          <div class="du-meta"><span>Вопрос ${i + 1} из ${N}</span><span class="du-kind">${KIND[q.t]}</span></div>
+          <div class="du-meta"><span>Вопрос ${i + 1} из ${N}</span><span class="du-kind">${KIND[q.t].join(' ')}</span></div>
           <div class="du-timer"><i></i></div>
           <div class="du-media">${q.media || ''}</div><h3 class="du-text">${q.q}</h3>
           <div class="du-opts ${q.two ? 'two' : ''}">${q.opts.map((o, k) => `<button class="du-opt" data-k="${k}" style="--i:${k}">${o}</button>`).join('')}</div>
@@ -231,13 +231,13 @@ const Duel = (() => {
         api.sub('Сыграй с другом');
         const h = D().hist.slice(0, 5);
         b.innerHTML = `<div class="du-hero"><div class="du-hero-vs"><span>${me().emo}</span><i>VS</i><span>🙂</span></div>
-            <p>8 вопросов: лица, клубы, номера, голы и счёт легендарных матчей. Чем быстрее верный ответ — тем больше очков.</p></div>
+            <p>8 вопросов: лица, клубы, номера, голы и счёт легендарных матчей. Чем быстрее верный ответ, тем больше очков.</p></div>
           <div class="du-modes">
-            <button class="du-mode live" data-du="live" style="--i:0"><span class="du-mi">⚡</span><span><b>Онлайн в реальном времени</b><small>Отправь другу ссылку — играете одновременно</small></span></button>
-            <button class="du-mode link" data-du="link" style="--i:1"><span class="du-mi">🔗</span><span><b>Вызов по ссылке</b><small>Сыграй сейчас, друг — когда удобно. Вопросы те же</small></span></button>
-            <button class="du-mode hot" data-du="hot" style="--i:2"><span class="du-mi">📱</span><span><b>На одном телефоне</b><small>Отвечаете по очереди и передаёте телефон</small></span></button>
+            <button class="du-mode live" data-du="live" style="--i:0"><span class="du-mi">${Ui.get('bolt')}</span><span><b>Онлайн в реальном времени</b><small>Отправь другу ссылку и играйте одновременно</small></span></button>
+            <button class="du-mode link" data-du="link" style="--i:1"><span class="du-mi">${Ui.get('link')}</span><span><b>Вызов по ссылке</b><small>Сыграй сейчас, а друг потом, когда удобно. Вопросы те же</small></span></button>
+            <button class="du-mode hot" data-du="hot" style="--i:2"><span class="du-mi">${Ui.get('phone')}</span><span><b>На одном телефоне</b><small>Отвечаете по очереди и передаёте телефон</small></span></button>
           </div>
-          ${h.length ? `<h4 class="du-h">Последние дуэли</h4><div class="du-hist">${h.map((x) => `<div class="du-hrow ${x.res}"><span>${x.mode === 'live' ? '⚡' : x.mode === 'hot' ? '📱' : '🔗'} ${esc(x.vs)}</span><b>${x.my} : ${x.op == null ? '?' : x.op}</b><i>${x.res === 'win' ? 'Победа' : x.res === 'lose' ? 'Поражение' : x.res === 'draw' ? 'Ничья' : 'Ждём друга'}</i></div>`).join('')}</div>` : ''}`;
+          ${h.length ? `<h4 class="du-h">Последние дуэли</h4><div class="du-hist">${h.map((x) => `<div class="du-hrow ${x.res}"><span>${Ui.get(x.mode === 'live' ? 'bolt' : x.mode === 'hot' ? 'phone' : 'link')} ${esc(x.vs)}</span><b>${x.my} : ${x.op == null ? '?' : x.op}</b><i>${x.res === 'win' ? 'Победа' : x.res === 'lose' ? 'Поражение' : x.res === 'draw' ? 'Ничья' : 'Ждём друга'}</i></div>`).join('')}</div>` : ''}`;
         acts = { live: liveMenu, link: () => solo(newSeed(), null), hot: hotSetup };
       }
 
@@ -249,9 +249,9 @@ const Duel = (() => {
         const left = () => ({ ...m, score, on: true }), right = () => (ch ? { nick: ch.nick, emo: '🎯', score: ch.score != null && i >= N ? ch.score : '?' } : { nick: 'друг', emo: '❔', score: '?' });
         function intro() {
           api.sub(ch ? `Вызов от ${ch.nick}` : 'Новый вызов');
-          b.innerHTML = `<div class="du-intro">${ch ? `<div class="du-big-emo">🎯</div><h3><b>${esc(ch.nick)}</b> вызывает тебя на дуэль!</h3>
+          b.innerHTML = `<div class="du-intro">${ch ? `<div class="du-big-emo">${Ui.get('target')}</div><h3><b>${esc(ch.nick)}</b> вызывает тебя на дуэль!</h3>
               <p>Те же 8 вопросов, что были у ${esc(ch.nick)}. Его счёт откроется в конце. После каждого вопроса увидишь, что ответил соперник.</p>`
-            : `<div class="du-big-emo">🔗</div><h3>Сыграй 8 вопросов</h3><p>Потом отправь ссылку другу — ему достанутся те же вопросы, и вы сравните очки.</p>`}
+            : `<div class="du-big-emo">${Ui.get('link')}</div><h3>Сыграй 8 вопросов</h3><p>Потом отправь ссылку другу. Ему достанутся те же вопросы, и вы сравните очки.</p>`}
             <button class="btn gold du-go" data-du="go">Поехали!</button></div>`;
           acts = { go: () => countdown(next) };
         }
@@ -263,7 +263,7 @@ const Duel = (() => {
             score += p; ans += k < 0 ? 'x' : k;
             Sound.play(ok ? 'kick' : 'bad'); haptic(ok ? 'ok' : 'bad');
             const marks = [{ k, lab: m.emo }];
-            if (ch) { const ok2 = ch.ans[i] !== 'x' ? +ch.ans[i] : -1; if (ok2 >= 0) marks.push({ k: ok2, lab: '🎯' }); }
+            if (ch) { const ok2 = ch.ans[i] !== 'x' ? +ch.ans[i] : -1; if (ok2 >= 0) marks.push({ k: ok2, lab: Ui.get('target') }); }
             reveal(q, marks);
             $('.du-sc', b).textContent = score; gain('.du-pl', p);
             i++;
@@ -279,7 +279,7 @@ const Duel = (() => {
             b.innerHTML = `<div class="du-end"><div class="du-end-big" data-count="${score}">0</div><p>очков из ${N * 150}</p>
                 <p class="du-end-txt">Теперь отправь вызов другу: ему достанутся те же вопросы. Кто наберёт больше?</p>
                 ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}
-                <button class="btn gold" data-du="send">📤 Отправить вызов другу</button>
+                <button class="btn gold" data-du="send">${Ui.get('send')} Отправить вызов другу</button>
                 <button class="btn ghost" data-du="menu">Назад к дуэлям</button></div>`;
             countUp();
             acts = { send: () => shareLink(tk, `⚔️ Вызываю на футбольную дуэль! Я набрал ${score} очков. Сможешь больше?`), menu };
@@ -291,11 +291,11 @@ const Duel = (() => {
           if (res === 'win') { confetti(); Sound.play('goal'); haptic('ok'); Profile.bump('duel', 10); } else Sound.play('lose');
           const reward = Econ.play(Math.round(score / 40) + (res === 'win' ? 20 : 0));
           b.innerHTML = `<div class="du-end ${res}">${board({ ...m, score }, { nick: ch.nick, emo: '🎯', score: ch.score })}
-              <h2 class="du-res">${res === 'win' ? '🏆 Победа!' : res === 'lose' ? 'Поражение' : 'Ничья!'}</h2>
+              <h2 class="du-res">${res === 'win' ? 'Победа!' : res === 'lose' ? 'Поражение' : 'Ничья!'}</h2>
               <p class="du-end-txt">${res === 'win' ? `Ты обыграл ${esc(ch.nick)}` : res === 'lose' ? `${esc(ch.nick)} оказался сильнее` : 'Равный бой'}: ${score} : ${ch.score}</p>
               ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}
-              <button class="btn gold" data-du="send">📤 Отправить результат</button>
-              <button class="btn" data-du="re">⚔️ Реванш: новый вызов</button>
+              <button class="btn gold" data-du="send">${Ui.get('send')} Отправить результат</button>
+              <button class="btn" data-du="re">${Ui.get('swords')} Реванш: новый вызов</button>
               <button class="btn ghost" data-du="menu">Назад к дуэлям</button></div>`;
           acts = {
             send: () => shareLink(token(seed, score, ans, m.nick), `${res === 'win' ? '🏆 Я выиграл' : res === 'lose' ? '😤 Я проиграл' : '🤝 Ничья'} дуэль: ${score} : ${ch.score}. Сыграешь эти же вопросы?`),
@@ -307,7 +307,7 @@ const Duel = (() => {
           api.sub(`Вызов от ${ch.nick}`);
           b.innerHTML = `<div class="du-end ${r.res}">${board({ ...m, score: r.my }, { nick: ch.nick, emo: '🎯', score: r.op })}
               <h2 class="du-res">Этот вызов уже сыгран</h2><p class="du-end-txt">${r.res === 'win' ? 'Ты победил' : r.res === 'lose' ? 'Победил соперник' : 'Была ничья'}: ${r.my} : ${r.op}</p>
-              <button class="btn gold" data-du="re">⚔️ Реванш: новый вызов</button><button class="btn ghost" data-du="menu">К дуэлям</button></div>`;
+              <button class="btn gold" data-du="re">${Ui.get('swords')} Реванш: новый вызов</button><button class="btn ghost" data-du="menu">К дуэлям</button></div>`;
           acts = { re: () => solo(newSeed(), null), menu };
           return;
         }
@@ -334,10 +334,10 @@ const Duel = (() => {
       // ---------- на одном телефоне ----------
       function hotSetup() {
         api.sub('На одном телефоне');
-        b.innerHTML = `<div class="du-intro"><div class="du-big-emo">📱</div><h3>Кто играет?</h3>
+        b.innerHTML = `<div class="du-intro"><div class="du-big-emo">${Ui.get('phone')}</div><h3>Кто играет?</h3>
             <label class="du-name"><span>${me().emo}</span><input id="du-p1" maxlength="14" value="${esc(me().nick)}"></label>
             <label class="du-name"><span>🙂</span><input id="du-p2" maxlength="14" placeholder="Имя друга" value="Друг"></label>
-            <p>Каждый вопрос отвечаете по очереди: первый отвечает, передаёт телефон, второй отвечает — и только потом видно, кто прав.</p>
+            <p>Каждый вопрос отвечаете по очереди: первый отвечает, передаёт телефон, второй отвечает, и только потом видно, кто прав.</p>
             <button class="btn gold du-go" data-du="go">Начать</button></div>`;
         acts = { go: () => hot([($('#du-p1').value || 'Игрок 1').trim().slice(0, 14), ($('#du-p2').value || 'Игрок 2').trim().slice(0, 14)]) };
       }
@@ -348,8 +348,8 @@ const Duel = (() => {
         function pass(turn, fn) {
           onPick = null;
           api.sub(`Вопрос ${i + 1} из ${N}`);
-          b.innerHTML = `${brd(turn)}<div class="du-pass"><div class="du-big-emo">${turn ? '🔄' : '👉'}</div><h3>${turn ? 'Передай телефон' : 'Ходит'} <b>${esc(names[turn])}</b></h3>
-              <p>${turn ? 'Не подглядывай, какой ответ выбрал соперник 👀' : 'Второй игрок, отвернись 👀'}</p><button class="btn gold" data-du="ready">Я готов</button></div>`;
+          b.innerHTML = `${brd(turn)}<div class="du-pass"><div class="du-big-emo">${Ui.get(turn ? 'refresh' : 'phone')}</div><h3>${turn ? 'Передай телефон' : 'Ходит'} <b>${esc(names[turn])}</b></h3>
+              <p>${turn ? 'Не подглядывай, какой ответ выбрал соперник' : 'Второй игрок, отвернись'}</p><button class="btn gold" data-du="ready">Я готов</button></div>`;
           acts = { ready: fn };
         }
         function round() {
@@ -377,7 +377,7 @@ const Duel = (() => {
           const w = sc[0] === sc[1] ? -1 : sc[0] > sc[1] ? 0 : 1;
           confetti(); Sound.play('goal');
           remember({ mode: 'hot', vs: `${names[0]} и ${names[1]}`, my: sc[0], op: sc[1], res: w < 0 ? 'draw' : w === 0 ? 'win' : 'lose' });
-          b.innerHTML = `<div class="du-end">${brd(-1)}<h2 class="du-res">${w < 0 ? '🤝 Ничья!' : `🏆 Победил ${esc(names[w])}!`}</h2>
+          b.innerHTML = `<div class="du-end">${brd(-1)}<h2 class="du-res">${w < 0 ? 'Ничья!' : `Победил ${esc(names[w])}!`}</h2>
               <p class="du-end-txt">${sc[0]} : ${sc[1]}</p>
               <button class="btn gold" data-du="again">Ещё дуэль</button><button class="btn ghost" data-du="menu">Назад к дуэлям</button></div>`;
           acts = { again: () => hot(names), menu };
@@ -388,25 +388,25 @@ const Duel = (() => {
       // ---------- живая игра онлайн ----------
       function liveMenu() {
         api.sub('Онлайн');
-        b.innerHTML = `<div class="du-intro"><div class="du-big-emo">⚡</div><h3>Дуэль в реальном времени</h3>
+        b.innerHTML = `<div class="du-intro"><div class="du-big-emo">${Ui.get('bolt')}</div><h3>Дуэль в реальном времени</h3>
             <p>Создай комнату и отправь другу приглашение. Когда он откроет ссылку, вопросы появятся у вас одновременно.</p>
             <button class="btn gold du-go" data-du="host">Создать комнату</button>
             <div class="du-join"><input id="du-code" maxlength="5" placeholder="КОД" autocomplete="off" autocapitalize="characters"><button class="btn" data-du="join">Войти</button></div>
-            <p class="du-small">Если онлайн не соединяется (бывает в некоторых мобильных сетях) — сыграйте «Вызовом по ссылке».</p></div>`;
-        acts = { host, join: () => { const c = ($('#du-code').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c.length === 5) join(c); else toast('Код — 5 символов'); } };
+            <p class="du-small">Если онлайн не соединяется (так бывает в некоторых мобильных сетях), сыграйте «Вызовом по ссылке».</p></div>`;
+        acts = { host, join: () => { const c = ($('#du-code').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c.length === 5) join(c); else toast('В коде 5 символов'); } };
       }
       function connecting(text, code) {
         b.innerHTML = `<div class="du-intro du-wait"><div class="du-radar"><i></i><i></i><i></i><span>${me().emo}</span></div>
             <h3>${text}</h3>${code ? `<div class="du-code">${code.split('').map((c, k) => `<b style="--i:${k}">${c}</b>`).join('')}</div>
-            <button class="btn gold" data-du="invite">📤 Пригласить друга</button><button class="btn ghost" data-du="copy">Скопировать код</button>` : ''}
+            <button class="btn gold" data-du="invite">${Ui.get('send')} Пригласить друга</button><button class="btn ghost" data-du="copy">Скопировать код</button>` : ''}
             <button class="btn ghost" data-du="menu">Отмена</button></div>`;
       }
       function fail(msg) {
         if (!alive) return;
         stopPeer(); clearT(); onPick = null;
-        b.innerHTML = `<div class="du-intro"><div class="du-big-emo">📡</div><h3>${msg}</h3>
-            <p>Попробуйте ещё раз или сыграйте «Вызовом по ссылке» — он работает всегда.</p>
-            <button class="btn gold" data-du="live">Попробовать снова</button><button class="btn" data-du="link">🔗 Вызов по ссылке</button><button class="btn ghost" data-du="menu">Назад</button></div>`;
+        b.innerHTML = `<div class="du-intro"><div class="du-big-emo">${Ui.get('signal')}</div><h3>${msg}</h3>
+            <p>Попробуйте ещё раз или сыграйте «Вызовом по ссылке», он работает всегда.</p>
+            <button class="btn gold" data-du="live">Попробовать снова</button><button class="btn" data-du="link">${Ui.get('link')} Вызов по ссылке</button><button class="btn ghost" data-du="menu">Назад</button></div>`;
         acts = { live: liveMenu, link: () => solo(newSeed(), null), menu };
       }
       const peerOpts = () => Object.assign({ debug: 0 }, window.DUEL_PEER || {});
@@ -433,7 +433,7 @@ const Duel = (() => {
         stopPeer();
         peer = new window.Peer(peerOpts());
         peer.on('open', () => wire(peer.connect(PEER_PREFIX + code, { reliable: true }), false));
-        peer.on('error', (e) => fail(e.type === 'peer-unavailable' ? 'Комната не найдена. Проверь код — или друг уже закрыл игру' : 'Не удалось подключиться'));
+        peer.on('error', (e) => fail(e.type === 'peer-unavailable' ? 'Комната не найдена. Проверь код. Возможно, друг уже закрыл игру' : 'Не удалось подключиться'));
         T(() => { if (!conn || !conn.open) fail('Не удалось подключиться'); }, 20000);
       }
       // Протокол: hi {nick, emo} → go {seed} (от хозяина) → a {i, k, ms} на каждый вопрос → re (реванш)
@@ -510,10 +510,10 @@ const Duel = (() => {
           const reward = Econ.play(Math.round(sc[0] / 40) + (res === 'win' ? 30 : 0));
           api.sub('Онлайн · итог');
           b.innerHTML = `<div class="du-end ${res}">${board({ ...m, score: sc[0] }, { ...op, score: sc[1] })}
-              <h2 class="du-res">${res === 'win' ? '🏆 Победа!' : res === 'lose' ? 'Поражение' : '🤝 Ничья!'}</h2>
+              <h2 class="du-res">${res === 'win' ? 'Победа!' : res === 'lose' ? 'Поражение' : 'Ничья!'}</h2>
               <p class="du-end-txt">${sc[0]} : ${sc[1]}</p><p class="du-re-note"></p>
               ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}
-              <button class="btn gold" data-du="rematch">⚔️ Реванш</button><button class="btn ghost" data-du="menu">Выйти</button></div>`;
+              <button class="btn gold" data-du="rematch">${Ui.get('swords')} Реванш</button><button class="btn ghost" data-du="menu">Выйти</button></div>`;
           acts = { rematch: rematchFn, menu };
         }
         next();

@@ -82,19 +82,19 @@ const SBC = (() => {
       [{ t: 'diff', k: 'club', min: 3 }],
     ][hash(D + 'q') % 5];
     const list = [
-      { id: 'day:' + D, cat: 'day', ico: '⏱', diff: 1, title: 'Испытание дня', desc: 'Три карточки — сверхредкий пак. Новое каждый день.', n: 3, req: dayReq, reward: { pack: 1 }, limit: 1, ends: dayEnd() },
-      star && { id: 'pl:' + W, cat: 'pl', group: true, ico: '⭐', diff: 4, cost: 80 + tier * 20, title: `Игрок недели: ${Cards.surname(star.name)}`, desc: `Три испытания — и ${star.name} ${star.r} твой. Каждое этапное тоже даёт пак.`, reward: { card: star.key }, ends: weekEnd(), limit: 1,
+      { id: 'day:' + D, cat: 'day', ico: 'clock', diff: 1, title: 'Испытание дня', desc: 'Три карточки за сверхредкий пак. Новое каждый день.', n: 3, req: dayReq, reward: { pack: 1 }, limit: 1, ends: dayEnd() },
+      star && { id: 'pl:' + W, cat: 'pl', group: true, ico: 'star', diff: 4, cost: 80 + tier * 20, title: `Игрок недели: ${Cards.surname(star.name)}`, desc: `Пройди три испытания и забери ${star.name} ${star.r}. За каждый этап тоже дают пак.`, reward: { card: star.key }, ends: weekEnd(), limit: 1,
         items: [
-          { id: `pl:${W}:1`, ico: '🏟', diff: 3, title: `Лига недели: ${L}`, desc: `Пятеро из ${L} в составе на ${81 + tier}`, n: 11, req: [{ t: 'from', k: 'lg', v: L, min: 5 }, { t: 'rating', v: 81 + tier }], reward: { pack: 2 }, limit: 1 },
-          { id: `pl:${W}:2`, ico: '🔥', diff: 3, title: 'Топ-форма', desc: 'Сильный полный состав', n: 11, req: [{ t: 'rating', v: 83 + tier }], reward: { pack: 2 }, limit: 1 },
-          { id: `pl:${W}:3`, ico: '👑', diff: 4, title: 'Состав мечты', desc: 'С легендой и рейтингом элиты', n: 11, req: [{ t: 'rating', v: 85 + tier }, { t: 'rar', in: ['legend', 'jack'], min: 1 }], reward: { pack: 3 }, limit: 1 },
+          { id: `pl:${W}:1`, ico: 'stadium', diff: 3, title: `Лига недели: ${L}`, desc: `Пятеро из ${L} в составе на ${81 + tier}`, n: 11, req: [{ t: 'from', k: 'lg', v: L, min: 5 }, { t: 'rating', v: 81 + tier }], reward: { pack: 2 }, limit: 1 },
+          { id: `pl:${W}:2`, ico: 'flame', diff: 3, title: 'Топ-форма', desc: 'Сильный полный состав', n: 11, req: [{ t: 'rating', v: 83 + tier }], reward: { pack: 2 }, limit: 1 },
+          { id: `pl:${W}:3`, ico: 'crown', diff: 4, title: 'Состав мечты', desc: 'С легендой и рейтингом элиты', n: 11, req: [{ t: 'rating', v: 85 + tier }, { t: 'rar', in: ['legend', 'jack'], min: 1 }], reward: { pack: 3 }, limit: 1 },
         ] },
-      { id: 'up:b', cat: 'up', ico: '🥉', diff: 1, title: 'Бронзовое улучшение', desc: 'Пять бронзовых — пак с гарантированным серебром.', n: 5, req: [{ t: 'only', in: ['bronze'] }], reward: { pack: 1 }, limit: 0 },
-      { id: 'up:s', cat: 'up', ico: '🥈', diff: 1, title: 'Серебряное улучшение', desc: 'Пять серебряных — пак с гарантированным золотом.', n: 5, req: [{ t: 'only', in: ['silver'] }], reward: { pack: 2 }, limit: 0 },
-      { id: 'up:g', cat: 'up', ico: '🥇', diff: 3, title: 'Улучшение 81+', desc: 'Семь золотых — пак с гарантированной легендой.', n: 7, req: [{ t: 'only', in: GOLDUP }, { t: 'rating', v: 81 }], reward: { pack: 3 }, limit: 0 },
-      { id: 'up:j:' + W, cat: 'up', ico: '🔴', diff: 4, title: 'Пак «ДЖЕКСОН!!»', desc: 'Лучший пак игры: внутри точно «Джексон». Раз в неделю.', n: 11, req: [{ t: 'rating', v: 85 }, { t: 'rar', in: ['legend', 'jack'], min: 2 }], reward: { pack: 4 }, limit: 1, ends: weekEnd() },
-      { id: 'b:first', cat: 'base', ico: '1', diff: 1, title: 'Первый состав', desc: 'Любые три карточки — начни с простого.', n: 3, req: [], reward: { coins: 150 }, limit: 1 },
-      { id: 'b:league', cat: 'base', ico: '2', diff: 1, title: 'Одна лига', desc: 'Все пятеро — из одной лиги.', n: 5, req: [{ t: 'same', k: 'lg', min: 5 }], reward: { pack: 1 }, limit: 1 },
+      { id: 'up:b', cat: 'up', ico: 'medal:#d9905a', diff: 1, title: 'Бронзовое улучшение', desc: 'Сдай пять бронзовых, получи пак с гарантированным серебром.', n: 5, req: [{ t: 'only', in: ['bronze'] }], reward: { pack: 1 }, limit: 0 },
+      { id: 'up:s', cat: 'up', ico: 'medal:#d6dde6', diff: 1, title: 'Серебряное улучшение', desc: 'Сдай пять серебряных, получи пак с гарантированным золотом.', n: 5, req: [{ t: 'only', in: ['silver'] }], reward: { pack: 2 }, limit: 0 },
+      { id: 'up:g', cat: 'up', ico: 'medal:#ffcf3a', diff: 3, title: 'Улучшение 81+', desc: 'Сдай семь золотых, получи пак с гарантированной легендой.', n: 7, req: [{ t: 'only', in: GOLDUP }, { t: 'rating', v: 81 }], reward: { pack: 3 }, limit: 0 },
+      { id: 'up:j:' + W, cat: 'up', ico: 'pack:#ff4f66', diff: 4, title: 'Пак «ДЖЕКСОН!!»', desc: 'Лучший пак игры: внутри точно «Джексон». Раз в неделю.', n: 11, req: [{ t: 'rating', v: 85 }, { t: 'rar', in: ['legend', 'jack'], min: 2 }], reward: { pack: 4 }, limit: 1, ends: weekEnd() },
+      { id: 'b:first', cat: 'base', ico: '1', diff: 1, title: 'Первый состав', desc: 'Любые три карточки. Начни с простого.', n: 3, req: [], reward: { coins: 150 }, limit: 1 },
+      { id: 'b:league', cat: 'base', ico: '2', diff: 1, title: 'Одна лига', desc: 'Все пятеро из одной лиги.', n: 5, req: [{ t: 'same', k: 'lg', min: 5 }], reward: { pack: 1 }, limit: 1 },
       { id: 'b:nation', cat: 'base', ico: '3', diff: 2, title: 'Одна сборная', desc: 'Четверо из одной страны.', n: 4, req: [{ t: 'same', k: 'nat', min: 4 }], reward: { pack: 1 }, limit: 1 },
       { id: 'b:club', cat: 'base', ico: '4', diff: 2, title: 'Одноклубники', desc: 'Двое из одного клуба в пятёрке.', n: 5, req: [{ t: 'same', k: 'club', min: 2 }], reward: { pack: 1 }, limit: 1 },
       { id: 'b:five', cat: 'base', ico: '5', diff: 1, title: 'Пять лиг', desc: 'Пятеро из пяти разных лиг.', n: 5, req: [{ t: 'diff', k: 'lg', min: 5 }], reward: { pack: 1 }, limit: 1 },
@@ -229,6 +229,7 @@ const SBC = (() => {
     return '';
   }
   const rewardTxt = (r) => (r.pack !== undefined ? PACKNAME[r.pack] : r.card ? `${(Cards.get(r.card) || {}).name || 'Игрок'} · «Джексон»` : `${r.coins} монет`);
+  const icoHTML = (ico) => { if (/^\d$/.test(ico)) return `<b class="fx-num">${ico}</b>`; const [n, col] = ico.split(':'); return `<span class="fx-ig"${col ? ` style="--ic-a:${col};color:${col}"` : ''}>${Ui.get(n)}</span>`; };
   const diffChip = (d, cost) => (d ? `<span class="fx-diff d${d}"><i></i><i></i><i></i><i></i>${DIFF[d]}${cost ? ` · ≈${cost} паков` : ''}</span>` : '');
 
   function card(x, i) {
@@ -238,11 +239,11 @@ const SBC = (() => {
       : !x.limit && nDone ? `<div class="fx-prog"><small>Выполнено ${nDone} ${plural(nDone, 'раз', 'раза', 'раз')}</small></div>` : '';
     const reqLine = !isG && x.req.length ? `<div class="fx-req">${x.req.map((r) => `<span>${label(r)}</span>`).join('')}</div>` : '';
     return `<div class="fx-card ${cl ? 'done' : ''} ${isG ? 'grp' : ''} c-${x.cat || ''}" data-sbo="${x.id}" role="button" tabindex="0" style="--i:${i}">
-      <div class="fx-h"><span class="fx-ico">${x.ico}</span><b>${esc(x.title)}</b><button class="fx-info" data-sbi="${x.id}" aria-label="Подробнее">i</button></div>
+      <div class="fx-h"><span class="fx-ico">${icoHTML(x.ico)}</span><b>${esc(x.title)}</b><button class="fx-info" data-sbi="${x.id}" aria-label="Подробнее">i</button></div>
       <div class="fx-m"><div class="fx-l"><p>${esc(x.desc)}</p>${reqLine}${prog}<div class="fx-rw"><small>${isG ? 'Награда группы' : 'Награда'}</small><b>${esc(rewardTxt(x.reward))}</b></div></div>
         <div class="fx-art">${art(x.reward)}${cl ? '<i class="fx-gok">✓</i>' : ''}</div></div>
       <div class="fx-f">${cl ? '<span class="fx-ok">✓ Выполнено</span>' : `<span><i class="fx-ic">${x.limit ? '⊘' : '↻'}</i>${x.limit ? 'Один раз' : 'Повторяется'}</span>`}
-        ${diffChip(x.diff, x.cost)}${x.ends && !cl ? `<span class="fx-left"><i class="fx-ic">⏱</i><b data-left="${x.ends}">${left(x.ends)}</b></span>` : ''}</div>
+        ${diffChip(x.diff, x.cost)}${x.ends && !cl ? `<span class="fx-left"><i class="fx-ic">${Ui.get('clock')}</i><b data-left="${x.ends}">${left(x.ends)}</b></span>` : ''}</div>
     </div>`;
   }
 
@@ -263,7 +264,7 @@ const SBC = (() => {
         <div class="fx-gart">${art(g.reward, 'xl')}${got ? '<i class="fx-gok">✓</i>' : ''}</div>
         <div class="fx-gl"><b>${esc(g.title)}</b><p>${esc(g.desc)}</p>
           <div class="fx-prog"><span class="fx-seg">${g.items.map((it) => `<i class="${doneN(it.id) ? 'on' : ''}"></i>`).join('')}</span><small>${n} из ${g.items.length} ИПК</small></div>
-          <div class="fx-f">${diffChip(g.diff, g.cost)}<span class="fx-left"><i class="fx-ic">⏱</i><b data-left="${g.ends}">${left(g.ends)}</b></span></div></div></div>
+          <div class="fx-f">${diffChip(g.diff, g.cost)}<span class="fx-left"><i class="fx-ic">${Ui.get('clock')}</i><b data-left="${g.ends}">${left(g.ends)}</b></span></div></div></div>
       <div class="fx-list">${g.items.map((x, i) => card(x, i)).join('')}</div>`;
   }
   const rows = (n) => ({ 3: [3], 4: [2, 2], 5: [3, 2], 7: [3, 2, 2], 11: [3, 3, 4, 1] }[n] || [n]);
@@ -296,12 +297,12 @@ const SBC = (() => {
       <ul class="sx-req">${reqs.join('')}</ul>${short}
       <div class="sx-pitch"><div class="sx-lines"></div>${pitch}</div>
       <p class="sx-tip">${f.length ? 'Нажми на игрока, чтобы заменить или убрать' : 'Нажми на «+», чтобы выбрать игрока, или доверься автосбору'}</p>
-      <div class="sx-bar"><button class="fx-btn ghost" data-sbx="auto"><i class="sx-wand"></i>Автосбор</button>${f.length ? '<button class="fx-btn ghost sm" data-sbx="clear" aria-label="Очистить состав">✕</button>' : ''}<button class="fx-btn ${ok ? 'go' : ''}" data-sbx="send" ${ok ? '' : 'disabled'}>Отправить</button></div>`;
+      <div class="sx-bar"><button class="fx-btn ghost" data-sbx="auto"><i class="sx-wand">${Ui.get('bolt')}</i>Автосбор</button>${f.length ? '<button class="fx-btn ghost sm" data-sbx="clear" aria-label="Очистить состав">✕</button>' : ''}<button class="fx-btn ${ok ? 'go' : ''}" data-sbx="send" ${ok ? '' : 'disabled'}>Отправить</button></div>`;
   }
 
   function title() {
     const t = $('#sbc-title'), sub = $('#sbc-sub');
-    if (view.mode === 'list') { t.textContent = 'ИПК'; sub.textContent = 'Сдай карточки — получи паки'; }
+    if (view.mode === 'list') { t.textContent = 'ИПК'; sub.textContent = 'Сдавай карточки, получай паки'; }
     else if (view.mode === 'group') { const g = find(view.id); t.textContent = 'Игрок недели'; sub.textContent = g ? `Истекает через ${left(g.ends)}` : ''; }
     else { const ch = find(view.id); t.textContent = ch.title; sub.textContent = `Награда: ${rewardTxt(ch.reward)}`; }
   }
@@ -525,7 +526,7 @@ const SBC = (() => {
           $$('.sx-slot', b).forEach((sl, k) => { const c = $('.cc', sl); if (c && before[k] !== cur.sq[k]) { anim(c, [{ transform: 'translateZ(120px) rotateY(-180deg) scale(.5)', opacity: 0 }, { transform: 'rotateY(0) scale(1)', opacity: 1 }], { duration: 600, delay: k * 60, easing: 'cubic-bezier(.2,1.1,.3,1)', fill: 'backwards' }); landFx(c, 520 + k * 60); } });
           pulseHead(b);
         });
-        if (!allOk(ch, cur.sq.map((k) => k && Cards.get(k)))) setTimeout(() => toast('Не хватает карточек — собрал, сколько смог'), 500);
+        if (!allOk(ch, cur.sq.map((k) => k && Cards.get(k)))) setTimeout(() => toast('Карточек не хватает, собрал сколько смог'), 500);
         return;
       }
       if (a.dataset.sbx === 'clear') {

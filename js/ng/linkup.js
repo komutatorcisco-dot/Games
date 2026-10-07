@@ -66,7 +66,7 @@
         if (a.dataset.a === 'hint') {
           if (hinted) return toast('Подсказка уже была');
           const p = Mates.path(chain[chain.length - 1], g.z, 4);
-          if (!p || p.length < 3) return toast('Отсюда не дотянуться — убери последнего');
+          if (!p || p.length < 3) return toast('Отсюда не дотянуться, убери последнего');
           hinted = true; toast(`Попробуй: ${p[1]} (${Mates.of(chain[chain.length - 1]).get(p[1])})`); return;
         }
         if (chain.length > 1) { chain.pop(); render(); }

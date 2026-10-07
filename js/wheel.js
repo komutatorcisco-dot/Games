@@ -15,7 +15,7 @@ const Wheel = (() => {
   // 3D-пак (js/pack3d.js); если 3D на телефоне не запустилось — старые три карточки
   let busy = false;
   async function open() {
-    if (!ready()) { toast('Пак уже открыт сегодня. Новый — завтра!'); return; }
+    if (!ready()) { toast('Пак уже открыт сегодня. Новый будет завтра!'); return; }
     if (busy) return;
     const isGift = gift();
     Modal.close(); busy = true;
