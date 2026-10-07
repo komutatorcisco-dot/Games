@@ -63,7 +63,8 @@ const XMatch = (() => {
   let ballX = 50;
   function render(evs = []) {
     const box = $('#xd-body'), m = S().match, me = Store.d.user.nick || 'Ты';
-    const goal = evs.find((e) => e.t === 'goal'), last = evs[evs.length - 1];
+    // вспышка гола держится 2 игровые минуты (шаг теперь короткий)
+    const goal = M.ev.filter((e) => e.t === 'goal' && M.min - e.m < 2).pop(), fresh = goal && evs.includes(goal), last = evs[evs.length - 1];
     // мяч: к воротам того, кто атаковал; без событий — гуляет в сторону более активной команды
     if (last) ballX = last.s === 0 ? 86 : 14;
     else ballX = Math.max(22, Math.min(78, 50 + (tac - botTac) * 6 + (Math.random() - 0.5) * 30));
@@ -77,7 +78,7 @@ const XMatch = (() => {
       <div class="xm-tac"><div class="xm-zones">${XD.TACTICS.map((t, i) => `<button class="z${i} ${i === tac ? 'on' : ''}" data-tac="${i}" aria-label="${t}"><i></i><span>${SHORT[i]}</span></button>`).join('')}</div>
         <div class="xm-axis"><span>Защита</span><span>Атака</span></div></div>
       <div class="xm-stats"><span>Моменты <b>${M.stats.ch[0]}:${M.stats.ch[1]}</b></span><span>В створ <b>${M.stats.on[0]}:${M.stats.on[1]}</b></span></div>
-      <div class="xm-feed">${feed()}</div>${goal ? `<div class="xm-goalfx ${goal.s ? 'them' : 'us'}">ГОЛ!</div>` : ''}</div>`;
+      <div class="xm-feed">${feed()}</div>${goal ? `<div class="xm-goalfx ${goal.s ? 'them' : 'us'} ${fresh ? '' : 'hold'}">ГОЛ!</div>` : ''}</div>`;
   }
   function setTac(t) { t = Math.max(0, Math.min(4, t)); if (t === tac) return; tac = t; Sound.play('tap'); haptic('pop'); render(); }
   function end() {
