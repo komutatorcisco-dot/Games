@@ -154,7 +154,7 @@ const PackOpen = (() => {
         Sound.play(level === 4 ? 'whistle' : level >= 3 ? 'goal' : 'coin'); haptic(level >= 3 ? 'ok' : 'pop');
         if (level === 4 && typeof confetti === 'function') confetti();
         await wait(380);
-        hint.textContent = level < 4 ? 'Нажми ещё — вдруг прокачается' : 'Нажми, чтобы открыть';
+        hint.textContent = level < 4 ? 'Жми ещё — пак может стать лучше' : 'Нажми, чтобы открыть';
         busy = false;
         return;
       }

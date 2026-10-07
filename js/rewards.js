@@ -263,7 +263,7 @@ const Rewards = (() => {
   }
   function render() {
     const s = S(), p = passSync(), q = questSync(), c = claimable();
-    const packs = s.pending ? `<button class="rw-packs" data-act="rw-packs"><span class="rw-pk big"></span><span><b>${s.pending} ${plural(s.pending, 'пак', 'пака', 'паков')} за победы</b><small>Внутри карточки футболистов</small></span><em>Открыть</em></button>` : '';
+    const packs = s.pending && Release.feature('cards') ? `<button class="rw-packs" data-act="rw-packs"><span class="rw-pkart">${PackOpen.art(0, 'rs')}</span><span><b>${s.pending} ${plural(s.pending, 'пак', 'пака', 'паков')} за победы</b><small>Внутри карточки футболистов</small></span><em>Открыть</em></button>` : '';
     const TB = [Release.feature('cards') && ['cards', 'Галерея', c.sets || (Cards.freshN() ? 'NEW' : '')], Release.feature('pass') && ['pass', 'Пропуск', c.pass], Release.feature('pass') && ['quests', 'Задания', c.qs]].filter(Boolean);
     if (TB.length && !TB.some(([k]) => k === tab)) tab = TB[0][0];
     const sbcOn = Release.isOut('act:sbc');

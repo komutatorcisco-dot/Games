@@ -3727,13 +3727,6 @@ body.home2 #tab-friends, body.home2 #tab-board, body.home2 #tab-games { display:
 #home2 { position: relative; display: grid; grid-template-columns: 76px 1fr 76px; grid-template-rows: 1fr auto; gap: 10px 6px; min-height: calc(100dvh - 190px); padding: 6px 4px 8px; }
 /* фон: ночной стадион — прожекторы медленно ходят, свет падает на газон */
 body.home2 #hub { position: relative; }
-body.home2 #hub::before { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(60% 28% at 50% 104%, rgba(46,140,80,.55), transparent 70%),
-    linear-gradient(180deg, transparent 62%, rgba(20,70,40,.35) 80%, rgba(18,60,34,.55) 100%),
-    radial-gradient(40% 30% at 12% 0%, rgba(255,255,255,.14), transparent 70%),
-    radial-gradient(40% 30% at 88% 0%, rgba(255,255,255,.14), transparent 70%),
-    radial-gradient(90% 60% at 50% 35%, #1d1f2e 0%, #0d0e15 70%); }
 body.home2 #hub::after { content: ''; position: fixed; left: -30%; right: -30%; top: -10%; height: 90%; z-index: -1; pointer-events: none; opacity: .5;
   background: conic-gradient(from 160deg at 10% 0%, transparent 0deg, rgba(255,255,240,.10) 8deg, transparent 18deg), conic-gradient(from 182deg at 90% 0%, transparent 0deg, rgba(255,255,240,.10) 10deg, transparent 20deg);
   animation: h2Lights 14s ease-in-out infinite alternate; will-change: transform; }
@@ -3827,3 +3820,13 @@ body.home2 #hub::after { content: ''; position: fixed; left: -30%; right: -30%; 
 .h2-gt { padding: 0 6px; }
 .h2-gt b { overflow-wrap: normal; word-break: normal; hyphens: auto; }
 @media (max-width: 360px) { .h2-sb { width: 66px; } .h2-sbi { width: 42px; height: 46px; } .h2-sbi.dly img { width: 40px; height: 40px; } .h2-play { font-size: 24px; } }
+
+/* ===== общий вид экранов: тёмная всплывашка над меню, один фон-стадион, спокойные плашки ===== */
+.toast { background: rgba(18,18,26,.96) !important; color: #fff !important; border-radius: 14px !important; font: 700 14px/1.35 var(--font-body) !important;
+  box-shadow: 0 10px 28px rgba(0,0,0,.45), inset 0 0 0 1px rgba(255,255,255,.1) !important; bottom: calc(100px + env(safe-area-inset-bottom, 0px)) !important; padding: 11px 16px !important; text-align: center; }
+#rewards, #profile, #sbc-off { position: relative; }
+.rw-packs { background: linear-gradient(135deg, #1c2b20, #142018) !important; color: #fff !important; box-shadow: inset 0 0 0 1.5px rgba(127,224,160,.45) !important; }
+.rw-packs small { color: rgba(255,255,255,.7); opacity: 1; }
+.rw-packs em { background: #ffcf3a !important; color: #1a1406 !important; }
+.rw-pkart { flex: none; display: grid; place-items: center; width: 46px; }
+#hub-packs { display: none !important; }
