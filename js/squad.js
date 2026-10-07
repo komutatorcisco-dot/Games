@@ -25,7 +25,7 @@ const Squad = (() => {
     return { name: c.name, key, r: c.r, st: Array(6).fill(c.r), pos: POSMAP[c.pos] || ['CM'], club: c.club, lg: c.lg, nat: c.nat || 'leg:' + c.name, flag: c.flag, face: c.face, rar: c.rar };
   }
   const xi = () => S().xi.map(obj);
-  const fits = (p, pos) => (S().sys === 'classic' ? p.pos[0] === pos : p.pos.includes(pos));
+  const fits = (p, pos) => p.pos.includes(pos);
   // карточка могла уйти в ИПК — тогда место пустеет
   function prune() {
     const s = S(); let ch = false;

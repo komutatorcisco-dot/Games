@@ -4120,22 +4120,11 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .tg-cell.filled.p1:has(b) { background: linear-gradient(180deg, #ff6b7d, #c9223e) !important; }
 #ttt > .topbar { margin-bottom: 0 !important; }
 
-/* ===== игры: объёмные клавиши, шапка и поля как на главной; верно — «прыжок», неверно — дрожь ===== */
-#app > .screen:not(#hub) > .topbar { background: linear-gradient(180deg, #2c3f8e, #1a2560) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.25), 0 0 0 2.5px var(--ink-0), 0 5px 0 var(--ink-0), 0 10px 18px rgba(0,0,0,.35) !important; backdrop-filter: none; -webkit-backdrop-filter: none; }
-#app > .screen:not(#hub) > .topbar .topbar-title > span:first-child, #app > .screen:not(#hub) > .topbar .topbar-title:not(:has(span)) { color: #fff; -webkit-text-stroke: 3px var(--ink-0); paint-order: stroke fill; text-shadow: 0 2px 0 var(--ink-0); }
-#app > .screen > .topbar .back { background: linear-gradient(180deg, var(--bl1), var(--bl2)) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.4), 0 0 0 2px var(--ink-0), 0 3px 0 var(--ink-0) !important; color: #fff !important; }
-#app > .screen > .topbar .back:active { transform: translateY(2px); }
-:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt):not(.tb-fut) { box-shadow: inset 0 2px 0 rgba(255,255,255,.14), 0 0 0 2.5px var(--ink-0), 0 5px 0 var(--ink-0) !important; transition: transform .08s; }
-:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt):not(.tb-fut):not(:disabled):active { transform: translateY(4px); box-shadow: inset 0 2px 0 rgba(255,255,255,.14), 0 0 0 2.5px var(--ink-0), 0 1px 0 var(--ink-0) !important; }
-:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt).right { background: linear-gradient(180deg, #5cf08a, #22a84b) !important; color: #fff !important; -webkit-text-stroke: 2.5px #0b3a17; paint-order: stroke fill; animation: gmRight .5s cubic-bezier(.2,1.4,.4,1); }
-:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt).wrong { background: linear-gradient(180deg, #ff6b7d, #c9223e) !important; color: #fff !important; -webkit-text-stroke: 2.5px #4a0614; paint-order: stroke fill; animation: gmWrong .42s ease-out; }
-@keyframes gmRight { 0% { transform: scale(1); } 40% { transform: scale(1.08) translateY(-4px); } 100% { transform: none; } }
+/* ===== игры: прежний тёмный стиль; только анимация ответа — верно «подпрыгивает», неверно дрожит ===== */
+:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt).right { animation: gmRight .5s cubic-bezier(.2,1.4,.4,1); }
+:is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt).wrong { animation: gmWrong .42s ease-out; }
+@keyframes gmRight { 0% { transform: scale(1); } 40% { transform: scale(1.06) translateY(-3px); } 100% { transform: none; } }
 @keyframes gmWrong { 20% { transform: translateX(-8px); } 40% { transform: translateX(7px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(3px); } }
-.guess-input input, .ng-input input, .field input { border-radius: 14px !important; box-shadow: inset 0 3px 5px rgba(0,0,0,.45), 0 0 0 2.5px var(--ink-0), 0 1px 0 rgba(255,255,255,.12) !important; }
-.guess-input input:focus, .ng-input input:focus { box-shadow: inset 0 3px 5px rgba(0,0,0,.45), 0 0 0 2.5px var(--ink-0), 0 0 0 5px #ffcf3a !important; outline: none; }
-#app > .screen:not(#hub) .btn.ghost:not(.opt) { background: linear-gradient(180deg, #2a2766, #1c1a4a) !important; color: #fff !important; border: 0 !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.14), 0 0 0 2.5px var(--ink-0), 0 4px 0 var(--ink-0) !important; }
-#app > .screen:not(#hub) .btn.gold, #app > .screen:not(#hub) .btn:not(.ghost):not(.opt) { box-shadow: inset 0 2px 0 rgba(255,255,255,.55), inset 0 -4px 0 rgba(160,80,0,.35), 0 0 0 2.5px #3b2200, 0 5px 0 #3b2200 !important; }
-:is(#app > .screen:not(#hub) .btn):active { transform: translateY(3px); }
 @media (prefers-reduced-motion: reduce) { :is(.ng-opt, .nat-opt, .btn.ghost.opt, .du-opt):is(.right, .wrong) { animation: none; } }
 
 /* ===== «Мой состав» ===== */
@@ -4236,3 +4225,15 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .h2-arena.h2-3d .h2-game { pointer-events: none; z-index: 1; }
 .h2-arena.h2-3d .h2-hex, .h2-arena.h2-3d .h2-ban { pointer-events: auto; }
 .h2-arena.h2-3d .h2-hex { --hs: calc(var(--W) * .26); bottom: calc(var(--W) * .2); }
+
+/* ===== драфт: все пять кандидатов сразу (3 + 2), выбранный — в золотой рамке ===== */
+.xp-grid5 { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 14px 10px; padding: 8px 0; flex: 1; }
+.xp-grid5 .xp-c { flex: 0 0 calc((100% - 20px) / 3); display: grid; justify-items: center; gap: 6px; padding: 0; border: 0; background: none; color: #fff; transition: transform .15s, opacity .15s; }
+.xp-grid5 .xc.big { --cw: min(108px, calc((100vw - 64px) / 3)); }
+.xp-grid5 .xp-c.on { transform: translateY(-6px); }
+.xp-grid5 .xp-c.on .xc { box-shadow: 0 0 0 3px var(--gold), 0 12px 26px rgba(0,0,0,.45); }
+.xp-grid5:has(.xp-c.on) .xp-c:not(.on) { opacity: .6; }
+/* линии химии: толще и с тёмной кромкой, чтобы читались между карточками */
+.xd-links .ln:not(.none) { stroke-width: 5 !important; filter: drop-shadow(0 0 0 #0a0c22) drop-shadow(0 1px 1px rgba(0,0,0,.7)); }
+.xp-grid5 .xp-c .fu { --cw: min(104px, calc((100vw - 64px) / 3)); }
+.xp-grid5 .xp-c.on .fu { filter: drop-shadow(0 0 0 #ffcf3a) drop-shadow(0 0 3px #ffcf3a); }

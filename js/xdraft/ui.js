@@ -125,41 +125,26 @@ const XDraft = (() => {
     el.className = 'xp'; el.id = 'xd-pick';
     const title = what === 'capt' ? 'Капитан' : pos ? XD.RU[pos] : 'Запас';
     el.innerHTML = `<div class="xp-top"><span class="xp-pos">${title}</span><b>${what === 'capt' ? 'Выбери капитана' : 'Выбери игрока'}</b><button class="xp-x" aria-label="Закрыть">✕</button></div>
-      <div class="xp-row">${list.map((p, k) => `<div class="xp-c" data-k="${k}">${mini(p, { slotPos: pos, idx: k, zone: 'pick', sys: a.sys, big: true })}${what === 'xi' ? chemDelta(i, p) : ''}</div>`).join('')}</div>
-      <div class="xp-dots">${list.map((_, k) => `<i data-k="${k}"></i>`).join('')}</div>
+      <div class="xp-grid5">${list.map((p, k) => `<div class="xp-c ${k === 0 ? 'on' : ''}" data-k="${k}" role="button" tabindex="0">${mini(p, { slotPos: pos, idx: k, zone: 'pick', sys: a.sys, big: true })}${what === 'xi' ? chemDelta(i, p) : ''}</div>`).join('')}</div>
       <div class="xp-foot"><div class="xp-sum"></div><button class="btn gold xp-ok">Взять</button></div>`;
     document.body.appendChild(el);
-    const row = $('.xp-row', el), cards = $$('.xp-c', el);
-    // карусель: центральная карточка крупная, соседние уменьшаются и разворачиваются
-    function fxc() {
-      if (!pick || !el.isConnected) return;
-      const mid = row.scrollLeft + row.clientWidth / 2;
-      let best = 0, bd = 1e9;
-      cards.forEach((c, k) => {
-        const cx = c.offsetLeft + c.offsetWidth / 2, d = (cx - mid) / c.offsetWidth, ad = Math.min(1.6, Math.abs(d));
-        c.style.transform = `perspective(700px) rotateY(${Math.max(-1, Math.min(1, d)) * -24}deg) scale(${1 - ad * 0.2})`;
-        c.style.opacity = String(1 - ad * 0.35); c.style.zIndex = String(10 - Math.round(ad * 5));
-        if (Math.abs(d) < bd) { bd = Math.abs(d); best = k; }
-      });
-      if (best !== pick.chosen || !el.dataset.ready) { pick.chosen = best; el.dataset.ready = '1'; sync(); }
-    }
+    const cards = $$('.xp-c', el);
+    // все пять видно сразу: нажал — выбрал, нажал ещё раз или «Взять» — забрал
     function sync() {
       if (!pick) return;
       const p = list[pick.chosen]; if (!p) return;
-      $$('.xp-dots i', el).forEach((d, k) => d.classList.toggle('on', k === pick.chosen));
+      cards.forEach((c, k) => c.classList.toggle('on', k === pick.chosen));
       $('.xp-ok', el).textContent = `Взять ${surname(p.name)}`;
       if (what !== 'capt') { const pv = preview(what, i, p); $('.xp-sum', el).innerHTML = `<span>Рейтинг <b>${pv.before.r || '—'} → ${pv.after.r}</b></span><span>Химия <b>${pv.before.c} → ${pv.after.c}</b></span>`; }
     }
-    const go = (k) => { const c = cards[k]; if (c) row.scrollTo({ left: c.offsetLeft - (row.clientWidth - c.offsetWidth) / 2, behavior: 'smooth' }); };
-    let raf = 0; row.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(fxc); }, { passive: true });
     requestAnimationFrame(() => {
-      el.classList.add('in'); go(0); fxc();
-      cards.forEach((c, k) => anim($('.fu', c), [{ transform: 'translateY(180px) rotateX(65deg) rotateZ(' + (k - 2) * 6 + 'deg) scale(.7)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 620, delay: 70 * k, easing: 'cubic-bezier(.2,1.1,.3,1)', fill: 'backwards' }));
+      el.classList.add('in'); sync();
+      cards.forEach((c, k) => anim(c, [{ transform: 'translateY(120px) rotateX(60deg) scale(.7)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 560, delay: 60 * k, easing: 'cubic-bezier(.2,1.1,.3,1)', fill: 'backwards' }));
     });
     el.addEventListener('click', (e) => {
       if (e.target.closest('.xp-x')) return closePick();
-      const c = e.target.closest('.xp-c'), d = e.target.closest('.xp-dots i');
-      if (c || d) { const k = +(c || d).dataset.k; if (k === pick.chosen && c) return confirmPick(); go(k); Sound.play('tap'); return; }
+      const c = e.target.closest('.xp-c');
+      if (c) { const k = +c.dataset.k; if (k === pick.chosen) return confirmPick(); pick.chosen = k; sync(); Sound.play('tap'); haptic('tap'); return; }
       if (e.target.closest('.xp-ok')) confirmPick();
     });
   }
@@ -180,7 +165,7 @@ const XDraft = (() => {
   }
   function placeCaptain(i) {
     const a = A(), p = P(a.captPick), pos = XD.FORMATIONS[a.form].slots[i].pos;
-    const ok = a.sys === 'new' ? p.pos.includes(pos) : p.pos[0] === pos;
+    const ok = p.pos.includes(pos);
     if (!ok) { toast(`${surname(p.name)} не играет на ${XD.RU[pos]}`); haptic('bad'); return; }
     a.xi[i] = p.name; a.captSlot = i; a.captPick = null; a.stage = 'draft'; save(); Sound.play('token');
     fx = { type: 'place', zone: 'xi', i, from: capFrom || rectOf(slotEl('xi', i)) }; capFrom = null; render();
@@ -222,7 +207,7 @@ const XDraft = (() => {
     const cap = zone === 'xi' && A() && A().captSlot === idx;
     if (!p) return `<button class="fu empty" data-z="${zone}" data-i="${idx}"><span class="fu-plus">+</span><small>${slotPos ? XD.RU[slotPos] : ''}</small></button>`;
     const cr = CRESTS[p.club];
-    const off = slotPos && (sys === 'new' ? !p.pos.includes(slotPos) : p.pos[0] !== slotPos);
+    const off = slotPos && !p.pos.includes(slotPos);
     let chem = '';
     if (ch && zone === 'xi') {
       chem = sys === 'new'
@@ -254,7 +239,7 @@ const XDraft = (() => {
       return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" class="ln ${l.color}" data-k="${l.i}-${l.j}" ${l.color !== 'none' ? 'pathLength="1" stroke-dasharray="1"' : ''}/>`;
     }).join('')}</svg>` : '';
     return `<div class="xd-pitch ${a.sys} ${live && sel ? 'swapping' : ''} ${capt ? 'placing' : ''}">${field()}${lines}${F_.slots.map((s, i) => {
-      const q = proj(s.x, s.y), glow = capt && (a.sys === 'new' ? capt.pos.includes(s.pos) : capt.pos[0] === s.pos) && !a.xi[i];
+      const q = proj(s.x, s.y), glow = capt && capt.pos.includes(s.pos) && !a.xi[i];
       return `<div class="xd-slot ${live && sel && sel.zone === 'xi' && sel.i === i ? 'sel' : ''} ${glow ? 'glow' : ''}" style="left:${q.x}%;top:${q.y}%;--k:${q.k}">${mini(xi[i], { slotPos: s.pos, ch: c.per[i], sys: a.sys, idx: i, zone: 'xi' })}</div>`;
     }).join('')}</div>`;
   }

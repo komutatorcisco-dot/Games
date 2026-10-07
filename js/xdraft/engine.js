@@ -58,8 +58,9 @@
     const RELATED = [['CDM', 'CM'], ['CM', 'CAM'], ['LM', 'LW'], ['RM', 'RW']];
     const ZONES = [['CB', 'LB', 'RB'], ['CDM', 'CM', 'CAM', 'LM', 'RM'], ['ST', 'LW', 'RW', 'CAM']];
     function fit(p, slotPos) {
-      const own = p.pos[0]; // в FIFA 19 у карточки одна позиция
-      if (own === slotPos) return 'perfect';
+      const own = p.pos[0];
+      // своя позиция — основная или любая из дополнительных (ЦАП с доп. ЦП на ЦП — своя)
+      if (own === slotPos || p.pos.includes(slotPos)) return 'perfect';
       if (own === 'GK' || slotPos === 'GK') return 'wrong';
       if (RELATED.some(([a, b]) => (a === own && b === slotPos) || (b === own && a === slotPos))) return 'related';
       if (ZONES.some((z) => z.includes(own) && z.includes(slotPos))) return 'unrelated';
@@ -156,8 +157,7 @@
     const taken = new Set(team.filter(Boolean).map((p) => p.name));
     const fits = (p) => {
       if (bench || !slotPos) return true;
-      if (sys === 'new') return p.pos.includes(slotPos);
-      return p.pos[0] === slotPos;
+      return p.pos.includes(slotPos);
     };
     const related = (p) => sys === 'classic' && slotPos && ChemClassic.fit(p, slotPos) === 'related';
     const out = [], used = new Set(taken);
@@ -183,7 +183,7 @@
   }
   function captains({ pool, form, sys, rnd }) {
     const slots = FORMATIONS[form].slots.map((s) => s.pos);
-    const ok = (p) => slots.some((s) => (sys === 'new' ? p.pos.includes(s) : p.pos[0] === s));
+    const ok = (p) => slots.some((s) => p.pos.includes(s));
     const list = pool.filter(ok);
     return offer({ pool: list, team: [], slotPos: null, sys, rnd, bands: CFG.captainBands, bench: true });
   }
