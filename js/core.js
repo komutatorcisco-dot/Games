@@ -36,7 +36,13 @@ const Oops = (() => {
     clearTimeout(timer); timer = setTimeout(send, 1500);
   }
   if (list.length) setTimeout(() => { show(); send(); }, 0);
-  window.addEventListener('error', (ev) => add((ev.filename || '').split('/').pop().split('?')[0] + ':' + ev.lineno, ev.error || ev.message));
+  window.addEventListener('error', (ev) => {
+    // «Script error.» без файла — ошибка в чужом скрипте (Telegram, CDN): браузер прячет подробности, игре она не мешает
+    if (!ev.filename && !ev.lineno && /^Script error\.?$/i.test(String(ev.message || ''))) return;
+    // ошибка загрузки картинки или скрипта приходит без message — её обрабатывают сами модули
+    if (!ev.message && !ev.error) return;
+    add((ev.filename || '').split('/').pop().split('?')[0] + ':' + ev.lineno, ev.error || ev.message);
+  });
   window.addEventListener('unhandledrejection', (ev) => add('promise', ev.reason));
   return { add };
 })();
