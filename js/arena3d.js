@@ -385,7 +385,7 @@ const Arena3D = (() => {
         // остров целиком в кадре: расстояние считаем от ширины кадра
         camera.fov = 34; const hf = Math.atan(Math.tan((camera.fov * Math.PI) / 360) * camera.aspect), dist = Math.max(170, 92 / Math.tan(hf));
         camera.position.set(0, dist * 0.58, dist * 0.8); camera.lookAt(0, 14, 0); camera.far = dist * 3; camera.updateProjectionMatrix();
-      }, () => Screens.current === 'hub' && !document.hidden);
+      }, () => Screens.current === 'hub' && !document.hidden && !document.querySelector('.po, .h2-un, .sx-sheet-wrap') && !(typeof Modal !== 'undefined' && Modal.isOpen));
     } else host.appendChild(menuView.canvas);
     menuView.size();
     return menuView;
