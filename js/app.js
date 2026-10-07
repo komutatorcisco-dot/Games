@@ -457,7 +457,7 @@ const App = (() => {
     [['Pass', () => Pass.bind()], ['Guess', () => Guess.bind()], ['Career', () => Career.bind()], ['Club', () => Club.bind()], ['Transfer', () => Transfer.bind()],
       ['TTT', () => TTT.bind()], ['Compare', () => Compare.bind()], ['Auction', () => Auction.bind()], ['Nation', () => Nation.bind()], ['Pick', () => Pick.bind()],
       ['Daily', () => Daily.bind()], ['Shop', () => Shop.bind()], ['Board', () => Board.bind()], ['Rewards', () => Rewards.bind()], ['XDraft', () => { XDraft.bind(); XMatch.bind(); }], ['SBC', () => SBC.bind()],
-      ['Howto', () => Howto.addButtons()], ['Music', () => Music.arm()]].forEach(([n, f]) => safe(n, f));
+      ['Howto', () => Howto.addButtons()], ['Music', () => Music.arm()], ['Gate', () => Gate.start()]].forEach(([n, f]) => safe(n, f));
     document.addEventListener('pointerdown', (e) => {
       Coins.last = { x: e.clientX, y: e.clientY };
       // блик плитки из точки касания

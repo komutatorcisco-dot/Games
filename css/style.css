@@ -3630,3 +3630,18 @@ html, body { touch-action: manipulation; }
 @keyframes skel { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 @media (prefers-reduced-motion: reduce) { .cc-ph::after, .fu::after { animation: none !important; } }
 .terms { text-align: left; } .terms h2 { text-align: center; } .terms p { margin: 0 0 10px; color: rgba(255,255,255,.85); line-height: 1.45; font-size: 14px; }
+
+/* ===== только для подписчиков канала ===== */
+.gate { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 20px;
+  background: radial-gradient(120% 70% at 50% 0%, #22222b 0%, #0b0b0f 70%); animation: sxFade .3s; }
+.gate.out { animation: sxFade .3s reverse forwards; }
+body.gated { overflow: hidden; }
+.gate-card { width: min(100%, 360px); display: grid; justify-items: center; gap: 10px; text-align: center; color: #fff; }
+.gate-ava { width: 112px; height: 112px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 3px #ffcf3a, 0 14px 30px rgba(0,0,0,.5); margin-bottom: 6px; }
+.gate-k { font: 800 12px var(--font-body); letter-spacing: .14em; text-transform: uppercase; color: #ffcf3a; }
+.gate h2 { margin: 0; font: 900 30px/1.05 "Rubik", sans-serif; text-transform: uppercase; letter-spacing: -.01em; }
+.gate-t { margin: 0 0 8px; color: rgba(255,255,255,.8); font-size: 15px; line-height: 1.45; }
+.gate .btn { width: 100%; }
+.gate-msg { min-height: 20px; margin: 2px 0 0; font-size: 13.5px; color: #ffb3bd; }
+.gate[data-state="wait"] .gate-go, .gate[data-state="wait"] .gate-ok { opacity: .5; pointer-events: none; }
+.gate[data-state="wait"] .gate-msg { color: rgba(255,255,255,.7); }

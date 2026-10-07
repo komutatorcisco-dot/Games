@@ -16,6 +16,7 @@
 const ALLOWED = [50, 100, 250, 500, 1000];
 const PASS_STARS = 100; // цена премиум-пропуска (как в js/rewards.js)
 const ORIGIN = 'https://komutatorcisco-dot.github.io';
+const CHANNEL = '@oldjacksons'; // канал «Старики Джексоны»: играть могут только подписчики
 const TOP = 50;
 
 const tg = (env, method, body) => fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
@@ -429,6 +430,18 @@ async function adminCommand(env, m) {
 async function route(request, env) {
   const url = new URL(request.url);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204 });
+
+  // ---------- подписка на канал: играть можно только подписчикам ----------
+  // Боту нужны права администратора в канале, иначе Telegram не отвечает на getChatMember.
+  if (url.pathname === '/member' && request.method === 'POST') {
+    let body; try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
+    const user = await verifyInit(body.initData, env.BOT_TOKEN);
+    if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
+    const r = await tg(env, 'getChatMember', { chat_id: CHANNEL, user_id: user.id });
+    if (!r || !r.ok) return json({ ok: false, error: (r && r.description) || 'telegram' });
+    const st = r.result.status;
+    return json({ ok: true, member: ['creator', 'administrator', 'member'].includes(st) || (st === 'restricted' && r.result.is_member) });
+  }
 
   // ---------- рейтинг ----------
   if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats'].includes(url.pathname) && request.method === 'POST') {
