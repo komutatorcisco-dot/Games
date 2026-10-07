@@ -66,7 +66,7 @@ const Home = (() => {
           <span class="h2-chg">Сменить игру <i>▾</i></span></button>
         <button class="h2-play" ${attrs(g.data)}><span>ИГРАТЬ</span></button>` : ''}
       </div>
-      <button class="h2-road" data-act="rewards">
+      <button class="h2-road" data-act="road">
         <span class="h2-tro">${Ui.get('trophy')}<b>${t}</b></span>
         <span class="h2-bar"><i style="width:${pct}%"></i><small>${nx ? `${t} / ${nx.need}` : 'Всё открыто'}</small></span>
         <span class="h2-next" title="${nx ? esc(nx.title) : ''}"><span class="h2-ni">${nxIco}</span><small>${nx ? esc(nx.title) : 'Максимум'}</small></span>

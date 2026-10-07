@@ -249,7 +249,7 @@ const Cards = (() => {
     const s = S(); s.fresh = s.fresh.filter((k) => k !== key); Store.save();
     Modal.open(`<div class="cd">${html(c, { w: 220 })}<h2>${esc(c.name)}</h2><p class="cd-m">${esc(c.club)}${c.rar === 'legend' || c.rar === 'jack' ? '' : ` · ${esc(c.lg || '')}`}</p>${stats}
       <p class="cd-own">В клубе: ×${spare(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
-    if (typeof Tilt !== 'undefined') Tilt.attach($('#modal-card .cd > .cc'), { max: 18 });
+    if (typeof Tilt !== 'undefined') Tilt.spin($('#modal-card .cd > .cc'));
   }
   // купить недостающую карточку: как трансферный рынок
   const price = (c) => (c.rar === 'jack' ? 0 : c.rar === 'legend' ? 600 : c.rar === 'gold' ? 150 + Math.max(0, c.r - 78) * 30 : c.rar === 'silver' ? 80 : 40);
@@ -274,5 +274,5 @@ const Cards = (() => {
     return false;
   }
 
-  return { reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, PACKS, spare, use, owned, surname, freshN: () => S().fresh.length, RAR };
+  return { reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, PACKS, details, spare, use, owned, surname, freshN: () => S().fresh.length, RAR };
 })();

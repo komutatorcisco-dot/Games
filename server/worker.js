@@ -190,6 +190,14 @@ async function top(env, user, scope) {
 const getSetting = async (db, k) => { const r = await db.prepare('SELECT v FROM settings WHERE k = ?').bind(k).first(); return r ? r.v : null; };
 const setSetting = (db, k, v) => db.prepare('INSERT INTO settings (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v = ?2').bind(k, String(v)).run();
 const adminId = async (env) => Number(await getSetting(env.DB, 'admin')) || 0;
+// админов может быть несколько (ведущие канала): список в настройке 'admins', старый одиночный 'admin' тоже считается
+async function adminIds(env) {
+  let list = []; try { list = JSON.parse((await getSetting(env.DB, 'admins')) || '[]'); } catch (e) { list = []; }
+  const one = await adminId(env); if (one) list.push(one);
+  return [...new Set(list.map(Number).filter(Boolean))];
+}
+const isAdminId = async (env, id) => (await adminIds(env)).includes(Number(id));
+async function tellAdmins(env, text) { for (const id of await adminIds(env)) await tg(env, 'sendMessage', { chat_id: id, text }); }
 
 async function hello(env, user, body) {
   const db = env.DB, now = Date.now(), today = dayKey(now);
@@ -211,7 +219,7 @@ async function hello(env, user, body) {
     db.prepare('INSERT OR IGNORE INTO friends (a, b, ts) VALUES (?, ?, ?)').bind(Number(ref[1]), user.id, now),
   ]);
   const pass = (await db.prepare("SELECT season FROM purchases WHERE id = ? AND item = 'pass'").bind(user.id).all()).results.map((r) => r.season);
-  return { admin: user.id === (await adminId(env)), pass };
+  return { admin: await isAdminId(env, user.id), pass };
 }
 
 async function events(env, user, body) {
@@ -234,11 +242,8 @@ async function report(env, user, body) {
   const text = clean(body.text, 1500), info = clean(body.info, 1500), nick = clean(body.nick, 16) || clean(user.username || user.first_name, 16);
   if (!text) return { ok: false };
   await db.prepare('INSERT INTO reports (ts, id, nick, text, info) VALUES (?, ?, ?, ?, ?)').bind(Date.now(), user.id, nick, text, info).run();
-  const admin = await adminId(env);
-  if (admin) {
-    const who = user.username ? `@${user.username}` : `id ${user.id}`;
-    await tg(env, 'sendMessage', { chat_id: admin, text: `🐞 Ошибка от ${nick} (${who})\n\n${text}\n\n— ${info}` });
-  }
+  const who = user.username ? `@${user.username}` : `id ${user.id}`;
+  await tellAdmins(env, `🐞 Ошибка от ${nick} (${who})\n\n${text}\n\n— ${info}`);
   return { ok: true };
 }
 
@@ -397,9 +402,8 @@ async function infoCommand(env, m) {
   if (/^\/terms\b/.test(text)) return say(TERMS);
   const msg = text.replace(/^\/\w+(@\w+)?\s*/, '').trim();
   if (!msg) return say('Проблема с оплатой или покупкой? Напиши одним сообщением: /paysupport и что случилось. Например: /paysupport купил пропуск, а он не открылся.');
-  const admin = env.DB ? await adminId(env) : null;
   const who = [m.from && m.from.first_name, m.from && m.from.username ? '@' + m.from.username : '', `id ${m.from ? m.from.id : chat}`].filter(Boolean).join(' · ');
-  if (admin) await tg(env, 'sendMessage', { chat_id: admin, text: `Поддержка по оплате\n${who}\n\n${msg.slice(0, 1500)}` });
+  if (env.DB) await tellAdmins(env, `Поддержка по оплате\n${who}\n\n${msg.slice(0, 1500)}`);
   return say('Передали администратору. Ответим здесь или в личные сообщения.');
 }
 
@@ -414,13 +418,14 @@ async function adminCommand(env, m) {
     // войти админом: отдельный код ADMIN_CODE (переменная воркера) или, как раньше, WEBHOOK_SECRET
     const okCode = code && ((env.ADMIN_CODE && code === String(env.ADMIN_CODE).trim()) || (env.WEBHOOK_SECRET && code === env.WEBHOOK_SECRET));
     if (okCode && m.chat.type === 'private') {
-      await setSetting(db, 'admin', chat);
+      const list = await adminIds(env); if (!list.includes(chat)) list.push(chat);
+      await setSetting(db, 'admins', JSON.stringify(list));
       await tg(env, 'setMyCommands', { commands: [{ command: 'start', description: 'Играть' }, { command: 'terms', description: 'Условия' }, { command: 'paysupport', description: 'Помощь с оплатой' }] });
       return say('✅ Ты админ. Сюда будут приходить ошибки от игроков.\n/stats — статистика\n/broadcast текст — сообщение всем игрокам\nВ приложении: Профиль → Админка.');
     }
     return say('Неверный код.');
   }
-  if (chat !== (await adminId(env))) return say('Команда только для админа.');
+  if (!(await isAdminId(env, chat))) return say('Команда только для админа.');
   if (text.startsWith('/stats')) return say(statsText(await stats(env)));
   if (text.startsWith('/broadcast')) {
     const msg = text.replace(/^\/broadcast\s*/, '').trim();
@@ -458,7 +463,7 @@ async function route(request, env) {
     if (url.pathname === '/event') return json({ ok: true, ...(await events(env, user, body)) });
     if (url.pathname === '/report') return json(await report(env, user, body));
     if (url.pathname === '/admin/stats') {
-      if (user.id !== (await adminId(env))) return json({ ok: false, error: 'forbidden' }, 403);
+      if (!(await isAdminId(env, user.id))) return json({ ok: false, error: 'forbidden' }, 403);
       return json({ ok: true, ...(await stats(env)) });
     }
     const scope = ['week', 'all', 'day', 'friends'].includes(body.scope) ? body.scope : 'week';

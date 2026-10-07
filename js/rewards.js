@@ -208,7 +208,7 @@ const Rewards = (() => {
   }
 
   // ---------- экран «Награды»: дорога трофеев лентой, ниже коллекция / пропуск / задания ----------
-  let tab = 'cards';
+  let tab = 'road', scrolled = false;
   function claimable() {
     const s = S(), p = passSync(), q = questSync(), L = passLevel();
     const road = ROAD.filter(([t], i) => s.trophies >= t && !s.road.includes(i)).length;
@@ -261,16 +261,64 @@ const Rewards = (() => {
     return `<div class="rw-sec"><div class="rw-row"><b>Дорога трофеев</b><small>${Ui.get('trophy')} ${s.trophies}${next ? ` → ${next[0]}` : ' · пройдена!'}</small></div>
       <div class="rs-strip">${steps}</div><p class="rw-sub">Победа +${WIN_TROPHIES} ${Ui.get('trophy')}, матч +${PLAY_TROPHIES}</p></div>`;
   }
+  // ---------- дорога трофеев: вертикальный путь как в Brawl Stars ----------
+  const PACK_CARDS = [3, 5, 8, 15, 30];
+  function roadTitle(r) {
+    if (r.coins) return [`${r.coins} монет`, 'На счёт сразу'];
+    if (r.lives) return [`${r.lives} ${plural(r.lives, 'жизнь', 'жизни', 'жизней')}`, 'Продолжить серию в играх'];
+    if (r.card) return [CARDNAME[r.card], 'Случайный игрок этой редкости'];
+    if (r.pack !== undefined) return [PACKNAME[r.pack], `${PACK_CARDS[r.pack]} ${plural(PACK_CARDS[r.pack], 'карточка', 'карточки', 'карточек')} внутри`];
+    return ['Награда', ''];
+  }
+  function trophyRoad(s) {
+    const t = s.trophies;
+    const items = [...ROAD.map(([th, r], i) => ({ t: th, r, i })), ...Release.UNLOCKS.filter((u) => u[0] > 0).slice(0, 14).map((u) => ({ t: u[0], u }))]
+      .filter((x) => x.t <= Math.max(2000, (ROAD[ROAD.length - 1] || [0])[0])).sort((a, b) => a.t - b.t || (a.u ? -1 : 1));
+    const next = items.find((x) => x.t > t);
+    const prevT = [...items].reverse().find((x) => x.t <= t), from = prevT ? prevT.t : 0;
+    const pct = next ? Math.round(((t - from) / (next.t - from)) * 100) : 100;
+    const nextName = next ? (next.u ? next.u[1] : roadTitle(next.r)[0]) : '';
+    const hero = `<div class="tr-hero"><span class="tr-cup">${Ui.get('trophy')}</span>
+      <div class="tr-hm"><b>${t}</b><small>трофеев</small></div>
+      <div class="tr-hn">${next ? `<small>Следующее: <b>${esc(nextName)}</b></small><span class="tr-bar"><i style="width:${pct}%"></i></span><small>ещё <b>${next.t - t}</b> ${Ui.get('trophy')}</small>` : '<small><b>Дорога пройдена!</b></small>'}</div>
+      <div class="tr-how"><span>Победа <b>+${WIN_TROPHIES}</b> ${Ui.get('trophy')}</span><span>Сыграл <b>+${PLAY_TROPHIES}</b> ${Ui.get('trophy')}</span></div></div>`;
+    let hereDone = false;
+    const here = () => `<div class="tr-here"><span class="tr-me">${esc((Store.d.user || {}).emoji || '⚽')}</span><b>Ты здесь</b><small>${t} ${Ui.get('trophy')}</small></div>`;
+    const rows = items.map((x) => {
+      let out = '';
+      if (!hereDone && x.t > t) { hereDone = true; out += here(); }
+      const reached = t >= x.t;
+      if (x.u) {
+        const k = x.u[2][0], g = Home.catalog().get(k), feat = k.startsWith('feat:');
+        const ic = k === 'feat:cards' ? Ui.get('pack') : k === 'feat:pass' ? Ui.get('star') : g && typeof Icons !== 'undefined' ? Icons.get(g.ico) : Ui.get('lock');
+        out += `<div class="tr-node un ${reached ? 'got' : 'lock'}" style="--c1:${(g && g.c1) || '#ffcf3a'};--c2:${(g && g.c2) || '#ff8a2a'}">
+          <span class="tr-dot">${x.t}</span>
+          <div class="tr-card"><span class="tr-art"><span class="tr-hex">${ic}</span></span>
+            <span class="tr-tx"><small>${feat ? 'Новый раздел' : 'Новая игра'}</small><b>${esc(x.u[1])}</b></span>
+            <span class="tr-st">${reached ? `<i class="tr-ok">${Ui.get('star')} Открыто</i>` : `<i class="tr-lk">${Ui.get('lock')}</i>`}</span></div></div>`;
+      } else {
+        const got = s.road.includes(x.i), ready = !got && reached, [ti, sub] = roadTitle(x.r), l = rewardLabel(x.r);
+        out += `<div class="tr-node ${got ? 'got' : ready ? 'ready' : 'lock'}">
+          <span class="tr-dot">${x.t}</span>
+          <div class="tr-card"><span class="tr-art">${l.art}</span><span class="tr-tx"><small>Награда</small><b>${esc(ti)}</b><em>${esc(sub)}</em></span>
+            <span class="tr-st">${got ? `<i class="tr-done">✓</i>` : ready ? `<button class="btn gold tr-take" data-road="${x.i}">Забрать</button>` : `<i class="tr-need">ещё ${x.t - t}</i>`}</span></div></div>`;
+      }
+      return out;
+    }).join('') + (hereDone ? '' : here());
+    return hero + `<div class="tr-list">${rows}</div>`;
+  }
+
   function render() {
     const s = S(), p = passSync(), q = questSync(), c = claimable();
     const packs = s.pending && Release.feature('cards') ? `<button class="rw-packs" data-act="rw-packs"><span class="rw-pkart">${PackOpen.art(0, 'rs')}</span><span><b>${s.pending} ${plural(s.pending, 'пак', 'пака', 'паков')} за победы</b><small>Внутри карточки футболистов</small></span><em>Открыть</em></button>` : '';
-    const TB = [Release.feature('cards') && ['cards', 'Галерея', c.sets || (Cards.freshN() ? 'NEW' : '')], Release.feature('pass') && ['pass', 'Пропуск', c.pass], Release.feature('pass') && ['quests', 'Задания', c.qs]].filter(Boolean);
+    const TB = [['road', 'Путь', c.road], Release.feature('cards') && ['cards', 'Галерея', c.sets || (Cards.freshN() ? 'NEW' : '')], Release.feature('pass') && ['pass', 'Пропуск', c.pass], Release.feature('pass') && ['quests', 'Задания', c.qs]].filter(Boolean);
     if (TB.length && !TB.some(([k]) => k === tab)) tab = TB[0][0];
     const sbcOn = Release.isOut('act:sbc');
     const tabs = !TB.length ? '' : `<nav class="rw-tabs" style="--n:${TB.length + (sbcOn ? 1 : 0)}">${TB.map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}${sbcOn ? `<button data-act="sbc" class="rw-sbc">ИПК${typeof SBC !== 'undefined' && SBC.ready() ? '<i>1</i>' : ''}</button>` : ''}</nav>`;
     let body = '';
     const nx = Release.next();
-    if (!TB.length) body = nx ? `<div class="rw-soon"><span>${Ui.get('lock')}</span><b>${esc(nx.title)}</b><small>Откроется на ${nx.need} ${Ui.get('trophy')}. Побеждай в играх!</small></div>` : '';
+    if (tab === 'road') body = trophyRoad(s);
+    else if (!TB.length) body = nx ? `<div class="rw-soon"><span>${Ui.get('lock')}</span><b>${esc(nx.title)}</b><small>Откроется на ${nx.need} ${Ui.get('trophy')}. Побеждай в играх!</small></div>` : '';
     else if (tab === 'cards') body = `<div class="rw-coll">${Cards.album()}</div>`;
     else if (tab === 'pass') {
       const L = passLevel(), left = Math.max(0, Math.ceil((seasonEnd() - Date.now()) / 864e5));
@@ -288,14 +336,15 @@ const Rewards = (() => {
     }
     const box = $('#rewards-body');
     const keep = box.querySelector('.rs-strip'), sx = keep ? keep.scrollLeft : null;
-    box.innerHTML = road(s) + packs + tabs + body;
-    // лента: к ближайшей награде (готовой или следующей)
-    const strip = box.querySelector('.rs-strip');
-    if (sx !== null) strip.scrollLeft = sx;
-    else { const t = strip.querySelector('.rs.ready') || strip.querySelector('.rs.lock'); if (t) strip.scrollLeft = Math.max(0, t.offsetLeft - 16); }
+    box.innerHTML = packs + tabs + body;
+    if (tab === 'road') {
+      const here = box.querySelector('.tr-here');
+      if (here && !scrolled) { scrolled = true; requestAnimationFrame(() => scrollTo(0, Math.max(0, here.getBoundingClientRect().top + scrollY - innerHeight * 0.42))); }
+      if (!box.dataset.roadIn) { box.dataset.roadIn = 1; $$('.tr-node, .tr-here, .tr-hero', box).forEach((n, i) => n.animate && n.animate([{ transform: 'translateX(-14px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 360, delay: Math.min(600, i * 30), easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' })); }
+    }
     header();
   }
-  function open(t) { if (t) tab = t; Modal.close(); Screens.show('rewards'); render(); window.scrollTo(0, 0); }
+  function open(t) { if (t) tab = t; scrolled = false; delete $('#rewards-body').dataset.roadIn; Modal.close(); Screens.show('rewards'); window.scrollTo(0, 0); render(); }
   function bind() {
     $('#rewards-body').addEventListener('click', (e) => {
       const t = e.target.closest('[data-rwtab]'); if (t) { tab = t.dataset.rwtab; Sound.play('tap'); render(); return; }

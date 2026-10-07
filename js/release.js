@@ -85,7 +85,8 @@ const Release = (() => {
   refresh();
 
   // админ видит все игры (чтобы проверить заранее); игрокам — только открытые
-  const isAdmin = () => !!(Store.d && Store.d.admin);
+  // админ видит всё, пока не включил «режим игрока» — тогда всё как у обычного игрока
+  const isAdmin = () => !!(Store.d && Store.d.admin && !(Store.d.ui && Store.d.ui.asPlayer));
   const known = (key) => START.includes(key) || UNLOCKS.some((u) => u[2].includes(key));
   const isOut = (key) => { refresh(); return !known(key) || out.has(key) || isAdmin(); };
   const soon = (key) => known(key) && !out.has(key);

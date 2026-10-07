@@ -5,7 +5,7 @@
 // Наклон в 3D за пальцем и блик: для больших карточек и паков. Без касания — лёгкое «дыхание».
 const Tilt = (() => {
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function attach(el, { max = 14, idle = true } = {}) {
+  function attach(el, { max = 14, idle = false } = {}) {
     if (!el || el._tilt) return;
     el._tilt = 1; el.classList.add('tilt');
     let tx = 0, ty = 0, cx = 0, cy = 0, touch = false;
@@ -29,7 +29,39 @@ const Tilt = (() => {
     };
     requestAnimationFrame(loop);
   }
-  return { attach };
+  // карточку крутят пальцем: влево-вправо — полный оборот с инерцией, вверх-вниз — наклон; отпустил — встаёт лицом
+  function spin(cc) {
+    if (!cc || cc.closest('.spin3d')) return;
+    const wrap = document.createElement('div'); wrap.className = 'spin3d';
+    const inner = document.createElement('div'); inner.className = 'spin-in';
+    const back = document.createElement('div'); back.className = 'spin-back ' + (['bronze', 'silver', 'gold', 'legend', 'jack'].find((r) => cc.classList.contains(r)) || '');
+    back.innerHTML = '<b>JX</b>';
+    cc.parentNode.insertBefore(wrap, cc); inner.appendChild(cc); inner.appendChild(back); wrap.appendChild(inner);
+    let ry = 0, rx = 0, vy = 0, drag = null, raf = 0, settle = false;
+    const apply = () => { inner.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`; const k = ((ry % 360) + 360) % 360; wrap.style.setProperty('--gx', (50 + Math.sin((k * Math.PI) / 180) * 45).toFixed(1) + '%'); };
+    const loop = () => {
+      if (!wrap.isConnected) return;
+      if (!drag) {
+        if (Math.abs(vy) > 0.15 && !settle) { ry += vy; vy *= 0.94; rx *= 0.9; }
+        else { settle = true; const target = Math.round(ry / 360) * 360; ry += (target - ry) * 0.12; rx *= 0.85; if (Math.abs(target - ry) < 0.1 && Math.abs(rx) < 0.1) { ry = target; rx = 0; apply(); raf = 0; return; } }
+      }
+      apply(); raf = requestAnimationFrame(loop);
+    };
+    const kick = () => { if (!raf) raf = requestAnimationFrame(loop); };
+    wrap.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, ry, rx, t: performance.now(), lx: e.clientX }; vy = 0; settle = false; wrap.setPointerCapture && wrap.setPointerCapture(e.pointerId); kick(); });
+    wrap.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const now = performance.now(), dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+      ry = drag.ry + dx * 0.9; rx = Math.max(-25, Math.min(25, drag.rx - dy * 0.35));
+      vy = ((e.clientX - drag.lx) * 0.9) / Math.max(1, (now - drag.t) / 16); drag.lx = e.clientX; drag.t = now;
+    });
+    const up = () => { if (!drag) return; drag = null; vy = Math.max(-40, Math.min(40, vy)); kick(); };
+    wrap.addEventListener('pointerup', up); wrap.addEventListener('pointercancel', up);
+    // подсказка движением: лёгкий поворот туда-обратно при открытии
+    if (!reduce) { vy = 9; settle = false; kick(); }
+    apply();
+  }
+  return { attach, spin };
 })();
 
 const SBC = (() => {

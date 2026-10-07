@@ -144,6 +144,8 @@ const App = (() => {
     $('#pf-ach').textContent = `${got} из ${achs.length}`;
     $('#ach-sub').textContent = `${got} из ${achs.length}`;
     $('#prof-admin').hidden = !Store.d.admin;
+    $('#prof-asplayer').hidden = !Store.d.admin;
+    $('#set-asplayer').textContent = Store.d.ui && Store.d.ui.asPlayer ? 'Вкл' : 'Выкл';
     $('#set-wheel').textContent = safe('wheel', () => Wheel.ready()) ? 'Открыть' : 'Завтра';
     $('#set-music').textContent = Store.d.music ? 'Вкл' : 'Выкл';
     $('#set-sound').textContent = Store.d.sound ? 'Вкл' : 'Выкл';
@@ -369,6 +371,7 @@ const App = (() => {
     friends: () => tab('friends'),
     board: () => Board.open(),
     rewards: () => Rewards.open(),
+    road: () => Rewards.open('road'),
     collection: () => Rewards.open('cards'),
     xdraft: () => XDraft.open(),
     sbc: () => SBC.open(),
@@ -382,6 +385,12 @@ const App = (() => {
     },
     achievements: () => { Modal.close(); renderProfile(); Screens.show('achievements'); window.scrollTo(0, 0); },
     report: () => Track.report(),
+    // админ: посмотреть приложение глазами обычного игрока (открытия по трофеям, без скрытых игр)
+    'as-player': () => {
+      const ui = Store.d.ui || (Store.d.ui = {}); ui.asPlayer = !ui.asPlayer; Store.save();
+      Release.refresh(); renderProfile();
+      toast(ui.asPlayer ? 'Режим игрока: всё как у обычного игрока' : 'Режим админа: видны все игры');
+    },
     terms: () => Modal.open(`<div class="terms"><h2>Условия</h2>
       <p>Игры бесплатные. За звёзды Telegram можно купить премиум-пропуск сезона и поддержать канал. Это цифровые товары внутри игры, на деньги они не обмениваются.</p>
       <p>Пропуск действует до конца сезона (28 дней) и появляется сразу после оплаты.</p>
