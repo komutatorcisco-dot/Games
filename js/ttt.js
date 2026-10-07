@@ -130,7 +130,8 @@ const TTT = (() => {
         const cls = ['tg-cell', v ? `filled p${v.by}` : '', sel === i ? 'sel' : ''].join(' ');
         const mark = v ? (mode === 'duo' ? (v.by === 0 ? '✕' : '○') : '') : '';
         const reveal = over && !v ? `<small class="ans">${esc(both(r, c)[0])}</small>` : '';
-        html += `<button class="${cls}" data-i="${i}" ${v || over ? 'disabled' : ''}>${mark ? `<b>${mark}</b>` : ''}${v ? `<span>${esc(v.name)}</span>` : reveal}</button>`;
+        const face = v ? (typeof FACES !== 'undefined' && FACES[v.name] ? `<img class="tg-face" src="${faceSrc(FACES[v.name])}" alt="" loading="lazy">` : `<i class="tg-face ini">${esc(v.name.replace(/\(.*\)/, '').split(' ').filter(Boolean).map((w) => w[0]).slice(0, 2).join(''))}</i>`) : '';
+        html += `<button class="${cls}" data-i="${i}" ${v || over ? 'disabled' : ''}>${mark ? `<b>${mark}</b>` : ''}${v ? `${face}<span>${esc(v.name)}</span>` : reveal}</button>`;
       });
     });
     $('#ttt-grid').innerHTML = html;
@@ -158,8 +159,10 @@ const TTT = (() => {
 
   const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
 
+  const fx = (i, k, o) => { const el = $(`#ttt-grid .tg-cell[data-i="${i}"]`); if (el && el.animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) el.animate(k, o); };
   function submit(name) {
     if (over || sel < 0) return;
+    const at = sel;
     const r = rows[Math.floor(sel / 3)], c = cols[sel % 3];
     const ok = !used.has(name) && cat(r).set.has(name) && cat(c).set.has(name);
     if (ok) {
@@ -171,7 +174,9 @@ const TTT = (() => {
       toast(used.has(name) ? `${name} уже был` : `${name} не подходит под обе подсказки`);
       if (mode === 'solo') lives--;
       if (mode === 'timed') { timeLeft = Math.max(1, timeLeft - 10); bump($('#ttt-sub'), 'shake'); }
+      fx(at, [{ transform: 'translateX(0)', background: 'rgba(255,79,102,.5)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(7px)' }, { transform: 'translateX(-4px)' }, { transform: 'none' }], { duration: 420, easing: 'ease-out' });
     }
+    if (ok) later(() => fx(at, [{ transform: 'perspective(500px) rotateY(-180deg) scale(.8)' }, { transform: 'perspective(500px) rotateY(10deg) scale(1.06)', offset: .7 }, { transform: 'none' }], { duration: 620, easing: 'cubic-bezier(.2,.9,.3,1)' }), 0);
     sel = -1;
     $('#ttt-field').disabled = true;
 
