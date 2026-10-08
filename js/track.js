@@ -17,7 +17,7 @@ const Track = (() => {
     if (!on()) return;
     queue.push(e);
     clearTimeout(timer);
-    timer = setTimeout(flush, queue.length >= 10 ? 0 : 8000);
+    timer = setTimeout(flush, queue.length >= 30 ? 0 : 30000); // копим пачку: сервер склеивает одинаковые события в одну запись
   }
   function flush() {
     if (!on() || !queue.length) return;

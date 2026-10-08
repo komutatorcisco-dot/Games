@@ -93,6 +93,9 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS visits (day TEXT NOT NULL, id INTEGER NOT NULL, PRIMARY KEY (day, id))'),
     db.prepare('CREATE TABLE IF NOT EXISTS events (day TEXT NOT NULL, id INTEGER NOT NULL, game TEXT NOT NULL, kind TEXT NOT NULL, ms INTEGER NOT NULL DEFAULT 0, ts INTEGER NOT NULL)'),
     db.prepare('CREATE INDEX IF NOT EXISTS events_day ON events (day, game)'),
+    // события игр теперь копятся счётчиками (одна строка на день+игру+тип), а не строкой на каждое нажатие
+    db.prepare('CREATE TABLE IF NOT EXISTS evd (day TEXT NOT NULL, game TEXT NOT NULL, kind TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, ms INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (day, game, kind))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS evu (day TEXT NOT NULL, game TEXT NOT NULL, id INTEGER NOT NULL, PRIMARY KEY (day, game, id))'),
     db.prepare('CREATE TABLE IF NOT EXISTS reports (ts INTEGER NOT NULL, id INTEGER NOT NULL, nick TEXT, text TEXT, info TEXT)'),
     db.prepare('CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT)'),
     db.prepare('CREATE TABLE IF NOT EXISTS bot (chat INTEGER PRIMARY KEY, started INTEGER NOT NULL, blocked INTEGER NOT NULL DEFAULT 0)'),
@@ -163,8 +166,10 @@ async function saveScore(env, user, body) {
   const start = old ? old.xp : (xp <= 300 ? 0 : xp);
   const ops = [
     db.prepare(`INSERT INTO users (id, nick, emoji, xp, updated, day, gained) VALUES (?1, COALESCE(?2, ?8), COALESCE(?3, '⚽'), ?4, ?5, ?6, ?7)
-      ON CONFLICT(id) DO UPDATE SET nick = COALESCE(?2, nick), emoji = COALESCE(?3, emoji), xp = ?4, updated = ?5, day = ?6, gained = ?7`).bind(id, nick, emoji, xp, now, today, gained, fallback),
-    db.prepare('INSERT INTO weekly (week, id, start, xp) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(week, id) DO UPDATE SET xp = ?4').bind(wk, id, start, xp),
+      ON CONFLICT(id) DO UPDATE SET nick = COALESCE(?2, nick), emoji = COALESCE(?3, emoji), xp = ?4, updated = ?5, day = ?6, gained = ?7
+      WHERE xp != ?4 OR nick IS NOT COALESCE(?2, nick) OR emoji IS NOT COALESCE(?3, emoji)`).bind(id, nick, emoji, xp, now, today, gained, fallback),
+    // ничего не поменялось — строки не трогаем (каждая запись тратит дневной лимит базы)
+    db.prepare('INSERT INTO weekly (week, id, start, xp) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(week, id) DO UPDATE SET xp = ?4 WHERE xp != ?4').bind(wk, id, start, xp),
   ];
   const d = body.dly;
   // «Игрок дня»: засчитывается только сегодняшний и только первый присланный результат
@@ -177,22 +182,22 @@ async function saveScore(env, user, body) {
   if (tro) {
     const ot = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(id).first();
     const t = ot ? Math.max(ot.trophies, Math.min(tro, ot.trophies + 3000)) : Math.min(tro, 5000);
-    ops.push(db.prepare('INSERT INTO ustats (id, trophies, updated) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET trophies = ?2, updated = ?3').bind(id, t, now));
+    if (!ot || ot.trophies !== t) ops.push(db.prepare('INSERT INTO ustats (id, trophies, updated) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET trophies = ?2, updated = ?3 WHERE trophies != ?2').bind(id, t, now));
   }
   // победы по играм: { 'ng:wordle': 12, … }
   if (body.gw && typeof body.gw === 'object') {
     Object.entries(body.gw).slice(0, 60).forEach(([g, w]) => {
       if (!/^[a-z0-9:-]{2,40}$/.test(g)) return;
       const n = Math.max(0, Math.min(100000, Math.floor(Number(w) || 0))); if (!n) return;
-      ops.push(db.prepare('INSERT INTO gwins (id, game, wins) VALUES (?1, ?2, ?3) ON CONFLICT(id, game) DO UPDATE SET wins = MAX(wins, ?3)').bind(id, g, n));
+      ops.push(db.prepare('INSERT INTO gwins (id, game, wins) VALUES (?1, ?2, ?3) ON CONFLICT(id, game) DO UPDATE SET wins = ?3 WHERE ?3 > wins').bind(id, g, n));
     });
   }
   // кубок драфта недели: сколько турниров выиграл за эту неделю
   if (body.cup && body.cup.week === wk) {
     const n = Math.max(0, Math.min(200, Math.floor(Number(body.cup.wins) || 0)));
-    if (n) ops.push(db.prepare('INSERT INTO cup (week, id, wins, ts) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(week, id) DO UPDATE SET wins = MAX(wins, ?3), ts = CASE WHEN ?3 > wins THEN ?4 ELSE ts END').bind(wk, id, n, now));
+    if (n) ops.push(db.prepare('INSERT INTO cup (week, id, wins, ts) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(week, id) DO UPDATE SET wins = ?3, ts = ?4 WHERE ?3 > wins').bind(wk, id, n, now));
   }
-  await db.batch(ops);
+  if (ops.length) await db.batch(ops);
   return { xp };
 }
 
@@ -341,16 +346,21 @@ async function loadData(env, user) {
   return r ? { ok: true, ts: r.ts, tro: r.tro, data: r.data } : { ok: true, data: null };
 }
 
-const knownNames = new Set();
+const knownNames = new Set(), evuMem = new Set();
 async function events(env, user, body) {
   const db = env.DB, now = Date.now(), today = dayKey(now);
   await schema(db);
   const list = (Array.isArray(body.events) ? body.events : []).slice(0, 40)
     .filter((e) => e && /^[a-z0-9:-]{2,40}$/.test(e.game) && ['open', 'end', 'win'].includes(e.kind));
+  // склеиваем пачку: по одной записи на игру+тип, игрок за день в игре отмечается один раз (повтор не пишется)
+  const agg = {}, seenG = new Set();
+  list.forEach((e) => { const k = e.game + '|' + e.kind; const a = agg[k] || (agg[k] = { game: e.game, kind: e.kind, n: 0, ms: 0 }); a.n++; a.ms += Math.max(0, Math.min(3600e3, Math.floor(Number(e.ms) || 0))); seenG.add(e.game); });
+  const newSeen = [...seenG].filter((g) => !evuMem.has(today + g + user.id));
+  newSeen.forEach((g) => evuMem.add(today + g + user.id));
+  if (evuMem.size > 50000) evuMem.clear();
   if (list.length) await db.batch([
-    ...list.map((e) => db.prepare('INSERT INTO events (day, id, game, kind, ms, ts) VALUES (?, ?, ?, ?, ?, ?)')
-      .bind(today, user.id, e.game, e.kind, Math.max(0, Math.min(3600e3, Math.floor(Number(e.ms) || 0))), now)),
-    // русские названия игр для статистики
+    ...Object.values(agg).map((a) => db.prepare('INSERT INTO evd (day, game, kind, n, ms) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(day, game, kind) DO UPDATE SET n = n + ?4, ms = ms + ?5').bind(today, a.game, a.kind, a.n, a.ms)),
+    ...newSeen.map((g) => db.prepare('INSERT OR IGNORE INTO evu (day, game, id) VALUES (?, ?, ?)').bind(today, g, user.id)),
     // русские названия игр для статистики — пишем только новые (запомненные в памяти воркера не трогаем)
     ...list.filter((e) => e.title && !knownNames.has(e.game)).map((e) => { knownNames.add(e.game); return db.prepare('INSERT INTO names (game, title) VALUES (?1, ?2) ON CONFLICT(game) DO UPDATE SET title = ?2').bind(e.game, clean(e.title, 40)); }),
   ]);
@@ -392,9 +402,10 @@ async function statsRaw(env) {
   const dau = days.map((d) => ({ day: d, n: (dauRows.find((r) => r.day === d) || {}).n || 0 }));
   const wau = (await one('SELECT COUNT(DISTINCT id) AS n FROM visits WHERE day >= ?', days[0])).n || 0;
   const games = await all(`SELECT game, (SELECT title FROM names n WHERE n.game = e.game) AS title,
-      SUM(kind = 'open') AS opens, SUM(kind = 'end') AS ends, SUM(kind = 'win') AS wins,
-      COUNT(DISTINCT id) AS players, CAST(AVG(CASE WHEN kind = 'end' THEN ms END) AS INTEGER) AS avgms
-    FROM events e WHERE day >= ? GROUP BY game ORDER BY opens DESC LIMIT 40`, days[0]);
+      SUM(CASE WHEN kind = 'open' THEN n END) AS opens, SUM(CASE WHEN kind = 'end' THEN n END) AS ends, SUM(CASE WHEN kind = 'win' THEN n END) AS wins,
+      (SELECT COUNT(DISTINCT u.id) FROM evu u WHERE u.game = e.game AND u.day >= ?1) AS players,
+      CAST(SUM(CASE WHEN kind = 'end' THEN ms END) / MAX(1, SUM(CASE WHEN kind = 'end' THEN n END)) AS INTEGER) AS avgms
+    FROM evd e WHERE day >= ?1 GROUP BY game ORDER BY opens DESC LIMIT 40`, days[0]);
   const topXp = await all('SELECT nick, emoji, xp FROM users ORDER BY xp DESC LIMIT 5');
   const reports = await all('SELECT ts, nick, text, info FROM reports ORDER BY ts DESC LIMIT 15');
   const platforms = await all('SELECT platform, COUNT(*) AS n FROM seen GROUP BY platform ORDER BY n DESC LIMIT 6');
@@ -786,7 +797,7 @@ async function matchmake(env, user, body) {
     await setSetting(db, 'mm:' + dayKey(now), Number((await getSetting(db, 'mm:' + dayKey(now))) || 0) + 1);
     return { ok: true, role: 'join', code: other.code, nick: other.nick, emo: other.emo };
   }
-  await db.prepare('INSERT INTO mmg (id, game, code, nick, emo, ts, paired) VALUES (?1, ?6, ?2, ?3, ?4, ?5, NULL) ON CONFLICT(id) DO UPDATE SET game = ?6, code = ?2, nick = ?3, emo = ?4, ts = ?5, paired = NULL')
+  await db.prepare('INSERT INTO mmg (id, game, code, nick, emo, ts, paired) VALUES (?1, ?6, ?2, ?3, ?4, ?5, NULL) ON CONFLICT(id) DO UPDATE SET game = ?6, code = ?2, nick = ?3, emo = ?4, ts = ?5, paired = NULL WHERE ts < ?5 - 10000 OR code != ?2 OR game != ?6')
     .bind(uid, code, clean(body.nick, 16), clean(body.emo, 4), now, game).run();
   const waiting = (await db.prepare('SELECT COUNT(*) AS n FROM mmg WHERE game = ? AND paired IS NULL').bind(game).first()).n;
   return { ok: true, role: 'host', paired: false, waiting };
