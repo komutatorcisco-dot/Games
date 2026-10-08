@@ -70,7 +70,8 @@ const XDraft = (() => {
   }
   const P = (name) => (name ? (pool(), BY[name]) || null : null);
   const S = () => { const d = Store.d; if (!d.xd) d.xd = { cur: null, best: {}, match: null }; if (!d.xd.best) d.xd.best = {}; return d.xd; };
-  const A = () => S().cur;
+  // старые попытки: скамейка была на 7 — добавляем 5 мест резерва
+  const A = () => { const a = S().cur; if (a && Array.isArray(a.bench) && a.bench.length < XD.BENCH) a.bench = a.bench.concat(Array(XD.BENCH - a.bench.length).fill(null)); return a; };
   const save = () => Store.save();
   const xiOf = (a) => a.xi.map(P);
   const benchOf = (a) => a.bench.map(P);
@@ -270,8 +271,8 @@ const XDraft = (() => {
     box.innerHTML = `<div class="xd-bar"><span class="xd-f">${a.form}</span><span class="xd-st"><small>Рейтинг</small><b>${rating || '—'}</b>${part ? '<i>предв.</i>' : ''}</span>
         <button class="xd-st xd-chem" data-act2="chem"><small>Химия</small><b><span class="xd-ct">${c.total}</span><em>/${c.max}</em></b>${part ? '<i>предв.</i>' : ''}<span class="xd-cbar"><i style="width:${(c.total / c.max) * 100}%"></i></span></button></div>
       ${pitchHTML(a, xi, c, { capt })}
-      <div class="xd-bench"><div class="xd-bh"><b>Скамейка</b><small>${bench.filter(Boolean).length}/${XD.BENCH}</small></div>
-        <div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b ${sel && sel.zone === 'bench' && sel.i === i ? 'sel' : ''}">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
+      ${[[0, XD.SUBS, 'Скамейка'], [XD.SUBS, XD.BENCH, 'Резерв']].map(([from, to, ttl]) => `<div class="xd-bench"><div class="xd-bh"><b>${ttl}</b><small>${bench.slice(from, to).filter(Boolean).length}/${to - from}</small></div>
+        <div class="xd-brow">${bench.slice(from, to).map((p, k) => { const i = from + k; return `<div class="xd-slot b ${sel && sel.zone === 'bench' && sel.i === i ? 'sel' : ''}">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`; }).join('')}</div></div>`).join('')}
       <div class="xd-act">${a.stage === 'capt' ? `<button class="btn gold" data-act2="capt">${capt ? 'Сменить капитана' : 'Выбрать капитана'}</button>` : `<button class="btn gold" data-act2="finish" ${done < all ? 'disabled' : ''}>${done < all ? `Заполнено ${done}/${all}` : 'Завершить драфт'}</button>`}
         <button class="btn ghost" data-act2="reset">Новый драфт</button></div>`;
     Photos.hydrate(box);
@@ -319,7 +320,7 @@ const XDraft = (() => {
         <div class="xd-rs"><span><small>Рейтинг</small><b>${a.result.r}</b>${a.result.newR ? '<em>рекорд!</em>' : ''}</span><span><small>Химия</small><b>${a.result.c}<i>/${c.max}</i></b>${a.result.newC ? '<em>рекорд!</em>' : ''}</span></div>
         <div class="xd-best">${b.r ? `Лучшее в режиме «${SYS[a.sys]}»: рейтинг ${b.r} · химия ${b.c}/${c.max}` : 'Первый драфт в этом режиме — это и есть рекорд'}</div></div>
       ${pitchHTML(a, xi, c, { live: false })}
-      <div class="xd-bench"><div class="xd-bh"><b>Скамейка</b></div><div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
+      <div class="xd-bench"><div class="xd-bh"><b>Скамейка и резерв</b></div><div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
       <div class="xd-act col">${S().tour && !S().tour.paid ? `<button class="btn gold" data-act2="tour-go">${S().tour.over ? 'Итоги турнира' : 'Продолжить турнир'}</button>` : '<button class="btn gold" data-act2="tour">Турнир драфта · 4 матча</button>'}
         <button class="btn ghost" data-act2="bot">Товарищеский матч</button><button class="btn ghost" data-act2="share">Поделиться составом</button><button class="btn ghost" data-act2="reset">Новый драфт</button></div>
       <p class="xt-note">Турнир: 4 матча против ботов, каждый сильнее. Проиграл — вылетел. Награды: паки, монеты, трофеи и золотые мячи.</p>

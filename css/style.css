@@ -4272,3 +4272,21 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .h2-arena.h2-3d-wait .h2-hex { --hs: calc(var(--W) * .4) !important; bottom: calc(var(--W) * .2) !important; }
 .h2-arena canvas.a3d { opacity: 0; transition: opacity .5s ease; }
 .h2-arena.h2-3d-in canvas.a3d { opacity: 1; }
+
+/* ===== поле драфта и состава: живой газон — мягкие полосы покоса, свет прожекторов, тень по краям ===== */
+:is(.xd-pitch, .sq-pitch) {
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(255,255,230,.16), transparent 60%),
+    radial-gradient(140% 100% at 50% 50%, transparent 55%, rgba(0,20,10,.45) 100%),
+    repeating-linear-gradient(180deg, rgba(255,255,255,.045) 0 6.25%, rgba(0,0,0,.035) 6.25% 12.5%),
+    linear-gradient(180deg, #1f7a3c, #26924a 45%, #1e7a3b) !important;
+  box-shadow: inset 0 0 0 4px rgba(255,255,255,.08), 0 0 0 2px rgba(0,0,0,.35), 0 18px 34px rgba(0,0,0,.45) !important;
+  border-radius: 18px !important;
+}
+.xd-field .mk polygon, .xd-field .mk line, .xd-field .mk ellipse, .sq-pitch svg { stroke: rgba(255,255,255,.4) !important; }
+.xm-wait { display: none; }
+.xm-stage.is3d.idle canvas.a3d { filter: brightness(.45) saturate(.6); transition: filter .4s; }
+.xm-stage.is3d canvas.a3d { transition: filter .4s; }
+.xm-stage.is3d.idle .xm-wait { display: grid; position: absolute; inset: 0; z-index: 3; place-content: center; justify-items: center; gap: 6px; color: #fff; pointer-events: none; }
+.xm-wait b { font-size: 34px; } .xm-wait span { font: 800 14px "Rubik", sans-serif; padding: 6px 12px; border-radius: 10px; background: rgba(10,12,34,.75); }
+.xm-stage.is3d.idle .a3d-tag { display: none; }

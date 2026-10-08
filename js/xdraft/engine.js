@@ -11,8 +11,9 @@
     captainBands: [[82, 85, 0.55], [86, 99, 0.45]],
     offerSize: 5,
     // шанс, что отдельный кандидат будет «под химию»: общий клуб / лига / сборная с кем-то из уже взятых
-    linkChance: 0.38,
-    linkKinds: [['club', 0.3], ['lg', 0.45], ['nat', 0.25]],
+    linkChance: 0.22,
+    linkKinds: [['club', 0.12], ['lg', 0.55], ['nat', 0.33]],
+    clubCap: 3, // как в FUT-драфте: игроков одного клуба немного — не больше 3 в составе от подборок
     // классика: шанс показать кандидата со «смежной» позицией вместо точной
     classicRelatedChance: 0.15,
     // матч
@@ -45,7 +46,8 @@
     '3-4-3': F('3-4-3', [['GK', 50, 93], ['CB', 24, 73], ['CB', 50, 73], ['CB', 76, 73], ['LM', 10, 48], ['CM', 37, 52], ['CM', 63, 52], ['RM', 90, 48], ['LW', 16, 20], ['ST', 50, 14], ['RW', 84, 20]],
       [[0, 1], [0, 2], [0, 3], [1, 2], [2, 3], [1, 4], [1, 5], [2, 5], [2, 6], [3, 6], [3, 7], [4, 5], [5, 6], [6, 7], [4, 8], [5, 9], [6, 9], [7, 10], [8, 9], [9, 10]]),
   };
-  const BENCH = 7;
+  const BENCH = 12; // 7 на скамейке + 5 в резерве, как в FUT-драфте
+  const SUBS = 7;
 
   // ---------- КЛАССИЧЕСКАЯ химия (FUT в FIFA 19) ----------
   // Точно по FIFA 19: связь красная (ничего общего, −1), оранжевая (одно общее из клуб/лига/сборная, +1),
@@ -161,7 +163,13 @@
     };
     const related = (p) => sys === 'classic' && slotPos && ChemClassic.fit(p, slotPos) === 'related';
     const out = [], used = new Set(taken);
-    const take = (list) => { if (!list.length) return null; const p = list[Math.floor(rnd() * list.length)]; used.add(p.name); out.push(p); return p; };
+    // разнообразие: в одной пятёрке — по одному игроку клуба, клубы, которых в составе уже много, — не предлагаем
+    const clubN = {}; team.filter(Boolean).forEach((p) => { clubN[p.club] = (clubN[p.club] || 0) + 1; });
+    const take = (list0) => {
+      const list = list0.filter((p) => (clubN[p.club] || 0) < CFG.clubCap && !out.some((q) => q.club === p.club));
+      const L = list.length ? list : list0; if (!L.length) return null;
+      const p = L[Math.floor(rnd() * L.length)]; used.add(p.name); out.push(p); return p;
+    };
     const free = (p) => !used.has(p.name);
     let guard = 0;
     while (out.length < n && guard++ < 60) {
@@ -268,5 +276,5 @@
     return level === 'hard' && m >= 80 ? 3 : 2;
   }
 
-  root.XD = { CFG, TACTICS, RU, FORMATIONS, BENCH, ChemClassic, ChemNew, chem, chemShare, teamRating, offer, captains, lines, rng, matchNew, matchStep, BOTS, botTeam, botTactic };
+  root.XD = { CFG, TACTICS, RU, FORMATIONS, BENCH, SUBS, ChemClassic, ChemNew, chem, chemShare, teamRating, offer, captains, lines, rng, matchNew, matchStep, BOTS, botTeam, botTactic };
 })(typeof window !== 'undefined' ? window : globalThis);

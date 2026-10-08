@@ -444,8 +444,18 @@ const Arena3D = (() => {
     // событие движка: атака стороны s, затем удар — гол, сейв или мимо
     // атака: мяч уходит в штрафную, ближайший атакующий бежит к нему, затем удар — без телепортов
     let focus = 0;
-    function shot(ev) {
+    // перед ударом — розыгрыш: 2 передачи вперёд у атакующей команды, потом выход к штрафной
+    function shot(ev, step = 0) {
       focus = 1;
+      if (step < 2) {
+        side = ev.s; const dir = side ? -1 : 1, bxp = ballM.position.x;
+        const mates = team[side].filter((p) => !p.gk && p !== owner && (p.m.position.x - bxp) * dir > 3);
+        const to = mates.length ? mates[(Math.random() * Math.min(4, mates.length)) | 0] : null;
+        if (to) {
+          owner = to; const tp = to.m.position.clone().add(new THREE.Vector3(dir * rnd(3, 6), 0, rnd(-3, 3))); tp.y = 0.34; to.chase = tp;
+          return kickTo(tp, 0.3, Math.max(0.5, Math.min(1.1, ballM.position.distanceTo(tp) / 24)), () => { to.chase = null; setTimeout(() => shot(ev, step + 1), 220); });
+        }
+      }
       side = ev.s; const att = team[side].filter((p) => ['ST', 'LW', 'RW', 'CAM', 'CM', 'LM', 'RM'].includes(p.pos));
       const gx = side ? -W / 2 : W / 2, run = new THREE.Vector3(gx - (side ? -1 : 1) * rnd(13, 19), 0.34, rnd(-10, 10));
       owner = att.reduce((b, p) => (p.m.position.distanceToSquared(run) < b.m.position.distanceToSquared(run) ? p : b), att[0] || team[side][10]);

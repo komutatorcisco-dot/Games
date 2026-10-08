@@ -22,7 +22,7 @@ const XMatch = (() => {
     const dist = (a, b) => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
     if (dist(home[0], away[0]) < 150) away = dist(home[0], '#f4f4f4') < 150 ? ['#e3243f', '#ffffff'] : ['#f4f4f4', '#1a1446'];
     Arena3D.match(stage, { form: [C.form(), m.bot.form], slots: XD.FORMATIONS, kits: [home, away], ball: Arena3D.ballState().ball, names: [String(Store.d.user.nick || 'ДЖЕКСОНЫ').toUpperCase()], players: [C.xi().map((p) => sur(p && p.name)), m.bot.xi.map((n) => sur(n))], visible: () => Screens.current === ctx.screen })
-      .then((a) => { if (!a) return; if (!stage.isConnected || !M || M.over) { a.stop(); return; } A3 = a; stage.classList.add('is3d'); })
+      .then((a) => { if (!a) return; if (!stage.isConnected || !M || M.over) { a.stop(); return; } A3 = a; stage.classList.add('is3d'); if (!waiting && timer) run(); })
       .catch(() => { /* без 3D — остаётся вид сверху */ });
   }
   // откуда матч: драфт (по умолчанию) или «Мой состав» из карточек — у каждого свой экран, состав и сохранение
@@ -104,7 +104,10 @@ const XMatch = (() => {
   let waiting = false;
   function run() {
     clearInterval(timer); waiting = false;
-    timer = setInterval(tick, XD.CFG.match.tickMs / speed());
+    // «Моменты»: между опасными моментами время бежит быстро, поле притушено; в момент — розыгрыш в 3D
+    const hl = view() === 'moments' && A3;
+    const st = BODY() && $('.xm-stage', BODY()); if (st) st.classList.toggle('idle', !!hl);
+    timer = setInterval(tick, (XD.CFG.match.tickMs / speed()) / (hl ? 4 : 1));
   }
   function tick() {
     if (Screens.current !== C.screen || !M) { clearInterval(timer); stop3d(); return; } // ушли с экрана — пауза, вернёмся — продолжим
@@ -119,6 +122,7 @@ const XMatch = (() => {
     // опасный момент в 3D: останавливаем часы, пока он не доиграется (страховка — 12 секунд)
     if (evs.length && A3 && view() === 'moments') {
       clearInterval(timer); waiting = true;
+      const st = $('.xm-stage', BODY()); if (st) st.classList.remove('idle');
       let resumed = false; const go = () => { if (resumed || !M || M.over) return; resumed = true; if (Screens.current === C.screen) run(); };
       A3.events(evs, go); setTimeout(go, 12000);
     } else if (!evs.length) commentary();
@@ -195,7 +199,7 @@ const XMatch = (() => {
         <div class="xm-seg">${[1, 2, 4].map((x) => `<button data-spd="${x}" class="${speed() === x ? 'on' : ''}">×${x}</button>`).join('')}</div></div>
       <div class="xm-stage"><div class="xm-pitch"><svg viewBox="0 0 100 60" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="58"/><line x1="50" y1="1" x2="50" y2="59"/><circle cx="50" cy="30" r="8"/>
         <rect x="1" y="16" width="14" height="28"/><rect x="85" y="16" width="14" height="28"/><rect x="1" y="24" width="5" height="12"/><rect x="94" y="24" width="5" height="12"/></svg>
-        ${Array.from({ length: 22 }, (_, k) => `<i class="xm-p ${k < 11 ? 'us' : 'them'}"></i>`).join('')}<i class="xm-ball"></i><span class="xm-prog"></span></div></div>
+        ${Array.from({ length: 22 }, (_, k) => `<i class="xm-p ${k < 11 ? 'us' : 'them'}"></i>`).join('')}<i class="xm-ball"></i><span class="xm-prog"></span></div><div class="xm-wait"><b>⏩</b><span>Ждём опасный момент…</span></div></div>
       <div class="xm-feed">${feed()}</div>
       <div class="xm-tac"><div class="xm-tt"><span>Тактика</span><b class="xm-tn"></b><small class="xm-bn"></small></div>
         <div class="xm-bar">${XD.TACTICS.map((t, i) => `<button class="z${i}" data-tac="${i}" aria-label="${t}"></button>`).join('')}<i class="xm-knob"></i></div>
