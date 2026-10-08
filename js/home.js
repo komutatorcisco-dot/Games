@@ -75,8 +75,27 @@ const Home = (() => {
         <button class="h2-all" data-h2="pick"><span>${Ui.get('gamepad')}</span><b>Игры</b></button></div>` : ''}`;
     if (typeof Icons !== 'undefined') Icons.fill(box);
     fit();
-    island();
+    island(); wall();
     later(checkUnlocks, 500);
+  }
+  // фон главной: наклонная стена из карточек твоей коллекции; чего ещё нет — рубашка «ДЖ». Медленно едет по диагонали
+  let wallSig = '';
+  function wall() {
+    if (typeof Cards === 'undefined') return;
+    let el = $('#h2-wall');
+    if (!el) { el = document.createElement('div'); el.id = 'h2-wall'; el.setAttribute('aria-hidden', 'true'); document.body.prepend(el); }
+    const mine = Cards.all().filter((c) => Cards.owned(c.key)).sort((a, b) => b.r - a.r).slice(0, 48);
+    const sig = mine.map((c) => c.key).join('|'); if (sig === wallSig && el.firstChild) return; wallSig = sig;
+    // узор повторяется каждые 8 рядов — поэтому стена едет бесконечно без рывка
+    const COLS = 8, PER = COLS * 8, rar = ['gold', 'silver', 'bronze'];
+    let k = 0; const cell = (i) => {
+      // своих карточек мало — больше рубашек; много — рубашка только изредка
+      const back = !mine.length || (mine.length < 12 ? i % 3 !== 0 : i % 7 === 3);
+      if (back) return `<div class="h2w-b ${rar[(i * 7) % 3]}"><b>ДЖ</b></div>`;
+      return Cards.html(mine[k++ % mine.length], { w: 84 });
+    };
+    const tile = Array.from({ length: PER }, (_, i) => cell(i)).join('');
+    el.innerHTML = `<div class="h2w-in">${tile}${tile}</div><i class="h2w-dim"></i>`;
   }
   // 3D стадион-остров вместо нарисованного: грузится после старта, нет WebGL — остаётся рисунок
   let islandAt = 0;
