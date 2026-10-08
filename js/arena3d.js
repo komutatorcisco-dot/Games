@@ -379,7 +379,7 @@ const Arena3D = (() => {
         isl.clouds.forEach((c, i) => { c.userData.t += dt * 0.02; c.position.x = Math.cos(c.userData.t) * 110; c.position.z = Math.sin(c.userData.t) * 80; c.position.y += Math.sin(t + i) * 0.005; });
         // остров целиком в кадре: расстояние считаем от ширины кадра
         // вид спереди сверху, как у прежнего поля; стадион занимает всю ширину кадра
-        camera.fov = 30; const hf = Math.atan(Math.tan((camera.fov * Math.PI) / 360) * camera.aspect), dist = 84 / Math.tan(hf);
+        camera.fov = 30; const hf = Math.atan(Math.tan((camera.fov * Math.PI) / 360) * camera.aspect), dist = 118 / Math.tan(hf);
         camera.position.set(0, dist * 0.82, dist * 0.6); camera.lookAt(0, -4, 6); camera.far = dist * 3; camera.updateProjectionMatrix();
       }, () => Screens.current === 'hub' && !document.hidden && !document.querySelector('.po, .h2-un, .sx-sheet-wrap') && !(typeof Modal !== 'undefined' && Modal.isOpen));
     } else host.appendChild(menuView.canvas);

@@ -220,7 +220,8 @@ const XDraft = (() => {
       <span class="fu-n">${esc(surname(p.name))}</span>${cap ? '<i class="fu-c">C</i>' : ''}</button>${chem}`;
   }
   // перспектива как у телекамеры: дальняя сторона уже, игроки там чуть меньше
-  const proj = (x, y) => { const t = y / 100, k = 0.74 + 0.26 * t; return { x: 50 + (x - 50) * k, y: 2 + 96 * Math.pow(t, 1.08), k: 0.84 + 0.16 * t }; };
+  // ровное поле сверху, как в «Моём составе»: линии связей идут прямо от карточки к карточке
+  const proj = (x, y) => ({ x: 7 + x * 0.86, y: 3 + y * 0.92, k: 1 });
   function field() {
     const P2 = (x, y) => { const q = proj(x, y); return `${q.x.toFixed(2)},${q.y.toFixed(2)}`; };
     const poly = (pts) => `<polygon points="${pts.map(([x, y]) => P2(x, y)).join(' ')}"/>`;
@@ -236,7 +237,7 @@ const XDraft = (() => {
     const F_ = XD.FORMATIONS[a.form];
     const lines = a.sys === 'classic' ? `<svg class="xd-links" viewBox="0 0 100 100" preserveAspectRatio="none">${c.links.map((l) => {
       const p1 = proj(F_.slots[l.i].x, F_.slots[l.i].y), p2 = proj(F_.slots[l.j].x, F_.slots[l.j].y);
-      return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" class="ln ${l.color}" data-k="${l.i}-${l.j}" ${l.color !== 'none' ? 'pathLength="1" stroke-dasharray="1"' : ''}/>`;
+      return `<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" class="ln ${l.color}" data-k="${l.i}-${l.j}"/>`;
     }).join('')}</svg>` : '';
     return `<div class="xd-pitch ${a.sys} ${live && sel ? 'swapping' : ''} ${capt ? 'placing' : ''}">${field()}${lines}${F_.slots.map((s, i) => {
       const q = proj(s.x, s.y), glow = capt && capt.pos.includes(s.pos) && !a.xi[i];

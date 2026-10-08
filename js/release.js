@@ -66,12 +66,12 @@ const Release = (() => {
   const UNLOCKS = [
     [0, 'Первые игры', ['act:auction-bot', 'act:auction-duo', 'ng:wordle', 'act:nation', 'act:pick-bot', 'act:pick-duo']],
     [40, 'Тики-така', ['act:ttt', 'act:ttt-duo']],
+    [60, 'Пропуск и задания', ['feat:pass']],
     [80, 'Паки и Галерея', ['feat:cards']],
     [120, 'Козыри', ['ng:trumps']],
     [170, 'Угадай игрока и Дуэль', ['act:guess-career', 'act:guess-duel', 'ng:duel']],
     [230, 'Драфт', ['act:xdraft']],
     [300, 'ИПК', ['act:sbc']],
-    [400, 'Пропуск и задания', ['feat:pass']],
     ...QUEUE.map((q, i) => [500 + i * 100, q[1], q[2]]),
   ];
   const trophies = () => { try { return (Store.d.rw && Store.d.rw.trophies) || 0; } catch (e) { return 0; } };

@@ -69,7 +69,7 @@ const Home = (() => {
         </div>
         ${g ? `<button class="h2-game" data-h2="pick" style="--c1:${g.c1};--c2:${g.c2}" aria-label="Сменить игру">
           <span class="h2-stage"><span class="h2-pitch"><i></i><b class="h2-goal l"></b><b class="h2-goal r"></b><u class="h2-flag a"></u><u class="h2-flag b"></u><u class="h2-flag c"></u><u class="h2-flag d"></u></span><span class="h2-ped"></span><span class="h2-shadow"></span><span class="h2-hex"><span class="h2-hex-in">${icon(g)}</span></span></span>
-          <span class="h2-ban"><b>${esc(g.title)}</b></span></button>` : ''}
+          <span class="h2-ban"><b>${esc(g.title.split(':')[0])}</b></span></button>` : ''}
       </div>
       ${g ? `<div class="h2-cta"><button class="h2-play" ${attrs(g.data)}><span>ИГРАТЬ</span></button>
         <button class="h2-all" data-h2="pick"><span>${Ui.get('gamepad')}</span><b>Игры</b></button></div>` : ''}`;
@@ -92,9 +92,11 @@ const Home = (() => {
     const on = Screens.current === 'hub';
     document.body.classList.toggle('at-home', on);
     if (!on || !box.offsetParent) return;
+    // высоту считает CSS от живой высоты окна Telegram (--tg-viewport-height); здесь — только отступы сверху и снизу
     const tb = $('#tabbar'), top = box.getBoundingClientRect().top + scrollY;
-    const r = tb && !tb.hidden ? tb.getBoundingClientRect() : null, bottom = r && r.height ? r.top : innerHeight;
-    box.style.height = Math.max(380, Math.floor(bottom - top - 8)) + 'px';
+    const r = tb && !tb.hidden ? tb.getBoundingClientRect() : null, under = r && r.height ? Math.max(0, innerHeight - r.top) : 0;
+    box.style.removeProperty('height');
+    document.documentElement.style.setProperty('--h2-off', Math.round(top + under + 8) + 'px');
   }
 
   // ---------- выбор игры ----------
