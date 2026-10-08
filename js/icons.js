@@ -131,6 +131,7 @@ const Ui = (() => {
     star: star(12, 12.5, 10, 'currentColor'),
     flame: f('M12 2c1.2 4 6 6 6 12a6 6 0 0 1-12 0c0-3 1.8-5 3-6.2.1 2.1 1 3.3 2.2 3.3C11 8 10.5 5 12 2z') + f('M12 13c.6 1.8 2.4 2.6 2.4 4.6a2.4 2.4 0 0 1-4.8 0c0-1.6 1.2-2.6 2.4-4.6z', A),
     clock: s('M12 3a9 9 0 1 0 .01 0z') + s('M12 7v5l3.5 2'),
+    gear: s('M12 8.6a3.4 3.4 0 1 0 .01 0z') + s('M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1', 2.6),
     crown: f('M3 8l4.5 4.2L12 5l4.5 7.2L21 8l-2 11H5z') + c(12, 15, 1.6, A),
     stadium: '<ellipse cx="12" cy="12" rx="10.2" ry="7.6" fill="currentColor"/>' + `<ellipse cx="12" cy="12" rx="6.6" ry="4.3" fill="${A}"/>` + s('M12 7.8v8.4', 1.4).replace('currentColor', 'var(--ic-bg, #1b1340)'),
     medal: f('M7 2h4l2.4 6.5h-4z', 'currentColor', 'opacity=".55"') + f('M13 2h4l-2.4 6.5h-4z', 'currentColor', 'opacity=".55"') + c(12, 15, 6.3, A) + star(12, 15.2, 3.3, 'var(--ic-bg, #1b1340)'),

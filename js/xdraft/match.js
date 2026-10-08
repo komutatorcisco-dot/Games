@@ -70,12 +70,12 @@ const XMatch = (() => {
   }
   // ---------- онлайн-матч: хозяин ведёт часы и шлёт каждую минуту с тактиками обоих, гость повторяет ----------
   // Движок детерминирован (зерно + тактики), поэтому у обоих выходит один и тот же матч.
-  function online(ctx, code) {
+  function online(ctx, code, hostCb) {
     if (ctx) C = ctx;
     const my = C;
     if (!C.xi().every(Boolean)) { toast(code ? `Собери драфт до конца, потом введи код ${code} в «Онлайн-матч с игроком»` : 'Сначала собери всех 11 игроков'); return; }
     Online.open(BODY(), {
-      game: 'xdraft', title: 'Онлайн-матч', join: code, lead: 'Твой состав против состава живого соперника. Тактику меняете оба прямо по ходу матча.',
+      game: 'xdraft', title: 'Онлайн-матч', join: code, host: !!hostCb, onCode: hostCb, lead: 'Твой состав против состава живого соперника. Тактику меняете оба прямо по ходу матча.',
       hello: () => ({ form: my.form(), sys: my.sys(), xi: my.xi().map((p) => p && JSON.parse(JSON.stringify(p))) }),
       back: () => my.back(),
       onReady: (L) => { C = my; startOnline(L); },

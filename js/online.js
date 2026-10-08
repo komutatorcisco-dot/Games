@@ -108,6 +108,7 @@ const Online = (() => {
       c.peer = new window.Peer(PRE + code, opts());
       c.peer.on('open', () => {
         wait('Ждём друга…', code);
+        if (o.onCode) { try { o.onCode(code); } catch (e) { /* */ } o.onCode = null; }
         acts.invite = () => Duel.share(`o_${SHORT[o.game] || o.game}_${code}`, `⚡ ${o.title} — сыграем онлайн! Код комнаты: ${code}`);
         acts.copy = () => { try { navigator.clipboard.writeText(code).then(() => toast('Код скопирован')); } catch (e) { toast(code); } };
       });
@@ -148,7 +149,7 @@ const Online = (() => {
       });
     }
 
-    if (o.join) join(o.join); else menu();
+    if (o.join) join(o.join); else if (o.host) host(); else menu();
   }
 
   // ссылка-приглашение o_xd_CODE / o_tr_CODE

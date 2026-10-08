@@ -112,6 +112,14 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS clubs (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, emoji TEXT, owner INTEGER NOT NULL, created INTEGER NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS cmembers (id INTEGER PRIMARY KEY, club INTEGER NOT NULL, joined INTEGER NOT NULL)'),
     db.prepare('CREATE INDEX IF NOT EXISTS cmembers_club ON cmembers (club)'),
+    // клуб как в Clash Royale: роли, описание и порог трофеев, чат, запросы карточек и подарки от соклубников
+    db.prepare('CREATE TABLE IF NOT EXISTS crole (id INTEGER PRIMARY KEY, role INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS cinfo (club INTEGER PRIMARY KEY, descr TEXT, mintro INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS cchat (id INTEGER PRIMARY KEY AUTOINCREMENT, club INTEGER NOT NULL, uid INTEGER NOT NULL, ts INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT, meta TEXT)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS cchat_club ON cchat (club, id)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS creq (id INTEGER PRIMARY KEY AUTOINCREMENT, club INTEGER NOT NULL, uid INTEGER NOT NULL, card TEXT NOT NULL, rar TEXT NOT NULL, need INTEGER NOT NULL, got INTEGER NOT NULL DEFAULT 0, ts INTEGER NOT NULL)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS cgift (id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, card TEXT NOT NULL, frm TEXT, ts INTEGER NOT NULL, done INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS cdon (id INTEGER NOT NULL, week TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (id, week))'),
     // напоминания: можно ли писать и когда писали последний раз
     db.prepare('CREATE TABLE IF NOT EXISTS prefs (id INTEGER PRIMARY KEY, remind INTEGER NOT NULL DEFAULT 1, reminded TEXT)'),
     // подбор соперника для онлайн-дуэли
@@ -550,50 +558,163 @@ async function adminCommand(env, m) {
 // ---------- клубы: игроки объединяются, общая цель недели — победы всех участников ----------
 const weekStartDay = (t) => weekKey(t); // понедельник недели (события хранятся по дням)
 const CLUB_MAX = 30;
-const clubGoal = (n) => Math.max(40, n * 25); // побед за неделю на весь клуб
+const clubGoal = (n) => Math.max(40, n * 25); // побед за неделю на весь клуб: 10 уровней клубного сундука
 const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+// роли: 3 — президент (создатель), 2 — вице-президент, 1 — капитан, 0 — игрок
+const REQ_NEED = { bronze: 8, silver: 4, gold: 1 }, REQ_EVERY = 7 * 3600e3;
+const prevWeekStart = (t) => weekKey(t - 7 * 864e5);
+async function clubPlaces(db, ws, we) {
+  // места клубов в клубной лиге: сумма побед участников за неделю [ws, we)
+  const q = we
+    ? db.prepare(`SELECT c.id, COUNT(e.id) AS w FROM clubs c JOIN cmembers m ON m.club = c.id LEFT JOIN events e ON e.id = m.id AND e.kind = 'win' AND e.day >= ? AND e.day < ? GROUP BY c.id ORDER BY w DESC, c.id ASC`).bind(ws, we)
+    : db.prepare(`SELECT c.id, COUNT(e.id) AS w FROM clubs c JOIN cmembers m ON m.club = c.id LEFT JOIN events e ON e.id = m.id AND e.kind = 'win' AND e.day >= ? GROUP BY c.id ORDER BY w DESC, c.id ASC`).bind(ws);
+  return (await q.all()).results;
+}
 async function clubInfo(db, uid) {
   const m = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first();
   if (!m) return { club: null };
   const c = await db.prepare('SELECT id, code, name, emoji, owner FROM clubs WHERE id = ?').bind(m.club).first();
   if (!c) { await db.prepare('DELETE FROM cmembers WHERE id = ?').bind(uid).run(); return { club: null }; }
-  const ws = weekStartDay(Date.now());
-  const members = (await db.prepare(`SELECT m.id, u.nick, u.emoji, COALESCE(s.trophies, 0) AS trophies,
+  const now = Date.now(), ws = weekStartDay(now), wk = weekKey(now);
+  const members = (await db.prepare(`SELECT m.id, u.nick, u.emoji, COALESCE(s.trophies, 0) AS trophies, COALESCE(r.role, 0) AS role, COALESCE(d.n, 0) AS don, se.last AS seen,
       (SELECT COUNT(*) FROM events e WHERE e.id = m.id AND e.kind = 'win' AND e.day >= ?2) AS wins
-    FROM cmembers m LEFT JOIN users u ON u.id = m.id LEFT JOIN ustats s ON s.id = m.id WHERE m.club = ?1 ORDER BY wins DESC, trophies DESC`).bind(c.id, ws).all()).results;
+    FROM cmembers m LEFT JOIN users u ON u.id = m.id LEFT JOIN ustats s ON s.id = m.id LEFT JOIN crole r ON r.id = m.id
+    LEFT JOIN cdon d ON d.id = m.id AND d.week = ?3 LEFT JOIN seen se ON se.id = m.id
+    WHERE m.club = ?1 ORDER BY trophies DESC`).bind(c.id, ws, wk).all()).results;
   const wins = members.reduce((a, x) => a + x.wins, 0);
-  return { club: { code: c.code, name: c.name, emoji: c.emoji || '⚽', owner: c.owner === uid, week: weekKey(Date.now()), wins, goal: clubGoal(members.length), max: CLUB_MAX,
-    members: members.map((x) => ({ nick: x.nick || 'Игрок', emoji: x.emoji || '⚽', trophies: x.trophies, wins: x.wins, me: x.id === uid })) } };
+  const info = (await db.prepare('SELECT descr, mintro FROM cinfo WHERE club = ?').bind(c.id).first()) || {};
+  const chat = (await db.prepare(`SELECT h.id, h.uid, h.ts, h.kind, h.text, h.meta, u.nick, u.emoji FROM cchat h LEFT JOIN users u ON u.id = h.uid WHERE h.club = ? ORDER BY h.id DESC LIMIT 40`).bind(c.id).all()).results.reverse();
+  const reqs = (await db.prepare('SELECT id, uid, card, rar, need, got, ts FROM creq WHERE club = ? AND ts > ? AND got < need').bind(c.id, now - 24 * 3600e3).all()).results;
+  const myReq = await db.prepare('SELECT ts FROM creq WHERE uid = ? ORDER BY ts DESC LIMIT 1').bind(uid).first();
+  // подарки от соклубников: отдаём один раз
+  const gifts = (await db.prepare('SELECT id, card, frm FROM cgift WHERE uid = ? AND done = 0 LIMIT 40').bind(uid).all()).results;
+  if (gifts.length) await db.prepare(`UPDATE cgift SET done = 1 WHERE id IN (${gifts.map(() => '?').join(',')})`).bind(...gifts.map((g) => g.id)).run();
+  // клубная лига: место на этой неделе и итог прошлой
+  const cur = await clubPlaces(db, ws), prev = await clubPlaces(db, prevWeekStart(now), ws);
+  const place = cur.findIndex((x) => x.id === c.id) + 1, pi = prev.findIndex((x) => x.id === c.id);
+  const role = (x) => (x.id === c.owner ? 3 : Math.min(2, x.role));
+  const me = members.find((x) => x.id === uid);
+  return { club: { code: c.code, name: c.name, emoji: c.emoji || '⚽', descr: info.descr || '', mintro: info.mintro || 0, week: wk, prevWeek: weekKey(now - 7 * 864e5), wins, goal: clubGoal(members.length), max: CLUB_MAX,
+    myRole: me ? role(me) : 0, me: uid, trophies: members.reduce((a, x) => a + x.trophies, 0),
+    league: { place, clubs: cur.length, prevPlace: pi >= 0 && prev[pi].w > 0 ? pi + 1 : 0 },
+    nextReq: myReq ? Math.max(0, myReq.ts + REQ_EVERY - now) : 0,
+    members: members.map((x) => ({ uid: x.id, nick: x.nick || 'Игрок', emoji: x.emoji || '⚽', trophies: x.trophies, wins: x.wins, role: role(x), don: x.don, seen: x.seen || 0, me: x.id === uid })),
+    chat: chat.map((h) => ({ id: h.id, uid: h.uid, ts: h.ts, kind: h.kind, text: h.text || '', meta: h.meta ? JSON.parse(h.meta) : null, nick: h.nick || 'Игрок', emoji: h.emoji || '⚽', me: h.uid === uid })),
+    reqs: reqs.map((r) => ({ id: r.id, uid: r.uid, card: r.card, rar: r.rar, need: r.need, got: r.got, ts: r.ts, me: r.uid === uid })),
+    gifts: gifts.map((g) => ({ card: g.card, from: g.frm || 'Соклубник' })) } };
 }
 async function club(env, user, body) {
   const db = env.DB, uid = user.id, now = Date.now();
   await schema(db);
-  const leave = async () => {
-    const m = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first(); if (!m) return;
-    await db.prepare('DELETE FROM cmembers WHERE id = ?').bind(uid).run();
-    const left = await db.prepare('SELECT id FROM cmembers WHERE club = ? ORDER BY joined LIMIT 1').bind(m.club).first();
-    if (!left) await db.prepare('DELETE FROM clubs WHERE id = ?').bind(m.club).run();
-    else await db.prepare('UPDATE clubs SET owner = ?1 WHERE id = ?2 AND owner = ?3').bind(left.id, m.club, uid).run();
+  const say = (clubId, kind, text, meta) => db.prepare('INSERT INTO cchat (club, uid, ts, kind, text, meta) VALUES (?, ?, ?, ?, ?, ?)').bind(clubId, uid, now, kind, text ? String(text).slice(0, 300) : null, meta ? JSON.stringify(meta) : null).run();
+  const nickOf = async (id) => ((await db.prepare('SELECT nick FROM users WHERE id = ?').bind(id).first()) || {}).nick || 'Игрок';
+  const mine = async () => {
+    const m = await db.prepare('SELECT m.club, c.owner, COALESCE(r.role, 0) AS role FROM cmembers m JOIN clubs c ON c.id = m.club LEFT JOIN crole r ON r.id = m.id WHERE m.id = ?').bind(uid).first();
+    return m ? { club: m.club, role: m.owner === uid ? 3 : Math.min(2, m.role) } : null;
   };
+  const leave = async (quiet) => {
+    const m = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first(); if (!m) return;
+    await db.batch([db.prepare('DELETE FROM cmembers WHERE id = ?').bind(uid), db.prepare('DELETE FROM crole WHERE id = ?').bind(uid)]);
+    if (!quiet) await say(m.club, 'sys', `${await nickOf(uid)} покинул клуб`);
+    // президент ушёл — клуб получает вице-президент со стажем, иначе самый давний участник
+    const c = await db.prepare('SELECT owner FROM clubs WHERE id = ?').bind(m.club).first();
+    if (c && c.owner === uid) {
+      const next = await db.prepare('SELECT m.id FROM cmembers m LEFT JOIN crole r ON r.id = m.id WHERE m.club = ? ORDER BY COALESCE(r.role, 0) DESC, m.joined ASC LIMIT 1').bind(m.club).first();
+      if (!next) await db.batch([db.prepare('DELETE FROM clubs WHERE id = ?').bind(m.club), db.prepare('DELETE FROM cinfo WHERE club = ?').bind(m.club), db.prepare('DELETE FROM cchat WHERE club = ?').bind(m.club)]);
+      else { await db.batch([db.prepare('UPDATE clubs SET owner = ? WHERE id = ?').bind(next.id, m.club), db.prepare('DELETE FROM crole WHERE id = ?').bind(next.id)]); await say(m.club, 'sys', `${await nickOf(next.id)} — новый президент клуба`); }
+    }
+  };
+  const err = (e) => ({ ok: false, error: e });
   if (body.act === 'create') {
-    const name = clean(body.name, 20); if (name.length < 2) return { ok: false, error: 'Название — от 2 букв' };
+    const name = clean(body.name, 20); if (name.length < 2) return err('Название — от 2 букв');
     await leave();
     let code = '';
     for (let k = 0; k < 6; k++) { code = Array.from({ length: 6 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join(''); if (!(await db.prepare('SELECT 1 FROM clubs WHERE code = ?').bind(code).first())) break; }
     const r = await db.prepare('INSERT INTO clubs (code, name, emoji, owner, created) VALUES (?, ?, ?, ?, ?)').bind(code, name, clean(body.emoji, 4) || '⚽', uid, now).run();
-    await db.prepare('INSERT INTO cmembers (id, club, joined) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET club = ?2, joined = ?3').bind(uid, r.meta.last_row_id, now).run();
+    const id = r.meta.last_row_id;
+    await db.prepare('INSERT INTO cmembers (id, club, joined) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET club = ?2, joined = ?3').bind(uid, id, now).run();
+    await say(id, 'sys', `Клуб «${name}» основан`);
   } else if (body.act === 'join') {
     const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
     const c = await db.prepare('SELECT id FROM clubs WHERE code = ?').bind(code).first();
-    if (!c) return { ok: false, error: 'Клуб с таким кодом не найден' };
+    if (!c) return err('Клуб с таким кодом не найден');
     const n = (await db.prepare('SELECT COUNT(*) AS n FROM cmembers WHERE club = ?').bind(c.id).first()).n;
-    const mine = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first();
-    if (!(mine && mine.club === c.id)) {
-      if (n >= CLUB_MAX) return { ok: false, error: `В клубе уже ${CLUB_MAX} игроков` };
+    const cur = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first();
+    if (!(cur && cur.club === c.id)) {
+      if (n >= CLUB_MAX) return err(`В клубе уже ${CLUB_MAX} игроков`);
+      const info = await db.prepare('SELECT mintro FROM cinfo WHERE club = ?').bind(c.id).first();
+      const t = ((await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(uid).first()) || {}).trophies || 0;
+      if (info && info.mintro > t) return err(`Нужно ${info.mintro} 🏆 — у тебя ${t}`);
       await leave();
       await db.prepare('INSERT INTO cmembers (id, club, joined) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET club = ?2, joined = ?3').bind(uid, c.id, now).run();
+      await say(c.id, 'sys', `${await nickOf(uid)} вступил в клуб`);
     }
   } else if (body.act === 'leave') await leave();
+  else if (body.act !== 'get') {
+    const m = await mine(); if (!m) return err('Ты не в клубе');
+    if (body.act === 'say') {
+      const text = String(body.text || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 200); if (!text) return err('Пустое сообщение');
+      const last = await db.prepare('SELECT ts FROM cchat WHERE uid = ? AND kind = ? ORDER BY id DESC LIMIT 1').bind(uid, 'msg').first();
+      if (last && now - last.ts < 1500) return err('Не так быстро');
+      await say(m.club, 'msg', text);
+    } else if (body.act === 'battle') {
+      // вызов на товарищеский матч: в чате появляется кнопка «Принять» с кодом комнаты
+      const game = ['duel', 'xdraft', 'trumps'].includes(body.game) ? body.game : 'duel';
+      const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5); if (code.length !== 5) return err('bad code');
+      await say(m.club, 'battle', null, { game, code });
+    } else if (body.act === 'req') {
+      const rar = Object.keys(REQ_NEED).includes(body.rar) ? body.rar : null, card = String(body.card || '').slice(0, 80);
+      if (!rar || !card) return err('Эту карточку запросить нельзя');
+      const last = await db.prepare('SELECT ts FROM creq WHERE uid = ? ORDER BY ts DESC LIMIT 1').bind(uid).first();
+      if (last && now - last.ts < REQ_EVERY) return err('Новый запрос — через ' + Math.ceil((last.ts + REQ_EVERY - now) / 3600e3) + ' ч');
+      await db.prepare('INSERT INTO creq (club, uid, card, rar, need, got, ts) VALUES (?, ?, ?, ?, ?, 0, ?)').bind(m.club, uid, card, rar, REQ_NEED[rar], now).run();
+      await say(m.club, 'req', null, { card, rar });
+    } else if (body.act === 'don') {
+      const r = await db.prepare('SELECT id, club, uid, card, rar, need, got FROM creq WHERE id = ?').bind(Number(body.id) || 0).first();
+      if (!r || r.club !== m.club) return err('Запрос не найден');
+      if (r.uid === uid) return err('Себе дарить нельзя');
+      if (r.got >= r.need) return err('Уже собрали');
+      const wk = weekKey(now);
+      await db.batch([
+        db.prepare('UPDATE creq SET got = got + 1 WHERE id = ?').bind(r.id),
+        db.prepare('INSERT INTO cgift (uid, card, frm, ts) VALUES (?, ?, ?, ?)').bind(r.uid, r.card, await nickOf(uid), now),
+        db.prepare('INSERT INTO cdon (id, week, n) VALUES (?1, ?2, 1) ON CONFLICT(id, week) DO UPDATE SET n = n + 1').bind(uid, wk),
+      ]);
+      return { ok: true, donated: { card: r.card, rar: r.rar } };
+    } else if (['promote', 'demote', 'kick'].includes(body.act)) {
+      const t = await db.prepare('SELECT m.id, c.owner, COALESCE(r.role, 0) AS role FROM cmembers m JOIN clubs c ON c.id = m.club LEFT JOIN crole r ON r.id = m.id WHERE m.id = ? AND m.club = ?').bind(Number(body.uid) || 0, m.club).first();
+      if (!t || t.id === uid) return err('Игрок не найден');
+      const tr = t.owner === t.id ? 3 : Math.min(2, t.role), tn = await nickOf(t.id);
+      const NAMES = ['игрок', 'капитан', 'вице-президент', 'президент'];
+      if (m.role <= tr || m.role < 1) return err('Недостаточно прав');
+      if (body.act === 'kick') {
+        await db.batch([db.prepare('DELETE FROM cmembers WHERE id = ?').bind(t.id), db.prepare('DELETE FROM crole WHERE id = ?').bind(t.id)]);
+        await say(m.club, 'sys', `${tn} исключён из клуба`);
+      } else if (body.act === 'promote') {
+        if (m.role < 2) return err('Повышать могут президент и вице-президенты');
+        if (tr + 1 >= m.role && m.role < 3) return err('Недостаточно прав');
+        if (tr === 2) { // президент передаёт клуб
+          await db.batch([db.prepare('UPDATE clubs SET owner = ? WHERE id = ?').bind(t.id, m.club), db.prepare('DELETE FROM crole WHERE id = ?').bind(t.id),
+            db.prepare('INSERT INTO crole (id, role) VALUES (?1, 2) ON CONFLICT(id) DO UPDATE SET role = 2').bind(uid)]);
+          await say(m.club, 'sys', `${tn} — новый президент клуба`);
+        } else {
+          await db.prepare('INSERT INTO crole (id, role) VALUES (?1, ?2) ON CONFLICT(id) DO UPDATE SET role = ?2').bind(t.id, tr + 1).run();
+          await say(m.club, 'sys', `${tn} повышен: теперь ${NAMES[tr + 1]}`);
+        }
+      } else {
+        if (tr === 0) return err('Ниже некуда');
+        if (m.role < 2) return err('Понижать могут президент и вице-президенты');
+        await db.prepare('INSERT INTO crole (id, role) VALUES (?1, ?2) ON CONFLICT(id) DO UPDATE SET role = ?2').bind(t.id, tr - 1).run();
+        await say(m.club, 'sys', `${tn} понижен: теперь ${NAMES[tr - 1]}`);
+      }
+    } else if (body.act === 'settings') {
+      if (m.role < 2) return err('Настройки меняют президент и вице-президенты');
+      const descr = clean(body.descr, 120), mintro = Math.max(0, Math.min(5000, Math.floor(Number(body.mintro) || 0)));
+      await db.prepare('INSERT INTO cinfo (club, descr, mintro) VALUES (?1, ?2, ?3) ON CONFLICT(club) DO UPDATE SET descr = ?2, mintro = ?3').bind(m.club, descr, mintro).run();
+      if (body.emoji) await db.prepare('UPDATE clubs SET emoji = ? WHERE id = ?').bind(clean(body.emoji, 4) || '⚽', m.club).run();
+      await say(m.club, 'sys', 'Настройки клуба обновлены');
+    } else return err('unknown');
+  }
   return { ok: true, ...(await clubInfo(db, uid)) };
 }
 

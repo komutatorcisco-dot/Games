@@ -4548,3 +4548,59 @@ body.dg-on { overscroll-behavior: none; }
 .tc-online { margin: 14px auto 0; display: flex; align-items: center; gap: 8px; }
 .tc-online svg { width: 18px; height: 18px; }
 .xm-ctl-t svg { width: 14px; height: 14px; vertical-align: -2px; }
+
+/* ---------- клуб (как клан в Clash Royale) ---------- */
+[data-act="myclub"].kb-dot { position: relative; }
+[data-act="myclub"].kb-dot::after { content: ''; position: absolute; top: 2px; right: 2px; width: 11px; height: 11px; border-radius: 50%; background: #ff3b5c; box-shadow: 0 0 0 2px #0d0a26; }
+.kb-head { display: grid; grid-template-columns: 64px 1fr auto; gap: 12px; align-items: start; margin: 4px 0 12px; padding: 14px; border-radius: 20px; background: radial-gradient(120% 100% at 0% 0%, rgba(255,207,58,.18), transparent 60%), rgba(255,255,255,.06); box-shadow: inset 0 0 0 1.5px rgba(255,207,58,.35); }
+.kb-emb { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(180deg, #2c2650, #171331); font-size: 34px; box-shadow: inset 0 0 0 2px rgba(255,207,58,.5), 0 3px 0 rgba(0,0,0,.4); }
+.kb-ht { min-width: 0; } .kb-ht h3 { margin: 0 0 2px; font: 900 21px "Rubik", sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-ht small { display: block; font: 700 12.5px var(--font-body); color: rgba(255,255,255,.65); } .kb-ht small b { color: #ffcf3a; } .kb-ht small b .ui-ic { width: 13px; height: 13px; vertical-align: -2px; } .kb-ht em { font-style: normal; color: #fff; letter-spacing: .12em; font-weight: 900; }
+.kb-ht p { margin: 6px 0 0; font: 600 13px/1.4 var(--font-body); color: rgba(255,255,255,.82); } .kb-min { margin-top: 4px; color: #7af0c8 !important; }
+.kb-gear { width: 38px; height: 38px; display: grid; place-items: center; border: 0; border-radius: 12px; background: rgba(255,255,255,.08); color: #fff; } .kb-gear .ui-ic, .kb-gear svg { width: 20px; height: 20px; }
+.kb-tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+.kb-tabs button { position: relative; display: grid; justify-items: center; gap: 3px; padding: 9px 2px 7px; border: 0; border-radius: 14px; background: rgba(255,255,255,.06); color: rgba(255,255,255,.65); font: 800 11.5px "Rubik", sans-serif; box-shadow: 0 3px 0 rgba(0,0,0,.35); }
+.kb-tabs button svg, .kb-tabs button .ui-ic { width: 22px; height: 22px; }
+.kb-tabs button.on { background: linear-gradient(180deg, #ffd84d, #f0a91c); color: #2a1d00; --ic-a: #fff3c2; --ic-bg: #f0a91c; box-shadow: 0 3px 0 #8a5a00; }
+.kb-tabs i { position: absolute; top: -5px; right: 4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #ff3b5c; color: #fff; font: 800 10px/18px "Rubik", sans-serif; font-style: normal; box-shadow: 0 0 0 2px #0d0a26; }
+.kb-feed { display: flex; flex-direction: column; gap: 8px; height: calc(100vh - 430px); min-height: 260px; overflow-y: auto; padding: 4px 2px 8px; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+.kb-sys { align-self: center; max-width: 90%; padding: 5px 10px; border-radius: 10px; background: rgba(255,255,255,.06); font: 700 11.5px var(--font-body); color: rgba(255,255,255,.6); text-align: center; }
+.kb-msg { align-self: flex-start; max-width: 84%; padding: 8px 11px; border-radius: 16px 16px 16px 4px; background: rgba(255,255,255,.09); }
+.kb-msg.me { align-self: flex-end; border-radius: 16px 16px 4px 16px; background: rgba(79,195,255,.22); }
+.kb-msg p { margin: 0; font: 600 14px/1.35 var(--font-body); color: #fff; overflow-wrap: anywhere; }
+.kb-who { display: block; margin-bottom: 3px; font: 800 12px "Rubik", sans-serif; color: #ffcf3a; } .kb-who small { font: 600 10.5px var(--font-body); color: rgba(255,255,255,.45); margin-left: 4px; }
+.kb-req, .kb-bt { max-width: 92%; width: 92%; background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1.5px rgba(122,240,200,.35); }
+.kb-rq { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; } .kb-rqb { display: grid; gap: 6px; } .kb-rqb > b { font: 900 13.5px "Rubik", sans-serif; } .kb-rqb small { font: 600 11.5px var(--font-body); color: rgba(255,255,255,.6); }
+.kb-bar { position: relative; display: block; height: 16px; border-radius: 99px; background: rgba(0,0,0,.4); overflow: hidden; } .kb-bar i { display: block; height: 100%; background: linear-gradient(90deg, #7af0c8, #4fc3ff); border-radius: 99px; }
+.kb-bar em { position: absolute; inset: 0; display: grid; place-items: center; font: 900 11px "Rubik", sans-serif; font-style: normal; color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.6); } .kb-bar.big { height: 18px; margin: 10px 0 6px; } .kb-bar.big i { background: linear-gradient(90deg, #ffcf3a, #ff9d00); }
+.kb-don { padding: 8px 10px !important; font-size: 13px !important; display: flex; align-items: center; justify-content: center; gap: 4px; } .kb-don .coin { width: 14px; height: 14px; }
+.kb-btb { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; } .kb-btb b { display: block; font: 900 14px "Rubik", sans-serif; } .kb-btb small { font: 600 11.5px var(--font-body); color: rgba(255,255,255,.6); }
+.kb-swd { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: rgba(255,95,109,.2); color: #ff8a95; } .kb-swd svg { width: 24px; height: 24px; } .kb-btb .btn { padding: 9px 14px; }
+.kb-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; } .kb-a { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 6px !important; font-size: 13px !important; } .kb-a svg { width: 18px; height: 18px; flex: none; } .kb-a[disabled] { opacity: .5; }
+.kb-say { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 8px; } .kb-say input { min-width: 0; padding: 12px 14px; border: 0; border-radius: 14px; background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.14); color: #fff; font: 600 16px var(--font-body); }
+.kb-say .btn { width: 52px; padding: 0 !important; display: grid; place-items: center; } .kb-say svg { width: 22px; height: 22px; }
+.kb-sum { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; } .kb-sum span { display: grid; justify-items: center; padding: 10px 4px; border-radius: 14px; background: rgba(255,255,255,.06); } .kb-sum b { font: 900 20px "Rubik", sans-serif; color: #ffcf3a; } .kb-sum small { font: 700 10.5px var(--font-body); color: rgba(255,255,255,.55); text-align: center; }
+.kb-list { display: grid; gap: 6px; }
+.kb-m { display: grid; grid-template-columns: 22px 30px 1fr auto; gap: 8px; align-items: center; width: 100%; padding: 9px 11px; border: 0; border-radius: 14px; background: rgba(255,255,255,.05); color: #fff; text-align: left; }
+.kb-m.me { box-shadow: inset 0 0 0 1.5px #ffcf3a; } .kb-n { font: 900 13px "Rubik", sans-serif; color: rgba(255,255,255,.45); } .kb-me { font-size: 22px; }
+.kb-mi { display: grid; min-width: 0; } .kb-mi em { font: 800 14.5px "Rubik", sans-serif; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kb-mi small { font: 800 11px var(--font-body); } .kb-mi .r0 { color: rgba(255,255,255,.55); } .kb-mi .r1 { color: #7af0c8; } .kb-mi .r2 { color: #4fc3ff; } .kb-mi .r3 { color: #ffcf3a; }
+.kb-seen { font-weight: 600 !important; color: rgba(255,255,255,.45); } .kb-on { display: inline-block; width: 7px; height: 7px; margin-right: 4px; border-radius: 50%; background: #3ee66b; vertical-align: 1px; }
+.kb-ms { display: grid; justify-items: end; } .kb-ms b { font: 900 14px "Rubik", sans-serif; display: flex; align-items: center; gap: 3px; } .kb-ms b svg { width: 14px; height: 14px; color: #ffcf3a; } .kb-ms small { font: 600 10.5px var(--font-body); color: rgba(255,255,255,.5); }
+.kb-wide { width: 100%; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 8px; } .kb-wide svg { width: 18px; height: 18px; }
+.kb-note { margin: 10px 2px 0; font: 600 12.5px/1.4 var(--font-body); color: rgba(255,255,255,.55); }
+.kb-chest, .kb-lg, .kb-prize { padding: 14px; border-radius: 18px; background: radial-gradient(100% 90% at 100% 0%, rgba(255,207,58,.16), transparent 60%), rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,207,58,.3); margin-bottom: 10px; }
+.kb-ch-top, .kb-lg { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; } .kb-ch-top b, .kb-lg b { display: block; font: 900 16px "Rubik", sans-serif; } .kb-ch-top small, .kb-lg small { font: 700 12px var(--font-body); color: rgba(255,255,255,.6); }
+.kb-chi { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(180deg, #ffd84d, #f0a91c); color: #2a1d00; --ic-a: #fff3c2; box-shadow: 0 3px 0 #8a5a00; } .kb-chi svg { width: 30px; height: 30px; }
+.kb-tiers { display: grid; gap: 6px; }
+.kb-tier { display: grid; grid-template-columns: 26px 46px 1fr auto; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 14px; background: rgba(255,255,255,.04); opacity: .6; }
+.kb-tier.open { opacity: 1; background: rgba(255,255,255,.07); } .kb-tier.got { opacity: .7; }
+.kb-tn { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.1); font: 900 12px "Rubik", sans-serif; } .kb-tier.open .kb-tn { background: #ffcf3a; color: #2a1d00; }
+.kb-ta { display: grid; place-items: center; height: 46px; overflow: hidden; } .kb-ta > * { transform: scale(.62); }
+.kb-tt { display: grid; } .kb-tt b { font: 800 13.5px "Rubik", sans-serif; } .kb-tt small { font: 600 11px var(--font-body); color: rgba(255,255,255,.55); }
+.kb-tier .btn { padding: 8px 12px; font-size: 13px; } .kb-ok { font-style: normal; font-weight: 900; color: #3ee66b; } .kb-lk { color: rgba(255,255,255,.5); } .kb-lk svg { width: 16px; height: 16px; }
+.kb-lgp { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: linear-gradient(180deg, #4fc3ff, #2a7fd6); color: #fff; box-shadow: 0 3px 0 #164b86; } .kb-lgp b { font: 900 26px "Rubik", sans-serif; color: #fff !important; line-height: 1; } .kb-lgp small { color: rgba(255,255,255,.85) !important; font-size: 10px !important; }
+.kb-prize { display: grid; gap: 6px; box-shadow: inset 0 0 0 2px #ffcf3a; } .kb-prize b { font: 900 15px "Rubik", sans-serif; } .kb-prize small { font: 700 12.5px var(--font-body); color: rgba(255,255,255,.7); }
+.kb-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; max-height: 52vh; overflow-y: auto; margin-top: 8px; justify-items: center; } .kb-pick button { padding: 0; border: 0; background: none; }
+.kb-set { display: grid; gap: 10px; text-align: left; } .kb-set label { display: grid; gap: 5px; font: 800 12.5px var(--font-body); color: rgba(255,255,255,.7); }
+.kb-set textarea, .kb-set input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 0; border-radius: 12px; background: rgba(0,0,0,.35); color: #fff; font: 600 15px var(--font-body); resize: none; }

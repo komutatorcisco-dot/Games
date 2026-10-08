@@ -89,10 +89,10 @@ const Board = (() => {
     } catch (e) { if (scope === sc) render({ error: true }); }
   }
 
-  function open() {
+  function open(sc) {
     Modal.close();
     Screens.show('board');
-    load(scope);
+    load(typeof sc === 'string' ? sc : scope);
   }
 
   function bind() {

@@ -417,5 +417,5 @@ const Rewards = (() => {
     header();
   }
 
-  return { weekend, onEnd, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S };
+  return { weekend, onEnd, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
 })();

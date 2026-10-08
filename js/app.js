@@ -372,6 +372,7 @@ const App = (() => {
     games: () => tab('games'),
     friends: () => tab('friends'),
     board: () => Board.open(),
+    'board-clubs': () => Board.open('clubs'),
     rewards: () => Rewards.open(),
     road: () => Rewards.open('road'),
     collection: () => Rewards.open('cards'),
@@ -556,6 +557,8 @@ const App = (() => {
     const cloud = Cloud.pull().then((got) => {
       Board.submit();
       Track.hello();
+      // клуб: красная точка, если ждёт сундук, приз лиги или запрос карточки, который можно выполнить
+      setTimeout(() => Clubs.peek().then((n) => $$('[data-act="myclub"]').forEach((el) => el.classList.toggle('kb-dot', n > 0))), 2500);
       if (!got) return;
       Shop.apply(); Coins.render();
       if (Screens.current === 'hub') { renderHub(); if (Store.d.user.nick && $('#nick-in')) Modal.close(); }

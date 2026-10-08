@@ -452,6 +452,7 @@ const Duel = (() => {
         peer = new window.Peer(PEER_PREFIX + code, peerOpts());
         peer.on('open', () => {
           connecting('Ждём друга…', code);
+          if (opts.onCode) { try { opts.onCode(code); } catch (e) { /* чат клуба недоступен */ } opts.onCode = null; }
           acts = { menu, invite: () => shareLink('r_' + code, `⚡ Залетай на футбольную дуэль онлайн! Код комнаты: ${code}`), copy: () => { try { navigator.clipboard.writeText(code).then(() => toast('Код скопирован')); } catch (e) { toast(code); } } };
         });
         peer.on('connection', (c) => { if (conn) { c.on('open', () => c.close()); return; } wire(c, true); });
@@ -555,6 +556,7 @@ const Duel = (() => {
       // старт: из ссылки-вызова, из приглашения в комнату или меню
       if (opts.mode === 'accept' && opts.ch) solo(opts.ch.seed, opts.ch);
       else if (opts.mode === 'join' && opts.code) join(opts.code);
+      else if (opts.mode === 'host') host();
       else if (opts.mode === 'live') liveMenu();
       else if (opts.mode === 'link') solo(newSeed(), null);
       else if (opts.mode === 'hot') hotSetup();

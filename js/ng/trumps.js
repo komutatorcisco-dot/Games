@@ -37,7 +37,7 @@
       // онлайн: сначала лобби (случайный соперник или комната), потом та же партия с живым игроком
       if (opts.online) {
         api.sub('Онлайн');
-        Online.open(b, { game: 'trumps', title: 'Козыри онлайн', join: typeof opts.online === 'string' ? opts.online : undefined,
+        Online.open(b, { game: 'trumps', title: 'Козыри онлайн', join: typeof opts.online === 'string' ? opts.online : undefined, host: !!opts.onCode, onCode: opts.onCode,
           lead: 'Одна колода на двоих, характеристику выбираете по очереди.', back: () => NG.open('trumps'),
           onReady: (L) => { stopNet = () => L.close(); game(L); } });
         return () => { if (stopNet) stopNet(); else Online.stop(); };
