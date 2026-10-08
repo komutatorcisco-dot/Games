@@ -5,7 +5,7 @@
 
 const Clubs = (() => {
   const EMO = ['⚽', '🦁', '🦅', '🐺', '🔥', '⚡', '👑', '🐉', '🛡️', '🎯'];
-  let data = null, busy = false;
+  let data = null, busy = false, loading = false, failed = false; // data: null — не в клубе
   const api = () => typeof Board !== 'undefined' && Board.ready();
   async function call(body) {
     if (!api()) throw new Error('offline');
@@ -14,13 +14,17 @@ const Clubs = (() => {
     data = r.club; return data;
   }
   const box = () => $('#club-body');
-  function open() { Modal.close(); Screens.show('myclub'); render(); load(); }
-  async function load() { try { await call({ act: 'get' }); } catch (e) { data = data === null ? undefined : data; } render(); }
+  function open() { Modal.close(); Screens.show('myclub'); loading = true; failed = false; render(); load(); }
+  async function load() {
+    try { await Promise.race([call({ act: 'get' }), new Promise((_, bad) => setTimeout(() => bad(new Error('timeout')), 10000))]); failed = false; } catch (e) { failed = true; }
+    loading = false; render();
+  }
 
   function render() {
     const b = box(); if (!b) return;
     if (!api()) { b.innerHTML = `<div class="bd-empty"><span>${Ui.get('users')}</span><h3>Клубы работают в Telegram</h3><p>Открой игры через бота @JacksonGamesbot.</p></div>`; return; }
-    if (data === null) { b.innerHTML = '<div class="bd-empty"><div class="bd-spin"></div><p>Загружаем клуб…</p></div>'; return; }
+    if (loading) { b.innerHTML = '<div class="bd-empty"><div class="bd-spin"></div><p>Загружаем клуб…</p></div>'; return; }
+    if (failed && !data) { b.innerHTML = `<div class="bd-empty"><span>${Ui.get('signal')}</span><h3>Не удалось загрузить клуб</h3><p>Проверь интернет и попробуй ещё раз.</p><button class="btn gold" data-cl="retry">Обновить</button></div>`; return; }
     if (!data) {
       b.innerHTML = `<div class="cl-hero"><span class="cl-emb">${Ui.get('users')}</span><h3>Играй командой</h3>
           <p>Клуб — до 30 игроков. Каждую неделю у клуба общая цель: победы всех участников. Дошли до цели — каждый получает эпический пак.</p></div>
@@ -45,6 +49,7 @@ const Clubs = (() => {
   async function act(k, el) {
     if (busy) return;
     const run = async (body, ok) => { busy = true; try { await call(body); if (ok) toast(ok); Sound.play('coin'); } catch (e) { toast(e.message === 'offline' ? 'Нет связи с сервером' : e.message); } busy = false; render(); };
+    if (k === 'retry') { loading = true; render(); return load(); }
     if (k === 'create') {
       const name = ($('#cl-name').value || '').trim(); if (name.length < 2) { toast('Название — от 2 букв'); return; }
       const emo = ($('.cl-emos .on') || {}).dataset ? $('.cl-emos .on').dataset.clemo : '⚽';
