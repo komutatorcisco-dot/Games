@@ -20,7 +20,7 @@ const PackOpen = (() => {
 
   // модель пака: лицо с голограммой и обжимом, торец, задник; cap — верхняя полоска, которую срывают
   const art = (lv, sz = '', cap = false) => `<span class="fpk p${lv} ${sz}"><span class="fpk-b">
-      <i class="fpk-f"><i class="fpk-holo"></i><i class="fpk-sh"></i><i class="fpk-crest"></i><b>JX</b><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
+      <i class="fpk-f"><i class="fpk-holo"></i><i class="fpk-sh"></i><i class="fpk-crest"></i><b>ДЖ</b><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;
 
   const best = (res) => res.slice().sort((a, b) => ORDER.indexOf(b.c.rar) - ORDER.indexOf(a.c.rar) || b.c.r - a.c.r);
@@ -56,7 +56,7 @@ const PackOpen = (() => {
     const nm = $('.po-name', el); nm.textContent = Cards.RAR[top.c.rar].n; slam(nm);
     $('.po-steps', el).innerHTML = '';
     const big = Math.min(240, Math.floor(innerWidth * 0.6));
-    stage.innerHTML = `<div class="po-walk"><div class="po-flip" style="--w:${big}px"><div class="po-back ${top.c.rar}"><b>JX</b></div><div class="po-front">${Cards.html(top.c, { w: big })}</div></div>
+    stage.innerHTML = `<div class="po-walk"><div class="po-flip" style="--w:${big}px"><div class="po-back ${top.c.rar}"><b>ДЖ</b></div><div class="po-front">${Cards.html(top.c, { w: big })}</div></div>
       <div class="po-tag ${top.isNew ? 'new' : ''}">${top.isNew ? 'NEW' : `+${top.coins} <i class="coin"></i>`}</div></div>`;
     if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(stage);
     const flip = $('.po-flip', stage), special = top.c.rar === 'legend' || top.c.rar === 'jack';
@@ -84,7 +84,7 @@ const PackOpen = (() => {
     $('.po-k', el).textContent = `${n} ${plural(n, 'карточка', 'карточки', 'карточек')}`;
     nm.textContent = nNew ? `НОВЫХ: ${nNew}` : 'НОВЫХ НЕТ'; slam(nm);
     stage.innerHTML = `<div class="po-grid" style="--cols:${cols};--cw:${w}px">${list.map((x, i) => `<div class="po-cell ${x.c.rar}" style="--i:${i}">
-        <div class="po-flip sm" style="--w:${w}px"><div class="po-back ${x.c.rar}"><b>JX</b></div><div class="po-front">${Cards.html(x.c, { w })}</div></div>
+        <div class="po-flip sm" style="--w:${w}px"><div class="po-back ${x.c.rar}"><b>ДЖ</b></div><div class="po-front">${Cards.html(x.c, { w })}</div></div>
         ${x.isNew ? '<i class="po-new">NEW</i>' : `<i class="po-dup">+${x.coins}</i>`}</div>`).join('')}</div>`;
     if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(stage);
     const cells = $$('.po-cell', stage), step = Math.max(28, Math.min(90, 1400 / n));

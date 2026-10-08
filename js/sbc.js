@@ -35,7 +35,7 @@ const Tilt = (() => {
     const wrap = document.createElement('div'); wrap.className = 'spin3d';
     const inner = document.createElement('div'); inner.className = 'spin-in';
     const back = document.createElement('div'); back.className = 'spin-back ' + (['bronze', 'silver', 'gold', 'legend', 'jack'].find((r) => cc.classList.contains(r)) || '');
-    back.innerHTML = '<b>JX</b>';
+    back.innerHTML = '<b>ДЖ</b>';
     cc.parentNode.insertBefore(wrap, cc); inner.appendChild(cc); inner.appendChild(back); wrap.appendChild(inner);
     let ry = 0, rx = 0, vy = 0, drag = null, raf = 0, settle = false;
     const apply = () => { inner.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`; const k = ((ry % 360) + 360) % 360; wrap.style.setProperty('--gx', (50 + Math.sin((k * Math.PI) / 180) * 45).toFixed(1) + '%'); };
@@ -253,7 +253,7 @@ const SBC = (() => {
   // ---------- модели: пак-коробка с толщиной, обжимом и голографией ----------
   const packArt = (lv, sz = '') => (typeof PackOpen !== 'undefined' ? PackOpen.art(lv, sz) : '');
   const packArtOld = (lv, sz = '') => `<span class="fpk p${lv} ${sz}"><span class="fpk-b">
-      <i class="fpk-f"><i class="fpk-holo"></i><i class="fpk-sh"></i><i class="fpk-crest"></i><b>JX</b><em>${PACKSHORT[lv]}</em></i>
+      <i class="fpk-f"><i class="fpk-holo"></i><i class="fpk-sh"></i><i class="fpk-crest"></i><b>ДЖ</b><em>${PACKSHORT[lv]}</em></i>
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;
   function art(r, sz = '') {
     if (r.pack !== undefined) return packArt(r.pack, sz);
