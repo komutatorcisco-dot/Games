@@ -30,3 +30,9 @@ jobs:
           echo "$out" | head -c 600; echo
           echo "$out" | grep -Eq '"success": *true' || { echo "Cloudflare не принял код — смотри ответ выше"; exit 1; }
           echo "Готово: сервер обновлён"
+          # расписание: раз в час (понедельничная рассылка и вечерние напоминания сами проверяют время)
+          sch=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACC/workers/scripts/jackson-games/schedules" \
+            -H "Authorization: Bearer $(echo "$CF_API_TOKEN" | tr -d '[:space:]')" -H 'content-type: application/json' \
+            --data '[{"cron":"0 * * * *"}]')
+          echo "$sch" | head -c 400; echo
+          echo "$sch" | grep -Eq '"success": *true' && echo "Расписание: каждый час" || echo "Расписание не обновилось — поставь вручную: Workers → jackson-games → Settings → Trigger events → Cron «0 * * * *»"

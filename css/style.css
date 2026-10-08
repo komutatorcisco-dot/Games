@@ -4448,3 +4448,56 @@ body.at-home::before { display: none !important; }
 .qs-take { padding: 6px 8px; border: 0; border-radius: 12px; background: linear-gradient(180deg, #6ff59a, #22b04f); color: #062a12; box-shadow: 0 3px 0 #13702f; } .qs-take b { font: 900 15px "Rubik", sans-serif; } .qs-take small { font: 800 10px "Rubik", sans-serif; }
 .qs.done { box-shadow: inset 0 0 0 1.5px #3ee66b; } .qs.got { opacity: .5; }
 .qs-ok { font: 900 20px "Rubik", sans-serif; font-style: normal; color: #3ee66b; min-width: 54px; text-align: center; }
+/* вкладки «Наград» прокручиваются вбок, ничего не обрезается */
+.rw-tabs { display: flex !important; grid-template-columns: none !important; gap: 4px !important; overflow-x: auto; scrollbar-width: none; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.rw-tabs::-webkit-scrollbar { display: none; }
+.rw-tabs > button { flex: none !important; scroll-snap-align: start; padding-left: 12px !important; padding-right: 12px !important; white-space: nowrap; }
+/* «Игрок дня»: картинка не вылезает за скруглённую кнопку */
+.h2-sb { padding-top: 8px !important; }
+.h2-sbi.dly img { width: 42px !important; height: 42px !important; border-radius: 11px !important; }
+.ad-bars.wide { grid-template-columns: repeat(14, 1fr); gap: 3px; } .ad-bars.wide em { font-size: 9px; }
+/* таблица лидеров: вкладки прокручиваются, выбор игры — чипсами */
+.bd-tabs { display: flex !important; overflow-x: auto; scrollbar-width: none; gap: 4px !important; } .bd-tabs::-webkit-scrollbar { display: none; }
+.bd-tabs > button { flex: none !important; padding: 8px 12px !important; white-space: nowrap; }
+.bd-games { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 10px 0 2px; padding-bottom: 2px; } .bd-games::-webkit-scrollbar { display: none; }
+.bd-games button { flex: none; padding: 7px 12px; border: 0; border-radius: 99px; background: rgba(255,255,255,.07); color: rgba(255,255,255,.75); font: 800 12.5px "Rubik", sans-serif; white-space: nowrap; }
+.bd-games button.on { background: #ffcf3a; color: #1a1406; }
+/* плашка ивента выходных на главной */
+.h2-ev { position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 6px; margin: -4px auto 0; padding: 5px 12px; border-radius: 99px; background: linear-gradient(90deg, #ff5f6d, #ffb347); color: #fff; font: 900 12px "Rubik", sans-serif; letter-spacing: .02em; box-shadow: 0 4px 12px rgba(0,0,0,.35); }
+/* ===== обучение новичка ===== */
+.co { position: fixed; inset: 0; z-index: 9000; }
+.co-hole { position: absolute; border-radius: 18px; box-shadow: 0 0 0 9999px rgba(5,7,12,.78), 0 0 0 3px #ffcf3a; transition: all .3s cubic-bezier(.2,.9,.3,1); pointer-events: none; }
+.co-tip { position: absolute; left: 16px; right: 16px; display: grid; gap: 6px; padding: 14px; border-radius: 18px; background: #1a2029; box-shadow: inset 0 0 0 1.5px rgba(255,207,58,.5), 0 14px 30px rgba(0,0,0,.5); color: #fff; animation: coIn .3s cubic-bezier(.2,.9,.3,1.2); }
+.co-tip small { font: 800 11px "Rubik", sans-serif; letter-spacing: .06em; color: #ffcf3a; text-transform: uppercase; }
+.co-tip b { font: 900 19px "Rubik", sans-serif; } .co-tip p { margin: 0 0 4px; font: 600 14px/1.4 var(--font-body); color: rgba(255,255,255,.82); }
+@keyframes coIn { from { opacity: 0; transform: translateY(10px); } }
+/* клуб */
+.cl-hero { display: grid; justify-items: center; gap: 6px; margin: 6px 0 14px; text-align: center; } .cl-hero h3 { margin: 0; font: 900 22px "Rubik", sans-serif; } .cl-hero p { margin: 0; font: 600 13.5px/1.45 var(--font-body); color: rgba(255,255,255,.7); }
+.cl-emb { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: rgba(255,207,58,.15); color: #ffcf3a; } .cl-emb .ui-ic { width: 34px; height: 34px; }
+.cl-card { display: grid; gap: 10px; margin-bottom: 12px; padding: 14px; border-radius: 18px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.09); }
+.cl-card > b { font: 900 16px "Rubik", sans-serif; } .cl-card small { font: 600 12px var(--font-body); color: rgba(255,255,255,.55); }
+.cl-card input { width: 100%; box-sizing: border-box; padding: 12px 14px; border: 0; border-radius: 12px; background: rgba(0,0,0,.35); color: #fff; font: 700 16px var(--font-body); }
+.cl-emos { display: flex; flex-wrap: wrap; gap: 6px; } .cl-emos button { width: 40px; height: 40px; border: 0; border-radius: 12px; background: rgba(255,255,255,.07); font-size: 20px; } .cl-emos button.on { box-shadow: inset 0 0 0 2px #ffcf3a; background: rgba(255,207,58,.15); }
+.cl-join { display: grid; grid-template-columns: 1fr auto; gap: 8px; } .cl-join input { text-transform: uppercase; letter-spacing: .2em; text-align: center; }
+.cl-top { display: flex; align-items: center; gap: 12px; margin: 4px 0 12px; } .cl-big { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: rgba(255,207,58,.15); font-size: 34px; }
+.cl-top h3 { margin: 0; font: 900 22px "Rubik", sans-serif; } .cl-top small { font: 700 12.5px var(--font-body); color: rgba(255,255,255,.6); } .cl-top small b { color: #ffcf3a; letter-spacing: .1em; }
+.cl-goal { display: grid; gap: 8px; margin-bottom: 12px; padding: 14px; border-radius: 18px; background: radial-gradient(100% 90% at 100% 0%, rgba(255,207,58,.16), transparent 60%), rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,207,58,.3); }
+.cl-gh { display: flex; justify-content: space-between; align-items: baseline; } .cl-gh b { font: 900 16px "Rubik", sans-serif; } .cl-gh small { font: 800 13px "Rubik", sans-serif; color: #ffcf3a; }
+.cl-bar { height: 14px; border-radius: 99px; background: rgba(0,0,0,.4); overflow: hidden; } .cl-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #ffcf3a, #ff9d00); }
+.cl-note, .cl-ok { margin: 0; font: 600 12.5px var(--font-body); color: rgba(255,255,255,.65); } .cl-ok { color: #3ee66b; }
+.cl-inv { width: 100%; margin-bottom: 14px; } .cl-leave { width: 100%; margin-top: 14px; }
+.cl-h { margin: 0 0 8px; font: 900 15px "Rubik", sans-serif; }
+.cl-list { display: grid; gap: 6px; }
+.cl-m { display: grid; grid-template-columns: 22px 28px 1fr auto auto; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 14px; background: rgba(255,255,255,.05); }
+.cl-m.me { box-shadow: inset 0 0 0 1.5px #ffcf3a; } .cl-m > b { font: 900 13px "Rubik", sans-serif; color: rgba(255,255,255,.5); } .cl-m > span { font-size: 20px; }
+.cl-m em { font: 800 14px "Rubik", sans-serif; font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .cl-m small { font: 700 12px var(--font-body); color: rgba(255,255,255,.55); }
+.cl-m strong { display: grid; justify-items: end; font: 900 15px "Rubik", sans-serif; color: #ffcf3a; line-height: 1; } .cl-m strong i { font: 700 9.5px var(--font-body); font-style: normal; color: rgba(255,255,255,.5); }
+/* магазин за звёзды */
+.ss-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.ss-c { display: grid; justify-items: center; gap: 4px; padding: 12px 8px; border: 0; border-radius: 16px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.09); color: #fff; }
+.ss-art { display: grid; place-items: center; height: 64px; } .ss-art .fpk { --pw: 40px; --ph: 56px; --d: 4px; } .ss-art .rs-coins .coin { width: 30px !important; height: 30px !important; }
+.ss-c b { font: 900 13.5px "Rubik", sans-serif; text-align: center; } .ss-c small { font: 600 11px var(--font-body); color: rgba(255,255,255,.55); }
+.ss-c em { margin-top: 2px; padding: 4px 12px; border-radius: 99px; background: #ffcf3a; color: #1a1406; font: 900 13px "Rubik", sans-serif; font-style: normal; }
+.ss-c.sk img { width: 100%; aspect-ratio: 390 / 520; object-fit: cover; object-position: 50% 100%; border-radius: 10px; }
+.ss-c.own em { background: rgba(255,255,255,.12); color: rgba(255,255,255,.7); }
+.ss-h { margin: 14px 0 8px; font: 900 15px "Rubik", sans-serif; }

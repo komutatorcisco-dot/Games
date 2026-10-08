@@ -38,6 +38,7 @@ const Skins = (() => {
     if (!has(k)) {
       Modal.open(`<h3 class="sk-h">${esc(x.name)}</h3><img class="sk-big" src="img/skins/${k}.webp" alt=""><p class="sk-p">Откроется сам на ${x.need} трофеях — или купи сейчас.</p>`, [
         { label: `Купить за ${x.price} монет`, onClick: () => { if (!Coins.spend(x.price)) return; S().own.push(k); S().on = k; Store.save(); apply(); Modal.close(); toast(`Оформление «${x.name}» включено`); haptic('ok'); } },
+        { label: 'Купить за 29 ⭐', keepOpen: true, onClick: () => document.dispatchEvent(new CustomEvent('ss-buy', { detail: 'skin:' + k })) },
         { label: 'Назад к скинам', cls: 'ghost', keepOpen: true, onClick: () => open() },
       ]);
       return;

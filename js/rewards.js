@@ -8,7 +8,7 @@
 
 const Rewards = (() => {
   const DROPS_PER_DAY = 5, WIN_TROPHIES = 12, PLAY_TROPHIES = 3;
-  const PASS_LEVELS = 30, PASS_STEP = 100, PASS_STARS = 100;
+  const PASS_LEVELS = 30, PASS_STEP = 300, PASS_STARS = 100; // 300 очков на уровень: пропуск идёт весь сезон, а не неделю
   const SEASON_START = Date.parse('2026-10-05T08:00:00Z'), SEASON_DAYS = 28;
 
   const S = () => {
@@ -25,6 +25,8 @@ const Rewards = (() => {
     return r;
   };
   const dayKey = () => Day.key();
+  // выходные по Москве: суббота и воскресенье
+  const weekend = () => { const d = new Date(Date.now() + 3 * 3600e3).getUTCDay(); return d === 0 || d === 6; };
   const weekKey = () => Release.weekKey();
   const season = () => Math.max(1, Math.floor((Date.now() - SEASON_START) / (SEASON_DAYS * 864e5)) + 1);
   const seasonEnd = () => SEASON_START + season() * SEASON_DAYS * 864e5;
@@ -105,7 +107,8 @@ const Rewards = (() => {
   });
   function passSync() {
     const p = S().pass, sn = season();
-    if (p.season !== sn) { p.season = sn; p.xp = 0; p.free = []; p.prem = []; p.premium = false; Store.save(); }
+    if (p.season !== sn) { p.season = sn; p.xp = 0; p.free = []; p.prem = []; p.premium = false; p.xv = 2; Store.save(); }
+    if (p.xv !== 2) { p.xv = 2; p.xp *= 3; Store.save(); } // уровень был за 100 очков, стал за 300 — уровень и прогресс сохраняются
     if (Store.d.admin && !p.premium) { p.premium = true; Store.save(); } // админу пропуск бесплатно
     return p;
   }
@@ -224,11 +227,14 @@ const Rewards = (() => {
     if (game && !g.ids.includes(game)) { g.ids.push(game); quest('game'); }
     const q = questSync(); if (game && !q.dg.includes(game)) { q.dg.push(game); quest('dgame'); }
     addPassXp(win ? 20 : 5);
-    if (!win) { s.trophies += PLAY_TROPHIES; Store.save(); refresh(); return ''; }
+    const x2 = weekend() ? 2 : 1; // выходные: ×2 трофея
+    if (!win) { s.trophies += PLAY_TROPHIES * x2; Store.save(); refresh(); safe('board', () => Board.submit()); return ''; }
     quest('win', game);
-    s.trophies += WIN_TROPHIES;
+    s.trophies += WIN_TROPHIES * x2;
+    if (game) { const gw = Store.d.gw || (Store.d.gw = {}); gw[game] = (gw[game] || 0) + 1; } // победы по играм — для таблицы
+    safe('board', () => Board.submit());
     if (s.drops.day !== dayKey()) s.drops = { day: dayKey(), n: 0 };
-    let note = `<span>${Ui.get('trophy')} +${WIN_TROPHIES}</span>`;
+    let note = `<span>${Ui.get('trophy')} +${WIN_TROPHIES * x2}${x2 > 1 ? ' · выходные ×2' : ''}</span>`;
     const dmax = DROPS_PER_DAY + (passSync().premium ? 1 : 0);
     if (Release.feature('cards') && s.drops.n < dmax) { s.drops.n++; s.pending++; note += `<span class="rw-new"><i class="rw-pk"></i>+1 пак · ${s.drops.n}/${dmax} сегодня</span>`; }
     Store.save(); refresh();
@@ -365,7 +371,7 @@ const Rewards = (() => {
       const perks = ['Эксклюзивный скин «Золото» — только здесь', 'Вторая линия наград: паки сильнее, жизни, пак «ДЖЕКСОН!!»', '+1 пак за победы каждый день', 'Награды за пройденные уровни — сразу'];
       body = `<div class="ps-hero"><span class="ps-lv"><small>УР.</small><b>${L}</b></span>
           <div class="ps-info"><b>Сезон ${season()}</b><small>${left} ${plural(left, 'день', 'дня', 'дней')} до конца сезона</small>
-            <span class="ps-bar"><i style="width:${xp}%"></i><em>${L >= PASS_LEVELS ? 'Пропуск пройден' : `${xp}/${PASS_STEP} до ур. ${L + 1}`}</em></span></div></div>
+            <span class="ps-bar"><i style="width:${Math.round((xp / PASS_STEP) * 100)}%"></i><em>${L >= PASS_LEVELS ? 'Пропуск пройден' : `${xp}/${PASS_STEP} до ур. ${L + 1}`}</em></span></div></div>
         ${p.premium ? `<div class="ps-on">${Ui.get('star')} Премиум активен${Store.d.admin ? ' · админ' : ''}</div>` : `<div class="ps-buy"><b>${Ui.get('star')} Премиум-пропуск</b><ul>${perks.map((x) => `<li>${x}</li>`).join('')}</ul><button class="btn gold rw-buy" data-act="rw-buy">Открыть за ${PASS_STARS} ⭐</button></div>`}
         <div class="ps-cols"><span>Бесплатно</span><span></span><span class="pr">Премиум</span></div>
         <div class="ps-track">${PASS.map(([f, pr], i) => `<div class="ps-row ${L > i ? 'reach' : ''}">${pcell(f, p.free.includes(i) ? 'got' : L > i ? 'ready' : 'lock', i, 'free')}<span class="ps-node">${i + 1}</span>${pcell(pr, p.prem.includes(i) ? 'got' : L > i ? (p.premium ? 'ready' : 'buy') : 'lock', i, 'prem')}</div>`).join('')}</div>
@@ -387,7 +393,8 @@ const Rewards = (() => {
       const here = box.querySelector('.rd-here'), path = box.querySelector('.rd-path'), fill = box.querySelector('.rd-fill');
       if (path && fill) fill.style.height = (here ? here.offsetTop + 26 : path.offsetHeight) + 'px';
       if (here && !scrolled) { scrolled = true; requestAnimationFrame(() => scrollTo(0, Math.max(0, here.getBoundingClientRect().top + scrollY - innerHeight * 0.42))); }
-      if (!box.dataset.roadIn) { box.dataset.roadIn = 1; $$('.rd-row, .rd-gate, .rd-here, .rd-hero', box).forEach((n, i) => n.animate && n.animate([{ transform: 'translateY(18px) scale(.94)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 360, delay: Math.min(600, i * 30), easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' })); }
+      // плавно проявляем дорогу целиком (каскад по каждому шагу на iPhone успевал показать пустой экран)
+      if (!box.dataset.roadIn) { box.dataset.roadIn = 1; const pth = box.querySelector('.rd-path'); if (pth && pth.animate) pth.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' }); }
     }
     header();
   }
@@ -406,5 +413,5 @@ const Rewards = (() => {
     header();
   }
 
-  return { onEnd, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S };
+  return { weekend, onEnd, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S };
 })();

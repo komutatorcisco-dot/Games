@@ -51,8 +51,11 @@ const Track = (() => {
   async function hello(extra = {}) {
     if (!on()) return;
     try {
-      const r = await post('/hello', { nick: Store.d.user.nick, platform: (TG && TG.platform) || '', version: ver(), ...extra });
+      const r = await post('/hello', { nick: Store.d.user.nick, platform: (TG && TG.platform) || '', version: ver(), remind: !(Store.d.ui && Store.d.ui.noRemind), ...extra });
       if (r && r.ok) safe('pass', () => Rewards.serverPass(r.pass));
+      if (r && r.ok) safe('starshop', () => StarShop.sync(r.shop));
+      // приз за кубок драфта прошлой недели — легендарный пак, один раз
+      if (r && r.ok && r.cupWin) { const g = Store.d.cupGot || (Store.d.cupGot = []); if (!g.includes(r.cupWin)) { g.push(r.cupWin); Store.save(); setTimeout(() => Rewards.openDrop({ title: 'КУБОК ДРАФТА НЕДЕЛИ · 1 МЕСТО', minLevel: 3 }), 2500); } }
       if (r && r.ok && !!r.admin !== !!Store.d.admin) { Store.d.admin = !!r.admin; Store.save(true); if (typeof App !== 'undefined') App.refresh(); }
     } catch (e) { /* нет сети */ }
   }
@@ -114,6 +117,12 @@ const Track = (() => {
         <div><b>+${st.new7}</b><small>новых за неделю</small></div>
         <div><b>${st.returnRate}%</b><small>вернулись хотя бы раз</small></div>
         <div><b>${st.reach}</b><small>бот может написать</small></div>
+        ${st.ret7 !== undefined ? `<div><b>${st.ret7}%</b><small>играют через неделю</small></div>
+        <div><b>${st.avgDays}</b><small>дней в игре в среднем</small></div>
+        <div><b>${st.avgOpens}</b><small>заходов на игрока</small></div>
+        <div><b>${st.online}</b><small>онлайн-матчей за 7 дней</small></div>
+        <div><b>${st.clubs}</b><small>клубов · ${st.inClubs} игроков</small></div>
+        <div><b>${st.reminded}</b><small>напоминаний сегодня · выкл. ${st.remindOff}</small></div>` : ''}
       </div>
       <h3 class="section-label">Игроки по дням</h3>
       <div class="ad-bars">${st.dau.map((d) => `<div><em>${d.n}</em><i style="height:${Math.round((d.n / max) * 100)}%"></i><small>${wd[new Date(d.day).getUTCDay()]}</small></div>`).join('')}</div>
@@ -122,6 +131,17 @@ const Track = (() => {
         ${st.games.map((g) => `<div class="ad-row"><span>${esc(g.title || g.game)}</span><span>${g.opens}</span><span>${g.opens ? Math.round((g.ends / g.opens) * 100) : 0}%</span><span>${g.players}</span><span>${sec(g.avgms)}</span></div>`).join('')}</div>
         <p class="ad-note">«Доиграли» — сколько открытий закончились экраном итога. Если мало — игру бросают на середине.</p>`
     : '<p class="ad-note">Пока нет данных — они появятся, когда игроки начнут играть.</p>'}
+      ${st.money ? `<h3 class="section-label">Звёзды</h3>
+      <div class="ad-kpis"><div><b>${st.money7.stars} ⭐</b><small>за 7 дней · покупок ${st.money7.n}</small></div><div><b>${st.money.reduce((x, m) => x + (m.stars || 0), 0)} ⭐</b><small>за всё время</small></div></div>
+      <div class="ad-list">${st.money.map((m) => `<div>${esc(m.item === 'pass' ? 'Премиум-пропуск' : m.item)} — ${m.n} шт · ${m.stars} ⭐</div>`).join('') || '<div>Покупок пока нет</div>'}</div>
+      <h3 class="section-label">Игроки по дням · 2 недели</h3>
+      <div class="ad-bars wide">${st.dau14.map((d) => `<div><em>${d.n}</em><i style="height:${Math.round((d.n / Math.max(1, ...st.dau14.map((x) => x.n))) * 100)}%"></i><small>${new Date(d.day).getUTCDate()}</small></div>`).join('')}</div>
+      <h3 class="section-label">Трофеи</h3>
+      <div class="ad-list">${st.troBuckets.map((b) => `<div>${b.b} 🏆 — ${b.n} игроков</div>`).join('') || '<div>—</div>'}</div>
+      <h3 class="section-label">Лучшие по трофеям</h3>
+      <div class="ad-list">${st.topTro.map((u, i) => `<div>${i + 1}. ${esc(u.emoji || '')} ${esc(u.nick)} — ${u.trophies} 🏆</div>`).join('') || '<div>—</div>'}</div>
+      <h3 class="section-label">Самые большие клубы</h3>
+      <div class="ad-list">${st.topClubs.map((c) => `<div>${esc(c.emoji || '')} ${esc(c.name)} — ${c.n} игроков</div>`).join('') || '<div>Клубов пока нет</div>'}</div>` : ''}
       <h3 class="section-label">Лучшие по опыту</h3>
       <div class="ad-list">${st.topXp.map((u, i) => `<div>${i + 1}. ${esc(u.emoji || '')} ${esc(u.nick)} — ${u.xp}</div>`).join('') || '<div>—</div>'}</div>
       <h3 class="section-label">Устройства</h3>

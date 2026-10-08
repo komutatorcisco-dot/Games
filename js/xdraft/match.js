@@ -457,6 +457,8 @@ const XMatch = (() => {
       if (M.score[0] === M.score[1]) { pens = penalties(); win = pens.sa > pens.sb; }
       T.res.push({ s: M.score.slice(), pens: pens ? { a: pens.a, b: pens.b } : null, win });
       if (!win || m.tour === 3) T.over = true; else T.round = m.tour + 1;
+      // кубок драфта недели: считаем выигранные турниры за эту неделю (уходит в таблицу на сервер)
+      if (win && m.tour === 3) { const wk = Release.weekKey(), c = Store.d.cup && Store.d.cup.week === wk ? Store.d.cup : (Store.d.cup = { week: wk, wins: 0 }); c.wins++; if (typeof Board !== 'undefined') Board.submit(); }
       Store.save();
       if (win && typeof confetti === 'function') confetti();
       Sound.play(win ? 'goal' : 'lose');

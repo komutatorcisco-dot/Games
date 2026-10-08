@@ -102,6 +102,20 @@ async function schema(db) {
     // покупки за звёзды: сезонный пропуск
     db.prepare('CREATE TABLE IF NOT EXISTS purchases (id INTEGER NOT NULL, item TEXT NOT NULL, season INTEGER NOT NULL DEFAULT 0, stars INTEGER NOT NULL DEFAULT 0, ts INTEGER NOT NULL, PRIMARY KEY (id, item, season))'),
     db.prepare('CREATE TABLE IF NOT EXISTS friends (a INTEGER NOT NULL, b INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (a, b))'),
+    // трофеи и победы по играм (для таблиц), кубок драфта недели
+    db.prepare('CREATE TABLE IF NOT EXISTS ustats (id INTEGER PRIMARY KEY, trophies INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS ustats_tro ON ustats (trophies DESC)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS gwins (id INTEGER NOT NULL, game TEXT NOT NULL, wins INTEGER NOT NULL, PRIMARY KEY (id, game))'),
+    db.prepare('CREATE INDEX IF NOT EXISTS gwins_game ON gwins (game, wins DESC)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS cup (week TEXT NOT NULL, id INTEGER NOT NULL, wins INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (week, id))'),
+    // клубы
+    db.prepare('CREATE TABLE IF NOT EXISTS clubs (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, name TEXT NOT NULL, emoji TEXT, owner INTEGER NOT NULL, created INTEGER NOT NULL)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS cmembers (id INTEGER PRIMARY KEY, club INTEGER NOT NULL, joined INTEGER NOT NULL)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS cmembers_club ON cmembers (club)'),
+    // напоминания: можно ли писать и когда писали последний раз
+    db.prepare('CREATE TABLE IF NOT EXISTS prefs (id INTEGER PRIMARY KEY, remind INTEGER NOT NULL DEFAULT 1, reminded TEXT)'),
+    // подбор соперника для онлайн-дуэли
+    db.prepare('CREATE TABLE IF NOT EXISTS mm (id INTEGER PRIMARY KEY, code TEXT NOT NULL, nick TEXT, emo TEXT, ts INTEGER NOT NULL, paired INTEGER)'),
   ]);
   ready = true;
 }
@@ -140,11 +154,31 @@ async function saveScore(env, user, body) {
     const tries = Math.max(1, Math.min(12, Math.floor(Number(d.tries) || 12)));
     ops.push(db.prepare('INSERT OR IGNORE INTO daily (day, id, tries, won, ts) VALUES (?, ?, ?, ?, ?)').bind(d.day, id, tries, d.won ? 1 : 0, now));
   }
+  // трофеи: только вверх и не больше 3000 за раз (защита от правки в браузере)
+  const tro = Math.max(0, Math.floor(Number(body.tro) || 0));
+  if (tro) {
+    const ot = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(id).first();
+    const t = ot ? Math.max(ot.trophies, Math.min(tro, ot.trophies + 3000)) : Math.min(tro, 5000);
+    ops.push(db.prepare('INSERT INTO ustats (id, trophies, updated) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET trophies = ?2, updated = ?3').bind(id, t, now));
+  }
+  // победы по играм: { 'ng:wordle': 12, … }
+  if (body.gw && typeof body.gw === 'object') {
+    Object.entries(body.gw).slice(0, 60).forEach(([g, w]) => {
+      if (!/^[a-z0-9:-]{2,40}$/.test(g)) return;
+      const n = Math.max(0, Math.min(100000, Math.floor(Number(w) || 0))); if (!n) return;
+      ops.push(db.prepare('INSERT INTO gwins (id, game, wins) VALUES (?1, ?2, ?3) ON CONFLICT(id, game) DO UPDATE SET wins = MAX(wins, ?3)').bind(id, g, n));
+    });
+  }
+  // кубок драфта недели: сколько турниров выиграл за эту неделю
+  if (body.cup && body.cup.week === wk) {
+    const n = Math.max(0, Math.min(200, Math.floor(Number(body.cup.wins) || 0)));
+    if (n) ops.push(db.prepare('INSERT INTO cup (week, id, wins, ts) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(week, id) DO UPDATE SET wins = MAX(wins, ?3), ts = CASE WHEN ?3 > wins THEN ?4 ELSE ts END').bind(wk, id, n, now));
+  }
   await db.batch(ops);
   return { xp };
 }
 
-async function top(env, user, scope) {
+async function top(env, user, scope, game = '') {
   const db = env.DB, now = Date.now(), id = user.id;
   await schema(db);
   let rows, me = null, total = 0;
@@ -177,6 +211,30 @@ async function top(env, user, scope) {
     total = rows.length;
     const i = rows.findIndex((r) => r.id === id);
     if (i >= 0) me = { place: i + 1, score: rows[i].score };
+  } else if (scope === 'tro') {
+    rows = (await db.prepare(`SELECT u.id, u.nick, u.emoji, s.trophies AS score FROM ustats s JOIN users u ON u.id = s.id WHERE s.trophies > 0 ORDER BY s.trophies DESC, s.updated ASC LIMIT ${TOP}`).all()).results;
+    total = (await db.prepare('SELECT COUNT(*) AS n FROM ustats WHERE trophies > 0').first()).n;
+    const mine = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(id).first();
+    if (mine && mine.trophies > 0) me = { place: (await db.prepare('SELECT COUNT(*) AS n FROM ustats WHERE trophies > ?').bind(mine.trophies).first()).n + 1, score: mine.trophies };
+  } else if (scope === 'game') {
+    const g = /^[a-z0-9:-]{2,40}$/.test(game) ? game : 'ng:wordle';
+    rows = (await db.prepare(`SELECT u.id, u.nick, u.emoji, g.wins AS score FROM gwins g JOIN users u ON u.id = g.id WHERE g.game = ? ORDER BY g.wins DESC LIMIT ${TOP}`).bind(g).all()).results;
+    total = (await db.prepare('SELECT COUNT(*) AS n FROM gwins WHERE game = ?').bind(g).first()).n;
+    const mine = await db.prepare('SELECT wins FROM gwins WHERE game = ? AND id = ?').bind(g, id).first();
+    if (mine) me = { place: (await db.prepare('SELECT COUNT(*) AS n FROM gwins WHERE game = ? AND wins > ?').bind(g, mine.wins).first()).n + 1, score: mine.wins };
+  } else if (scope === 'cup') {
+    const wk = weekKey(now);
+    rows = (await db.prepare(`SELECT u.id, u.nick, u.emoji, c.wins AS score FROM cup c JOIN users u ON u.id = c.id WHERE c.week = ? ORDER BY c.wins DESC, c.ts ASC LIMIT ${TOP}`).bind(wk).all()).results;
+    total = (await db.prepare('SELECT COUNT(*) AS n FROM cup WHERE week = ?').bind(wk).first()).n;
+    const i = rows.findIndex((r) => r.id === id); if (i >= 0) me = { place: i + 1, score: rows[i].score };
+  } else if (scope === 'clubs') {
+    const ws = weekStartDay(now);
+    rows = (await db.prepare(`SELECT c.id, c.name AS nick, c.emoji, COUNT(e.id) AS score FROM clubs c JOIN cmembers m ON m.club = c.id
+      LEFT JOIN events e ON e.id = m.id AND e.kind = 'win' AND e.day >= ? GROUP BY c.id ORDER BY score DESC LIMIT ${TOP}`).bind(ws).all()).results;
+    total = rows.length;
+    const my = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(id).first();
+    rows = rows.map((r) => ({ ...r, id: my && r.id === my.club ? id : -1 }));
+    const i = rows.findIndex((r) => r.id === id); if (i >= 0) me = { place: i + 1, score: rows[i].score };
   } else {
     rows = (await db.prepare(`SELECT id, nick, emoji, xp AS score FROM users WHERE xp > 0 ORDER BY xp DESC, updated ASC LIMIT ${TOP}`).all()).results;
     total = (await db.prepare('SELECT COUNT(*) AS n FROM users WHERE xp > 0').first()).n;
@@ -219,7 +277,12 @@ async function hello(env, user, body) {
     db.prepare('INSERT OR IGNORE INTO friends (a, b, ts) VALUES (?, ?, ?)').bind(Number(ref[1]), user.id, now),
   ]);
   const pass = (await db.prepare("SELECT season FROM purchases WHERE id = ? AND item = 'pass'").bind(user.id).all()).results.map((r) => r.season);
-  return { admin: await isAdminId(env, user.id), pass };
+  // покупки в магазине: клиент сам выдаёт те, что ещё не выдал (номер покупки n)
+  const shop = (await db.prepare("SELECT item, season AS n FROM purchases WHERE id = ? AND item != 'pass' ORDER BY ts DESC LIMIT 60").bind(user.id).all()).results;
+  if (typeof body.remind === 'boolean') await db.prepare('INSERT INTO prefs (id, remind) VALUES (?1, ?2) ON CONFLICT(id) DO UPDATE SET remind = ?2').bind(user.id, body.remind ? 1 : 0).run();
+  // приз за кубок драфта прошлой недели
+  const prev = weekKey(now - 7 * 864e5), cupWin = Number(await getSetting(db, 'cupwin:' + prev)) === user.id ? prev : null;
+  return { admin: await isAdminId(env, user.id), pass, shop, cupWin };
 }
 
 async function events(env, user, body) {
@@ -270,7 +333,25 @@ async function stats(env) {
   const topXp = await all('SELECT nick, emoji, xp FROM users ORDER BY xp DESC LIMIT 5');
   const reports = await all('SELECT ts, nick, text, info FROM reports ORDER BY ts DESC LIMIT 15');
   const platforms = await all('SELECT platform, COUNT(*) AS n FROM seen GROUP BY platform ORDER BY n DESC LIMIT 6');
-  return { total, newToday, new7, returnRate: oldEnough ? Math.round((returned / oldEnough) * 100) : 0, reach, dau, wau, games, topXp, reports, platforms };
+  // расширенное: трофеи, деньги, клубы, онлайн, напоминания, удержание на 7-й день
+  const topTro = await all('SELECT u.nick, u.emoji, s.trophies FROM ustats s JOIN users u ON u.id = s.id ORDER BY s.trophies DESC LIMIT 10');
+  const troBuckets = await all(`SELECT CASE WHEN trophies < 60 THEN '0–59' WHEN trophies < 230 THEN '60–229' WHEN trophies < 500 THEN '230–499' WHEN trophies < 1000 THEN '500–999' ELSE '1000+' END AS b, COUNT(*) AS n FROM ustats GROUP BY b`);
+  const money = await all("SELECT item, COUNT(*) AS n, SUM(stars) AS stars FROM purchases GROUP BY item ORDER BY stars DESC");
+  const money7 = (await one('SELECT COUNT(*) AS n, COALESCE(SUM(stars), 0) AS stars FROM purchases WHERE ts >= ?', now - 7 * 864e5));
+  const clubs = (await one('SELECT COUNT(*) AS n FROM clubs')).n || 0, inClubs = (await one('SELECT COUNT(*) AS n FROM cmembers')).n || 0;
+  const topClubs = await all('SELECT c.name, c.emoji, COUNT(m.id) AS n FROM clubs c JOIN cmembers m ON m.club = c.id GROUP BY c.id ORDER BY n DESC LIMIT 5');
+  let online = 0; for (const d of days) online += Number(await getSetting(db, 'mm:' + d)) || 0;
+  const reminded = Number(await getSetting(db, 'remind:' + days[6])) || 0;
+  const remindOff = (await one('SELECT COUNT(*) AS n FROM prefs WHERE remind = 0')).n || 0;
+  const old7 = (await one('SELECT COUNT(*) AS n FROM seen WHERE first < ?', now - 7 * 864e5)).n || 0;
+  const back7 = (await one('SELECT COUNT(*) AS n FROM seen WHERE first < ?1 AND last >= first + ?2', now - 7 * 864e5, 7 * 864e5)).n || 0;
+  const avgDays = (await one('SELECT ROUND(AVG(days), 1) AS a FROM seen')).a || 0;
+  const avgOpens = (await one('SELECT ROUND(AVG(opens), 1) AS a FROM seen')).a || 0;
+  const days14 = [...Array(14).keys()].map((i) => dayKey(now - i * 864e5)).reverse();
+  const dau14Rows = await all('SELECT day, COUNT(*) AS n FROM visits WHERE day >= ? GROUP BY day', days14[0]);
+  const dau14 = days14.map((d) => ({ day: d, n: (dau14Rows.find((r) => r.day === d) || {}).n || 0 }));
+  return { total, newToday, new7, returnRate: oldEnough ? Math.round((returned / oldEnough) * 100) : 0, reach, dau, wau, games, topXp, reports, platforms,
+    topTro, troBuckets, money, money7, clubs, inClubs, topClubs, online, reminded, remindOff, ret7: old7 ? Math.round((back7 / old7) * 100) : 0, avgDays, avgOpens, dau14 };
 }
 
 function statsText(st) {
@@ -334,9 +415,13 @@ async function weekly(env) {
   await setSetting(db, 'weekly', wk);
   const prev = weekKey(now - 7 * 864e5);
   const top3 = (await db.prepare(`SELECT u.nick, w.xp - w.start AS score FROM weekly w JOIN users u ON u.id = w.id WHERE w.week = ? AND w.xp > w.start ORDER BY score DESC LIMIT 3`).bind(prev).all()).results;
+  // кубок драфта недели: победитель получает приз при следующем входе
+  const cup = await db.prepare('SELECT c.id, u.nick, c.wins FROM cup c JOIN users u ON u.id = c.id WHERE c.week = ? ORDER BY c.wins DESC, c.ts ASC LIMIT 1').bind(prev).first();
+  if (cup) await setSetting(db, 'cupwin:' + prev, cup.id);
   const text = [
     '⚽ Новая неделя в играх «Стариков Джексонов»! Новые игры открываются на дороге трофеев — каждые 200 🏆',
     top3.length ? `\n🏆 Лучшие прошлой недели:\n${top3.map((r, i) => `${['🥇', '🥈', '🥉'][i]} ${r.nick} — ${r.score} оч.`).join('\n')}` : '',
+    cup ? `\n🏆 Кубок драфта недели: ${cup.nick} (${cup.wins} ${cup.wins === 1 ? 'турнир' : 'турниров'}) — забирает легендарный пак!` : '',
     '\nРейтинг недели обнулился — самое время забрать первое место ⚽',
   ].filter(Boolean).join('\n');
   return `отправлено: ${await broadcast(env, text)}`;
@@ -378,9 +463,10 @@ export default {
     const res = await route(request, env);
     return cors(new Response(res.body, res), request, env);
   },
-  // Cron-триггер (Settings → Trigger events): «0 8,9 * * 1» — понедельник 8:00 и 9:00 UTC, отправка только в 10:00 по Европе
+  // Cron-триггер раз в час («0 * * * *», ставит .github/workflows/worker.yml): рассылка по понедельникам в 10:00 по Европе,
+  // напоминания — в 18:00 по Москве. Каждая функция сама проверяет время и не шлёт дважды.
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(weekly(env));
+    ctx.waitUntil(weekly(env).then(() => reminders(env)));
   },
 };
 export { weekly, stats };
@@ -434,6 +520,125 @@ async function adminCommand(env, m) {
   }
 }
 
+// ---------- клубы: игроки объединяются, общая цель недели — победы всех участников ----------
+const weekStartDay = (t) => weekKey(t); // понедельник недели (события хранятся по дням)
+const CLUB_MAX = 30;
+const clubGoal = (n) => Math.max(40, n * 25); // побед за неделю на весь клуб
+const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+async function clubInfo(db, uid) {
+  const m = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first();
+  if (!m) return { club: null };
+  const c = await db.prepare('SELECT id, code, name, emoji, owner FROM clubs WHERE id = ?').bind(m.club).first();
+  if (!c) { await db.prepare('DELETE FROM cmembers WHERE id = ?').bind(uid).run(); return { club: null }; }
+  const ws = weekStartDay(Date.now());
+  const members = (await db.prepare(`SELECT m.id, u.nick, u.emoji, COALESCE(s.trophies, 0) AS trophies,
+      (SELECT COUNT(*) FROM events e WHERE e.id = m.id AND e.kind = 'win' AND e.day >= ?2) AS wins
+    FROM cmembers m LEFT JOIN users u ON u.id = m.id LEFT JOIN ustats s ON s.id = m.id WHERE m.club = ?1 ORDER BY wins DESC, trophies DESC`).bind(c.id, ws).all()).results;
+  const wins = members.reduce((a, x) => a + x.wins, 0);
+  return { club: { code: c.code, name: c.name, emoji: c.emoji || '⚽', owner: c.owner === uid, week: weekKey(Date.now()), wins, goal: clubGoal(members.length), max: CLUB_MAX,
+    members: members.map((x) => ({ nick: x.nick || 'Игрок', emoji: x.emoji || '⚽', trophies: x.trophies, wins: x.wins, me: x.id === uid })) } };
+}
+async function club(env, user, body) {
+  const db = env.DB, uid = user.id, now = Date.now();
+  await schema(db);
+  const leave = async () => {
+    const m = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first(); if (!m) return;
+    await db.prepare('DELETE FROM cmembers WHERE id = ?').bind(uid).run();
+    const left = await db.prepare('SELECT id FROM cmembers WHERE club = ? ORDER BY joined LIMIT 1').bind(m.club).first();
+    if (!left) await db.prepare('DELETE FROM clubs WHERE id = ?').bind(m.club).run();
+    else await db.prepare('UPDATE clubs SET owner = ?1 WHERE id = ?2 AND owner = ?3').bind(left.id, m.club, uid).run();
+  };
+  if (body.act === 'create') {
+    const name = clean(body.name, 20); if (name.length < 2) return { ok: false, error: 'Название — от 2 букв' };
+    await leave();
+    let code = '';
+    for (let k = 0; k < 6; k++) { code = Array.from({ length: 6 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join(''); if (!(await db.prepare('SELECT 1 FROM clubs WHERE code = ?').bind(code).first())) break; }
+    const r = await db.prepare('INSERT INTO clubs (code, name, emoji, owner, created) VALUES (?, ?, ?, ?, ?)').bind(code, name, clean(body.emoji, 4) || '⚽', uid, now).run();
+    await db.prepare('INSERT INTO cmembers (id, club, joined) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET club = ?2, joined = ?3').bind(uid, r.meta.last_row_id, now).run();
+  } else if (body.act === 'join') {
+    const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+    const c = await db.prepare('SELECT id FROM clubs WHERE code = ?').bind(code).first();
+    if (!c) return { ok: false, error: 'Клуб с таким кодом не найден' };
+    const n = (await db.prepare('SELECT COUNT(*) AS n FROM cmembers WHERE club = ?').bind(c.id).first()).n;
+    const mine = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first();
+    if (!(mine && mine.club === c.id)) {
+      if (n >= CLUB_MAX) return { ok: false, error: `В клубе уже ${CLUB_MAX} игроков` };
+      await leave();
+      await db.prepare('INSERT INTO cmembers (id, club, joined) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET club = ?2, joined = ?3').bind(uid, c.id, now).run();
+    }
+  } else if (body.act === 'leave') await leave();
+  return { ok: true, ...(await clubInfo(db, uid)) };
+}
+
+// ---------- онлайн: подбор случайного соперника для дуэли ----------
+// Первый ждёт (держит комнату PeerJS со своим кодом), второй получает его код и подключается сам.
+async function matchmake(env, user, body) {
+  const db = env.DB, uid = user.id, now = Date.now();
+  await schema(db);
+  await db.prepare('DELETE FROM mm WHERE ts < ?').bind(now - 30000).run();
+  if (body.act === 'cancel') { await db.prepare('DELETE FROM mm WHERE id = ?').bind(uid).run(); return { ok: true }; }
+  const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+  if (code.length !== 5) return { ok: false, error: 'bad code' };
+  // меня уже нашли — второй игрок подключается по моему коду, просто ждём
+  const me = await db.prepare('SELECT paired FROM mm WHERE id = ?').bind(uid).first();
+  if (me && me.paired) return { ok: true, role: 'host', paired: true };
+  // кто-то ещё ждёт: подключаемся к тому, кто ждёт дольше
+  const other = await db.prepare('SELECT id, code, nick, emo FROM mm WHERE id != ? AND paired IS NULL ORDER BY ts ASC LIMIT 1').bind(uid).first();
+  if (other) {
+    await db.batch([db.prepare('UPDATE mm SET paired = ? WHERE id = ?').bind(uid, other.id), db.prepare('DELETE FROM mm WHERE id = ?').bind(uid)]);
+    await setSetting(db, 'mm:' + dayKey(now), Number((await getSetting(db, 'mm:' + dayKey(now))) || 0) + 1);
+    return { ok: true, role: 'join', code: other.code, nick: other.nick, emo: other.emo };
+  }
+  await db.prepare('INSERT INTO mm (id, code, nick, emo, ts, paired) VALUES (?1, ?2, ?3, ?4, ?5, NULL) ON CONFLICT(id) DO UPDATE SET code = ?2, nick = ?3, emo = ?4, ts = ?5')
+    .bind(uid, code, clean(body.nick, 16), clean(body.emo, 4), now).run();
+  const waiting = (await db.prepare('SELECT COUNT(*) AS n FROM mm WHERE paired IS NULL').first()).n;
+  return { ok: true, role: 'host', paired: false, waiting };
+}
+
+// ---------- магазин за звёзды ----------
+// Цены и что выдаётся — одинаковые здесь и в js/shopstars.js
+const SHOP = {
+  legend: { stars: 39, title: 'Легендарный пак', desc: 'Пак с гарантированной легендарной редкостью' },
+  epic3: { stars: 49, title: '3 эпических пака', desc: 'Три пака эпической редкости' },
+  coins: { stars: 49, title: '2000 монет', desc: 'Монеты на счёт сразу' },
+  jack: { stars: 99, title: 'Пак «ДЖЕКСОН!!»', desc: 'Самый редкий пак игры' },
+  'skin:brawl': { stars: 29, title: 'Скин «Сочный»', desc: 'Оформление навсегда' },
+  'skin:ut': { stars: 29, title: 'Скин «Ultimate»', desc: 'Оформление навсегда' },
+  'skin:fcm': { stars: 29, title: 'Скин «FC Mobile»', desc: 'Оформление навсегда' },
+  'skin:ef': { stars: 29, title: 'Скин «eFootball»', desc: 'Оформление навсегда' },
+  'skin:kit': { stars: 29, title: 'Скин «Футболка»', desc: 'Оформление навсегда' },
+  'skin:cyber': { stars: 29, title: 'Скин «Киберспорт»', desc: 'Оформление навсегда' },
+};
+
+// ---------- напоминания от бота ----------
+// Раз в день в 18:00 по Москве — тем, кто разрешил писать, заходил за последние 2 недели, но сегодня ещё не открывал игры.
+const UNLOCK_AT = [[40, 'Тики-така'], [60, 'Пропуск и задания'], [80, 'Паки и Галерея'], [120, 'Козыри'], [170, 'Угадай игрока и Дуэль'], [230, 'Драфт'], [300, 'ИПК'],
+  ...['Угадай карьеру', 'Угадай счёт', 'Топ-10', 'Связи', 'Кто легендарнее?', 'Куда перешёл?', 'Машина времени', 'Тепло-холодно', 'Кто выше в FC 27?', 'Состав дня', 'Пас в ворота', 'Сортировка мячей', 'Требл дня', 'Угадай клуб', 'Кто я?', 'Дороже или дешевле', 'Номер в истории', 'Розыгрыш', 'Связка', 'Кто дороже?', 'Ложная девятка', 'Дартс 170', 'VS 100', 'Бинго', 'Box2Box на время', 'Рейтинг', '2048: Карьера', 'Филворд', 'Найди пару', 'Перекрась поле', 'Пятнашки', 'Поп-ит', 'Повтор гола']
+    .map((t, i) => [500 + i * 200, t])]; // копия js/release.js
+async function reminders(env) {
+  const db = env.DB, now = Date.now(), today = dayKey(now), h = msk(now).getUTCHours(), wd = msk(now).getUTCDay();
+  await schema(db);
+  if (h !== 18) return 'не время';
+  if ((await getSetting(db, 'remind')) === today) return 'уже';
+  await setSetting(db, 'remind', today);
+  const list = (await db.prepare(`SELECT s.id, COALESCE(t.trophies, 0) AS tro FROM seen s LEFT JOIN prefs p ON p.id = s.id LEFT JOIN ustats t ON t.id = s.id
+    WHERE s.writable = 1 AND s.last > ?1 AND s.lastday != ?2 AND COALESCE(p.remind, 1) = 1 AND COALESCE(p.reminded, '') != ?2 LIMIT 3000`).bind(now - 14 * 864e5, today).all()).results;
+  let sent = 0;
+  for (const r of list) {
+    const next = UNLOCK_AT.find(([t]) => t > r.tro);
+    const lines = ['🎁 Пак дня уже ждёт тебя — заходи забрать!'];
+    if (next && next[0] - r.tro <= 40) lines.push(`🔓 До новой игры «${next[1]}» осталось всего ${next[0] - r.tro} 🏆`);
+    if (wd === 0) lines.push('⏳ Задания недели закончатся завтра утром — успей забрать очки пропуска');
+    if (wd === 6 || wd === 0) lines.push('🔥 Выходные: за победы ×2 трофея');
+    const res = await tg(env, 'sendMessage', { chat_id: r.id, text: lines.join('\n'), reply_markup: { inline_keyboard: [[{ text: 'Играть', web_app: { url: `${ORIGIN}/Games/` } }]] } }).catch(() => null);
+    if (res && res.ok) { sent++; await db.prepare('INSERT INTO prefs (id, remind, reminded) VALUES (?1, 1, ?2) ON CONFLICT(id) DO UPDATE SET reminded = ?2').bind(r.id, today).run(); }
+    else if (res && res.error_code === 403) await db.prepare('UPDATE seen SET writable = 0 WHERE id = ?').bind(r.id).run();
+    await new Promise((ok) => setTimeout(ok, 40));
+  }
+  await setSetting(db, 'remind:' + today, sent);
+  return `напоминаний: ${sent}`;
+}
+
 async function route(request, env) {
   const url = new URL(request.url);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204 });
@@ -451,7 +656,7 @@ async function route(request, env) {
   }
 
   // ---------- рейтинг ----------
-  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats'].includes(url.pathname) && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
@@ -461,12 +666,14 @@ async function route(request, env) {
     if (url.pathname === '/hello') return json({ ok: true, ...(await hello(env, user, body)) });
     if (url.pathname === '/event') return json({ ok: true, ...(await events(env, user, body)) });
     if (url.pathname === '/report') return json(await report(env, user, body));
+    if (url.pathname === '/club') return json(await club(env, user, body));
+    if (url.pathname === '/mm') return json(await matchmake(env, user, body));
     if (url.pathname === '/admin/stats') {
       if (!(await isAdminId(env, user.id))) return json({ ok: false, error: 'forbidden' }, 403);
       return json({ ok: true, ...(await stats(env)) });
     }
-    const scope = ['week', 'all', 'day', 'friends'].includes(body.scope) ? body.scope : 'week';
-    return json({ ok: true, ...(await top(env, user, scope)) });
+    const scope = ['week', 'all', 'day', 'friends', 'tro', 'game', 'cup', 'clubs'].includes(body.scope) ? body.scope : 'week';
+    return json({ ok: true, ...(await top(env, user, scope, String(body.game || ''))) });
   }
 
   // ---------- донат ----------
@@ -482,6 +689,16 @@ async function route(request, env) {
       currency: 'XTR', prices: [{ label: 'Премиум-пропуск', amount: PASS_STARS }],
     });
     return json(r.ok ? { ok: true, link: r.result } : { ok: false, error: r.description });
+  }
+  if (url.pathname === '/invoice' && SHOP[url.searchParams.get('item')]) {
+    const user = await verifyInit(url.searchParams.get('initData'), env.BOT_TOKEN);
+    if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
+    const item = url.searchParams.get('item'), it = SHOP[item], n = Date.now() % 1e9; // n — номер покупки, чтобы одну и ту же вещь можно было купить снова
+    const r = await tg(env, 'createInvoiceLink', {
+      title: it.title, description: it.desc, payload: JSON.stringify({ item, n, uid: user.id }),
+      currency: 'XTR', prices: [{ label: it.title, amount: it.stars }],
+    });
+    return json(r.ok ? { ok: true, link: r.result, n } : { ok: false, error: r.description });
   }
   if (url.pathname === '/invoice') {
     const stars = Number(url.searchParams.get('stars'));
@@ -511,6 +728,10 @@ async function route(request, env) {
         await schema(env.DB);
         await env.DB.prepare('INSERT OR IGNORE INTO purchases (id, item, season, stars, ts) VALUES (?, ?, ?, ?, ?)').bind(u.message.from.id, 'pass', Number(pl.season) || 0, p.total_amount, Date.now()).run();
         await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Премиум-пропуск сезона ${pl.season} открыт ⭐ Забирай награды во вкладке «Награды»!` });
+      } else if (SHOP[pl.item] && env.DB) {
+        await schema(env.DB);
+        await env.DB.prepare('INSERT OR IGNORE INTO purchases (id, item, season, stars, ts) VALUES (?, ?, ?, ?, ?)').bind(u.message.from.id, pl.item, Number(pl.n) || 0, p.total_amount, Date.now()).run();
+        await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Покупка «${SHOP[pl.item].title}» прошла ⭐ Открой игру — награда уже ждёт!` });
       } else {
         await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Спасибо за ${p.total_amount} ⭐! Это очень помогает каналу 🙌` });
       }

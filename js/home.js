@@ -57,14 +57,17 @@ const Home = (() => {
         <span class="h2-bar"><i style="width:${pct}%"></i><small>${nx ? `${t} / ${nx.need}` : 'Всё открыто'}</small></span>
         <span class="h2-ni" title="${nx ? esc(nx.title) : ''}">${nxIco}${nx ? `<em>${Ui.get('lock')}</em>` : ''}</span>
       </button>
+      ${typeof Rewards !== 'undefined' && Rewards.weekend() ? `<div class="h2-ev">${Ui.get('bolt')} Выходные: ×2 трофея за игры</div>` : ''}
       <div class="h2-arena">
         <img class="h2-bg" src="img/bg/stadium.svg?v=2" alt="" aria-hidden="true">
         <div class="h2-side l">
           <button class="h2-sb ${dlyDone ? 'done' : 'hot'}" data-act="dly"><span class="h2-sbi dly"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>
           ${cards ? `<button class="h2-sb sq" data-act="squad"><span class="h2-sbi">${Ui.get('shirt')}</span><b>Состав</b></button>` : ''}
+          <button class="h2-sb cb" data-act="myclub"><span class="h2-sbi">${Ui.get('users')}</span><b>Клуб</b></button>
         </div>
         <div class="h2-side r">
           ${cards ? `<button class="h2-sb ${packReady ? 'hot' : 'done'}" data-act="wheel"><span class="h2-sbi">${PackOpen.art(packReady ? 1 : 0, 'rs')}</span><b>${packReady ? 'Пак дня' : 'Завтра'}</b></button>` : ''}
+          ${Release.isOut('ng:duel') ? `<button class="h2-sb on" data-act="online"><span class="h2-sbi">${Ui.get('swords')}</span><b>Онлайн</b></button>` : ''}
           ${cards && pend ? `<button class="h2-sb hot cnt" data-act="rw-packs"><span class="h2-sbi">${PackOpen.art(0, 'rs')}<em>${pend}</em></span><b>За победы</b></button>` : ''}
         </div>
         ${g ? `<button class="h2-game" data-h2="pick" style="--c1:${g.c1};--c2:${g.c2}" aria-label="Сменить игру">
@@ -76,6 +79,7 @@ const Home = (() => {
     if (typeof Icons !== 'undefined') Icons.fill(box);
     fit();
     island(); wall();
+    if (typeof Coach !== 'undefined') later(() => Coach.maybe(), 1800);
     later(checkUnlocks, 500);
   }
   // фон главной: наклонная стена из карточек твоей коллекции; чего ещё нет — рубашка «ДЖ». Медленно едет по диагонали

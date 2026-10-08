@@ -150,6 +150,7 @@ const App = (() => {
     $('#set-wheel').textContent = safe('wheel', () => Wheel.ready()) ? 'Открыть' : 'Завтра';
     $('#set-music').textContent = Store.d.music ? 'Вкл' : 'Выкл';
     $('#set-sound').textContent = Store.d.sound ? 'Вкл' : 'Выкл';
+    { const r = $('#set-remind'); if (r) r.textContent = Store.d.ui && Store.d.ui.noRemind ? 'Выкл' : 'Вкл'; }
     Coins.render();
     User.render();
   }
@@ -427,6 +428,10 @@ const App = (() => {
     'ttt-skip': () => TTT.skip(),
     wheel: () => Wheel.open(),
     skins: () => Skins.open(),
+    myclub: () => Clubs.open(),
+    online: () => { Track.open('ng:duel', 'Футбольная дуэль'); NG.open('duel', { mode: 'rnd' }); },
+    starshop: () => StarShop.open(),
+    remind: () => { const ui = Store.d.ui || (Store.d.ui = {}); ui.noRemind = !ui.noRemind; Store.save(); Track.hello({ remind: !ui.noRemind }); renderProfile(); toast(ui.noRemind ? 'Напоминания выключены' : 'Напоминания включены'); },
     runner: () => {
       const f = $('#runner-frame');
       if (!f.getAttribute('src')) f.src = 'runner.html';
@@ -471,7 +476,7 @@ const App = (() => {
     // каждый модуль подключаем отдельно: ошибка в одном не должна ломать весь экран
     [['Pass', () => Pass.bind()], ['Guess', () => Guess.bind()], ['Career', () => Career.bind()], ['Club', () => Club.bind()], ['Transfer', () => Transfer.bind()],
       ['TTT', () => TTT.bind()], ['Compare', () => Compare.bind()], ['Auction', () => Auction.bind()], ['Nation', () => Nation.bind()], ['Pick', () => Pick.bind()],
-      ['Daily', () => Daily.bind()], ['Shop', () => Shop.bind()], ['Board', () => Board.bind()], ['Rewards', () => Rewards.bind()], ['XDraft', () => { XDraft.bind(); XMatch.bind(); }], ['SBC', () => SBC.bind()], ['Squad', () => Squad.bind()], ['Home', () => Home.bind()],
+      ['Daily', () => Daily.bind()], ['Shop', () => Shop.bind()], ['Board', () => Board.bind()], ['Rewards', () => Rewards.bind()], ['XDraft', () => { XDraft.bind(); XMatch.bind(); }], ['SBC', () => SBC.bind()], ['Squad', () => Squad.bind()], ['Home', () => Home.bind()], ['Clubs', () => Clubs.bind()],
       ['Howto', () => Howto.addButtons()], ['Music', () => Music.arm()], ['Gate', () => Gate.start()]].forEach(([n, f]) => safe(n, f));
     document.addEventListener('pointerdown', (e) => {
       Coins.last = { x: e.clientX, y: e.clientY };
@@ -529,6 +534,7 @@ const App = (() => {
     const deep = { board: 'board', top: 'board', puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop', xdraft: 'xdraft', sbc: 'sbc' };
     safe('renderHub', renderHub);
     if (Duel.deep(h)) { /* вызов на дуэль или комната */ }
+    else if (Clubs.deep(h)) { /* приглашение в клуб */ }
     else if (h !== 'puzzles' && (PANELS.includes(h) || CATS.includes(h))) { home(h); }
     else if (deep[h]) { actions[deep[h]](); Howto.forAct(deep[h]); }
     else if (NG.list.some((g) => g.id === h)) { if (h === 'box2box') actions.b2b(); else NG.open(h); Howto.auto('ng-' + h); }

@@ -233,12 +233,13 @@ const Duel = (() => {
         b.innerHTML = `<div class="du-hero"><div class="du-hero-vs"><span>${me().emo}</span><i>VS</i><span>🙂</span></div>
             <p>8 вопросов: лица, клубы, номера, голы и счёт легендарных матчей. Чем быстрее верный ответ, тем больше очков.</p></div>
           <div class="du-modes">
+            <button class="du-mode rnd" data-du="rnd" style="--i:0"><span class="du-mi">${Ui.get('swords')}</span><span><b>Случайный соперник</b><small>Найдём живого игрока онлайн прямо сейчас</small></span></button>
             <button class="du-mode live" data-du="live" style="--i:0"><span class="du-mi">${Ui.get('bolt')}</span><span><b>Онлайн в реальном времени</b><small>Отправь другу ссылку и играйте одновременно</small></span></button>
             <button class="du-mode link" data-du="link" style="--i:1"><span class="du-mi">${Ui.get('link')}</span><span><b>Вызов по ссылке</b><small>Сыграй сейчас, а друг потом, когда удобно. Вопросы те же</small></span></button>
             <button class="du-mode hot" data-du="hot" style="--i:2"><span class="du-mi">${Ui.get('phone')}</span><span><b>На одном телефоне</b><small>Отвечаете по очереди и передаёте телефон</small></span></button>
           </div>
           ${h.length ? `<h4 class="du-h">Последние дуэли</h4><div class="du-hist">${h.map((x) => `<div class="du-hrow ${x.res}"><span>${Ui.get(x.mode === 'live' ? 'bolt' : x.mode === 'hot' ? 'phone' : 'link')} ${esc(x.vs)}</span><b>${x.my} : ${x.op == null ? '?' : x.op}</b><i>${x.res === 'win' ? 'Победа' : x.res === 'lose' ? 'Поражение' : x.res === 'draw' ? 'Ничья' : 'Ждём друга'}</i></div>`).join('')}</div>` : ''}`;
-        acts = { live: liveMenu, link: () => solo(newSeed(), null), hot: hotSetup };
+        acts = { rnd: random, live: liveMenu, link: () => solo(newSeed(), null), hot: hotSetup };
       }
 
       // ---------- вызов по ссылке: создать или принять ----------
@@ -410,6 +411,37 @@ const Duel = (() => {
         acts = { live: liveMenu, link: () => solo(newSeed(), null), menu };
       }
       const peerOpts = () => Object.assign({ debug: 0 }, window.DUEL_PEER || {});
+      // ---------- случайный соперник: сервер сводит двух ищущих, дальше — как обычная комната ----------
+      let mmOn = false;
+      const mm = (body) => Board.post('/mm', body).catch(() => ({ ok: false }));
+      const mmStop = () => { if (mmOn) { mmOn = false; mm({ act: 'cancel' }); } };
+      async function random() {
+        if (!Board.ready()) { toast('Онлайн работает в Telegram через бота @JacksonGamesbot'); return; }
+        api.sub('Случайный соперник');
+        connecting('Ищем соперника…');
+        acts = { menu: () => { mmStop(); menu(); } };
+        try { await loadPeer(); } catch (e) { return fail('Не получилось загрузить онлайн-режим'); }
+        if (!alive) return;
+        const code = Array.from({ length: 5 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join('');
+        stopPeer(); mmOn = true;
+        const t0 = Date.now();
+        peer = new window.Peer(PEER_PREFIX + code, peerOpts());
+        peer.on('connection', (c) => { if (conn) { c.on('open', () => c.close()); return; } mmStop(); wire(c, true); });
+        peer.on('error', (e) => { if (e.type === 'unavailable-id') { mmStop(); random(); } else if (!conn) { mmStop(); fail('Не удалось выйти в онлайн'); } });
+        const poll = async () => {
+          if (!alive || !mmOn || conn) return;
+          const r = await mm({ act: 'find', code, nick: me().nick, emo: me().emo });
+          if (!alive || !mmOn || conn) return;
+          if (r.ok && r.role === 'join') { mmOn = false; toast(`Соперник найден: ${String(r.nick || 'Игрок').slice(0, 16)}`); return join(r.code); }
+          const w = $('.du-wait h3', b); if (w) w.textContent = r.ok && r.waiting > 1 ? `Ищем соперника… онлайн ищут: ${r.waiting}` : 'Ищем соперника…';
+          if (Date.now() - t0 > 60000) { mmStop(); stopPeer(); b.innerHTML = `<div class="du-intro"><div class="du-big-emo">${Ui.get('users')}</div><h3>Пока никого нет онлайн</h3>
+            <p>Позови друга в комнату или брось вызов по ссылке — он сыграет, когда сможет.</p>
+            <button class="btn gold" data-du="rnd">Искать ещё</button><button class="btn" data-du="live">${Ui.get('bolt')} Комната для друга</button><button class="btn ghost" data-du="menu">Назад</button></div>`;
+            acts = { rnd: random, live: liveMenu, menu }; return; }
+          T(poll, 3000);
+        };
+        peer.on('open', poll);
+      }
       async function host() {
         connecting('Создаём комнату…');
         acts = { menu };
@@ -526,8 +558,9 @@ const Duel = (() => {
       else if (opts.mode === 'live') liveMenu();
       else if (opts.mode === 'link') solo(newSeed(), null);
       else if (opts.mode === 'hot') hotSetup();
+      else if (opts.mode === 'rnd') random();
       else menu();
-      return () => { alive = false; clearT(); stopPeer(); };
+      return () => { alive = false; clearT(); mmStop(); stopPeer(); };
     },
   });
 
