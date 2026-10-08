@@ -36,15 +36,21 @@ const Clubs = (() => {
     try { await Promise.race([call({ act: 'get' }), new Promise((_, bad) => setTimeout(() => bad(new Error('timeout')), 10000))]); failed = false; } catch (e) { failed = true; }
     loading = false; if (onScreen()) render();
   }
-  // чат обновляется сам, пока открыт экран клуба
+  // чат обновляется сам, пока открыт экран клуба: раз в 15 секунд и только новые сообщения (бережём лимит базы)
   function startPoll() {
     clearInterval(poll);
-    poll = setInterval(() => {
+    poll = setInterval(async () => {
       if (!onScreen()) { clearInterval(poll); poll = null; return; }
       if (!data || busy || document.hidden || tab !== 'chat') return;
-      const before = data.chat.length && data.chat[data.chat.length - 1].id;
-      call({ act: 'get' }).then(() => { const after = data && data.chat.length && data.chat[data.chat.length - 1].id; if (after !== before && onScreen() && tab === 'chat') renderTab(true); }).catch(() => {});
-    }, 6000);
+      const last = data.chat.length ? data.chat[data.chat.length - 1].id : 0;
+      try {
+        const r = await Board.post('/club', { act: 'poll', after: last });
+        if (!r || !r.ok || !data) return;
+        if (r.club === null) { data = null; return render(); }
+        data.reqs = r.reqs || data.reqs;
+        if (r.chat && r.chat.length) { data.chat = data.chat.concat(r.chat).slice(-60); if (onScreen() && tab === 'chat') renderTab(true); }
+      } catch (e) { /* нет сети — попробуем позже */ }
+    }, 15000);
   }
   // подарки от соклубников приходят с сервера один раз — сразу в коллекцию
   function gifts() {
@@ -276,6 +282,12 @@ const Clubs = (() => {
     return true;
   }
   // фоновая проверка для красной точки на главной
-  function peek() { if (!api()) return Promise.resolve(0); return call({ act: 'get' }).then(() => pending()).catch(() => 0); }
+  function peek() {
+    if (!api()) return Promise.resolve(0);
+    // не чаще раза в час — красная точка не стоит лишних запросов к базе
+    const u = Store.d.ui || (Store.d.ui = {}); if (Date.now() - (u.clubPeek || 0) < 36e5) return Promise.resolve(0);
+    u.clubPeek = Date.now(); Store.save(true);
+    return call({ act: 'get' }).then(() => pending()).catch(() => 0);
+  }
   return { open, bind, deep, load, peek, pending: () => pending() };
 })();

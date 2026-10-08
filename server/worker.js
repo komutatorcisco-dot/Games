@@ -117,9 +117,15 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS cinfo (club INTEGER PRIMARY KEY, descr TEXT, mintro INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE TABLE IF NOT EXISTS cchat (id INTEGER PRIMARY KEY AUTOINCREMENT, club INTEGER NOT NULL, uid INTEGER NOT NULL, ts INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT, meta TEXT)'),
     db.prepare('CREATE INDEX IF NOT EXISTS cchat_club ON cchat (club, id)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS purchases_id ON purchases (id)'),
+    // победы за неделю на игрока — счётчик, чтобы клуб и лига не пересчитывали всю таблицу событий
+    db.prepare('CREATE TABLE IF NOT EXISTS cwins (id INTEGER NOT NULL, week TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (week, id))'),
     db.prepare('CREATE TABLE IF NOT EXISTS creq (id INTEGER PRIMARY KEY AUTOINCREMENT, club INTEGER NOT NULL, uid INTEGER NOT NULL, card TEXT NOT NULL, rar TEXT NOT NULL, need INTEGER NOT NULL, got INTEGER NOT NULL DEFAULT 0, ts INTEGER NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS cgift (id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, card TEXT NOT NULL, frm TEXT, ts INTEGER NOT NULL, done INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE TABLE IF NOT EXISTS cdon (id INTEGER NOT NULL, week TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (id, week))'),
+    db.prepare('CREATE INDEX IF NOT EXISTS creq_club ON creq (club, ts)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS creq_uid ON creq (uid, ts)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS cgift_uid ON cgift (uid, done)'),
     // напоминания: можно ли писать и когда писали последний раз
     db.prepare('CREATE TABLE IF NOT EXISTS prefs (id INTEGER PRIMARY KEY, remind INTEGER NOT NULL DEFAULT 1, reminded TEXT)'),
     // подбор соперника для онлайн-дуэли
@@ -240,9 +246,9 @@ async function top(env, user, scope, game = '') {
     total = (await db.prepare('SELECT COUNT(*) AS n FROM cup WHERE week = ?').bind(wk).first()).n;
     const i = rows.findIndex((r) => r.id === id); if (i >= 0) me = { place: i + 1, score: rows[i].score };
   } else if (scope === 'clubs') {
-    const ws = weekStartDay(now);
-    rows = (await db.prepare(`SELECT c.id, c.name AS nick, c.emoji, COUNT(e.id) AS score FROM clubs c JOIN cmembers m ON m.club = c.id
-      LEFT JOIN events e ON e.id = m.id AND e.kind = 'win' AND e.day >= ? GROUP BY c.id ORDER BY score DESC LIMIT ${TOP}`).bind(ws).all()).results;
+    const wk = weekKey(now); await fillWins(db, wk);
+    rows = (await db.prepare(`SELECT c.id, c.name AS nick, c.emoji, COALESCE(SUM(w.n), 0) AS score FROM clubs c JOIN cmembers m ON m.club = c.id
+      LEFT JOIN cwins w ON w.week = ? AND w.id = m.id GROUP BY c.id ORDER BY score DESC LIMIT ${TOP}`).bind(wk).all()).results;
     total = rows.length;
     const my = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(id).first();
     rows = rows.map((r) => ({ ...r, id: my && r.id === my.club ? id : -1 }));
@@ -331,6 +337,8 @@ async function events(env, user, body) {
     // русские названия игр для статистики
     ...list.filter((e) => e.title).map((e) => db.prepare('INSERT INTO names (game, title) VALUES (?1, ?2) ON CONFLICT(game) DO UPDATE SET title = ?2').bind(e.game, clean(e.title, 40))),
   ]);
+  const w = list.filter((e) => e.kind === 'win').length;
+  if (w) { await fillWins(db, weekKey(now)); await db.prepare('INSERT INTO cwins (id, week, n) VALUES (?1, ?2, ?3) ON CONFLICT(week, id) DO UPDATE SET n = n + ?3').bind(user.id, weekKey(now), w).run(); }
   return { saved: list.length };
 }
 
@@ -562,25 +570,36 @@ const clubGoal = (n) => Math.max(40, n * 25); // побед за неделю н
 const CODE_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 // роли: 3 — президент (создатель), 2 — вице-президент, 1 — капитан, 0 — игрок
 const REQ_NEED = { bronze: 8, silver: 4, gold: 1 }, REQ_EVERY = 7 * 3600e3;
-const prevWeekStart = (t) => weekKey(t - 7 * 864e5);
-async function clubPlaces(db, ws, we) {
-  // места клубов в клубной лиге: сумма побед участников за неделю [ws, we)
-  const q = we
-    ? db.prepare(`SELECT c.id, COUNT(e.id) AS w FROM clubs c JOIN cmembers m ON m.club = c.id LEFT JOIN events e ON e.id = m.id AND e.kind = 'win' AND e.day >= ? AND e.day < ? GROUP BY c.id ORDER BY w DESC, c.id ASC`).bind(ws, we)
-    : db.prepare(`SELECT c.id, COUNT(e.id) AS w FROM clubs c JOIN cmembers m ON m.club = c.id LEFT JOIN events e ON e.id = m.id AND e.kind = 'win' AND e.day >= ? GROUP BY c.id ORDER BY w DESC, c.id ASC`).bind(ws);
-  return (await q.all()).results;
+// счётчик побед недели заполняется из таблицы событий один раз (для недель до появления счётчика)
+async function fillWins(db, wk) {
+  if (fillWins.done && fillWins.done[wk]) return;
+  if (await getSetting(db, 'cwins:' + wk)) { (fillWins.done = fillWins.done || {})[wk] = 1; return; }
+  await setSetting(db, 'cwins:' + wk, 1);
+  const next = weekKey(new Date(wk + 'T12:00:00Z').getTime() + 8 * 864e5);
+  await db.prepare(`INSERT INTO cwins (id, week, n) SELECT id, ?1, COUNT(*) FROM events WHERE day >= ?1 AND day < ?2 AND kind = 'win' GROUP BY id
+    ON CONFLICT(week, id) DO UPDATE SET n = excluded.n`).bind(wk, next).run();
+  (fillWins.done = fillWins.done || {})[wk] = 1;
+}
+// места клубов в клубной лиге недели — считаем не чаще раза в 10 минут (прошлую неделю — один раз)
+async function clubPlaces(db, wk, final) {
+  const key = 'league:' + wk, now = Date.now();
+  try { const c = JSON.parse((await getSetting(db, key)) || 'null'); if (c && (c.final || now - c.ts < 10 * 6e4)) return c.list; } catch (e) { /* пересчитаем */ }
+  await fillWins(db, wk);
+  const list = (await db.prepare(`SELECT m.club AS id, SUM(w.n) AS w FROM cwins w JOIN cmembers m ON m.id = w.id WHERE w.week = ? GROUP BY m.club ORDER BY w DESC, m.club ASC LIMIT 500`).bind(wk).all()).results.map((r) => [r.id, r.w]);
+  await setSetting(db, key, JSON.stringify({ ts: now, final: !!final, list }));
+  return list;
 }
 async function clubInfo(db, uid) {
   const m = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first();
   if (!m) return { club: null };
   const c = await db.prepare('SELECT id, code, name, emoji, owner FROM clubs WHERE id = ?').bind(m.club).first();
   if (!c) { await db.prepare('DELETE FROM cmembers WHERE id = ?').bind(uid).run(); return { club: null }; }
-  const now = Date.now(), ws = weekStartDay(now), wk = weekKey(now);
-  const members = (await db.prepare(`SELECT m.id, u.nick, u.emoji, COALESCE(s.trophies, 0) AS trophies, COALESCE(r.role, 0) AS role, COALESCE(d.n, 0) AS don, se.last AS seen,
-      (SELECT COUNT(*) FROM events e WHERE e.id = m.id AND e.kind = 'win' AND e.day >= ?2) AS wins
+  const now = Date.now(), wk = weekKey(now);
+  await fillWins(db, wk);
+  const members = (await db.prepare(`SELECT m.id, u.nick, u.emoji, COALESCE(s.trophies, 0) AS trophies, COALESCE(r.role, 0) AS role, COALESCE(d.n, 0) AS don, se.last AS seen, COALESCE(w.n, 0) AS wins
     FROM cmembers m LEFT JOIN users u ON u.id = m.id LEFT JOIN ustats s ON s.id = m.id LEFT JOIN crole r ON r.id = m.id
-    LEFT JOIN cdon d ON d.id = m.id AND d.week = ?3 LEFT JOIN seen se ON se.id = m.id
-    WHERE m.club = ?1 ORDER BY trophies DESC`).bind(c.id, ws, wk).all()).results;
+    LEFT JOIN cdon d ON d.id = m.id AND d.week = ?2 LEFT JOIN seen se ON se.id = m.id LEFT JOIN cwins w ON w.week = ?2 AND w.id = m.id
+    WHERE m.club = ?1 ORDER BY trophies DESC`).bind(c.id, wk).all()).results;
   const wins = members.reduce((a, x) => a + x.wins, 0);
   const info = (await db.prepare('SELECT descr, mintro FROM cinfo WHERE club = ?').bind(c.id).first()) || {};
   const chat = (await db.prepare(`SELECT h.id, h.uid, h.ts, h.kind, h.text, h.meta, u.nick, u.emoji FROM cchat h LEFT JOIN users u ON u.id = h.uid WHERE h.club = ? ORDER BY h.id DESC LIMIT 40`).bind(c.id).all()).results.reverse();
@@ -590,13 +609,13 @@ async function clubInfo(db, uid) {
   const gifts = (await db.prepare('SELECT id, card, frm FROM cgift WHERE uid = ? AND done = 0 LIMIT 40').bind(uid).all()).results;
   if (gifts.length) await db.prepare(`UPDATE cgift SET done = 1 WHERE id IN (${gifts.map(() => '?').join(',')})`).bind(...gifts.map((g) => g.id)).run();
   // клубная лига: место на этой неделе и итог прошлой
-  const cur = await clubPlaces(db, ws), prev = await clubPlaces(db, prevWeekStart(now), ws);
-  const place = cur.findIndex((x) => x.id === c.id) + 1, pi = prev.findIndex((x) => x.id === c.id);
+  const cur = await clubPlaces(db, wk), prev = await clubPlaces(db, weekKey(now - 7 * 864e5), true);
+  const place = cur.findIndex((x) => x[0] === c.id) + 1, pi = prev.findIndex((x) => x[0] === c.id);
   const role = (x) => (x.id === c.owner ? 3 : Math.min(2, x.role));
   const me = members.find((x) => x.id === uid);
   return { club: { code: c.code, name: c.name, emoji: c.emoji || '⚽', descr: info.descr || '', mintro: info.mintro || 0, week: wk, prevWeek: weekKey(now - 7 * 864e5), wins, goal: clubGoal(members.length), max: CLUB_MAX,
     myRole: me ? role(me) : 0, me: uid, trophies: members.reduce((a, x) => a + x.trophies, 0),
-    league: { place, clubs: cur.length, prevPlace: pi >= 0 && prev[pi].w > 0 ? pi + 1 : 0 },
+    league: { place, clubs: Math.max(cur.length, place), prevPlace: pi >= 0 && prev[pi][1] > 0 ? pi + 1 : 0 },
     nextReq: myReq ? Math.max(0, myReq.ts + REQ_EVERY - now) : 0,
     members: members.map((x) => ({ uid: x.id, nick: x.nick || 'Игрок', emoji: x.emoji || '⚽', trophies: x.trophies, wins: x.wins, role: role(x), don: x.don, seen: x.seen || 0, me: x.id === uid })),
     chat: chat.map((h) => ({ id: h.id, uid: h.uid, ts: h.ts, kind: h.kind, text: h.text || '', meta: h.meta ? JSON.parse(h.meta) : null, nick: h.nick || 'Игрок', emoji: h.emoji || '⚽', me: h.uid === uid })),
@@ -650,7 +669,14 @@ async function club(env, user, body) {
       await say(c.id, 'sys', `${await nickOf(uid)} вступил в клуб`);
     }
   } else if (body.act === 'leave') await leave();
-  else if (body.act !== 'get') {
+  else if (body.act === 'poll') {
+    // лёгкое обновление чата: только новые сообщения и открытые запросы
+    const m = await mine(); if (!m) return { ok: true, club: null };
+    const chat = (await db.prepare(`SELECT h.id, h.uid, h.ts, h.kind, h.text, h.meta, u.nick, u.emoji FROM cchat h LEFT JOIN users u ON u.id = h.uid WHERE h.club = ? AND h.id > ? ORDER BY h.id LIMIT 40`).bind(m.club, Number(body.after) || 0).all()).results;
+    const reqs = (await db.prepare('SELECT id, uid, card, rar, need, got, ts FROM creq WHERE club = ? AND ts > ? AND got < need').bind(m.club, now - 24 * 3600e3).all()).results;
+    return { ok: true, poll: true, chat: chat.map((h) => ({ id: h.id, uid: h.uid, ts: h.ts, kind: h.kind, text: h.text || '', meta: h.meta ? JSON.parse(h.meta) : null, nick: h.nick || 'Игрок', emoji: h.emoji || '⚽', me: h.uid === uid })),
+      reqs: reqs.map((r) => ({ id: r.id, uid: r.uid, card: r.card, rar: r.rar, need: r.need, got: r.got, ts: r.ts, me: r.uid === uid })) };
+  } else if (body.act !== 'get') {
     const m = await mine(); if (!m) return err('Ты не в клубе');
     if (body.act === 'say') {
       const text = String(body.text || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 200); if (!text) return err('Пустое сообщение');
