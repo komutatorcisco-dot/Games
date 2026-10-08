@@ -535,7 +535,7 @@ const App = (() => {
     else { Screens.show('hub'); User.ensure(); }
     claimDaily();
     // облако Telegram: если там сохранение новее (зашёл с другого устройства) — подхватываем его
-    Cloud.pull().then((got) => {
+    const cloud = Cloud.pull().then((got) => {
       Board.submit();
       Track.hello();
       if (!got) return;
@@ -543,6 +543,8 @@ const App = (() => {
       if (Screens.current === 'hub') { renderHub(); if (Store.d.user.nick && $('#nick-in')) Modal.close(); }
       toast('Прогресс загружен из облака Telegram');
     });
+    // загрузочный экран уходит, когда подтянулись облако, шрифты и картинки главной
+    if (window.Boot) Boot.afterInit(cloud);
   }
 
   // перерисовать главную/профиль (например, когда сервер сообщил, что это админ)
