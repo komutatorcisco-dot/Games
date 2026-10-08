@@ -21,7 +21,7 @@ const XMatch = (() => {
     const rgb = (x) => { const v = String(x).replace('#', ''); return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) || 0); };
     const dist = (a, b) => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
     if (dist(home[0], away[0]) < 150) away = dist(home[0], '#f4f4f4') < 150 ? ['#e3243f', '#ffffff'] : ['#f4f4f4', '#1a1446'];
-    Arena3D.match(stage, { form: [C.form(), m.bot.form], slots: XD.FORMATIONS, kits: [home, away], ball: Arena3D.ballState().ball, names: [String(Store.d.user.nick || 'ДЖЕКСОНЫ').toUpperCase()], onIdle: () => {}, visible: () => Screens.current === ctx.screen })
+    Arena3D.match(stage, { form: [C.form(), m.bot.form], slots: XD.FORMATIONS, kits: [home, away], ball: Arena3D.ballState().ball, names: [String(Store.d.user.nick || 'ДЖЕКСОНЫ').toUpperCase()], players: [C.xi().map((p) => sur(p && p.name)), m.bot.xi.map((n) => sur(n))], visible: () => Screens.current === ctx.screen })
       .then((a) => { if (!a) return; if (!stage.isConnected || !M || M.over) { a.stop(); return; } A3 = a; stage.classList.add('is3d'); })
       .catch(() => { /* без 3D — остаётся вид сверху */ });
   }

@@ -126,7 +126,7 @@ const Arena3D = (() => {
     };
     const L = leg(-1), Rg = leg(1), aL = arm(-1), aR = arm(1);
     root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-    root.scale.setScalar(1.15);
+    root.scale.setScalar(1.55);
     let ph = R(4) * 6;
     // бег: шаг ног и рук от скорости, голова чуть покачивается
     root.userData.animate = (dt, speed) => {
@@ -416,7 +416,12 @@ const Arena3D = (() => {
       });
     });
     const all = [...team[0], ...team[1]];
-    const ballM = ball(opts.ball || 'classic'); ballM.position.set(0, 0.34, 0); scene.add(ballM);
+    // подпись над игроком с мячом — как в менеджерах
+    const tag = document.createElement('div'); tag.className = 'a3d-tag'; host.appendChild(tag);
+    team.forEach((t, s) => t.forEach((p, i) => { p.name = (opts.players && opts.players[s] && opts.players[s][i]) || ''; }));
+    const pv = new THREE.Vector3();
+    const homeMid = team.map((t) => { const o = t.filter((p) => !p.gk); return o.reduce((a, p) => a + p.home.x, 0) / o.length; });
+    const ballM = ball(opts.ball || 'classic', 0.5); ballM.position.set(0, 0.34, 0); scene.add(ballM);
     const shadowBlob = new THREE.Mesh(new THREE.CircleGeometry(0.4, 16), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false })); shadowBlob.rotation.x = -Math.PI / 2; shadowBlob.position.y = 0.02; scene.add(shadowBlob);
 
     // ---- мяч и розыгрыш ----
@@ -430,8 +435,11 @@ const Arena3D = (() => {
       // перехват
       if (Math.random() < 0.16) { side = 1 - side; const opp = team[side].filter((p) => !p.gk); owner = opp.reduce((b, p) => (p.m.position.distanceTo(to.m.position) < b.m.position.distanceTo(to.m.position) ? p : b), opp[0]); }
       else owner = to;
-      const tp = owner.m.position.clone(); tp.y = 0.34;
-      kickTo(tp, Math.random() < 0.25 ? rnd(3, 7) : 0.3, rnd(0.6, 1.1), () => setTimeout(() => { if (!fly) next(); }, rnd(150, 500)));
+      // пас на ход: мяч летит туда, куда игрок добежит, а игрок бежит навстречу мячу
+      const dir = owner.s ? -1 : 1, tp = owner.m.position.clone().add(new THREE.Vector3(dir * rnd(2, 5), 0, rnd(-2, 2)));
+      tp.x = Math.max(-W / 2 + 3, Math.min(W / 2 - 3, tp.x)); tp.z = Math.max(-H / 2 + 2, Math.min(H / 2 - 2, tp.z)); tp.y = 0.34;
+      const rec = owner, dist = ballM.position.distanceTo(tp); rec.chase = tp;
+      kickTo(tp, dist > 28 ? rnd(4, 8) : 0.25, Math.max(0.55, Math.min(1.6, dist / 22)), () => { rec.chase = null; setTimeout(() => { if (!fly) next(); }, rnd(350, 900)); });
     }
     // событие движка: атака стороны s, затем удар — гол, сейв или мимо
     // атака: мяч уходит в штрафную, ближайший атакующий бежит к нему, затем удар — без телепортов
@@ -487,7 +495,10 @@ const Arena3D = (() => {
       all.forEach((p) => {
         const dir = p.s ? -1 : 1;
         if (p.gk) p.tgt.set(p.home.x + dir * Math.max(0, (bx * dir + W / 2) * 0.03), 0, Math.max(-3, Math.min(3, bz * 0.12)));
-        else p.tgt.set(Math.max(-W / 2 + 2, Math.min(W / 2 - 2, p.home.x + bx * 0.55 + (p.s === side ? dir * 8 : -dir * 4))), 0, p.home.z + bz * 0.3);
+        // команда с мячом поднимается всей линией к чужим воротам, без мяча — сжимается к своим
+        // компактный блок вокруг мяча: расстановка сохраняется, команда с мячом — чуть впереди мяча, без мяча — между мячом и своими воротами
+        else { const mid = homeMid[p.s], c = bx + (p.s === side ? dir * 4 : -dir * 9);
+          p.tgt.set(Math.max(-W / 2 + 2, Math.min(W / 2 - 2, c + (p.home.x - mid) * 0.62)), 0, p.home.z * (p.s === side ? 1 : 0.78) + bz * 0.25); }
       });
       [0, 1].forEach((s) => { const near = team[s].filter((p) => !p.gk).reduce((b, p) => (p.m.position.distanceToSquared(ballM.position) < b.m.position.distanceToSquared(ballM.position) ? p : b)); near.tgt.set(bx, 0, bz); });
       if (owner && !fly) owner.tgt.set(owner.m.position.x + (owner.s ? -6 : 6), 0, owner.m.position.z);
@@ -501,21 +512,36 @@ const Arena3D = (() => {
       if (dive) { dive.t += dt * 2.4; const k = dive.t < 1 ? dive.t : Math.max(0, 2 - dive.t); dive.p.m.userData.dive(k, dive.dir); if (dive.t > 2) { dive.p.m.userData.dive(0, 1); dive = null; } }
       // камера
       const port = camera.aspect < 1;
-      // камера внутри чаши, у бровки: держится в ~30 м от мяча и ведёт его
-      camera.fov = port ? 50 : 40;
-      const zoom = focus ? 0.7 : 1;
-      camPos.set(bx * 0.9, (port ? 17 : 14) * zoom, Math.min(H / 2 + 6, bz * 0.35 + (port ? 30 : 26) * zoom));
-      camera.position.lerp(camPos, Math.min(1, dt * 2.2));
-      look.lerp(new THREE.Vector3(bx, 0.5, bz * 0.6 - 2), Math.min(1, dt * 3.5));
+      // вертикальный экран: поле вдоль экрана, вид сверху как в менеджерах — видно всю ширину и почти всю длину;
+      // наши атакуют вверх. Горизонтальный экран — ТВ-вид сбоку. В опасный момент камера подъезжает ближе.
+      const zoom = focus ? 0.62 : 1;
+      if (port) {
+        camera.fov = 50; camera.up.set(1, 0, 0);
+        const cx = Math.max(-W / 2 + 30, Math.min(W / 2 - 30, bx));
+        camPos.set(cx - 44 * zoom, 66 * zoom, bz * (focus ? 0.5 : 0.15));
+        look.lerp(new THREE.Vector3(cx + 8, 0, bz * (focus ? 0.5 : 0.15)), Math.min(1, dt * 3));
+      } else {
+        camera.fov = 40; camera.up.set(0, 1, 0);
+        camPos.set(bx * 0.85, 34 * zoom, H / 2 + 34 * zoom);
+        look.lerp(new THREE.Vector3(bx * 0.95, 0, bz * 0.3), Math.min(1, dt * 3));
+      }
+      camera.position.lerp(camPos, Math.min(1, dt * 1.8));
       if (shake > 0) { shake -= dt; camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake; }
       camera.lookAt(look); camera.updateProjectionMatrix();
       ads(dt); B.update(dt, t);
+      if (owner && owner.name) {
+        pv.copy(owner.m.position); pv.y = 3.6; pv.project(camera);
+        const w = host.clientWidth, h = host.clientHeight;
+        tag.style.transform = `translate(${((pv.x + 1) / 2) * w}px, ${((1 - pv.y) / 2) * h}px) translate(-50%, -100%)`;
+        if (tag.textContent !== owner.name) { tag.textContent = owner.name; tag.className = 'a3d-tag ' + (owner.s ? 'b' : 'a'); }
+        tag.hidden = pv.z > 1;
+      }
     }, () => visible() && !document.hidden);
     return {
       // события ждут своей очереди: текущая передача доиграется, потом атака
       // события показываются по одному; done — когда последний момент доигран (часы матча ждут)
       events(evs, done) { evs.forEach((e, i) => queue.push({ ...e, done: i === evs.length - 1 ? done : null })); if (!fly && !focus) { const e = queue.shift(); if (e) shot(e); } },
-      stop: () => V.stop(),
+      stop: () => { tag.remove(); V.stop(); },
     };
   }
 
