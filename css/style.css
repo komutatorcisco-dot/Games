@@ -2373,7 +2373,7 @@ body[data-grass] { background:
 .tk.soon .tok i { z-index: 1; }
 
 /* монета: золотой мяч */
-.coin, .coins i, .coin-ic { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='r' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ffe680'/%3E%3Cstop offset='.55' stop-color='%23e6a800'/%3E%3Cstop offset='1' stop-color='%239a6300'/%3E%3C/linearGradient%3E%3CradialGradient id='f' cx='.38' cy='.32' r='.75'%3E%3Cstop offset='0' stop-color='%23fff6c4'/%3E%3Cstop offset='.5' stop-color='%23ffd34a'/%3E%3Cstop offset='1' stop-color='%23d99a00'/%3E%3C/radialGradient%3E%3CclipPath id='c'%3E%3Ccircle cx='32' cy='32' r='24'/%3E%3C/clipPath%3E%3C/defs%3E%3Ccircle cx='32' cy='33.5' r='30' fill='%237a4d00'/%3E%3Ccircle cx='32' cy='32' r='30' fill='url%28%23r%29'/%3E%3Ccircle cx='32' cy='32' r='24.5' fill='%23b98100'/%3E%3Ccircle cx='32' cy='32' r='24' fill='url%28%23f%29'/%3E%3Cg clip-path='url%28%23c%29'%3E%3Cpolygon points='32.00,24.50 39.13,29.68 36.41,38.07 27.59,38.07 24.87,29.68' fill='%23b98100'/%3E%3Cpath d='M32.00 24.50 L32.00 17.00' stroke='%23b98100' stroke-width='1.6'/%3E%3Cpath d='M39.13 29.68 L46.27 27.36' stroke='%23b98100' stroke-width='1.6'/%3E%3Cpath d='M36.41 38.07 L40.82 44.14' stroke='%23b98100' stroke-width='1.6'/%3E%3Cpath d='M27.59 38.07 L23.18 44.14' stroke='%23b98100' stroke-width='1.6'/%3E%3Cpath d='M24.87 29.68 L17.73 27.36' stroke='%23b98100' stroke-width='1.6'/%3E%3Cpolygon points='40.23,20.67 37.69,12.85 44.34,8.01 51.00,12.85 48.46,20.67' fill='%23b98100'/%3E%3Cpolygon points='45.31,36.33 51.97,31.49 58.63,36.33 56.09,44.15 47.86,44.15' fill='%23b98100'/%3E%3Cpolygon points='32.00,46.00 38.66,50.84 36.11,58.66 27.89,58.66 25.34,50.84' fill='%23b98100'/%3E%3Cpolygon points='18.69,36.33 16.14,44.15 7.91,44.15 5.37,36.33 12.03,31.49' fill='%23b98100'/%3E%3Cpolygon points='23.77,20.67 15.54,20.67 13.00,12.85 19.66,8.01 26.31,12.85' fill='%23b98100'/%3E%3C/g%3E%3Cellipse cx='24' cy='20' rx='9' ry='5' fill='%23fff' opacity='.45' transform='rotate%28-30 24 20%29'/%3E%3C/svg%3E") center/contain no-repeat !important; box-shadow: none  !important; border-radius: 0 !important; }
+.coin, .coins i, .coin-ic { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fff0a0'/%3E%3Cstop offset='.45' stop-color='%23ffc928'/%3E%3Cstop offset='1' stop-color='%23ea9200'/%3E%3C/linearGradient%3E%3ClinearGradient id='i' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23e99a00'/%3E%3Cstop offset='1' stop-color='%23ffd23a'/%3E%3C/linearGradient%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23fffbe0'/%3E%3Cstop offset='1' stop-color='%23ffd85a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle cx='32' cy='35' r='28' fill='%239a5600'/%3E%3Ccircle cx='32' cy='31' r='28' fill='url%28%23g%29'/%3E%3Ccircle cx='32' cy='31' r='24.5' fill='none' stroke='%23b86d00' stroke-opacity='.55' stroke-width='2.2' stroke-dasharray='2.2 2.6'/%3E%3Ccircle cx='32' cy='31' r='19.5' fill='url%28%23i%29'/%3E%3Ccircle cx='32' cy='31' r='19.5' fill='none' stroke='%23fff3b8' stroke-opacity='.7' stroke-width='1.2'/%3E%3Cpath d='M32.00 19.50 L34.88 27.04 L42.94 27.45 L36.66 32.51 L38.76 40.30 L32.00 35.90 L25.24 40.30 L27.34 32.51 L21.06 27.45 L29.12 27.04Z' fill='%23b06a00' transform='translate%280 1.4%29'/%3E%3Cpath d='M32.00 19.50 L34.88 27.04 L42.94 27.45 L36.66 32.51 L38.76 40.30 L32.00 35.90 L25.24 40.30 L27.34 32.51 L21.06 27.45 L29.12 27.04Z' fill='url%28%23s%29'/%3E%3Cpath d='M13 22 A21 21 0 0 1 26 11' fill='none' stroke='%23fff' stroke-opacity='.75' stroke-width='3.2' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat !important; box-shadow: none  !important; border-radius: 0 !important; }
 .coins .coin { width: 24px !important; height: 24px !important; }
 /* пак дня: карточки как паки в FC — тёмные с золотой фольгой, переворачиваются */
 .pk-head { text-align: center; } .pk-head h2 { font: 900 26px "Rubik", sans-serif !important; text-transform: none !important; }
@@ -4393,3 +4393,58 @@ body.at-home::before { display: none !important; }
 #hub .mh, .h2-road, .tabbar { background: rgba(16,18,26,.92) !important; box-shadow: inset 0 0 0 1px rgba(255,207,58,.2), 0 6px 14px rgba(0,0,0,.35) !important; }
 /* подпись игры: тонкая обводка и межбуквенный воздух — буквы не слипаются */
 .h2-ban b { -webkit-text-stroke: 0 !important; letter-spacing: .03em; text-shadow: 0 2px 0 #142463, 0 3px 6px rgba(0,0,0,.35) !important; font-size: clamp(17px, 5.2vw, 22px) !important; }
+
+/* ===== сезонный пропуск v2: шапка с уровнем, премиум с выгодами, дорожка с узлами ===== */
+.ps-hero { display: flex; align-items: center; gap: 14px; margin: 4px 0 12px; padding: 14px; border-radius: 20px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+.ps-lv { flex: none; display: grid; place-items: center; width: 68px; height: 74px; clip-path: polygon(50% 0, 100% 22%, 100% 78%, 50% 100%, 0 78%, 0 22%); background: linear-gradient(180deg, #ffe68a, #f0a812); color: #2b1a00; line-height: .9; }
+.ps-lv small { font: 900 11px "Rubik", sans-serif; letter-spacing: .08em; } .ps-lv b { font: 900 30px "Rubik", sans-serif; }
+.ps-info { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.ps-info > b { font: 900 18px "Rubik", sans-serif; } .ps-info > small { font: 700 12px var(--font-body); color: rgba(255,255,255,.6); }
+.ps-bar { position: relative; height: 22px; margin-top: 4px; border-radius: 99px; background: rgba(0,0,0,.4); overflow: hidden; }
+.ps-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: linear-gradient(90deg, #ffcf3a, #ff9d00); }
+.ps-bar em { position: relative; display: block; text-align: center; font: 800 12px/22px "Rubik", sans-serif; font-style: normal; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+.ps-buy { display: grid; gap: 8px; margin-bottom: 14px; padding: 14px; border-radius: 20px; background: radial-gradient(120% 90% at 100% 0%, rgba(255,207,58,.22), transparent 60%), rgba(255,255,255,.05); box-shadow: inset 0 0 0 1.5px rgba(255,207,58,.45); }
+.ps-buy > b { display: flex; align-items: center; gap: 6px; font: 900 17px "Rubik", sans-serif; color: #ffd34d; } .ps-buy > b .ui-ic { width: 18px; height: 18px; }
+.ps-buy ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; }
+.ps-buy li { position: relative; padding-left: 20px; font: 700 13px var(--font-body); color: rgba(255,255,255,.85); }
+.ps-buy li::before { content: ""; position: absolute; left: 2px; top: 5px; width: 10px; height: 6px; border-left: 2.5px solid #ffcf3a; border-bottom: 2.5px solid #ffcf3a; transform: rotate(-45deg); }
+.ps-buy .btn { width: 100%; margin-top: 4px; }
+.ps-on { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 14px; padding: 10px; border-radius: 14px; background: rgba(255,207,58,.12); box-shadow: inset 0 0 0 1.5px rgba(255,207,58,.5); font: 900 14px "Rubik", sans-serif; color: #ffd34d; } .ps-on .ui-ic { width: 16px; height: 16px; }
+.ps-cols { display: grid; grid-template-columns: 1fr 40px 1fr; gap: 8px; margin-bottom: 6px; text-align: center; font: 900 12px "Rubik", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.55); } .ps-cols .pr { color: #ffcf3a; }
+.ps-track { position: relative; display: grid; gap: 10px; }
+.ps-track::before { content: ""; position: absolute; left: 50%; top: 10px; bottom: 10px; width: 4px; margin-left: -2px; border-radius: 4px; background: rgba(255,255,255,.12); }
+.ps-row { position: relative; display: grid; grid-template-columns: 1fr 40px 1fr; gap: 8px; align-items: center; }
+.ps-node { position: relative; z-index: 1; display: grid; place-items: center; width: 34px; height: 34px; margin: 0 auto; border-radius: 50%; background: #262b36; box-shadow: 0 0 0 3px #0e1118; font: 900 14px "Rubik", sans-serif; color: rgba(255,255,255,.6); }
+.ps-row.reach .ps-node { background: linear-gradient(180deg, #ffe68a, #f0a812); color: #2b1a00; }
+.ps-cell { position: relative; display: grid; justify-items: center; gap: 4px; min-height: 104px; padding: 10px 6px 8px; border: 0; border-radius: 16px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.09); color: #fff; }
+.ps-cell.prem { background: radial-gradient(100% 80% at 50% 0%, rgba(255,207,58,.16), transparent 70%), rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px rgba(255,207,58,.35); }
+.ps-cell b { font: 800 12px "Rubik", sans-serif; text-align: center; line-height: 1.15; }
+.ps-art { display: grid; place-items: center; height: 58px; filter: drop-shadow(0 4px 0 rgba(0,0,0,.3)); }
+.ps-art .fpk { --pw: 38px; --ph: 53px; --d: 4px; } .ps-art .fpk em, .ps-art .fpk .fpk-sh, .ps-art .fpk::after { display: none; } .ps-art .fpk b { font-size: 12px; }
+.ps-art .rs-coins .coin { width: 30px !important; height: 30px !important; }
+.ps-art .rs-heart .ui-ic { width: 40px; height: 40px; color: #ff4f66; }
+.ps-art .rs-card { transform: scale(.8); }
+.ps-skin { display: block; width: 40px; height: 56px; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 2px #e8c157; } .ps-skin img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 85%; }
+.ps-cell .ps-ok { position: absolute; top: 6px; right: 8px; font: 900 15px "Rubik", sans-serif; font-style: normal; color: #3ee66b; }
+.ps-cell .ps-lk { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: rgba(0,0,0,.45); } .ps-cell .ps-lk .ui-ic { width: 12px; height: 12px; }
+.ps-cell .ps-take { font: 900 11px "Rubik", sans-serif; font-style: normal; padding: 3px 10px; border-radius: 99px; background: #3ee66b; color: #062a12; }
+.ps-cell.got { opacity: .5; } .ps-cell.got .ps-art { filter: grayscale(.4); }
+.ps-cell.lock .ps-art { opacity: .55; filter: saturate(.4); }
+.ps-cell.buy .ps-art { opacity: .8; }
+.ps-cell.ready { animation: psReady 1.6s ease-in-out infinite; box-shadow: inset 0 0 0 2px #3ee66b; }
+@keyframes psReady { 50% { transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .ps-cell.ready { animation: none; } }
+
+/* ===== задания v2 ===== */
+.qs-h { display: flex; align-items: baseline; justify-content: space-between; margin: 16px 2px 8px; } .qs-h b { font: 900 17px "Rubik", sans-serif; } .qs-h small { font: 700 11.5px var(--font-body); color: rgba(255,255,255,.5); }
+.qs { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 10px; margin-bottom: 8px; padding: 10px 10px 10px 12px; border-radius: 16px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.qs-ico { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; background: rgba(62,230,193,.14); color: #3ee6c1; } .qs-ico .ui-ic { width: 22px; height: 22px; }
+.qs.w .qs-ico { background: rgba(122,170,255,.16); color: #8fb4ff; } .qs.s .qs-ico { background: rgba(255,207,58,.16); color: #ffcf3a; }
+.qs-b { display: grid; gap: 6px; min-width: 0; } .qs-b b { font: 800 13.5px "Rubik", sans-serif; line-height: 1.2; }
+.qs-bar { position: relative; height: 16px; border-radius: 99px; background: rgba(0,0,0,.4); overflow: hidden; }
+.qs-bar i { position: absolute; inset: 0 auto 0 0; border-radius: 99px; background: linear-gradient(90deg, #3ee6c1, #7af0c8); } .qs.w .qs-bar i { background: linear-gradient(90deg, #5b8cff, #8fb4ff); } .qs.s .qs-bar i { background: linear-gradient(90deg, #ffcf3a, #ff9d00); }
+.qs-bar em { position: relative; display: block; text-align: center; font: 800 10.5px/16px "Rubik", sans-serif; font-style: normal; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+.qs-xp, .qs-take { display: grid; justify-items: center; min-width: 54px; line-height: 1.05; } .qs-xp b { font: 900 15px "Rubik", sans-serif; color: #ffcf3a; } .qs-xp small { font: 700 10px var(--font-body); color: rgba(255,255,255,.5); }
+.qs-take { padding: 6px 8px; border: 0; border-radius: 12px; background: linear-gradient(180deg, #6ff59a, #22b04f); color: #062a12; box-shadow: 0 3px 0 #13702f; } .qs-take b { font: 900 15px "Rubik", sans-serif; } .qs-take small { font: 800 10px "Rubik", sans-serif; }
+.qs.done { box-shadow: inset 0 0 0 1.5px #3ee66b; } .qs.got { opacity: .5; }
+.qs-ok { font: 900 20px "Rubik", sans-serif; font-style: normal; color: #3ee66b; min-width: 54px; text-align: center; }

@@ -66,6 +66,8 @@ const Rewards = (() => {
     [120, { pack: 1 }], [170, { card: 'gold' }], [230, { pack: 2 }], [300, { pack: 2 }], [400, { card: 'legend' }],
     [500, { pack: 3 }], [600, { coins: 500 }], [700, { pack: 2 }], [800, { card: 'legend' }], [950, { pack: 3 }],
     [1100, { pack: 2 }], [1300, { card: 'jack' }], [1500, { pack: 3 }], [1750, { coins: 800 }], [2000, { pack: 4 }],
+    // дальше дорога идёт вместе с новыми играми (по одной на 200 трофеев): награда между ними
+    ...Array.from({ length: 20 }, (_, i) => [2300 + i * 250, [{ pack: 3 }, { coins: 900 }, { card: 'legend' }, { pack: 2 }, { pack: 4 }][i % 5]]),
   ];
   const OLD_ROAD = [10, 25, 50, 80, 120, 170, 230, 300, 380, 470, 570, 680, 800, 950, 1100, 1300, 1500, 1750, 2000];
   const PACKNAME = ['Обычный пак', 'Сверхредкий пак', 'Эпический пак', 'Легендарный пак', 'Пак «ДЖЕКСОН!!»'];
@@ -75,6 +77,7 @@ const Rewards = (() => {
     if (r.coins) return { ico: '<i class="coin"></i>', txt: `${r.coins}`, art: '<span class="rs-coins"><i class="coin"></i><i class="coin"></i><i class="coin"></i></span>', name: `+${r.coins}` };
     if (r.lives) return { ico: `<span class="ui-red">${Ui.get('heart')}</span>`, txt: `×${r.lives}`, art: `<span class="rs-heart">${Ui.get('heart')}</span>`, name: `Жизни ×${r.lives}` };
     if (r.card) return { ico: `<span class="rs-card sm ${r.card}">?</span>`, txt: CARDNAME[r.card].split(' ')[0], art: `<span class="rs-card ${r.card}">?</span>`, name: CARDNAME[r.card].replace('Карточка-', '').replace('Карточка ', '') };
+    if (r.skin) return { ico: `<span class="ps-skin"><img src="img/skins/${r.skin}.webp" alt=""></span>`, txt: 'Скин', art: `<span class="ps-skin"><img src="img/skins/${r.skin}.webp" alt=""></span>`, name: 'Скин «Золото»' };
     if (r.pack !== undefined) return { ico: `<span class="rw-pk" style="--c:${PACKCOL[r.pack]}"></span>`, txt: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«'), art: PackOpen.art(r.pack, 'rs'), name: PACKNAME[r.pack].replace(' пак', '').replace('Пак «', '«') };
     return { ico: Ui.get('gift'), txt: '', art: Ui.get('gift'), name: '' };
   }
@@ -83,6 +86,7 @@ const Rewards = (() => {
     if (r.lives) { Store.d.shop.lives += r.lives; Store.save(); toast(`+${r.lives} ${plural(r.lives, 'жизнь', 'жизни', 'жизней')}`); }
     if (r.pack !== undefined) openDrop({ title, minLevel: r.pack });
     if (r.card) giveCards([Cards.draw(r.card).key]);
+    if (r.skin && typeof Skins !== 'undefined') { Skins.grant(r.skin); toast('Эксклюзивный скин «Золото» — включён. Сменить можно в Профиле → Оформление'); }
     refresh();
   }
   function claimRoad(i) {
@@ -96,12 +100,13 @@ const Rewards = (() => {
   const PASS = Array.from({ length: PASS_LEVELS }, (_, i) => {
     const L = i + 1;
     const free = L % 10 === 0 ? { pack: 3 } : L % 5 === 0 ? { pack: 2 } : L % 2 === 0 ? { pack: 0 } : { coins: 30 + L * 2 };
-    const prem = L === PASS_LEVELS ? { pack: 4 } : L % 5 === 0 ? { pack: 3 } : L % 3 === 0 ? { lives: 1 } : L % 2 === 0 ? { pack: 1 } : { coins: 60 + L * 4 };
+    const prem = L === 1 ? { skin: 'gold' } : L === PASS_LEVELS ? { pack: 4 } : L % 5 === 0 ? { pack: 3 } : L % 3 === 0 ? { lives: 1 } : L % 2 === 0 ? { pack: 1 } : { coins: 60 + L * 4 };
     return [free, prem];
   });
   function passSync() {
     const p = S().pass, sn = season();
     if (p.season !== sn) { p.season = sn; p.xp = 0; p.free = []; p.prem = []; p.premium = false; Store.save(); }
+    if (Store.d.admin && !p.premium) { p.premium = true; Store.save(); } // админу пропуск бесплатно
     return p;
   }
   const passLevel = () => Math.min(PASS_LEVELS, Math.floor(passSync().xp / PASS_STEP));
@@ -135,22 +140,47 @@ const Rewards = (() => {
   function serverPass(seasons) { if (Array.isArray(seasons) && seasons.includes(season())) { const p = passSync(); if (!p.premium) { p.premium = true; Store.save(); refresh(); } } }
 
   // ---------- задания ----------
+  // задания как в Brawl Stars: 4 на день, 4 на неделю и длинные сезонные — дают очки пропуска
   const DAILY = [
     { id: 'play3', t: 'Сыграй 3 матча', ev: 'end', n: 3, xp: 100 },
+    { id: 'play6', t: 'Сыграй 6 матчей', ev: 'end', n: 6, xp: 160 },
     { id: 'win2', t: 'Выиграй 2 раза', ev: 'win', n: 2, xp: 120 },
     { id: 'win4', t: 'Выиграй 4 раза', ev: 'win', n: 4, xp: 180 },
+    { id: 'games3', t: 'Сыграй в 3 разные игры', ev: 'dgame', n: 3, xp: 150 },
     { id: 'dly', t: 'Угадай «Игрока дня»', ev: 'win:act:dly', n: 1, xp: 150 },
     { id: 'pack', t: 'Открой пак', ev: 'pack', n: 1, xp: 80 },
+    { id: 'pack3', t: 'Открой 3 пака', ev: 'pack', n: 3, xp: 150 },
     { id: 'duel', t: 'Сыграй «Футбольную дуэль»', ev: 'end:ng:duel', n: 1, xp: 120 },
     { id: 'wordle', t: 'Сыграй в Wordle', ev: 'end:ng:wordle', n: 1, xp: 100 },
+    { id: 'wordlew', t: 'Отгадай слово в Wordle', ev: 'win:ng:wordle', n: 1, xp: 140 },
     { id: 'auction', t: 'Выиграй аукцион', ev: 'win:act:auction-bot', n: 1, xp: 130 },
     { id: 'nation', t: 'Сыграй «Угадай сборную»', ev: 'end:act:nation', n: 1, xp: 100 },
+    { id: 'nationw', t: 'Угадай сборную', ev: 'win:act:nation', n: 1, xp: 130 },
+    { id: 'pick', t: 'Обыграй бота в «Этого или того»', ev: 'win:pick-bot', n: 1, xp: 130 },
+    { id: 'ttt', t: 'Сыграй в «Тики-таку»', ev: 'end:act:ttt', n: 1, xp: 110 },
+    { id: 'trumps', t: 'Выиграй в «Козыри»', ev: 'win:ng:trumps', n: 1, xp: 140 },
+    { id: 'career', t: 'Угадай игрока по карьере', ev: 'win:act:guess-career', n: 1, xp: 130 },
+    { id: 'draft', t: 'Сыграй матч в «Драфте»', ev: 'end:act:xdraft', n: 1, xp: 150 },
+    { id: 'draftw', t: 'Выиграй матч в «Драфте»', ev: 'win:act:xdraft', n: 1, xp: 200 },
+    { id: 'squad', t: 'Сыграй матч «Моим составом»', ev: 'end:squad', n: 1, xp: 140 },
   ];
   const WEEKLY = [
     { id: 'w-win15', t: 'Выиграй 15 раз', ev: 'win', n: 15, xp: 450 },
+    { id: 'w-win25', t: 'Выиграй 25 раз', ev: 'win', n: 25, xp: 650 },
     { id: 'w-play30', t: 'Сыграй 30 матчей', ev: 'end', n: 30, xp: 400 },
     { id: 'w-dly4', t: 'Угадай «Игрока дня» 4 раза', ev: 'win:act:dly', n: 4, xp: 500 },
     { id: 'w-games5', t: 'Сыграй в 5 разных игр', ev: 'game', n: 5, xp: 450 },
+    { id: 'w-pack8', t: 'Открой 8 паков', ev: 'pack', n: 8, xp: 450 },
+    { id: 'w-auction5', t: 'Выиграй 5 аукционов', ev: 'win:act:auction-bot', n: 5, xp: 500 },
+    { id: 'w-draft3', t: 'Выиграй 3 матча в «Драфте»', ev: 'win:act:xdraft', n: 3, xp: 550 },
+    { id: 'w-wordle5', t: 'Отгадай 5 слов в Wordle', ev: 'win:ng:wordle', n: 5, xp: 500 },
+  ];
+  const SEASONAL = [
+    { id: 's-win60', t: 'Выиграй 60 раз за сезон', ev: 'win', n: 60, xp: 500 },
+    { id: 's-play120', t: 'Сыграй 120 матчей за сезон', ev: 'end', n: 120, xp: 400 },
+    { id: 's-dly15', t: 'Угадай «Игрока дня» 15 раз', ev: 'win:act:dly', n: 15, xp: 500 },
+    { id: 's-pack25', t: 'Открой 25 паков', ev: 'pack', n: 25, xp: 400 },
+    { id: 's-draft10', t: 'Выиграй 10 матчей в «Драфте»', ev: 'win:act:xdraft', n: 10, xp: 600 },
   ];
   // выбор заданий детерминирован по дню, чтобы при перезапуске не менялись
   function pick(pool, k, seed) {
@@ -162,23 +192,25 @@ const Rewards = (() => {
   function questSync() {
     const q = S().q, d = dayKey(), w = weekKey();
     const avail = DAILY.filter((x) => { const g = x.ev.split(':').slice(1).join(':'); return !g || g === 'act:dly' || Release.isOut(g); });
-    if (q.day !== d) { q.day = d; q.list = pick(avail, 3, d).map((x) => ({ id: x.id, p: 0, done: false, got: false })); }
-    if (q.week !== w) { q.week = w; q.wlist = pick(WEEKLY, 3, w).map((x) => ({ id: x.id, p: 0, done: false, got: false })); S().games = { week: w, ids: [] }; }
+    if (q.day !== d) { q.day = d; q.list = pick(avail, 4, d).map((x) => ({ id: x.id, p: 0, done: false, got: false })); }
+    if (q.week !== w) { q.week = w; q.wlist = pick(WEEKLY, 4, w).map((x) => ({ id: x.id, p: 0, done: false, got: false })); S().games = { week: w, ids: [] }; }
+    if (q.season !== season()) { q.season = season(); q.slist = SEASONAL.map((x) => ({ id: x.id, p: 0, done: false, got: false })); }
+    if (q.dgday !== d) { q.dgday = d; q.dg = []; }
     return q;
   }
-  const qdef = (id) => DAILY.find((x) => x.id === id) || WEEKLY.find((x) => x.id === id);
+  const qdef = (id) => DAILY.find((x) => x.id === id) || WEEKLY.find((x) => x.id === id) || SEASONAL.find((x) => x.id === id);
   function quest(ev, game = '') {
     const q = questSync();
     const hit = (def) => def.ev === ev || (game && def.ev === `${ev}:${game}`);
     let changed = false;
-    [...q.list, ...q.wlist].forEach((x) => {
+    [...q.list, ...q.wlist, ...(q.slist || [])].forEach((x) => {
       const def = qdef(x.id); if (!def || x.done) return;
       if (hit(def)) { x.p = Math.min(def.n, x.p + 1); changed = true; if (x.p >= def.n) { x.done = true; setTimeout(() => toast(`Задание выполнено: ${def.t} ✓`), 1200); } }
     });
     if (changed) Store.save();
   }
   function claimQuest(id) {
-    const q = questSync(), x = [...q.list, ...q.wlist].find((y) => y.id === id);
+    const q = questSync(), x = [...q.list, ...q.wlist, ...(q.slist || [])].find((y) => y.id === id);
     if (!x || !x.done || x.got) return;
     x.got = true; addPassXp(qdef(id).xp); Sound.play('coin'); haptic('ok'); refresh();
   }
@@ -190,13 +222,15 @@ const Rewards = (() => {
     quest('end', game);
     const g = s.games; if (g.week !== weekKey()) { g.week = weekKey(); g.ids = []; }
     if (game && !g.ids.includes(game)) { g.ids.push(game); quest('game'); }
+    const q = questSync(); if (game && !q.dg.includes(game)) { q.dg.push(game); quest('dgame'); }
     addPassXp(win ? 20 : 5);
     if (!win) { s.trophies += PLAY_TROPHIES; Store.save(); refresh(); return ''; }
     quest('win', game);
     s.trophies += WIN_TROPHIES;
     if (s.drops.day !== dayKey()) s.drops = { day: dayKey(), n: 0 };
     let note = `<span>${Ui.get('trophy')} +${WIN_TROPHIES}</span>`;
-    if (Release.feature('cards') && s.drops.n < DROPS_PER_DAY) { s.drops.n++; s.pending++; note += `<span class="rw-new"><i class="rw-pk"></i>+1 пак · ${s.drops.n}/${DROPS_PER_DAY} сегодня</span>`; }
+    const dmax = DROPS_PER_DAY + (passSync().premium ? 1 : 0);
+    if (Release.feature('cards') && s.drops.n < dmax) { s.drops.n++; s.pending++; note += `<span class="rw-new"><i class="rw-pk"></i>+1 пак · ${s.drops.n}/${dmax} сегодня</span>`; }
     Store.save(); refresh();
     return `<div class="rw-earn">${note}</div>`;
   }
@@ -213,7 +247,7 @@ const Rewards = (() => {
     const s = S(), p = passSync(), q = questSync(), L = passLevel();
     const road = ROAD.filter(([t], i) => s.trophies >= t && !s.road.includes(i)).length;
     let pass = 0; for (let i = 0; i < L; i++) { if (!p.free.includes(i)) pass++; if (p.premium && !p.prem.includes(i)) pass++; }
-    const qs = [...q.list, ...q.wlist].filter((x) => x.done && !x.got).length;
+    const qs = [...q.list, ...q.wlist, ...(q.slist || [])].filter((x) => x.done && !x.got).length;
     const sets = safe('sets', () => Cards.readySets()) || 0;
     return { road, pass, qs, sets, packs: s.pending, all: road + pass + qs + sets + s.pending };
   }
@@ -273,8 +307,8 @@ const Rewards = (() => {
   const RDCOL = { coins: ['#ffd84a', '#e59a12'], lives: ['#ff6b7d', '#c9223e'], gold: ['#ffd84a', '#c98a12'], legend: ['#c99bff', '#6a3fd0'], jack: ['#ff6b7d', '#b0123a'] };
   function trophyRoad(s) {
     const t = s.trophies;
-    const items = [...ROAD.map(([th, r], i) => ({ t: th, r, i })), ...Release.UNLOCKS.filter((u) => u[0] > 0).slice(0, 14).map((u) => ({ t: u[0], u }))]
-      .filter((x) => x.t <= Math.max(2000, (ROAD[ROAD.length - 1] || [0])[0])).sort((a, b) => a.t - b.t || (a.u ? -1 : 1));
+    const items = [...ROAD.map(([th, r], i) => ({ t: th, r, i })), ...Release.UNLOCKS.filter((u) => u[0] > 0).map((u) => ({ t: u[0], u }))]
+      .filter((x) => x.t <= Math.max(t + 2500, 2000)).sort((a, b) => a.t - b.t || (a.u ? -1 : 1));
     const next = items.find((x) => x.t > t);
     const prevT = [...items].reverse().find((x) => x.t <= t), from = prevT ? prevT.t : 0;
     const pct = next ? Math.round(((t - from) / (next.t - from)) * 100) : 100;
@@ -324,18 +358,27 @@ const Rewards = (() => {
     else if (!TB.length) body = nx ? `<div class="rw-soon"><span>${Ui.get('lock')}</span><b>${esc(nx.title)}</b><small>Откроется на ${nx.need} ${Ui.get('trophy')}. Побеждай в играх!</small></div>` : '';
     else if (tab === 'cards') body = `<div class="rw-coll">${Cards.album()}</div>`;
     else if (tab === 'pass') {
-      const L = passLevel(), left = Math.max(0, Math.ceil((seasonEnd() - Date.now()) / 864e5));
-      body = `<div class="rw-head"><span class="rw-tro">Сезон ${season()} · ур. <b>${L}</b></span><small>${L < PASS_LEVELS ? `${p.xp % PASS_STEP}/${PASS_STEP} до уровня ${L + 1} · ` : ''}до конца сезона ${left} ${plural(left, 'день', 'дня', 'дней')}</small>
-          <span class="rw-bar"><i style="width:${L >= PASS_LEVELS ? 100 : (p.xp % PASS_STEP)}%"></i></span>
-          ${p.premium ? `<span class="rw-prem on">Премиум открыт ${Ui.get('star')}</span>` : `<button class="btn gold rw-buy" data-act="rw-buy">Премиум-пропуск · ${PASS_STARS} ⭐</button>`}</div>
-        <div class="rw-pass"><div class="rw-ph"><span></span><b>Бесплатно</b><b class="pr">Премиум ${Ui.get('star')}</b></div>
-        ${PASS.map(([f, pr], i) => `<div class="rw-prow ${L > i ? 'reach' : ''}"><span class="rw-lv">${i + 1}</span>${cell(f, p.free.includes(i) ? 'got' : L > i ? 'ready' : 'lock', i, 'free')}${cell(pr, p.prem.includes(i) ? 'got' : L > i && p.premium ? 'ready' : 'lock', i, 'prem')}</div>`).join('')}</div>
-        <p class="rw-note">Очки пропуска: за победу +20, за матч +5, за задания — больше всего.</p>`;
+      const L = passLevel(), left = Math.max(0, Math.ceil((seasonEnd() - Date.now()) / 864e5)), xp = L >= PASS_LEVELS ? PASS_STEP : p.xp % PASS_STEP;
+      const pcell = (r, st, i, line) => { const l = rewardLabel(r), nm = r.pack !== undefined ? PACKNAME[r.pack].replace(' пак', '') : r.coins ? `${r.coins}` : l.name;
+        const act = st === 'ready' ? `data-${line}="${i}"` : st === 'buy' ? 'data-act="rw-buy"' : '';
+        return `<button class="ps-cell ${line} ${st}" ${act}><span class="ps-art">${l.art}</span><b>${esc(nm)}</b>${st === 'got' ? `<i class="ps-ok">✓</i>` : st === 'ready' ? '<i class="ps-take">Забрать</i>' : `<i class="ps-lk">${Ui.get('lock')}</i>`}</button>`; };
+      const perks = ['Эксклюзивный скин «Золото» — только здесь', 'Вторая линия наград: паки сильнее, жизни, пак «ДЖЕКСОН!!»', '+1 пак за победы каждый день', 'Награды за пройденные уровни — сразу'];
+      body = `<div class="ps-hero"><span class="ps-lv"><small>УР.</small><b>${L}</b></span>
+          <div class="ps-info"><b>Сезон ${season()}</b><small>${left} ${plural(left, 'день', 'дня', 'дней')} до конца сезона</small>
+            <span class="ps-bar"><i style="width:${xp}%"></i><em>${L >= PASS_LEVELS ? 'Пропуск пройден' : `${xp}/${PASS_STEP} до ур. ${L + 1}`}</em></span></div></div>
+        ${p.premium ? `<div class="ps-on">${Ui.get('star')} Премиум активен${Store.d.admin ? ' · админ' : ''}</div>` : `<div class="ps-buy"><b>${Ui.get('star')} Премиум-пропуск</b><ul>${perks.map((x) => `<li>${x}</li>`).join('')}</ul><button class="btn gold rw-buy" data-act="rw-buy">Открыть за ${PASS_STARS} ⭐</button></div>`}
+        <div class="ps-cols"><span>Бесплатно</span><span></span><span class="pr">Премиум</span></div>
+        <div class="ps-track">${PASS.map(([f, pr], i) => `<div class="ps-row ${L > i ? 'reach' : ''}">${pcell(f, p.free.includes(i) ? 'got' : L > i ? 'ready' : 'lock', i, 'free')}<span class="ps-node">${i + 1}</span>${pcell(pr, p.prem.includes(i) ? 'got' : L > i ? (p.premium ? 'ready' : 'buy') : 'lock', i, 'prem')}</div>`).join('')}</div>
+        <p class="rw-note">Очки пропуска: победа +20, матч +5, задания — больше всего.</p>`;
     } else {
-      const row = (x) => { const d = qdef(x.id); return `<div class="rw-q ${x.got ? 'got' : x.done ? 'done' : ''}"><div><b>${d.t}</b><span class="rw-bar sm"><i style="width:${(x.p / d.n) * 100}%"></i></span><small>${x.p}/${d.n} · +${d.xp} очков пропуска</small></div>
-        ${x.got ? '<i class="rw-ok">✓</i>' : x.done ? `<button class="btn gold" data-quest="${x.id}">Забрать</button>` : ''}</div>`; };
-      body = `<h3 class="section-label">На сегодня</h3>${q.list.map(row).join('')}<h3 class="section-label">На неделю</h3>${q.wlist.map(row).join('')}
-        <p class="rw-note">Новые задания каждый день в полночь по МСК, недельные — в понедельник.</p>`;
+      const dl = Math.max(0, Math.ceil((seasonEnd() - Date.now()) / 864e5));
+      const row = (x, kind) => { const d = qdef(x.id); return `<div class="qs ${kind} ${x.got ? 'got' : x.done ? 'done' : ''}"><span class="qs-ico">${Ui.get(kind === 's' ? 'crown' : kind === 'w' ? 'star' : 'trophy')}</span>
+        <div class="qs-b"><b>${d.t}</b><span class="qs-bar"><i style="width:${(x.p / d.n) * 100}%"></i><em>${x.p}/${d.n}</em></span></div>
+        ${x.got ? '<i class="qs-ok">✓</i>' : x.done ? `<button class="qs-take" data-quest="${x.id}"><b>+${d.xp}</b><small>Забрать</small></button>` : `<span class="qs-xp"><b>+${d.xp}</b><small>очков</small></span>`}</div>`; };
+      body = `<div class="qs-h"><b>На сегодня</b><small>обновятся в полночь по МСК</small></div>${q.list.map((x) => row(x, 'd')).join('')}
+        <div class="qs-h"><b>На неделю</b><small>новые в понедельник</small></div>${q.wlist.map((x) => row(x, 'w')).join('')}
+        <div class="qs-h"><b>Сезонные</b><small>до конца сезона ${dl} ${plural(dl, 'день', 'дня', 'дней')}</small></div>${(q.slist || []).map((x) => row(x, 's')).join('')}
+        <p class="rw-note">Очки идут в сезонный пропуск — с ними открываются его награды.</p>`;
     }
     const box = $('#rewards-body');
     const keep = box.querySelector('.rs-strip'), sx = keep ? keep.scrollLeft : null;

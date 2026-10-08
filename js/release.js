@@ -72,7 +72,8 @@ const Release = (() => {
     [170, 'Угадай игрока и Дуэль', ['act:guess-career', 'act:guess-duel', 'ng:duel']],
     [230, 'Драфт', ['act:xdraft']],
     [300, 'ИПК', ['act:sbc']],
-    ...QUEUE.map((q, i) => [500 + i * 100, q[1], q[2]]),
+    // дальше — по новой игре каждые 200 трофеев
+    ...QUEUE.map((q, i) => [500 + i * 200, q[1], q[2]]),
   ];
   const trophies = () => { try { return (Store.d.rw && Store.d.rw.trophies) || 0; } catch (e) { return 0; } };
   const out = new Set();

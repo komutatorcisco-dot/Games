@@ -27,7 +27,8 @@ const XMatch = (() => {
       .catch(() => { /* без 3D — остаётся вид сверху */ });
   }
   // откуда матч: драфт (по умолчанию) или «Мой состав» из карточек — у каждого свой экран, состав и сохранение
-  const DRAFT = { screen: 'xdraft', body: '#xd-body', st: () => XDraft.S(), form: () => XDraft.A().form, sys: () => XDraft.A().sys, xi: () => XDraft.xiOf(), back: () => { XDraft.S().match = null; Store.save(); XDraft.render(); }, title: () => `Драфт ${XDraft.A().form} · ${XDraft.SYS[XDraft.A().sys]}`, link: 'xdraft' };
+  const DRAFT = { screen: 'xdraft', body: '#xd-body', st: () => XDraft.S(), form: () => XDraft.A().form, sys: () => XDraft.A().sys, xi: () => XDraft.xiOf(), back: () => { XDraft.S().match = null; Store.save(); XDraft.render(); }, title: () => `Драфт ${XDraft.A().form} · ${XDraft.SYS[XDraft.A().sys]}`, link: 'xdraft',
+    onEnd: (w) => { if (typeof Rewards !== 'undefined') Rewards.onEnd(w === 'win', 'act:xdraft'); } };
   let C = DRAFT;
   const S = () => C.st();
   const BODY = () => $(C.body);

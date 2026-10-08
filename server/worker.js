@@ -334,9 +334,8 @@ async function weekly(env) {
   await setSetting(db, 'weekly', wk);
   const prev = weekKey(now - 7 * 864e5);
   const top3 = (await db.prepare(`SELECT u.nick, w.xp - w.start AS score FROM weekly w JOIN users u ON u.id = w.id WHERE w.week = ? AND w.xp > w.start ORDER BY score DESC LIMIT 3`).bind(prev).all()).results;
-  const game = RELEASES.find((r) => r[0] === wk);
   const text = [
-    game ? `🆕 Новая игра недели: «${game[1]}»!` : '⚽ Новая неделя в играх «Стариков Джексонов»!',
+    '⚽ Новая неделя в играх «Стариков Джексонов»! Новые игры открываются на дороге трофеев — каждые 200 🏆',
     top3.length ? `\n🏆 Лучшие прошлой недели:\n${top3.map((r, i) => `${['🥇', '🥈', '🥉'][i]} ${r.nick} — ${r.score} оч.`).join('\n')}` : '',
     '\nРейтинг недели обнулился — самое время забрать первое место ⚽',
   ].filter(Boolean).join('\n');

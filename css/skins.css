@@ -135,3 +135,21 @@ body[data-skin="cyber"] .tab.on { background:linear-gradient(225deg,transparent 
 body[data-skin="cyber"] .h2-all { background: linear-gradient(225deg,transparent 12px,#e9ecf1 12px) !important; color:#111 !important; box-shadow:none !important; }
 body[data-skin="cyber"] .h2-all b { color:#111 !important; }
 body[data-skin="cyber"] .h2-all svg { color:#111 !important; filter:none !important; }
+/* ---- gold ---- */
+body[data-skin="gold"] .h2-play, body[data-skin="gold"] .btn:not(.ghost):not(.xp-x) { background:linear-gradient(180deg,#fff2b0,#f3c94a 40%,#c98f12) !important;border-radius:14px !important;box-shadow:inset 0 2px 0 rgba(255,255,255,.7),inset 0 -4px 0 rgba(120,70,0,.45),0 0 0 2px #2b1a00,0 8px 18px rgba(0,0,0,.5) !important;color:#2b1a00 !important; }
+body[data-skin="gold"] .h2-play span { color:#2b1a00 !important;-webkit-text-stroke:0 !important;text-shadow:0 1px 0 rgba(255,255,255,.6) !important;letter-spacing:.12em !important; }
+body[data-skin="gold"] .h2-all, body[data-skin="gold"] .h2-sb, body[data-skin="gold"] #profile .pf-tiles button, body[data-skin="gold"] .btn.ghost { background:linear-gradient(180deg,#1b1610,#0c0a07) !important;border-radius:14px !important;box-shadow:inset 0 0 0 2px #e8c157 !important;color:#f3d67a !important; }
+body[data-skin="gold"] .h2-all b, body[data-skin="gold"] .h2-sb b, body[data-skin="gold"] #profile .pf-tiles b { color:#f3d67a !important;-webkit-text-stroke:0 !important; }
+body[data-skin="gold"] .h2-all svg, body[data-skin="gold"] .h2-sb .ui-ic, body[data-skin="gold"] #profile .pf-tiles .ui-ic { color:#f3d67a !important;filter:none !important; }
+body[data-skin="gold"] #hub .mh, body[data-skin="gold"] .rw-mh, body[data-skin="gold"] .h2-road, body[data-skin="gold"] .rd-hero, body[data-skin="gold"] .pc, body[data-skin="gold"] .pc-st, body[data-skin="gold"] #profile .set-row, body[data-skin="gold"] .tabbar, body[data-skin="gold"] #xdraft .xd-bar { background:linear-gradient(180deg,#1b1610,#0c0a07) !important;border-radius:14px !important;box-shadow:inset 0 0 0 1.5px #e8c157 !important; }
+body[data-skin="gold"] #app > .screen > .topbar, body[data-skin="gold"] #app > #xdraft.screen > .topbar, body[data-skin="gold"] .safe-cap { background:#120e09 !important;box-shadow:0 -40px 0 #120e09,0 1.5px 0 #e8c157 !important; }
+body[data-skin="gold"] .h2-bar, body[data-skin="gold"] .rd-bar { background:#000 !important; }
+body[data-skin="gold"] .h2-bar i, body[data-skin="gold"] .rd-fill, body[data-skin="gold"] .xpbar i { background:linear-gradient(180deg,#f3d67a,#a87a12) !important;box-shadow:none !important; }
+body[data-skin="gold"] .h2-bar small { -webkit-text-stroke:2px #000 !important; }
+body[data-skin="gold"] .h2-tro b { -webkit-text-stroke:0 !important;color:#f3d67a !important;text-shadow:none !important; }
+body[data-skin="gold"] .h2-ni { background:#1b1610 !important;box-shadow:inset 0 0 0 1.5px #e8c157 !important; }
+body[data-skin="gold"] #hub .mh-chip, body[data-skin="gold"] .rw-mh .mh-chip { background:#000 !important;box-shadow:inset 0 0 0 1px rgba(232,193,87,.5) !important; }
+body[data-skin="gold"] .h2-ban { background:linear-gradient(180deg,#1b1610,#0c0a07) !important;box-shadow:inset 0 2px 0 #e8c157,inset 0 -2px 0 #e8c157 !important; }
+body[data-skin="gold"] .h2-ban b { color:#f3d67a !important;text-shadow:none !important;letter-spacing:.1em !important; }
+body[data-skin="gold"] .tab { color:rgba(243,214,122,.6) !important; }
+body[data-skin="gold"] .tab.on { background:linear-gradient(180deg,#fff2b0,#f3c94a 40%,#c98f12) !important;color:#2b1a00 !important;box-shadow:none !important; }
