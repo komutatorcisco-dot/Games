@@ -4332,3 +4332,14 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 #xdraft .xd-bar { background: rgba(255,255,255,.04) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08) !important; }
 #xdraft .xd-bar .xd-f { background: rgba(255,255,255,.06) !important; }
 #xdraft .fu.empty { background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04)); }
+
+/* ===== матч: живая 2D-трансляция ===== */
+.xm-pitch { aspect-ratio: 1.6 !important; border-radius: 10px !important;
+  background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0,0,0,.45) 100%), repeating-linear-gradient(90deg, #2c5a2a 0 6.25%, #264f25 6.25% 12.5%) !important; }
+.xm-pitch svg rect, .xm-pitch svg line, .xm-pitch svg circle { stroke: rgba(255,255,255,.38) !important; }
+.xm-p { width: 12px !important; height: 12px !important; margin: -6px 0 0 -6px !important; transition: none !important; border: 2px solid #111; box-sizing: border-box; box-shadow: 0 2px 3px rgba(0,0,0,.45) !important; z-index: 1; }
+.xm-p.own { box-shadow: 0 0 0 2px #fff, 0 2px 4px rgba(0,0,0,.5) !important; z-index: 2; }
+.xm-pitch .xm-ball { width: 8px !important; height: 8px !important; margin: -4px 0 0 -4px !important; background: #fff !important; box-shadow: 0 0 0 1px rgba(0,0,0,.4) !important; z-index: 4; animation: none !important; }
+.xm-bsh { position: absolute; width: 8px; height: 4px; margin: -1px 0 0 -4px; border-radius: 50%; background: rgba(0,0,0,.35); z-index: 3; }
+.xm-tag { position: absolute; z-index: 5; display: none; transform: translate(-50%, 10px); padding: 1px 6px; border-radius: 4px; background: rgba(8,10,14,.82); color: #fff; font: 800 10px "Rubik", sans-serif; white-space: nowrap; pointer-events: none; }
+.xm-tag.on { display: block; } .xm-tag.us { box-shadow: inset 0 -2px 0 #ffcf3a; } .xm-tag.them { box-shadow: inset 0 -2px 0 #ff5872; }

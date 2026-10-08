@@ -104,7 +104,7 @@ const XMatch = (() => {
   const speed = () => [1, 2, 4].includes(UIS().xmSpeed) ? UIS().xmSpeed : 1;
   let waiting = false;
   function run() {
-    clearInterval(timer); waiting = false;
+    clearInterval(timer); waiting = false; Sim.ensure();
     // «Моменты»: между опасными моментами время бежит быстро, поле притушено; в момент — розыгрыш в 3D
     const hl = view() === 'moments' && A3;
     const st = BODY() && $('.xm-stage', BODY()); if (st) st.classList.toggle('idle', !!hl);
@@ -117,30 +117,33 @@ const XMatch = (() => {
     const evs = XD.matchStep(M, [tac, botTac]);
     m.hist.push([tac, botTac]);
     Store.save(true);
-    evs.forEach((e) => { if (e.t === 'goal') { Sound.play(e.s === 0 ? 'goal' : 'lose'); haptic(e.s === 0 ? 'ok' : 'bad'); } });
-    if (M.over) { clearInterval(timer); Sound.play('whistle'); Store.save(); return setTimeout(end, 900); }
-    render(evs);
+    const fin = () => { clearInterval(timer); Sound.play('whistle'); Store.save(); setTimeout(end, 900); };
+    if (evs.length && Sim.on()) { // момент разыгрывается на поле: часы ждут, пока мяч не дойдёт до ворот
+      clearInterval(timer); waiting = true; update([]);
+      return Sim.play(evs, () => { waiting = false; if (!M) return; if (M.over) fin(); else if (Screens.current === C.screen) run(); });
+    }
+    update(evs, false, true);
+    if (M.over) return fin();
     // опасный момент в 3D: останавливаем часы, пока он не доиграется (страховка — 12 секунд)
     if (evs.length && A3 && view() === 'moments') {
       clearInterval(timer); waiting = true;
       const st = $('.xm-stage', BODY()); if (st) st.classList.remove('idle');
       let resumed = false; const go = () => { if (resumed || !M || M.over) return; resumed = true; if (Screens.current === C.screen) run(); };
       A3.events(evs, go); setTimeout(go, 12000);
-    } else if (!evs.length) commentary();
+    }
   }
   // комментарий между моментами: кто владеет мячом и что делает (в режиме «Комментарии» — чаще)
   const PH = {
     pass: ['{a} раздаёт на фланг', '{a} ищет передачей {b}', 'Короткий розыгрыш: {a} — {b}', '{a} переводит игру на другой фланг', '{a} спокойно держит мяч'],
     press: ['{a} отбирает мяч в центре', '{a} прессингует высоко', 'Перехват! {a} прочитал передачу', '{a} выигрывает борьбу наверху'],
-    att: ['Атака по флангу: {a} обыгрывает защитника', '{a} врывается в штрафную, но пас неточный', '{a} навешивает — вратарь забирает', 'Угловой: подаёт {a}', '{a} пробует издали, блок'],
+    att: ['{a} обыгрывает {b}', '{a} уходит в обводку', '{a} тащит мяч вперёд'],
+    clear: ['{a} выносит мяч из штрафной', '{a} выбивает подальше', '{a} забирает навес'],
+    build: ['{a} начинает атаку', '{a} ищет пас вразрез на {b}', 'Опасно! {a} врывается в штрафную'],
   };
-  function commentary() {
-    const box = BODY(), fd = box && $('.xm-feed', box); if (!fd) return;
-    const p = view() === 'comm' ? 0.55 : 0.12; if (Math.random() > p) return;
-    const m = S().match, sideK = Math.random() < 0.5 + (tac - botTac) * 0.05 ? 0 : 1;
-    const xi = (sideK ? m.bot.xi.map(XDraft.P) : C.xi()).filter(Boolean), pick = () => sur((xi[(Math.random() * xi.length) | 0] || {}).name || '');
-    const kind = Math.random() < 0.45 ? 'pass' : Math.random() < 0.5 ? 'press' : 'att', arr = PH[kind];
-    const txt = arr[(Math.random() * arr.length) | 0].replace('{a}', esc(pick())).replace('{b}', esc(pick()));
+  // строка комментария от того, что сейчас видно на поле
+  function say(sideK, kind, a, b) {
+    const box = BODY(), fd = box && $('.xm-feed', box); if (!fd || !M) return;
+    const arr = PH[kind], txt = arr[(Math.random() * arr.length) | 0].replace('{a}', esc(a || '')).replace('{b}', esc(b || ''));
     fd.insertAdjacentHTML('afterbegin', `<div class="xm-ev cm ${sideK ? 'them' : 'us'}"><b>${M.min}'</b><span>${Ui.get(kind === 'att' ? 'bolt' : kind === 'press' ? 'shield' : 'send')}</span><em>${txt}</em></div>`);
     anim(fd.firstElementChild, [{ transform: 'translateY(-10px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 300, easing: 'ease-out' });
     while (fd.children.length > 6) fd.lastElementChild.remove();
@@ -153,9 +156,9 @@ const XMatch = (() => {
     if (waiting) run();
   }
   function setSpeed(x) { UIS().xmSpeed = x; Store.save(); $$('[data-spd]', BODY()).forEach((b) => b.classList.toggle('on', +b.dataset.spd === x)); if (!waiting) run(); }
+  let shown = [0, 0]; // счёт на табло: гол появляется, когда мяч в сетке, а не когда его посчитал движок
 
   const SHORT = ['Оборона', 'Осторожно', 'Баланс', 'Атака', 'Ва-банк'];
-  let ballX = 50, ballY = 50;
   const sur = (n) => { const w = String(n || '').split(' '); return w.length > 1 ? w.slice(1).join(' ') : n; };
   // кто бил и кто тащил: только для текста, выбор детерминирован (зерно + минута), поэтому после перезапуска тот же
   function who(side, minute) {
@@ -168,7 +171,8 @@ const XMatch = (() => {
     for (let k = 0; k < sl.length; k++) { x -= W[sl[k].pos] || 0; if (x <= 0) { shooter = xi[k]; break; } }
     const oform = side ? C.form() : m.bot.form, oxi = side ? C.xi() : m.bot.xi.map(XDraft.P);
     const gk = oxi[XD.FORMATIONS[oform].slots.findIndex((q) => q.pos === 'GK')];
-    return { shooter: shooter ? sur(shooter.name) : '', gk: gk ? sur(gk.name) : 'вратарь' };
+    let k = xi.indexOf(shooter); if (k < 0) k = 0;
+    return { shooter: shooter ? sur(shooter.name) : '', gk: gk ? sur(gk.name) : 'вратарь', k };
   }
   function line(e) {
     const w = who(e.s, e.m);
@@ -177,18 +181,184 @@ const XMatch = (() => {
   function feed() {
     return M.ev.slice(-3).reverse().map((e) => `<div class="xm-ev ${e.s ? 'them' : 'us'} k-${e.t}"><b>${e.m}'</b><span>${EV[e.t][0]}</span><em>${line(e)}</em></div>`).join('');
   }
-  // вид сверху: наши атакуют вправо, соперник — влево; линии смещаются за мячом
-  function dotPos() {
-    const m = S().match, sh = (ballX - 50) * 0.22;
-    const team = (form, side) => XD.FORMATIONS[form].slots.map((q) => {
-      const depth = (100 - q.y) / 100;
-      const x = (side ? 96 - depth * 44 : 4 + depth * 44) + sh + (Math.random() - 0.5) * 2.5;
-      return [Math.max(2, Math.min(98, x)), 8 + q.x * 0.84 + (Math.random() - 0.5) * 3];
-    });
-    return [...team(C.form(), 0), ...team(m.bot.form, 1)];
-  }
   const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const anim = (el, kf, o) => { if (el && el.animate && !RM) return el.animate(kf, o); return null; };
+
+  // ---------- 2D-трансляция: игроки держат строй и смещаются за мячом, мяч у ног или в передаче ----------
+  // каждый момент из движка сначала разыгрывается (2–3 передачи к штрафной), потом удар; часы ждут
+  const Sim = (() => {
+    let G = null, raf = 0, prev = 0;
+    const R = Math.random, cl = (v, a, b) => Math.max(a, Math.min(b, v));
+    const own = (s, x, y) => (s ? [100 - x, 100 - y] : [x, y]); // в «свою» систему: команда атакует вправо
+    const dist = (a, b) => Math.hypot((a.x - b.x) * 1.75, a.y - b.y);
+    function init(box) {
+      const m = S().match, T = [{ form: C.form(), xi: C.xi() }, { form: m.bot.form, xi: m.bot.xi.map(XDraft.P) }], pl = [];
+      T.forEach((t, s) => XD.FORMATIONS[t.form].slots.forEach((q, k) => {
+        const p = t.xi[k];
+        pl.push({ s, k, gk: q.pos === 'GK', d: cl(((100 - q.y) / 100 - 0.12) / 0.72, 0, 1), lat: 8 + q.x * 0.84, name: p ? sur(p.name) : '', x: 50, y: 50, force: null, n: R() * 6 });
+      }));
+      const L = [M.home.lines, M.away.lines], share = (L[0].mid ** 2) / (L[0].mid ** 2 + L[1].mid ** 2);
+      G = { pl, box, share, t: 0, ball: { x: 50, y: 50, h: 0, fl: null }, owner: -1, poss: 0, loose: 0, wait: 0.8, q: [], cb: null, push: -1, said: -9,
+        els: $$('.xm-p', box), bEl: $('.xm-ball', box), shEl: $('.xm-bsh', box), tag: $('.xm-tag', box) };
+      pl.forEach((p) => { const t = target(p, true); p.x = t[0]; p.y = t[1]; });
+      const kits = colors(); G.els.forEach((e, i) => { const k = kits[pl[i].s]; e.style.background = k[0]; e.style.borderColor = k[1]; });
+      kickoff(0); draw();
+    }
+    // цвета формы; если похожи — у соперника запасная
+    function colors() {
+      const m = S().match, home = kitOf(C.xi(), ['#ffc21f', '#1a1446']);
+      let away = (m.club && typeof CLUB_COL !== 'undefined' && CLUB_COL[m.club]) || kitOf(m.bot.xi.map(XDraft.P), ['#e3243f', '#ffffff']);
+      const rgb = (x) => { const v = String(x).replace('#', ''); return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) || 0); };
+      const df = (a, b) => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
+      if (df(home[0], away[0]) < 120) away = df(home[0], '#ffffff') > 160 ? ['#f4f4f4', '#222'] : ['#e3243f', '#fff'];
+      return [home, away];
+    }
+    function kickoff(s) {
+      const b = G.ball; b.x = 50; b.y = 50; b.h = 0; b.fl = null;
+      G.owner = -1; G.poss = s; G.loose = s + 1; G.wait = 0.5;
+    }
+    // куда бежит игрок: линия обороны и вся команда сдвигаются за мячом, при владении — растягиваются
+    function target(p, init) {
+      if (p.force) return p.force;
+      const b = G.ball, att = G.poss === p.s, [bx, by] = own(p.s, b.fl ? b.fl.tx : b.x, b.fl ? b.fl.ty : b.y);
+      let x, y;
+      if (p.gk) { x = 4 + cl((bx - 30) * 0.05, 0, 5); y = 50 + (by - 50) * 0.18; }
+      else {
+        const push = G.push === p.s ? 14 : 0;
+        const back = att ? cl(bx - 36 + push, 14, 58) : cl(bx - 26, 9, 44), span = att ? 46 + push * 0.6 : 32;
+        x = back + p.d * span;
+        y = att ? p.lat + (by - 50) * 0.12 : 50 + (p.lat - 50) * 0.78 + (by - 50) * 0.25;
+        if (!init) { x += Math.sin(G.t * 0.6 + p.n) * 1.4; y += Math.cos(G.t * 0.5 + p.n) * 1.6; }
+      }
+      return own(p.s, cl(x, 2, 98), cl(y, 4, 96));
+    }
+    const team = (s) => G.pl.filter((p) => p.s === s);
+    const near = (s, pt, skip) => team(s).filter((p) => p !== skip && !p.gk).sort((a, b) => dist(a, pt) - dist(b, pt))[0];
+    // полёт мяча: передача, удар, вынос
+    function fly(tx, ty, dur, h, done) { const b = G.ball; b.fl = { fx: b.x, fy: b.y, tx, ty, t: 0, dur, h, done }; G.owner = -1; }
+    function give(p) { G.owner = G.pl.indexOf(p); G.poss = p.s; G.loose = 0; }
+    function pass(c, r, lead, then) {
+      const [ox, oy] = own(r.s, r.x, r.y), [tx, ty] = own(r.s, cl(ox + (lead || 4), 3, 97), oy);
+      r.force = [tx, ty];
+      const d = Math.hypot((tx - c.x) * 1.75, ty - c.y);
+      fly(tx, ty, 0.25 + d / 70, d > 40 ? 6 : 1.5, () => { r.force = null; give(r); if (then) then(); });
+    }
+    // обычная игра без моментов
+    function act() {
+      const c = G.pl[G.owner], s = c.s, o = 1 - s, [cx] = own(s, c.x, c.y), opp = near(o, c);
+      const lossP = 0.2 * (s ? G.share : 1 - G.share) * 2 * (1 + (s ? botTac - tac : tac - botTac) * 0.05);
+      G.wait = 0.55 + R() * 0.6;
+      if (c.gk) { const r = team(s).filter((p) => !p.gk).sort(() => R() - 0.5)[0]; return pass(c, r, 6); }
+      // в штрафную без момента не пускаем: защитник выбивает
+      if (cx > 76) { const d = near(o, c); give(d); talk(o, 'clear', d.name); const [, dy] = own(o, d.x, d.y); const [tx, ty] = own(o, 55 + R() * 15, cl(dy + (R() - 0.5) * 40, 10, 90)); G.owner = -1; return fly(tx, ty, 0.9, 9, () => { G.loose = 3; }); }
+      if (R() < lossP && opp && dist(opp, c) < 16) { give(opp); talk(o, 'press', opp.name); return; }
+      if (R() < 0.25) { G.wait = 0.9; c.drib = 0.9; if (opp && R() < 0.4) talk(s, 'att', c.name, opp.name); return; }
+      const mates = team(s).filter((p) => p !== c && !p.gk).map((p) => { const [px] = own(s, p.x, p.y), d = dist(p, c); return { p, w: d < 7 || d > 48 ? 0 : 1 + Math.max(0, px - cx) * 0.08 + (R() * 0.8) }; }).filter((m) => m.w).sort((a, b) => b.w - a.w);
+      const r = (mates[0] || {}).p; if (!r) return;
+      // перехват на линии передачи
+      if (R() < lossP * 0.6) {
+        const mid = { x: (c.x + r.x) / 2, y: (c.y + r.y) / 2 }, d = near(o, mid);
+        if (d) { d.force = [mid.x, mid.y]; return fly(mid.x, mid.y, 0.35, 1, () => { d.force = null; give(d); talk(o, 'press', d.name); }); }
+      }
+      if (R() < 0.35) talk(s, 'pass', c.name, r.name);
+      pass(c, r, 4);
+    }
+    // розыгрыш момента из движка
+    function script(e) {
+      const s = e.s, o = 1 - s, w = who(s, e.m), sh = team(s)[w.k] || team(s)[10], gk = team(o).find((p) => p.gk);
+      const steps = [];
+      steps.push(() => {
+        G.push = s;
+        const o = G.pl[G.owner];
+        if (!o || o.s !== s) { const n = near(s, G.ball) || sh; if (o) fly(G.ball.x, G.ball.y, 0.01, 0, () => {}); G.wait = 0.3; G.need = n; G.stuck = 0; return; }
+        G.wait = 0.2;
+      });
+      steps.push(() => {
+        const c = G.pl[G.owner], mates = team(s).filter((p) => p !== c && p !== sh && !p.gk).sort((a, b) => own(s, b.x, b.y)[0] - own(s, a.x, a.y)[0]);
+        const r = mates[1] || mates[0]; talk(s, 'build', c.name, r.name, true); pass(c, r, 8); G.wait = 0.25;
+      });
+      steps.push(() => {
+        const c = G.pl[G.owner]; const [x, y] = own(s, 82 + R() * 6, 32 + R() * 36); sh.force = [x, y];
+        const d = Math.hypot((x - c.x) * 1.75, y - c.y); fly(x, y, 0.3 + d / 70, 2, () => { give(sh); }); G.wait = 0.2;
+      });
+      steps.push(() => {
+        const c = G.pl[G.owner] || sh, [cx, cy] = own(s, c.x, c.y); let tx, ty, h = 2;
+        if (e.t === 'goal') { tx = 100.8; ty = 44 + R() * 12; }
+        else if (e.t === 'save') { tx = 4.5; ty = 46 + R() * 8; gk.force = own(o, 4, cl(100 - ty, 42, 58)); }
+        else { tx = 100.8; ty = R() < 0.5 ? 34 + R() * 6 : 60 + R() * 6; h = R() < 0.4 ? 12 : 3; }
+        if (e.t === 'save') { const [gx, gy] = gk.force; return fly(gx, gy, 0.32, h, () => { gk.force = null; give(gk); update([e]); flash(s); after(1.1); }); }
+        const [x, y] = own(s, tx, ty);
+        fly(x, y, 0.34, h, () => { G.owner = -1; G.ball.fl = null; update([e]); flash(s); if (e.t === 'goal') { G.hold = 1.8; G.after = () => { reset(); kickoff(o); }; } else { G.hold = 0.9; G.after = () => { const b = G.ball; [b.x, b.y] = own(o, 6, 50); give(gk); }; } after(e.t === 'goal' ? 2.4 : 1.2); });
+      });
+      return steps;
+    }
+    function after(t) { G.wait = t; G.endScript = true; }
+    function reset() { G.pl.forEach((p) => { p.force = null; }); G.push = -1; }
+    function flash(s) { const pt = $('.xm-pitch', G.box); if (pt) anim(pt, [{ boxShadow: `inset 0 0 0 0 ${s ? '#ff5872' : '#ffcf3a'}` }, { boxShadow: `inset 0 0 0 4px ${s ? '#ff5872' : '#ffcf3a'}` }, { boxShadow: 'inset 0 0 0 0 transparent' }], { duration: 700 }); }
+    function talk(s, kind, a, b, force) { if (!force && G.t - G.said < 2.4) return; G.said = G.t; say(s, kind, a, b); }
+    function play(evs, cb) {
+      G.q = []; evs.forEach((e) => G.q.push(...script(e))); G.cb = cb; G.endScript = false;
+    }
+    function step(dt) {
+      G.t += dt;
+      const b = G.ball;
+      // мяч
+      if (b.fl) {
+        const f = b.fl; f.t += dt / f.dur; const k = Math.min(1, f.t), e = 1 - (1 - k) * (1 - k);
+        b.x = f.fx + (f.tx - f.fx) * e; b.y = f.fy + (f.ty - f.fy) * e; b.h = Math.sin(Math.PI * k) * f.h;
+        if (k >= 1) { b.fl = null; b.h = 0; f.done && f.done(); }
+      } else if (G.owner >= 0) { const c = G.pl[G.owner]; b.x = c.x + (c.s ? -1 : 1) * 1.1; b.y = c.y + 0.6; }
+      else if (G.hold > 0) { G.hold -= dt; if (G.hold <= 0 && G.after) { const a = G.after; G.after = null; a(); } }
+      else if (G.loose && !G.need) { // ничей мяч: ближайший (своей команды на розыгрыше) бежит к нему
+        const s = G.loose === 3 ? null : G.loose - 1, cands = G.pl.filter((p) => !p.gk && (s === null || p.s === s)).sort((p, q) => dist(p, b) - dist(q, b)), n = cands[0];
+        if (n) { n.force = [b.x, b.y]; if (dist(n, b) < 2) { n.force = null; give(n); G.wait = 0.4; } }
+      }
+      if (G.need) { // на розыгрыше мяч должен оказаться у атакующей команды
+        const n = G.need, o = G.pl[G.owner];
+        if (o && o.s === n.s) { n.force = null; G.need = null; }
+        else if (!b.fl) { n.force = [b.x, b.y]; G.stuck = (G.stuck || 0) + dt; if (dist(n, b) < 2.5 || G.stuck > 3) { n.force = null; give(n); G.need = null; } }
+        if (!G.need) G.stuck = 0;
+      }
+      // игроки
+      const pr = G.owner >= 0 ? near(1 - G.pl[G.owner].s, G.pl[G.owner]) : null;
+      G.pl.forEach((p, i) => {
+        let [tx, ty] = target(p);
+        if (p === pr && !p.force) { const c = G.pl[G.owner]; tx = c.x + (c.s ? -1 : 1) * 3; ty = c.y; }
+        if (i === G.owner && p.drib > 0) { p.drib -= dt; const [x] = own(p.s, p.x, p.y); [tx, ty] = own(p.s, x + 8, own(p.s, p.x, p.y)[1]); }
+        const dx = (tx - p.x) * 1.75, dy = ty - p.y, d = Math.hypot(dx, dy), v = (p.force ? 26 : i === G.owner ? 12 : 16) * dt;
+        if (d > 0.05) { const k = Math.min(1, v / d); p.x += (dx / 1.75) * k; p.y += dy * k; }
+      });
+      // решения
+      if (b.fl || G.hold > 0) return;
+      G.wait -= dt; if (G.wait > 0) return;
+      if (G.endScript && !G.q.length) { G.endScript = false; reset(); const cb = G.cb; G.cb = null; if (cb) cb(); return; }
+      if (G.q.length) { if (G.need) return; return G.q.shift()(); }
+      if (G.owner >= 0) act();
+    }
+    function draw() {
+      const b = G.ball;
+      G.els.forEach((e, i) => { const p = G.pl[i]; e.style.left = p.x + '%'; e.style.top = p.y + '%'; e.classList.toggle('own', i === G.owner); });
+      G.bEl.style.left = b.x + '%'; G.bEl.style.top = b.y + '%'; G.bEl.style.transform = `translateY(${-b.h * 1.6}px) scale(${1 + b.h * 0.05})`;
+      G.shEl.style.left = b.x + '%'; G.shEl.style.top = b.y + '%';
+      const c = G.pl[G.owner];
+      if (c) { G.tag.textContent = c.name; G.tag.className = 'xm-tag on ' + (c.s ? 'them' : 'us'); G.tag.style.left = c.x + '%'; G.tag.style.top = c.y + '%'; }
+      else G.tag.classList.remove('on');
+    }
+    function loop(ts) {
+      raf = 0;
+      if (!G || !G.box.isConnected || Screens.current !== C.screen || !M) return;
+      const dt = Math.min(0.05, (ts - (prev || ts)) / 1000) * speed(); prev = ts;
+      step(dt); draw();
+      raf = requestAnimationFrame(loop);
+    }
+    function ensure() {
+      const box = BODY(); if (!box || !$('.xm-pitch', box)) return;
+      if (!G || G.box !== box || !G.els[0].isConnected) init(box);
+      if (G.cb) { G.q = []; G.cb = null; G.endScript = false; G.need = null; reset(); } // розыгрыш прервали уходом с экрана — счёт и ленту уже синхронизировал render()
+      if (!raf) { prev = 0; raf = requestAnimationFrame(loop); }
+    }
+    return { dbg: () => G && { owner: G.owner, q: G.q.length, cb: !!G.cb, need: !!G.need, wait: G.wait, hold: G.hold, fl: !!G.ball.fl, loose: G.loose, end: G.endScript, raf: !!raf }, init: (box) => { init(box); }, ensure, play, on: () => !!(G && raf && !RM), stop: () => { G = null; } };
+  })();
   // экран матча строится один раз; дальше двигаются только игроки, мяч, счёт и лента — отсюда плавность
   function buildView() {
     const box = BODY(), m = S().match, me = Store.d.user.nick || 'Ты';
@@ -200,44 +370,38 @@ const XMatch = (() => {
         <div class="xm-seg">${[1, 2, 4].map((x) => `<button data-spd="${x}" class="${speed() === x ? 'on' : ''}">×${x}</button>`).join('')}</div></div>
       <div class="xm-stage"><div class="xm-pitch"><svg viewBox="0 0 100 60" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="58"/><line x1="50" y1="1" x2="50" y2="59"/><circle cx="50" cy="30" r="8"/>
         <rect x="1" y="16" width="14" height="28"/><rect x="85" y="16" width="14" height="28"/><rect x="1" y="24" width="5" height="12"/><rect x="94" y="24" width="5" height="12"/></svg>
-        ${Array.from({ length: 22 }, (_, k) => `<i class="xm-p ${k < 11 ? 'us' : 'them'}"></i>`).join('')}<i class="xm-ball"></i><span class="xm-prog"></span></div><div class="xm-wait"><b>⏩</b><span>Ждём опасный момент…</span></div></div>
+        ${Array.from({ length: 22 }, (_, k) => `<i class="xm-p ${k < 11 ? 'us' : 'them'}"></i>`).join('')}<i class="xm-bsh"></i><i class="xm-ball"></i><span class="xm-tag"></span><span class="xm-prog"></span></div><div class="xm-wait"><b>⏩</b><span>Ждём опасный момент…</span></div></div>
       <div class="xm-feed">${feed()}</div>
       <div class="xm-tac"><div class="xm-tt"><span>Тактика</span><b class="xm-tn"></b><small class="xm-bn"></small></div>
         <div class="xm-bar">${XD.TACTICS.map((t, i) => `<button class="z${i}" data-tac="${i}" aria-label="${t}"></button>`).join('')}<i class="xm-knob"></i></div>
         <div class="xm-axis"><span>Защита</span><span>Атака</span></div></div>
       <div class="xm-stats"><span>Моменты <b class="xm-ch"></b></span><span>В створ <b class="xm-on"></b></span></div></div>`;
     anim($('.xm-pitch', box), [{ transform: 'rotateX(55deg) scale(.85)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,.9,.3,1)' });
-    shownEv = M.ev.length;
+    shownEv = M.ev.length; shown = M.score.slice();
+    Sim.init(box);
     update([], true);
     if (view() === 'moments') mount3d(box);
   }
   let shownEv = 0;
-  function update(evs = [], first = false) {
+  function update(evs = [], first = false, sync = false) {
     const box = BODY(); if (!$('.xm-pitch', box)) return buildView();
-    const last = evs[evs.length - 1];
-    const ball = $('.xm-ball', box), from = [parseFloat(ball.style.left) || 50, parseFloat(ball.style.top) || 50];
-    if (last) { ballX = last.s === 0 ? 91 : 9; ballY = 38 + Math.random() * 24; }
-    else { ballX = Math.max(22, Math.min(78, 50 + (tac - botTac) * 5 + (Math.random() - 0.5) * 36)); ballY = 22 + Math.random() * 56; }
-    const dur = Math.max(200, XD.CFG.match.tickMs * 0.9);
-    // мяч летит дугой: середина пути чуть выше и мяч «больше» (ближе к камере)
-    anim(ball, [{ left: from[0] + '%', top: from[1] + '%', transform: 'scale(1)' }, { left: (from[0] + ballX) / 2 + '%', top: Math.min(from[1], ballY) - 10 + '%', transform: 'scale(1.6)' }, { left: ballX + '%', top: ballY + '%', transform: 'scale(1)' }], { duration: first ? 0 : dur, easing: 'cubic-bezier(.45,.05,.35,1)' });
-    ball.style.left = ballX + '%'; ball.style.top = ballY + '%';
-    $$('.xm-p', box).forEach((d, k) => { const p = dotPos()[k]; d.style.transitionDuration = dur + 'ms'; d.style.left = p[0] + '%'; d.style.top = p[1] + '%'; });
+    evs.forEach((e) => { if (e.t === 'goal') { shown[e.s]++; Sound.play(e.s === 0 ? 'goal' : 'lose'); haptic(e.s === 0 ? 'ok' : 'bad'); } });
+    if (sync || first) shown = M.score.slice();
     $('.xm-prog', box).style.width = (M.min / XD.CFG.match.minutes) * 100 + '%';
     $('.xm-clock b', box).textContent = M.min;
-    [0, 1].forEach((k) => { const el = $('.d' + k, box); if (+el.textContent !== M.score[k]) { el.textContent = M.score[k]; anim(el, [{ transform: 'rotateX(90deg) scale(1.6)', color: '#ffcf3a' }, { transform: 'rotateX(-20deg) scale(1.2)' }, { transform: 'none' }], { duration: 650, easing: 'cubic-bezier(.2,1.4,.4,1)' }); } });
+    [0, 1].forEach((k) => { const el = $('.d' + k, box); if (+el.textContent !== shown[k]) { el.textContent = shown[k]; anim(el, [{ transform: 'rotateX(90deg) scale(1.6)', color: '#ffcf3a' }, { transform: 'rotateX(-20deg) scale(1.2)' }, { transform: 'none' }], { duration: 650, easing: 'cubic-bezier(.2,1.4,.4,1)' }); } });
     $('.xm-ch', box).textContent = `${M.stats.ch[0]}:${M.stats.ch[1]}`; $('.xm-on', box).textContent = `${M.stats.on[0]}:${M.stats.on[1]}`;
     $('.xm-tn', box).textContent = SHORT[tac]; $('.xm-bn', box).textContent = 'соперник: ' + SHORT[botTac];
     $$('.xm-bar button', box).forEach((b, k) => b.classList.toggle('on', k === tac));
     $('.xm-knob', box).style.left = tac * 20 + 10 + '%';
     // новые события въезжают сверху, старые уходят
     const fd = $('.xm-feed', box);
-    M.ev.slice(shownEv).forEach((e) => {
+    (sync ? M.ev.slice(shownEv) : evs).forEach((e) => {
       fd.insertAdjacentHTML('afterbegin', `<div class="xm-ev ${e.s ? 'them' : 'us'} k-${e.t}"><b>${e.m}'</b><span>${EV[e.t][0]}</span><em>${line(e)}</em></div>`);
       anim(fd.firstElementChild, [{ transform: 'translateY(-14px) rotateX(-70deg)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, easing: 'cubic-bezier(.2,.9,.3,1.2)' });
       while (fd.children.length > 6) fd.lastElementChild.remove();
     });
-    shownEv = M.ev.length;
+    if (sync) shownEv = M.ev.length; else shownEv += evs.length;
     const goal = evs.find((e) => e.t === 'goal');
     if (goal) {
       const st = $('.xm-stage', box);
@@ -245,14 +409,13 @@ const XMatch = (() => {
       const g = st.lastElementChild;
       anim(g, [{ transform: 'translate(-50%,-50%) perspective(400px) rotateX(80deg) scale(.3)', opacity: 0 }, { transform: 'translate(-50%,-50%) perspective(400px) rotateX(-12deg) scale(1.25)', opacity: 1, offset: 0.3 }, { transform: 'translate(-50%,-50%) perspective(400px) rotateX(0) scale(1)', opacity: 1, offset: 0.75 }, { transform: 'translate(-50%,-50%) scale(1.1)', opacity: 0 }], { duration: 1500, easing: 'ease-out' });
       setTimeout(() => g.remove(), 1500);
-      anim($('.xm-pitch', box), [{ transform: 'translateX(0)' }, { transform: 'translateX(-6px) rotate(-.6deg)' }, { transform: 'translateX(5px) rotate(.5deg)' }, { transform: 'none' }], { duration: 420 });
       if (goal.s === 0 && typeof confetti === 'function') confetti();
     }
   }
-  function render(evs = []) { update(evs); }
+  function render(evs = []) { update(evs, false, true); }
   function setTac(t) { t = Math.max(0, Math.min(4, t)); if (t === tac) return; tac = t; Sound.play('tap'); haptic('pop'); const box = BODY(); $('.xm-tn', box).textContent = SHORT[tac]; $$('.xm-bar button', box).forEach((b, k) => b.classList.toggle('on', k === tac)); $('.xm-knob', box).style.left = tac * 20 + 10 + '%'; }
   function end() {
-    stop3d();
+    stop3d(); Sim.stop();
     const m = S().match, first = !m.done; m.done = true; Store.save();
     const w = M.score[0] > M.score[1] ? 'win' : M.score[0] < M.score[1] ? 'lose' : 'draw';
     if (first && C.onEnd) C.onEnd(w, m.level);
@@ -352,5 +515,5 @@ const XMatch = (() => {
     });
     box.addEventListener('change', (e) => { if (e.target.classList.contains('xm-range')) setTac(+e.target.value); });
   }
-  return { choose, start, resume, bind, use, DRAFT, tourStart, tourScreen, tourState };
+  return { Sim, choose, start, resume, bind, use, DRAFT, tourStart, tourScreen, tourState };
 })();
