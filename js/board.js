@@ -20,10 +20,17 @@ const Board = (() => {
     clearTimeout(timer);
     timer = setTimeout(async () => {
       const d = Store.d, s = d.dly;
-      const body = { xp: d.stats.xp, nick: d.user.nick, emoji: d.user.emoji, tro: (d.rw && d.rw.trophies) || 0, gw: d.gw || {} };
+      const body = { xp: d.stats.xp, nick: d.user.nick, emoji: d.user.emoji, tro: (d.rw && d.rw.trophies) || 0 };
+      // победы по играм — только те, что изменились с прошлой отправки (меньше записей в базу)
+      const sent = (d.ui && d.ui.gwSent) || {}, gw = {};
+      Object.entries(d.gw || {}).forEach(([k, v]) => { if (sent[k] !== v) gw[k] = v; });
+      if (Object.keys(gw).length) body.gw = gw;
       if (d.cup && d.cup.week === Release.weekKey()) body.cup = d.cup;
       if (s && s.done && s.day) body.dly = { day: s.day, tries: s.ev.length, won: !!s.won };
-      try { await post('/score', body); cache = {}; } catch (e) { /* нет сети — отправим в следующий раз */ }
+      // ничего не поменялось с прошлой отправки — не дёргаем сервер
+      const sig = JSON.stringify(body), u = d.ui || (d.ui = {});
+      if (sig === u.scoreSig && Date.now() - (u.scoreAt || 0) < 6 * 3600e3) return;
+      try { await post('/score', body); cache = {}; u.scoreSig = sig; u.scoreAt = Date.now(); u.gwSent = Object.assign({}, sent, gw); Store.save(true); } catch (e) { /* нет сети — отправим в следующий раз */ }
     }, 2000);
   }
 

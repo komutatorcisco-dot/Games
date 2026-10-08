@@ -179,19 +179,23 @@ const Cloud = (() => {
     if (again) { again = false; push(); }
   }
   // копия на сервер: сервер сам не даст перезаписать её копией с меньшим числом трофеев
+  let srvLast = '';
   function pushSrv(beacon) {
     if (!srvOn()) return;
+    const data = JSON.stringify(Store.d, (k, v) => (k === 'ts' || k === 'ui' ? undefined : v)); // без отметок времени и настроек экрана
+    if (data === srvLast) return; // не изменилось — не пишем в базу
+    srvLast = data;
     const body = JSON.stringify({ initData: TG.initData, data: JSON.stringify(Store.d) });
     try {
       if (beacon && navigator.sendBeacon && navigator.sendBeacon((CONFIG.api || CONFIG.donateApi) + '/save', body)) return;
       fetch((CONFIG.api || CONFIG.donateApi) + '/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body, keepalive: body.length < 60000 }).catch(() => {});
     } catch (e) { /* нет сети */ }
   }
-  // облако Telegram — не чаще раза в 3 секунды, сервер — раз в 20 секунд
+  // облако Telegram — не чаще раза в 3 секунды, сервер — раз в 2 минуты (и при сворачивании)
   function schedule() {
     if (!ready) return; // пока не сверились с копиями, ничего не перезаписываем
     if (cs()) { clearTimeout(timer); timer = setTimeout(() => { timer = null; push(); }, 3000); }
-    if (srvOn() && !srvTimer) srvTimer = setTimeout(() => { srvTimer = null; pushSrv(); }, 20000);
+    if (srvOn() && !srvTimer) srvTimer = setTimeout(() => { srvTimer = null; pushSrv(); }, 120000);
   }
   async function readTg() {
     if (!cs()) return null;

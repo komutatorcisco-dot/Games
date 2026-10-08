@@ -196,20 +196,42 @@ async function saveScore(env, user, body) {
   return { xp };
 }
 
+// кеш таблиц: в памяти воркера и в settings (между копиями воркера), живёт 90 секунд
+const BOARD_TTL = 90e3, boardMem = {};
+async function boardCache(db, key, build) {
+  const now = Date.now(), m = boardMem[key];
+  if (m && now - m.ts < BOARD_TTL) return m;
+  try { const c = JSON.parse((await getSetting(db, 'top:' + key)) || 'null'); if (c && now - c.ts < BOARD_TTL) { boardMem[key] = c; return c; } } catch (e) { /* пересчитаем */ }
+  const c = { ts: now, ...(await build()) };
+  boardMem[key] = c;
+  await setSetting(db, 'top:' + key, JSON.stringify(c));
+  return c;
+}
+
 async function top(env, user, scope, game = '') {
   const db = env.DB, now = Date.now(), id = user.id;
   await schema(db);
   let rows, me = null, total = 0;
+  // общие таблицы считаются раз в 90 секунд на всех (кеш), а своё место — по готовому списку очков
+  const board = async (key, topSql, scoresSql, mineSql, args, mineArgs) => {
+    const c = await boardCache(db, key, async () => ({
+      rows: (await db.prepare(topSql).bind(...args).all()).results,
+      scores: (await db.prepare(scoresSql).bind(...args).all()).results.map((r) => r.s),
+    }));
+    rows = c.rows.map((r) => ({ ...r })); total = c.scores.length;
+    const mine = await db.prepare(mineSql).bind(...mineArgs).first();
+    if (mine && mine.s > 0) {
+      let lo = 0, hi = c.scores.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (c.scores[mid] > mine.s) lo = mid + 1; else hi = mid; } // очки по убыванию
+      me = { place: lo + 1, score: mine.s };
+      rows.forEach((r) => { if (r.id === id) r.score = mine.s; });
+      rows.sort((x, y) => y.score - x.score);
+    }
+  };
   if (scope === 'week') {
     const wk = weekKey(now);
-    rows = (await db.prepare(`SELECT u.id, u.nick, u.emoji, w.xp - w.start AS score FROM weekly w JOIN users u ON u.id = w.id
-      WHERE w.week = ? AND w.xp > w.start ORDER BY score DESC, u.updated ASC LIMIT ${TOP}`).bind(wk).all()).results;
-    total = (await db.prepare('SELECT COUNT(*) AS n FROM weekly WHERE week = ? AND xp > start').bind(wk).first()).n;
-    const mine = await db.prepare('SELECT xp - start AS score FROM weekly WHERE week = ? AND id = ?').bind(wk, id).first();
-    if (mine && mine.score > 0) {
-      const above = (await db.prepare('SELECT COUNT(*) AS n FROM weekly WHERE week = ? AND xp - start > ?').bind(wk, mine.score).first()).n;
-      me = { place: above + 1, score: mine.score };
-    }
+    await board('week:' + wk, `SELECT u.id, u.nick, u.emoji, w.xp - w.start AS score FROM weekly w JOIN users u ON u.id = w.id
+      WHERE w.week = ? AND w.xp > w.start ORDER BY score DESC, u.updated ASC LIMIT ${TOP}`, 'SELECT xp - start AS s FROM weekly WHERE week = ? AND xp > start ORDER BY s DESC LIMIT 20000',
+      'SELECT xp - start AS s FROM weekly WHERE week = ? AND id = ?', [wk], [wk, id]);
   } else if (scope === 'day') {
     const day = dayKey(now);
     rows = (await db.prepare(`SELECT u.id, u.nick, u.emoji, d.tries AS score FROM daily d JOIN users u ON u.id = d.id
@@ -230,34 +252,27 @@ async function top(env, user, scope, game = '') {
     const i = rows.findIndex((r) => r.id === id);
     if (i >= 0) me = { place: i + 1, score: rows[i].score };
   } else if (scope === 'tro') {
-    rows = (await db.prepare(`SELECT u.id, u.nick, u.emoji, s.trophies AS score FROM ustats s JOIN users u ON u.id = s.id WHERE s.trophies > 0 ORDER BY s.trophies DESC, s.updated ASC LIMIT ${TOP}`).all()).results;
-    total = (await db.prepare('SELECT COUNT(*) AS n FROM ustats WHERE trophies > 0').first()).n;
-    const mine = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(id).first();
-    if (mine && mine.trophies > 0) me = { place: (await db.prepare('SELECT COUNT(*) AS n FROM ustats WHERE trophies > ?').bind(mine.trophies).first()).n + 1, score: mine.trophies };
+    await board('tro', `SELECT u.id, u.nick, u.emoji, s.trophies AS score FROM ustats s JOIN users u ON u.id = s.id WHERE s.trophies > 0 ORDER BY s.trophies DESC, s.updated ASC LIMIT ${TOP}`,
+      'SELECT trophies AS s FROM ustats WHERE trophies > 0 ORDER BY trophies DESC LIMIT 20000', 'SELECT trophies AS s FROM ustats WHERE id = ?', [], [id]);
   } else if (scope === 'game') {
     const g = /^[a-z0-9:-]{2,40}$/.test(game) ? game : 'ng:wordle';
-    rows = (await db.prepare(`SELECT u.id, u.nick, u.emoji, g.wins AS score FROM gwins g JOIN users u ON u.id = g.id WHERE g.game = ? ORDER BY g.wins DESC LIMIT ${TOP}`).bind(g).all()).results;
-    total = (await db.prepare('SELECT COUNT(*) AS n FROM gwins WHERE game = ?').bind(g).first()).n;
-    const mine = await db.prepare('SELECT wins FROM gwins WHERE game = ? AND id = ?').bind(g, id).first();
-    if (mine) me = { place: (await db.prepare('SELECT COUNT(*) AS n FROM gwins WHERE game = ? AND wins > ?').bind(g, mine.wins).first()).n + 1, score: mine.wins };
+    await board('game:' + g, `SELECT u.id, u.nick, u.emoji, g.wins AS score FROM gwins g JOIN users u ON u.id = g.id WHERE g.game = ? ORDER BY g.wins DESC LIMIT ${TOP}`,
+      'SELECT wins AS s FROM gwins WHERE game = ? ORDER BY wins DESC LIMIT 20000', 'SELECT wins AS s FROM gwins WHERE id = ? AND game = ?', [g], [id, g]);
   } else if (scope === 'cup') {
     const wk = weekKey(now);
-    rows = (await db.prepare(`SELECT u.id, u.nick, u.emoji, c.wins AS score FROM cup c JOIN users u ON u.id = c.id WHERE c.week = ? ORDER BY c.wins DESC, c.ts ASC LIMIT ${TOP}`).bind(wk).all()).results;
-    total = (await db.prepare('SELECT COUNT(*) AS n FROM cup WHERE week = ?').bind(wk).first()).n;
-    const i = rows.findIndex((r) => r.id === id); if (i >= 0) me = { place: i + 1, score: rows[i].score };
+    await board('cup:' + wk, `SELECT u.id, u.nick, u.emoji, c.wins AS score FROM cup c JOIN users u ON u.id = c.id WHERE c.week = ? ORDER BY c.wins DESC, c.ts ASC LIMIT ${TOP}`,
+      'SELECT wins AS s FROM cup WHERE week = ? ORDER BY wins DESC LIMIT 20000', 'SELECT wins AS s FROM cup WHERE week = ? AND id = ?', [wk], [wk, id]);
   } else if (scope === 'clubs') {
-    const wk = weekKey(now); await fillWins(db, wk);
-    rows = (await db.prepare(`SELECT c.id, c.name AS nick, c.emoji, COALESCE(SUM(w.n), 0) AS score FROM clubs c JOIN cmembers m ON m.club = c.id
-      LEFT JOIN cwins w ON w.week = ? AND w.id = m.id GROUP BY c.id ORDER BY score DESC LIMIT ${TOP}`).bind(wk).all()).results;
+    const wk = weekKey(now);
+    rows = (await boardCache(db, 'clubs:' + wk, async () => { await fillWins(db, wk); return { rows: (await db.prepare(`SELECT c.id, c.name AS nick, c.emoji, COALESCE(SUM(w.n), 0) AS score FROM clubs c JOIN cmembers m ON m.club = c.id
+      LEFT JOIN cwins w ON w.week = ? AND w.id = m.id GROUP BY c.id ORDER BY score DESC LIMIT ${TOP}`).bind(wk).all()).results, scores: [] }; })).rows;
     total = rows.length;
     const my = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(id).first();
     rows = rows.map((r) => ({ ...r, id: my && r.id === my.club ? id : -1 }));
     const i = rows.findIndex((r) => r.id === id); if (i >= 0) me = { place: i + 1, score: rows[i].score };
   } else {
-    rows = (await db.prepare(`SELECT id, nick, emoji, xp AS score FROM users WHERE xp > 0 ORDER BY xp DESC, updated ASC LIMIT ${TOP}`).all()).results;
-    total = (await db.prepare('SELECT COUNT(*) AS n FROM users WHERE xp > 0').first()).n;
-    const mine = await db.prepare('SELECT xp FROM users WHERE id = ?').bind(id).first();
-    if (mine && mine.xp > 0) me = { place: (await db.prepare('SELECT COUNT(*) AS n FROM users WHERE xp > ?').bind(mine.xp).first()).n + 1, score: mine.xp };
+    await board('all', `SELECT id, nick, emoji, xp AS score FROM users WHERE xp > 0 ORDER BY xp DESC, updated ASC LIMIT ${TOP}`,
+      'SELECT xp AS s FROM users WHERE xp > 0 ORDER BY xp DESC LIMIT 20000', 'SELECT xp AS s FROM users WHERE id = ?', [], [id]);
   }
   return { rows: rows.map((r) => ({ nick: r.nick, emoji: r.emoji, score: r.score, me: r.id === id })), me, total, weekEnd: weekEnd(now) };
 }
@@ -326,6 +341,7 @@ async function loadData(env, user) {
   return r ? { ok: true, ts: r.ts, tro: r.tro, data: r.data } : { ok: true, data: null };
 }
 
+const knownNames = new Set();
 async function events(env, user, body) {
   const db = env.DB, now = Date.now(), today = dayKey(now);
   await schema(db);
@@ -335,7 +351,8 @@ async function events(env, user, body) {
     ...list.map((e) => db.prepare('INSERT INTO events (day, id, game, kind, ms, ts) VALUES (?, ?, ?, ?, ?, ?)')
       .bind(today, user.id, e.game, e.kind, Math.max(0, Math.min(3600e3, Math.floor(Number(e.ms) || 0))), now)),
     // русские названия игр для статистики
-    ...list.filter((e) => e.title).map((e) => db.prepare('INSERT INTO names (game, title) VALUES (?1, ?2) ON CONFLICT(game) DO UPDATE SET title = ?2').bind(e.game, clean(e.title, 40))),
+    // русские названия игр для статистики — пишем только новые (запомненные в памяти воркера не трогаем)
+    ...list.filter((e) => e.title && !knownNames.has(e.game)).map((e) => { knownNames.add(e.game); return db.prepare('INSERT INTO names (game, title) VALUES (?1, ?2) ON CONFLICT(game) DO UPDATE SET title = ?2').bind(e.game, clean(e.title, 40)); }),
   ]);
   const w = list.filter((e) => e.kind === 'win').length;
   if (w) { await fillWins(db, weekKey(now)); await db.prepare('INSERT INTO cwins (id, week, n) VALUES (?1, ?2, ?3) ON CONFLICT(week, id) DO UPDATE SET n = n + ?3').bind(user.id, weekKey(now), w).run(); }
@@ -354,7 +371,12 @@ async function report(env, user, body) {
 }
 
 // Статистика для админа: игроки, активность по дням, игры за 7 дней, ошибки
+let statsMem = null; // статистика админки: не чаще раза в 5 минут
 async function stats(env) {
+  if (statsMem && Date.now() - statsMem.ts < 5 * 6e4) return statsMem.v;
+  const v = await statsRaw(env); statsMem = { ts: Date.now(), v }; return v;
+}
+async function statsRaw(env) {
   const db = env.DB, now = Date.now();
   await schema(db);
   const days = [...Array(7).keys()].map((i) => dayKey(now - i * 864e5)).reverse();
