@@ -4343,3 +4343,15 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .xm-bsh { position: absolute; width: 8px; height: 4px; margin: -1px 0 0 -4px; border-radius: 50%; background: rgba(0,0,0,.35); z-index: 3; }
 .xm-tag { position: absolute; z-index: 5; display: none; transform: translate(-50%, 10px); padding: 1px 6px; border-radius: 4px; background: rgba(8,10,14,.82); color: #fff; font: 800 10px "Rubik", sans-serif; white-space: nowrap; pointer-events: none; }
 .xm-tag.on { display: block; } .xm-tag.us { box-shadow: inset 0 -2px 0 #ffcf3a; } .xm-tag.them { box-shadow: inset 0 -2px 0 #ff5872; }
+
+/* ===== игры на весь экран: фон — у страницы, а не у блока; шапка во всю ширину, вплотную к верху ===== */
+body:not(.at-home) { background: radial-gradient(100% 40% at 50% 0%, rgba(70,90,120,.22), transparent 70%), linear-gradient(180deg, #121821, #07090d) fixed !important; }
+#xdraft { background: none !important; }
+#app > .screen > .topbar { position: sticky; top: var(--safe-top, 0px); z-index: 20; margin: 0 -16px; padding: 8px 16px; border-radius: 0 !important;
+  background: #121821 !important; box-shadow: 0 -40px 0 #121821, 0 1px 0 rgba(255,255,255,.07) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+#app > #xdraft.screen > .topbar { background: #121821 !important; }
+.safe-cap { background: #121821 !important; }
+body:not(.at-home)::before { background: radial-gradient(100% 40% at 50% 0%, rgba(70,90,120,.22), transparent 70%), linear-gradient(180deg, #121821, #07090d) !important; }
+/* драфт и матч — сверху, без пустоты над выбором */
+#app > #xdraft.screen > .topbar { margin-bottom: 0 !important; }
+#app > #xdraft.screen::after { display: none !important; }
