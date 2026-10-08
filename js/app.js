@@ -426,6 +426,7 @@ const App = (() => {
     'ttt-duo': () => TTT.start('duo'),
     'ttt-skip': () => TTT.skip(),
     wheel: () => Wheel.open(),
+    skins: () => Skins.open(),
     runner: () => {
       const f = $('#runner-frame');
       if (!f.getAttribute('src')) f.src = 'runner.html';
@@ -466,6 +467,7 @@ const App = (() => {
 
   function init() {
     Store.load();
+    safe('Skins', () => Skins.apply());
     // каждый модуль подключаем отдельно: ошибка в одном не должна ломать весь экран
     [['Pass', () => Pass.bind()], ['Guess', () => Guess.bind()], ['Career', () => Career.bind()], ['Club', () => Club.bind()], ['Transfer', () => Transfer.bind()],
       ['TTT', () => TTT.bind()], ['Compare', () => Compare.bind()], ['Auction', () => Auction.bind()], ['Nation', () => Nation.bind()], ['Pick', () => Pick.bind()],
