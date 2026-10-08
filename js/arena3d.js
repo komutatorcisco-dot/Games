@@ -24,7 +24,7 @@ const Arena3D = (() => {
 
   // ---------- газон с разметкой ----------
   function pitchTexture(renderer, cols = ['#36ad52', '#2f9a46']) {
-    const c = cv(1536, 1000), x = c.getContext('2d');
+    const c = cv(2048, 1024), x = c.getContext('2d'); // степень двойки: мипмапы, без мерцания полос вдали
     const sx = c.width / (W + 8), sy = c.height / (H + 8), o = (m) => (m + 4) * sx, oy = (m) => (m + 4) * sy;
     for (let i = 0; i < 18; i++) { x.fillStyle = cols[i % 2]; x.fillRect((i * c.width) / 18, 0, c.width / 18 + 1, c.height); }
     x.globalAlpha = 0.05; for (let i = 0; i < 9000; i++) { x.fillStyle = i % 2 ? '#fff' : '#000'; x.fillRect(Math.random() * c.width, Math.random() * c.height, 2, 2); }
@@ -364,7 +364,7 @@ const Arena3D = (() => {
     if (!supported()) return null;
     await three();
     if (!menuView) {
-      menuView = setup(host, { alpha: true, dpr: 1.5 });
+      menuView = setup(host, { alpha: true, dpr: 2.5 });
       const { scene, camera } = menuView;
       scene.add(new THREE.HemisphereLight(0xb8c4ff, 0x2a2050, 0.75));
       const moon = new THREE.DirectionalLight(0xdfe6ff, 0.75); moon.position.set(-60, 120, 80); scene.add(moon);

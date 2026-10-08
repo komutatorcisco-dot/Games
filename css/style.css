@@ -4268,3 +4268,7 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .toast { top: calc(var(--safe-top, 0px) + 12px) !important; bottom: auto !important; max-width: 300px; font-size: 13px !important; }
 .a3d-tag { position: absolute; left: 0; top: 0; z-index: 2; padding: 2px 7px; border-radius: 6px; font: 800 11px "Rubik", sans-serif; white-space: nowrap; pointer-events: none; color: #fff; background: rgba(10,12,34,.8); box-shadow: inset 0 -2px 0 var(--tg, #ffcf3a); transition: transform .08s linear; }
 .a3d-tag.a { --tg: #ffcf3a; } .a3d-tag.b { --tg: #ff5872; }
+.h2-arena.h2-3d-wait :is(.h2-pitch, .h2-ped, .h2-shadow) { display: none; }
+.h2-arena.h2-3d-wait .h2-hex { --hs: calc(var(--W) * .4) !important; bottom: calc(var(--W) * .2) !important; }
+.h2-arena canvas.a3d { opacity: 0; transition: opacity .5s ease; }
+.h2-arena.h2-3d-in canvas.a3d { opacity: 1; }

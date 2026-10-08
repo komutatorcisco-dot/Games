@@ -82,9 +82,10 @@ const Home = (() => {
   let islandAt = 0;
   function island() {
     const ar = $('#home2 .h2-arena'); if (!ar || typeof Arena3D === 'undefined' || !Arena3D.supported() || UI().no3d) return;
-    // арену ищем заново: главная могла перерисоваться, пока грузился three.js
-    const go = () => { const a = $('#home2 .h2-arena'); if (a) Arena3D.menu(a).then((v) => { if (v && a.isConnected) a.classList.add('h2-3d'); }).catch(() => {}); };
-    if (window.THREE) go(); else if (!islandAt) { islandAt = 1; setTimeout(go, 1200); }
+    // нарисованное поле сразу прячем — без подмены одного стадиона другим; 3D проявляется плавно, когда готово
+    ar.classList.add('h2-3d-wait');
+    const go = () => { const a = $('#home2 .h2-arena'); if (a) Arena3D.menu(a).then((v) => { if (!a.isConnected) return; if (v) { a.classList.add('h2-3d'); requestAnimationFrame(() => a.classList.add('h2-3d-in')); } else a.classList.remove('h2-3d-wait'); }).catch(() => a.classList.remove('h2-3d-wait')); };
+    go();
   }
   // главный экран целиком в один экран: от шапки до нижнего меню, без прокрутки
   function fit() {
