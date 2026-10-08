@@ -151,15 +151,20 @@ const Store = {
   },
 };
 
-// Облачное сохранение в Telegram (CloudStorage): прогресс не теряется и одинаковый на телефоне и компьютере.
-// Значение одного ключа — до 4096 символов, поэтому сохранение режется на куски s0, s1, … ; в sn — число кусков, в st — время.
+// Сохранение на трёх местах: в телефоне (localStorage), в облаке Telegram (CloudStorage) и резервная копия на нашем сервере.
+// При запуске берём самую «продвинутую» копию — больше трофеев, при равенстве новее. Так прогресс не откатывается,
+// даже если на другом устройстве была старая версия или облако Telegram записалось не до конца.
+// Значение одного ключа CloudStorage — до 4096 символов, поэтому сохранение режется на куски s0, s1, … ; в sn — число кусков, в st — время.
 const Cloud = (() => {
   const CHUNK = 4000;
-  let timer = null, busy = false, again = false, ready = false;
+  let timer = null, srvTimer = null, busy = false, again = false, ready = false;
   const cs = () => {
     try { return TG && TG.CloudStorage && TG.isVersionAtLeast && TG.isVersionAtLeast('6.9') ? TG.CloudStorage : null; } catch (e) { return null; }
   };
   const call = (fn, ...args) => new Promise((ok) => { try { cs()[fn](...args, (err, res) => ok(err ? null : res)); } catch (e) { ok(null); } });
+  const srvOn = () => typeof Board !== 'undefined' && Board.ready && Board.ready();
+  const tro = (d) => Math.floor(Number(d && d.rw && d.rw.trophies) || 0);
+  const better = (a, b) => tro(a) > tro(b) || (tro(a) === tro(b) && (a.ts || 0) > (b.ts || 0));
 
   async function push() {
     if (!cs()) return;
@@ -167,40 +172,68 @@ const Cloud = (() => {
     busy = true;
     try {
       const str = JSON.stringify(Store.d), n = Math.ceil(str.length / CHUNK);
-      for (let i = 0; i < n; i++) await call('setItem', 's' + i, str.slice(i * CHUNK, (i + 1) * CHUNK));
+      await Promise.all(Array.from({ length: n }, (_, i) => call('setItem', 's' + i, str.slice(i * CHUNK, (i + 1) * CHUNK))));
       await call('setItem', 'sn', String(n));
       await call('setItem', 'st', String(Store.d.ts || 0));
     } finally { busy = false; }
     if (again) { again = false; push(); }
   }
-  // сохраняем не чаще раза в 3 секунды
-  function schedule() {
-    if (!cs() || !ready) return; // пока не сверились с облаком, не перезаписываем его
-    clearTimeout(timer);
-    timer = setTimeout(push, 3000);
-  }
-  // При запуске: если в облаке сохранение новее — берём его, иначе отправляем своё
-  async function pull() {
-    if (!cs()) return false;
-    const meta = await call('getItems', ['sn', 'st']);
-    if (!meta) { ready = true; return false; } // облако недоступно — не трогаем его
-    const n = +meta.sn, ts = +meta.st;
-    ready = true;
-    if (!n || !(ts > Store.loadedTs)) { push(); return false; }
-    const keys = Array.from({ length: n }, (_, i) => 's' + i);
-    const parts = await call('getItems', keys);
-    if (!parts) return false;
+  // копия на сервер: сервер сам не даст перезаписать её копией с меньшим числом трофеев
+  function pushSrv(beacon) {
+    if (!srvOn()) return;
+    const body = JSON.stringify({ initData: TG.initData, data: JSON.stringify(Store.d) });
     try {
-      const raw = JSON.parse(keys.map((k) => parts[k] || '').join(''));
-      Store.d = Store.merge(raw);
-      Store.d.ts = ts;
-      try { localStorage.setItem(Store.KEY, JSON.stringify(Store.d)); } catch (e) { /* без локальной копии */ }
-      return true;
-    } catch (e) { return false; }
+      if (beacon && navigator.sendBeacon && navigator.sendBeacon((CONFIG.api || CONFIG.donateApi) + '/save', body)) return;
+      fetch((CONFIG.api || CONFIG.donateApi) + '/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body, keepalive: body.length < 60000 }).catch(() => {});
+    } catch (e) { /* нет сети */ }
+  }
+  // облако Telegram — не чаще раза в 3 секунды, сервер — раз в 20 секунд
+  function schedule() {
+    if (!ready) return; // пока не сверились с копиями, ничего не перезаписываем
+    if (cs()) { clearTimeout(timer); timer = setTimeout(() => { timer = null; push(); }, 3000); }
+    if (srvOn() && !srvTimer) srvTimer = setTimeout(() => { srvTimer = null; pushSrv(); }, 20000);
+  }
+  async function readTg() {
+    if (!cs()) return null;
+    const meta = await call('getItems', ['sn', 'st']);
+    if (!meta || !+meta.sn) return null;
+    const keys = Array.from({ length: +meta.sn }, (_, i) => 's' + i);
+    const parts = await call('getItems', keys);
+    if (!parts) return null;
+    try { const raw = JSON.parse(keys.map((k) => parts[k] || '').join('')); raw.ts = raw.ts || +meta.st || 0; return raw; } catch (e) { return null; } // записалось не до конца — пропускаем
+  }
+  async function readSrv() {
+    if (!srvOn()) return null;
+    try {
+      const r = await Promise.race([Board.post('/load', {}), new Promise((ok) => setTimeout(() => ok(null), 6000))]);
+      return r && r.data ? JSON.parse(r.data) : null;
+    } catch (e) { return null; }
+  }
+  // При запуске: сравниваем копии и берём лучшую; потом отправляем её во все места
+  async function pull() {
+    let got = false;
+    try {
+      const [a, b] = await Promise.all([readTg(), readSrv()]);
+      let best = null;
+      [a, b].forEach((x) => { if (x && typeof x === 'object' && better(x, best || Store.d)) best = x; });
+      if (best) {
+        const ts = best.ts;
+        Store.d = Store.merge(best); Store.d.ts = ts;
+        try { localStorage.setItem(Store.KEY, JSON.stringify(Store.d)); } catch (e) { /* без локальной копии */ }
+        got = true;
+      }
+    } catch (e) { /* остаёмся на локальной копии */ }
+    ready = true;
+    push(); pushSrv();
+    return got;
   }
   // при сворачивании Mini App сохраняем сразу
-  document.addEventListener('visibilitychange', () => { if (document.hidden && timer) { clearTimeout(timer); timer = null; push(); } });
-  return { schedule, pull, push, on: () => !!cs() };
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden || !ready) return;
+    if (timer) { clearTimeout(timer); timer = null; push(); }
+    if (srvTimer) { clearTimeout(srvTimer); srvTimer = null; pushSrv(true); }
+  });
+  return { schedule, pull, push, pushSrv, on: () => !!cs() };
 })();
 
 const Coins = {

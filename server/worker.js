@@ -117,6 +117,8 @@ async function schema(db) {
     // подбор соперника для онлайн-дуэли
     db.prepare('CREATE TABLE IF NOT EXISTS mm (id INTEGER PRIMARY KEY, code TEXT NOT NULL, nick TEXT, emo TEXT, ts INTEGER NOT NULL, paired INTEGER)'),
     // очередь онлайна по режимам: дуэль, драфт, козыри… (сводим только игроков одного режима)
+    // резервная копия сохранения игрока: храним самую «продвинутую» (больше трофеев; при равенстве — новее)
+    db.prepare('CREATE TABLE IF NOT EXISTS saves (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, tro INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL)'),
     db.prepare("CREATE TABLE IF NOT EXISTS mmg (id INTEGER PRIMARY KEY, game TEXT NOT NULL DEFAULT 'duel', code TEXT NOT NULL, nick TEXT, emo TEXT, ts INTEGER NOT NULL, paired INTEGER)"),
   ]);
   ready = true;
@@ -284,7 +286,30 @@ async function hello(env, user, body) {
   if (typeof body.remind === 'boolean') await db.prepare('INSERT INTO prefs (id, remind) VALUES (?1, ?2) ON CONFLICT(id) DO UPDATE SET remind = ?2').bind(user.id, body.remind ? 1 : 0).run();
   // приз за кубок драфта прошлой недели
   const prev = weekKey(now - 7 * 864e5), cupWin = Number(await getSetting(db, 'cupwin:' + prev)) === user.id ? prev : null;
-  return { admin: await isAdminId(env, user.id), pass, shop, cupWin };
+  const sv = await db.prepare('SELECT ts, tro FROM saves WHERE id = ?').bind(user.id).first();
+  const ut = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(user.id).first();
+  return { admin: await isAdminId(env, user.id), pass, shop, cupWin, save: sv ? { ts: sv.ts, tro: sv.tro } : null, tro: ut ? ut.trophies : 0 };
+}
+
+// ---------- резервное сохранение ----------
+// Облако Telegram на разных устройствах бывает недоступно или успевает записать только часть,
+// поэтому копия лежит ещё и здесь. Хуже по трофеям не перезаписываем — прогресс не откатывается.
+async function saveData(env, user, body) {
+  const db = env.DB;
+  await schema(db);
+  const str = typeof body.data === 'string' ? body.data : '';
+  if (!str || str.length > 900000) return { ok: false, error: 'size' };
+  let d; try { d = JSON.parse(str); } catch (e) { return { ok: false, error: 'bad data' }; }
+  const tro = Math.max(0, Math.floor(Number(d && d.rw && d.rw.trophies) || 0)), ts = Math.floor(Number(d && d.ts) || Date.now());
+  const old = await db.prepare('SELECT ts, tro FROM saves WHERE id = ?').bind(user.id).first();
+  if (old && (tro < old.tro || (tro === old.tro && ts < old.ts))) return { ok: true, kept: true, ts: old.ts, tro: old.tro };
+  await db.prepare('INSERT INTO saves (id, ts, tro, data) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(id) DO UPDATE SET ts = ?2, tro = ?3, data = ?4').bind(user.id, ts, tro, str).run();
+  return { ok: true, ts, tro };
+}
+async function loadData(env, user) {
+  await schema(env.DB);
+  const r = await env.DB.prepare('SELECT ts, tro, data FROM saves WHERE id = ?').bind(user.id).first();
+  return r ? { ok: true, ts: r.ts, tro: r.tro, data: r.data } : { ok: true, data: null };
 }
 
 async function events(env, user, body) {
@@ -659,7 +684,7 @@ async function route(request, env) {
   }
 
   // ---------- рейтинг ----------
-  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm'].includes(url.pathname) && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/save', '/load'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
@@ -671,6 +696,8 @@ async function route(request, env) {
     if (url.pathname === '/report') return json(await report(env, user, body));
     if (url.pathname === '/club') return json(await club(env, user, body));
     if (url.pathname === '/mm') return json(await matchmake(env, user, body));
+    if (url.pathname === '/save') return json(await saveData(env, user, body));
+    if (url.pathname === '/load') return json(await loadData(env, user));
     if (url.pathname === '/admin/stats') {
       if (!(await isAdminId(env, user.id))) return json({ ok: false, error: 'forbidden' }, 403);
       return json({ ok: true, ...(await stats(env)) });
