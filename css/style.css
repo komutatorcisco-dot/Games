@@ -4355,3 +4355,18 @@ body:not(.at-home)::before { background: radial-gradient(100% 40% at 50% 0%, rgb
 /* драфт и матч — сверху, без пустоты над выбором */
 #app > #xdraft.screen > .topbar { margin-bottom: 0 !important; }
 #app > #xdraft.screen::after { display: none !important; }
+
+/* ===== главная: спокойный тёмный фон вместо фиолетовых трибун ===== */
+body.at-home::before { background:
+    radial-gradient(70% 38% at 50% 52%, rgba(120,150,190,.16), transparent 70%),
+    radial-gradient(120% 40% at 50% 0%, rgba(70,90,120,.22), transparent 70%),
+    linear-gradient(180deg, #121821 0%, #0b0f15 60%, #07090d 100%) !important; }
+body.at-home { background: #0b0f15 !important; }
+.h2-bg { display: none !important; }
+.mh { background: rgba(255,255,255,.05) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.09) !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+.h2-road { background: rgba(255,255,255,.05) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.09) !important; }
+.safe-cap { background: #121821 !important; }
+#hub .mh, .rw-mh { background: #1a2029 !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 6px 14px rgba(0,0,0,.35) !important; }
+#hub .mh-chip, .rw-mh .mh-chip { background: rgba(0,0,0,.35) !important; }
+.h2-road { background: #1a2029 !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 6px 14px rgba(0,0,0,.35) !important; }
+.tabbar { background: #151a22 !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08), 0 8px 20px rgba(0,0,0,.45) !important; }
