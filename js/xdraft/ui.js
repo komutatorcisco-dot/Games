@@ -59,7 +59,9 @@ const XDraft = (() => {
   });
   function pool() {
     if (POOL) return POOL;
-    POOL = PLAYERS.filter((p) => FC_STATS[p.name] && FC_POS[p.name]).map((p) => ({
+    // в драфт — только игроки с фото: серые силуэты в пятёрках выглядят как баг
+    const withFace = PLAYERS.filter((p) => FC_STATS[p.name] && FC_POS[p.name] && FACES[p.name]);
+    POOL = (withFace.length > 1200 ? withFace : PLAYERS.filter((p) => FC_STATS[p.name] && FC_POS[p.name])).map((p) => ({
       name: p.name, r: FC_STATS[p.name][0], st: FC_STATS[p.name].slice(1, 7), pos: FC_POS[p.name].split(' '),
       club: p.club, lg: p.lg, nat: p.nat, flag: p.flag, face: FACES[p.name] || null,
     }));
@@ -249,7 +251,7 @@ const XDraft = (() => {
   function render() {
     const a = A(), box = $('#xd-body'); if (!box) return;
     const best = S().best;
-    $('#xd-sub').textContent = a && a.sys ? `${a.form || ''} · ${SYS[a.sys]}` : 'Собери состав из пятёрок';
+    $('#xd-sub').textContent = a && a.sys ? `${a.form || ''} · ${a.sys === 'classic' ? 'Классика' : 'Новая химия'}` : 'Собери состав из пятёрок';
     if (!a || a.stage === 'sys') {
       box.innerHTML = `<p class="xd-lead">Система химии</p>
         <button class="xd-opt" data-sys="classic"><b>Классическая</b><span>FIFA 19 · связи с соседями · до 100</span>${best.classic ? `<em>Рекорд: рейтинг ${best.classic.r} · химия ${best.classic.c}/100</em>` : ''}</button>
@@ -315,7 +317,7 @@ const XDraft = (() => {
     const a = A(), xi = xiOf(a), bench = benchOf(a), F_ = XD.FORMATIONS[a.form], c = XD.chem(a.sys, a.form, xi), b = S().best[a.sys] || {};
     $('#xd-body').innerHTML = `<div class="xd-res"><div class="sb"><div class="sb-k">ДРАФТ · ${a.form} · ${SYS[a.sys].toUpperCase()}</div>
         <div class="xd-rs"><span><small>Рейтинг</small><b>${a.result.r}</b>${a.result.newR ? '<em>рекорд!</em>' : ''}</span><span><small>Химия</small><b>${a.result.c}<i>/${c.max}</i></b>${a.result.newC ? '<em>рекорд!</em>' : ''}</span></div>
-        <div class="xd-best">Лучшее в режиме «${SYS[a.sys]}»: рейтинг ${b.r} · химия ${b.c}/${c.max}</div></div>
+        <div class="xd-best">${b.r ? `Лучшее в режиме «${SYS[a.sys]}»: рейтинг ${b.r} · химия ${b.c}/${c.max}` : 'Первый драфт в этом режиме — это и есть рекорд'}</div></div>
       ${pitchHTML(a, xi, c, { live: false })}
       <div class="xd-bench"><div class="xd-bh"><b>Скамейка</b></div><div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
       <div class="xd-act col">${S().tour && !S().tour.paid ? `<button class="btn gold" data-act2="tour-go">${S().tour.over ? 'Итоги турнира' : 'Продолжить турнир'}</button>` : '<button class="btn gold" data-act2="tour">Турнир драфта · 4 матча</button>'}

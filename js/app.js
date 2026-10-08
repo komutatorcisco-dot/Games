@@ -457,7 +457,7 @@ const App = (() => {
       Store.d.lastDaily = today();
       Store.save();
       Coins.add(dailyReward(day));
-      toast(`Бонус за вход: +${dailyReward(day)} монет (день ${day} из 7)`);
+      toast(`+${dailyReward(day)} монет за вход · день ${day}/7`);
       renderHub();
     },
     music: () => { Music.toggle(); renderProfile(); },

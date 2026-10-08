@@ -4255,3 +4255,14 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .h2-arena.h2-3d .h2-hex { --hs: calc(var(--W) * .4) !important; bottom: calc(var(--W) * .2) !important; }
 .h2-ban b { white-space: nowrap; -webkit-line-clamp: 1; }
 .xd-pitch .xd-links .ln:not(.none) { stroke-width: 1.1 !important; filter: none !important; }
+
+/* ===== матч: режимы просмотра и скорость ===== */
+.xm-ctl { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0; }
+.xm-seg { display: flex; padding: 3px; border-radius: 12px; background: rgba(255,255,255,.07); }
+.xm-seg button { padding: 7px 11px; border: 0; border-radius: 9px; background: none; color: rgba(255,255,255,.65); font: 800 12.5px "Rubik", sans-serif; }
+.xm-seg button.on { background: #ffcf3a; color: #1a1406; }
+.xm.comm .xm-stage { display: none; }
+.xm.comm .xm-feed { max-height: none; }
+.xm-ev.cm { opacity: .82; } .xm-ev.cm em { font-weight: 600; }
+.xm.comm .xm-ev { animation: none; }
+.toast { top: calc(var(--safe-top, 0px) + 12px) !important; bottom: auto !important; max-width: 300px; font-size: 13px !important; }

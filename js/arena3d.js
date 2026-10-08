@@ -434,25 +434,35 @@ const Arena3D = (() => {
       kickTo(tp, Math.random() < 0.25 ? rnd(3, 7) : 0.3, rnd(0.6, 1.1), () => setTimeout(() => { if (!fly) next(); }, rnd(150, 500)));
     }
     // событие движка: атака стороны s, затем удар — гол, сейв или мимо
+    // атака: мяч уходит в штрафную, ближайший атакующий бежит к нему, затем удар — без телепортов
+    let focus = 0;
     function shot(ev) {
-      side = ev.s; const att = team[side].filter((p) => ['ST', 'LW', 'RW', 'CAM', 'CM'].includes(p.pos));
-      owner = att[(Math.random() * att.length) | 0] || team[side][10];
-      const gx = side ? -W / 2 : W / 2, run = new THREE.Vector3(gx - (side ? -1 : 1) * rnd(14, 20), 0.34, rnd(-12, 12));
-      owner.m.position.set(run.x - (side ? -1 : 1) * 2, 0, run.z);
-      kickTo(run, 0.3, 0.55, () => {
-        const gkP = team[1 - side].find((p) => p.gk);
-        let tgt;
-        if (ev.t === 'goal') tgt = new THREE.Vector3(gx + (side ? -1.2 : 1.2), rnd(0.5, 2.1), rnd(-3.2, 3.2));
-        else if (ev.t === 'save') { tgt = new THREE.Vector3(gx - (side ? -1 : 1) * 0.9, rnd(0.4, 1.6), rnd(-2.6, 2.6)); if (gkP) dive = { p: gkP, t: 0, dir: Math.sign(tgt.z - gkP.m.position.z) || 1 }; }
-        else tgt = new THREE.Vector3(gx + (side ? -3 : 3), rnd(0.4, 4.5), (Math.random() < 0.5 ? -1 : 1) * rnd(4.6, 7));
-        kickTo(tgt, ev.t === 'miss' ? 1.5 : 0.8, 0.5, () => {
-          if (ev.t === 'goal') { B.cheer(); const net = goals[side ? 1 : 0].userData.net; net.scale.set(1, 1.08, 1); setTimeout(() => net.scale.set(1, 1, 1), 400); }
-          setTimeout(() => {
-            if (ev.t === 'goal') { ballM.position.set(0, 0.34, 0); side = 1 - side; owner = team[side][9] || team[side][10]; }
-            else { side = 1 - side; owner = team[side].find((p) => p.gk) || team[side][0]; ballM.position.copy(owner.m.position).setY(0.34); }
-            next();
-          }, ev.t === 'goal' ? 1400 : 500);
-        });
+      focus = 1;
+      side = ev.s; const att = team[side].filter((p) => ['ST', 'LW', 'RW', 'CAM', 'CM', 'LM', 'RM'].includes(p.pos));
+      const gx = side ? -W / 2 : W / 2, run = new THREE.Vector3(gx - (side ? -1 : 1) * rnd(13, 19), 0.34, rnd(-10, 10));
+      owner = att.reduce((b, p) => (p.m.position.distanceToSquared(run) < b.m.position.distanceToSquared(run) ? p : b), att[0] || team[side][10]);
+      owner.chase = run;
+      kickTo(run, rnd(0.3, 2.5), 0.9, () => {
+        let w = 0;
+        const go = () => {
+          if (owner.m.position.distanceTo(run) > 1.4 && w++ < 40) return setTimeout(go, 40);
+          owner.chase = null;
+          const gkP = team[1 - side].find((p) => p.gk);
+          let tgt;
+          if (ev.t === 'goal') tgt = new THREE.Vector3(gx + (side ? -1.2 : 1.2), rnd(0.5, 2.1), rnd(-3.2, 3.2));
+          else if (ev.t === 'save') { tgt = new THREE.Vector3(gx - (side ? -1 : 1) * 0.9, rnd(0.4, 1.6), rnd(-2.6, 2.6)); if (gkP) dive = { p: gkP, t: 0, dir: Math.sign(tgt.z - gkP.m.position.z) || 1 }; }
+          else tgt = new THREE.Vector3(gx + (side ? -3 : 3), rnd(0.4, 4.5), (Math.random() < 0.5 ? -1 : 1) * rnd(4.6, 7));
+          kickTo(tgt, ev.t === 'miss' ? 1.5 : 0.8, 0.55, () => {
+            if (ev.t === 'goal') { B.cheer(); shake = 0.5; const net = goals[side ? 1 : 0].userData.net; net.scale.set(1, 1.08, 1); setTimeout(() => net.scale.set(1, 1, 1), 400); }
+            setTimeout(() => {
+              if (ev.t === 'goal') { ballM.position.set(0, 0.34, 0); side = 1 - side; owner = team[side][9] || team[side][10]; all.forEach((p) => p.m.position.lerp(p.home, 0.85)); }
+              else { side = 1 - side; owner = team[side].find((p) => p.gk) || team[side][0]; }
+              focus = 0;
+              const d = ev.done; next(); if (d) d();
+            }, ev.t === 'goal' ? 1600 : 700);
+          });
+        };
+        go();
       });
     }
     function next() { const e = queue.shift(); if (e) shot(e); else pass(); }
@@ -481,6 +491,7 @@ const Arena3D = (() => {
       });
       [0, 1].forEach((s) => { const near = team[s].filter((p) => !p.gk).reduce((b, p) => (p.m.position.distanceToSquared(ballM.position) < b.m.position.distanceToSquared(ballM.position) ? p : b)); near.tgt.set(bx, 0, bz); });
       if (owner && !fly) owner.tgt.set(owner.m.position.x + (owner.s ? -6 : 6), 0, owner.m.position.z);
+      if (owner && owner.chase) owner.tgt.copy(owner.chase).setY(0);
       all.forEach((p) => {
         const d = p.tgt.clone().sub(p.m.position); d.y = 0; const dist = d.length();
         const sp = Math.min(dist * 1.4, 7.5); p.vel += (sp - p.vel) * Math.min(1, dt * 4);
@@ -492,7 +503,8 @@ const Arena3D = (() => {
       const port = camera.aspect < 1;
       // камера внутри чаши, у бровки: держится в ~30 м от мяча и ведёт его
       camera.fov = port ? 50 : 40;
-      camPos.set(bx * 0.9, port ? 17 : 14, Math.min(H / 2 + 6, bz * 0.35 + (port ? 30 : 26)));
+      const zoom = focus ? 0.7 : 1;
+      camPos.set(bx * 0.9, (port ? 17 : 14) * zoom, Math.min(H / 2 + 6, bz * 0.35 + (port ? 30 : 26) * zoom));
       camera.position.lerp(camPos, Math.min(1, dt * 2.2));
       look.lerp(new THREE.Vector3(bx, 0.5, bz * 0.6 - 2), Math.min(1, dt * 3.5));
       if (shake > 0) { shake -= dt; camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake; }
@@ -501,7 +513,8 @@ const Arena3D = (() => {
     }, () => visible() && !document.hidden);
     return {
       // события ждут своей очереди: текущая передача доиграется, потом атака
-      events(evs) { evs.forEach((e) => { queue.push(e); if (e.t === 'goal') setTimeout(() => { shake = 0.6; }, 1600); }); },
+      // события показываются по одному; done — когда последний момент доигран (часы матча ждут)
+      events(evs, done) { evs.forEach((e, i) => queue.push({ ...e, done: i === evs.length - 1 ? done : null })); if (!fly && !focus) { const e = queue.shift(); if (e) shot(e); } },
       stop: () => V.stop(),
     };
   }

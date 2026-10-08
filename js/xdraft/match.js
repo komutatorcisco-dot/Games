@@ -17,11 +17,11 @@ const XMatch = (() => {
     if (typeof Arena3D === 'undefined' || !Arena3D.supported()) return;
     const stage = $('.xm-stage', box), m = S().match, ctx = C;
     const home = kitOf(C.xi(), ['#ffc21f', '#1a1446']);
-    let away = kitOf(m.bot.xi.map(XDraft.P), ['#e3243f', '#ffffff']);
+    let away = (m.club && typeof CLUB_COL !== 'undefined' && CLUB_COL[m.club]) || kitOf(m.bot.xi.map(XDraft.P), ['#e3243f', '#ffffff']);
     const rgb = (x) => { const v = String(x).replace('#', ''); return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) || 0); };
     const dist = (a, b) => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
     if (dist(home[0], away[0]) < 150) away = dist(home[0], '#f4f4f4') < 150 ? ['#e3243f', '#ffffff'] : ['#f4f4f4', '#1a1446'];
-    Arena3D.match(stage, { form: [C.form(), m.bot.form], slots: XD.FORMATIONS, kits: [home, away], ball: Arena3D.ballState().ball, names: [String(Store.d.user.nick || 'ДЖЕКСОНЫ').toUpperCase()], visible: () => Screens.current === ctx.screen })
+    Arena3D.match(stage, { form: [C.form(), m.bot.form], slots: XD.FORMATIONS, kits: [home, away], ball: Arena3D.ballState().ball, names: [String(Store.d.user.nick || 'ДЖЕКСОНЫ').toUpperCase()], onIdle: () => {}, visible: () => Screens.current === ctx.screen })
       .then((a) => { if (!a) return; if (!stage.isConnected || !M || M.over) { a.stop(); return; } A3 = a; stage.classList.add('is3d'); })
       .catch(() => { /* без 3D — остаётся вид сверху */ });
   }
@@ -30,13 +30,31 @@ const XMatch = (() => {
   let C = DRAFT;
   const S = () => C.st();
   const BODY = () => $(C.body);
+  const opp = (m) => (m.club ? m.club : `Бот · ${XD.BOTS[m.level].name}`);
+  const oppShort = (m) => (m.club ? m.club : XD.BOTS[m.level].name);
+  // соперник — настоящий клуб: лучшие игроки клуба по позициям (кого нет — добираем из его лиги)
+  function clubTeam(club, pool) {
+    const own = pool.filter((p) => p.club === club), lg = (own[0] || {}).lg;
+    let best = null;
+    Object.keys(XD.FORMATIONS).forEach((form) => {
+      const taken = new Set(), xi = XD.FORMATIONS[form].slots.map((sl) => {
+        const fit = (list) => list.filter((p) => !taken.has(p.name) && p.pos.includes(sl.pos)).sort((a, b) => b.r - a.r)[0];
+        const p = fit(own) || fit(pool.filter((q) => q.lg === lg && q.r <= 84)) || fit(pool);
+        if (p) taken.add(p.name); return p;
+      });
+      const r = XD.teamRating(xi), n = xi.filter((p) => p && p.club === club).length;
+      if (!best || n * 10 + r > best.n * 10 + best.r) best = { form, xi, r, n };
+    });
+    return best;
+  }
   const EV = { goal: [Ui.get('ball'), 'ГОЛ!'], save: [Ui.get('shield'), 'Сейв вратаря'], miss: [Ui.get('target'), 'Удар мимо'] };
 
   function use(ctx) { C = ctx || DRAFT; }
   function choose(ctx) {
     if (ctx) C = ctx;
-    Modal.open(`<h2>Матч против бота</h2><p>Боты собраны из той же базы и играют по тем же правилам. Сложность — в силе состава и в том, как бот меняет тактику.</p>`,
-      Object.entries(XD.BOTS).map(([k, b]) => ({ label: `${b.name}`, cls: k === 'normal' ? '' : 'ghost', onClick: () => start(k) })).concat([{ label: 'Отмена', cls: 'ghost' }]));
+    const cl = tourClubs(), pick3 = [[cl[0], 'easy', 'попроще'], [cl[1], 'normal', 'на равных'], [cl[3], 'hard', 'топ-клуб']];
+    Modal.open(`<h2>Товарищеский матч</h2><p>Соперник — настоящий клуб: лучшие игроки его состава по позициям.</p>`,
+      pick3.map(([c, lv, t], i) => ({ label: `${c} · ${t}`, cls: i === 1 ? '' : 'ghost', onClick: () => start(lv, undefined, c) })).concat([{ label: 'Отмена', cls: 'ghost' }]));
   }
   function side(sys, form, xi) { const c = XD.chem(sys, form, xi).total; return { lines: XD.lines(sys, form, xi, c), rating: XD.teamRating(xi), chem: c }; }
   function build(m) {
@@ -44,10 +62,10 @@ const XMatch = (() => {
     const bxi = m.bot.xi.map(XDraft.P);
     return XD.matchNew(side(C.sys(), C.form(), xi), side(C.sys(), m.bot.form, bxi), m.seed);
   }
-  function start(level, tourRound) {
+  function start(level, tourRound, club) {
     const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
-    const bt = XD.botTeam(level, XDraft.pool(), C.sys(), XD.rng(seed ^ 0x5bd1));
-    S().match = { seed, level, bot: { form: bt.form, xi: bt.xi.map((p) => p && p.name) }, hist: [], done: false };
+    const bt = club ? clubTeam(club, XDraft.pool()) : XD.botTeam(level, XDraft.pool(), C.sys(), XD.rng(seed ^ 0x5bd1));
+    S().match = { seed, level, club: club || null, bot: { form: bt.form, xi: bt.xi.map((p) => p && p.name) }, hist: [], done: false };
     if (tourRound !== undefined) S().match.tour = tourRound;
     Store.save();
     tac = 2; botTac = 2; M = build(S().match);
@@ -65,7 +83,7 @@ const XMatch = (() => {
     const m = S().match, b = M.away;
     const tr = m.tour !== undefined ? `<div class="xt-round">${Ui.get('trophy')} Турнир драфта · ${TOUR[m.tour][1]}</div>` : '';
     BODY().innerHTML = `<div class="xm-intro">${tr}<div class="xm-vs"><span><b>${esc(Store.d.user.nick || 'Ты')}</b><small>${C.form()} · рейтинг ${M.home.rating} · химия ${M.home.chem}</small></span><i>VS</i>
-      <span><b>Бот · ${XD.BOTS[m.level].name}</b><small>${m.bot.form} · рейтинг ${b.rating} · химия ${b.chem}</small></span></div>
+      <span><b>${m.club ? `${crestImg(m.club, 's')} ` : ''}${esc(opp(m))}</b><small>${m.bot.form} · рейтинг ${b.rating} · химия ${b.chem}</small></span></div>
       <p class="xm-note">Атака — больше моментов, но больше риска сзади</p>
       ${typeof Arena3D !== 'undefined' ? ballPicker() : ''}
       <button class="btn gold" data-xm="go">Начать матч</button></div>`;
@@ -79,9 +97,14 @@ const XMatch = (() => {
       return `<button class="xm-ball3 ${u.ball === k ? 'on' : ''} ${own ? '' : 'lock'}" data-ball="${k}" style="--b1:${c1};--b2:${c2}" aria-label="${esc(b.name)}"><i></i><span>${own ? esc(b.name) : `${Ui.get('lock')} ${Arena3D.BALL_NEED[k] === 4 ? 'чемпион' : Arena3D.BALL_NEED[k] + ' победы'}`}</span></button>`;
     }).join('')}</div></div>`;
   }
+  // как смотреть матч: «Моменты» (3D, часы ждут, пока доиграется опасный момент) или «Комментарии» (текст), и скорость
+  const UIS = () => Store.d.ui || (Store.d.ui = {});
+  const view = () => (UIS().xmView === 'comm' ? 'comm' : 'moments');
+  const speed = () => [1, 2, 4].includes(UIS().xmSpeed) ? UIS().xmSpeed : 1;
+  let waiting = false;
   function run() {
-    clearInterval(timer);
-    timer = setInterval(tick, XD.CFG.match.tickMs);
+    clearInterval(timer); waiting = false;
+    timer = setInterval(tick, XD.CFG.match.tickMs / speed());
   }
   function tick() {
     if (Screens.current !== C.screen || !M) { clearInterval(timer); stop3d(); return; } // ушли с экрана — пауза, вернёмся — продолжим
@@ -93,7 +116,38 @@ const XMatch = (() => {
     evs.forEach((e) => { if (e.t === 'goal') { Sound.play(e.s === 0 ? 'goal' : 'lose'); haptic(e.s === 0 ? 'ok' : 'bad'); } });
     if (M.over) { clearInterval(timer); Sound.play('whistle'); Store.save(); return setTimeout(end, 900); }
     render(evs);
+    // опасный момент в 3D: останавливаем часы, пока он не доиграется (страховка — 12 секунд)
+    if (evs.length && A3 && view() === 'moments') {
+      clearInterval(timer); waiting = true;
+      let resumed = false; const go = () => { if (resumed || !M || M.over) return; resumed = true; if (Screens.current === C.screen) run(); };
+      A3.events(evs, go); setTimeout(go, 12000);
+    } else if (!evs.length) commentary();
   }
+  // комментарий между моментами: кто владеет мячом и что делает (в режиме «Комментарии» — чаще)
+  const PH = {
+    pass: ['{a} раздаёт на фланг', '{a} ищет передачей {b}', 'Короткий розыгрыш: {a} — {b}', '{a} переводит игру на другой фланг', '{a} спокойно держит мяч'],
+    press: ['{a} отбирает мяч в центре', '{a} прессингует высоко', 'Перехват! {a} прочитал передачу', '{a} выигрывает борьбу наверху'],
+    att: ['Атака по флангу: {a} обыгрывает защитника', '{a} врывается в штрафную, но пас неточный', '{a} навешивает — вратарь забирает', 'Угловой: подаёт {a}', '{a} пробует издали, блок'],
+  };
+  function commentary() {
+    const box = BODY(), fd = box && $('.xm-feed', box); if (!fd) return;
+    const p = view() === 'comm' ? 0.55 : 0.12; if (Math.random() > p) return;
+    const m = S().match, sideK = Math.random() < 0.5 + (tac - botTac) * 0.05 ? 0 : 1;
+    const xi = (sideK ? m.bot.xi.map(XDraft.P) : C.xi()).filter(Boolean), pick = () => sur((xi[(Math.random() * xi.length) | 0] || {}).name || '');
+    const kind = Math.random() < 0.45 ? 'pass' : Math.random() < 0.5 ? 'press' : 'att', arr = PH[kind];
+    const txt = arr[(Math.random() * arr.length) | 0].replace('{a}', esc(pick())).replace('{b}', esc(pick()));
+    fd.insertAdjacentHTML('afterbegin', `<div class="xm-ev cm ${sideK ? 'them' : 'us'}"><b>${M.min}'</b><span>${Ui.get(kind === 'att' ? 'bolt' : kind === 'press' ? 'shield' : 'send')}</span><em>${txt}</em></div>`);
+    anim(fd.firstElementChild, [{ transform: 'translateY(-10px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 300, easing: 'ease-out' });
+    while (fd.children.length > (view() === 'comm' ? 14 : 3)) fd.lastElementChild.remove();
+  }
+  function setView(v) {
+    UIS().xmView = v; Store.save();
+    const box = BODY(); $('.xm', box).classList.toggle('comm', v === 'comm');
+    $$('[data-view]', box).forEach((b) => b.classList.toggle('on', b.dataset.view === v));
+    if (v === 'comm') stop3d(); else if (!A3) mount3d(box);
+    if (waiting) run();
+  }
+  function setSpeed(x) { UIS().xmSpeed = x; Store.save(); $$('[data-spd]', BODY()).forEach((b) => b.classList.toggle('on', +b.dataset.spd === x)); if (!waiting) run(); }
 
   const SHORT = ['Оборона', 'Осторожно', 'Баланс', 'Атака', 'Ва-банк'];
   let ballX = 50, ballY = 50;
@@ -134,9 +188,11 @@ const XMatch = (() => {
   function buildView() {
     const box = BODY(), m = S().match, me = Store.d.user.nick || 'Ты';
     const ab = (n) => esc(String(n).replace(/[^A-Za-zА-Яа-яЁё0-9]/g, '').slice(0, 3).toUpperCase() || '?');
-    box.innerHTML = `<div class="xm">
-      <div class="xm-bug"><span class="xm-tm us"><i>${ab(me)}</i></span><span class="xm-s"><b class="d0">${M.score[0]}</b><em>–</em><b class="d1">${M.score[1]}</b></span><span class="xm-tm them"><i>${ab(XD.BOTS[m.level].name)}</i></span>
+    box.innerHTML = `<div class="xm ${view() === 'comm' ? 'comm' : ''}">
+      <div class="xm-bug"><span class="xm-tm us"><i>${ab(me)}</i></span><span class="xm-s"><b class="d0">${M.score[0]}</b><em>–</em><b class="d1">${M.score[1]}</b></span><span class="xm-tm them"><i>${ab(oppShort(m))}</i></span>
         <span class="xm-clock"><i class="live"></i><b>${M.min}</b>'</span></div>
+      <div class="xm-ctl"><div class="xm-seg"><button data-view="moments" class="${view() === 'moments' ? 'on' : ''}">Моменты</button><button data-view="comm" class="${view() === 'comm' ? 'on' : ''}">Комментарии</button></div>
+        <div class="xm-seg">${[1, 2, 4].map((x) => `<button data-spd="${x}" class="${speed() === x ? 'on' : ''}">×${x}</button>`).join('')}</div></div>
       <div class="xm-stage"><div class="xm-pitch"><svg viewBox="0 0 100 60" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="58"/><line x1="50" y1="1" x2="50" y2="59"/><circle cx="50" cy="30" r="8"/>
         <rect x="1" y="16" width="14" height="28"/><rect x="85" y="16" width="14" height="28"/><rect x="1" y="24" width="5" height="12"/><rect x="94" y="24" width="5" height="12"/></svg>
         ${Array.from({ length: 22 }, (_, k) => `<i class="xm-p ${k < 11 ? 'us' : 'them'}"></i>`).join('')}<i class="xm-ball"></i><span class="xm-prog"></span></div></div>
@@ -148,12 +204,11 @@ const XMatch = (() => {
     anim($('.xm-pitch', box), [{ transform: 'rotateX(55deg) scale(.85)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,.9,.3,1)' });
     shownEv = M.ev.length;
     update([], true);
-    mount3d(box);
+    if (view() === 'moments') mount3d(box);
   }
   let shownEv = 0;
   function update(evs = [], first = false) {
     const box = BODY(); if (!$('.xm-pitch', box)) return buildView();
-    if (A3 && evs.length) A3.events(evs);
     const last = evs[evs.length - 1];
     const ball = $('.xm-ball', box), from = [parseFloat(ball.style.left) || 50, parseFloat(ball.style.top) || 50];
     if (last) { ballX = last.s === 0 ? 91 : 9; ballY = 38 + Math.random() * 24; }
@@ -175,7 +230,7 @@ const XMatch = (() => {
     M.ev.slice(shownEv).forEach((e) => {
       fd.insertAdjacentHTML('afterbegin', `<div class="xm-ev ${e.s ? 'them' : 'us'} k-${e.t}"><b>${e.m}'</b><span>${EV[e.t][0]}</span><em>${line(e)}</em></div>`);
       anim(fd.firstElementChild, [{ transform: 'translateY(-14px) rotateX(-70deg)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, easing: 'cubic-bezier(.2,.9,.3,1.2)' });
-      while (fd.children.length > 3) fd.lastElementChild.remove();
+      while (fd.children.length > (view() === 'comm' ? 14 : 3)) fd.lastElementChild.remove();
     });
     shownEv = M.ev.length;
     const goal = evs.find((e) => e.t === 'goal');
@@ -197,7 +252,7 @@ const XMatch = (() => {
     const w = M.score[0] > M.score[1] ? 'win' : M.score[0] < M.score[1] ? 'lose' : 'draw';
     if (first && C.onEnd) C.onEnd(w, m.level);
     if (m.tour !== undefined && C === DRAFT) return tourAfter(m, first);
-    BODY().innerHTML = `<div class="xd-res"><div class="sb"><div class="sb-k">ФИНАЛЬНЫЙ СВИСТОК · БОТ «${XD.BOTS[m.level].name.toUpperCase()}»</div>
+    BODY().innerHTML = `<div class="xd-res"><div class="sb"><div class="sb-k">ФИНАЛЬНЫЙ СВИСТОК · ${esc(oppShort(m).toUpperCase())}</div>
       <div class="xm-final ${w}"><b>${M.score[0]}</b><i>:</i><b>${M.score[1]}</b></div><div class="xd-best">${w === 'win' ? 'Победа!' : w === 'lose' ? 'Поражение' : 'Ничья'} · моменты ${M.stats.ch[0]}:${M.stats.ch[1]} · в створ ${M.stats.on[0]}:${M.stats.on[1]}</div></div>
       <div class="xm-feed all">${M.ev.filter((e) => e.t === 'goal').map((e) => `<div class="xm-ev ${e.s ? 'them' : 'us'} k-goal"><b>${e.m}'</b><span>${Ui.get('ball')}</span><em>${esc(who(e.s, e.m).shooter)}</em></div>`).join('') || '<p class="xm-note">Без голов</p>'}</div>
       <div class="xd-act col"><button class="btn gold" data-xm="again">Ещё матч</button><button class="btn ghost" data-xm="share">Поделиться результатом</button><button class="btn ghost" data-xm="squad">К составу</button></div></div>`;
@@ -205,17 +260,21 @@ const XMatch = (() => {
   }
   function share() {
     const m = S().match;
-    const text = `⚽ ${C.title()}\nМатч с ботом «${XD.BOTS[m.level].name}»: ${M.score[0]}:${M.score[1]}\nСтарики Джексоны`;
+    const text = `⚽ ${C.title()}\nМатч против «${oppShort(m)}»: ${M.score[0]}:${M.score[1]}\nСтарики Джексоны`;
     const url = appLink(C.link);
     try { if (TG && TG.openTelegramLink) { TG.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`); return; } } catch (e) { /* не в Telegram */ }
     if (navigator.share) navigator.share({ text, url }).catch(() => {}); else toast(text);
   }
   // ---------- турнир драфта: 4 матча, соперники сильнее с каждым раундом; ничья — пенальти ----------
   const TOUR = [['easy', '1/8 финала'], ['normal', 'Четвертьфинал'], ['hard', 'Полуфинал'], ['hard', 'Финал']];
+  // соперники по кругам — настоящие клубы, от середняков к топам
+  const TOUR_CLUBS = [['Лидс', 'Эвертон', 'Фулхэм', 'Севилья', 'Вольфсбург', 'Торино', 'Брентфорд'], ['Тоттенхэм', 'Атлетико', 'Наполи', 'Боруссия Дортмунд', 'Астон Вилла', 'Ювентус'],
+    ['Бавария', 'Ливерпуль', 'Интер', 'Арсенал', 'Челси'], ['Барселона', 'Реал Мадрид', 'Манчестер Сити', 'ПСЖ']];
+  const tourClubs = () => { const have = new Set(XDraft.pool().map((p) => p.club)); return TOUR_CLUBS.map((l) => { const ok = l.filter((c) => have.has(c)); return ok[(Math.random() * ok.length) | 0] || l[0]; }); };
   const PRIZE = [{ coins: 60 }, { pack: 0, coins: 40 }, { pack: 1, ball: 'noir' }, { pack: 2, ball: 'ivory' }, { pack: 3, coins: 300, ball: 'gold' }];
   const TROPHY = [3, 8, 14, 22, 40];
   const prizeLine = (p) => [p.pack !== undefined ? ['Обычный', 'Сверхредкий', 'Эпический', 'Легендарный'][p.pack] + ' пак' : '', p.coins ? `${p.coins} монет` : '', p.ball ? `мяч «${Arena3D.BALLS[p.ball].name}»` : ''].filter(Boolean).join(' + ');
-  function tourStart() { C = DRAFT; S().tour = { round: 0, res: [], over: false, paid: false }; Store.save(); start(TOUR[0][0], 0); }
+  function tourStart() { C = DRAFT; const cl = tourClubs(); S().tour = { round: 0, res: [], over: false, paid: false, clubs: cl }; Store.save(); start(TOUR[0][0], 0, cl[0]); }
   function penalties() {
     const rA = M.home.rating, rB = M.away.rating, pA = Math.min(0.9, Math.max(0.6, 0.75 + (rA - rB) * 0.01)), pB = Math.min(0.9, Math.max(0.6, 0.75 + (rB - rA) * 0.01));
     const a = [], b = [];
@@ -241,19 +300,19 @@ const XMatch = (() => {
     const dots = (arr) => arr.map((x) => `<i class="${x ? 'in' : 'out'}"></i>`).join('');
     const rows = TOUR.map(([lv, name], i) => {
       const r = T.res[i], st = r ? (r.win ? 'win' : 'lose') : i === T.round && !T.over ? 'next' : 'wait';
-      return `<div class="xt-r ${st}"><b>${name}</b><small>Бот · ${XD.BOTS[lv].name}</small><span>${r ? `${r.s[0]}:${r.s[1]}${r.pens ? ` <em>пен. ${r.pens.a.filter(Boolean).length}:${r.pens.b.filter(Boolean).length}</em>` : ''}` : st === 'next' ? 'следующий' : '—'}</span></div>`;
+      return `<div class="xt-r ${st}"><b>${name}</b><small>${T.clubs ? `${crestImg(T.clubs[i], 'xs')} ${esc(T.clubs[i])}` : `Бот · ${XD.BOTS[lv].name}`}</small><span>${r ? `${r.s[0]}:${r.s[1]}${r.pens ? ` <em>пен. ${r.pens.a.filter(Boolean).length}:${r.pens.b.filter(Boolean).length}</em>` : ''}` : st === 'next' ? 'следующий' : '—'}</span></div>`;
     }).join('');
     const ladder = PRIZE.map((p, i) => `<div class="xt-p ${T.over && wins === i ? 'got' : ''}"><b>${i}</b><span>${i === 4 ? 'Чемпион' : `${i} ${i === 1 ? 'победа' : i > 1 && i < 5 ? 'победы' : 'побед'}`}</span><small>${prizeLine(p)} · +${TROPHY[i]} ${Ui.get('trophy')}</small></div>`).join('');
     const head = last ? `<div class="sb"><div class="sb-k">ТУРНИР ДРАФТА · ${TOUR[T.res.length - 1][1].toUpperCase()}</div>
       <div class="xm-final ${last.win ? 'win' : 'lose'}"><b>${last.s[0]}</b><i>:</i><b>${last.s[1]}</b></div>
-      ${last.pens ? `<div class="xt-pens"><span>Ты ${dots(last.pens.a)}</span><span>Бот ${dots(last.pens.b)}</span></div>` : ''}
+      ${last.pens ? `<div class="xt-pens"><span>Ты ${dots(last.pens.a)}</span><span>${esc(T.clubs ? T.clubs[T.res.length - 1] : 'Бот')} ${dots(last.pens.b)}</span></div>` : ''}
       <div class="xd-best">${T.over ? (wins === 4 ? 'Чемпион турнира!' : `Турнир окончен · побед: ${wins}`) : 'Победа! Проходишь дальше'}</div></div>` : '';
     const btn = T.over ? (T.paid ? '<button class="btn gold" data-xm="tnew">Новый драфт</button>' : '<button class="btn gold" data-xm="tprize">Забрать награду</button>') : `<button class="btn gold" data-xm="tnext">Играть: ${TOUR[T.round][1]}</button>`;
     BODY().innerHTML = `<div class="xd-res xt">${head}<div class="xt-br">${rows}</div><h3 class="gl-h">Награды за турнир</h3><div class="xt-ladder">${ladder}</div>
       <div class="xd-act col">${btn}<button class="btn ghost" data-xm="squad">К составу</button></div></div>`;
     if (T.over && wins === 4 && typeof confetti === 'function') confetti();
   }
-  function tourNext() { const T = S().tour; if (!T || T.over) return; start(TOUR[T.round][0], T.round); }
+  function tourNext() { const T = S().tour; if (!T || T.over) return; start(TOUR[T.round][0], T.round, T.clubs && T.clubs[T.round]); }
   function tourPrize() {
     const T = S().tour; if (!T || !T.over || T.paid) return;
     const wins = T.res.filter((r) => r.win).length, p = PRIZE[wins];
@@ -272,6 +331,8 @@ const XMatch = (() => {
     box.addEventListener('click', (e) => {
       C = ctx;
       const z = e.target.closest('[data-tac]'); if (z) return setTac(+z.dataset.tac);
+      const vw = e.target.closest('[data-view]'); if (vw) { Sound.play('tap'); return setView(vw.dataset.view); }
+      const sp = e.target.closest('[data-spd]'); if (sp) { Sound.play('tap'); return setSpeed(+sp.dataset.spd); }
       const bl = e.target.closest('[data-ball]');
       if (bl) { const u = Arena3D.ballState(), k = bl.dataset.ball; if (!u.balls.includes(k)) { toast(`Открывается в турнире драфта: ${Arena3D.BALL_NEED[k] === 4 ? 'стань чемпионом' : `${Arena3D.BALL_NEED[k]} победы подряд`}`); return; } u.ball = k; Store.save(); Sound.play('tap'); return intro(); }
       const b = e.target.closest('[data-xm]'); if (!b) return;
