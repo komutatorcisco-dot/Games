@@ -81,6 +81,7 @@ const Home = (() => {
   // 3D стадион-остров вместо нарисованного: грузится после старта, нет WebGL — остаётся рисунок
   let islandAt = 0;
   function island() {
+    return; // стадион под игрой убран по просьбе: на главной только значок игры
     const ar = $('#home2 .h2-arena'); if (!ar || typeof Arena3D === 'undefined' || !Arena3D.supported() || UI().no3d) return;
     // нарисованное поле сразу прячем — без подмены одного стадиона другим; 3D проявляется плавно, когда готово
     ar.classList.add('h2-3d-wait');
