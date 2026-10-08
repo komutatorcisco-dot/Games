@@ -330,7 +330,7 @@ const XDraft = (() => {
       ${pitchHTML(a, xi, c, { live: false })}
       <div class="xd-bench"><div class="xd-bh"><b>Скамейка и резерв</b></div><div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
       <div class="xd-act col">${S().tour && !S().tour.paid ? `<button class="btn gold" data-act2="tour-go">${S().tour.over ? 'Итоги турнира' : 'Продолжить турнир'}</button>` : '<button class="btn gold" data-act2="tour">Турнир драфта · 4 матча</button>'}
-        <button class="btn ghost" data-act2="bot">Товарищеский матч</button><button class="btn ghost" data-act2="share">Поделиться составом</button><button class="btn ghost" data-act2="reset">Новый драфт</button></div>
+        <button class="btn xd-online" data-act2="online">Онлайн-матч с игроком</button><button class="btn ghost" data-act2="bot">Товарищеский матч</button><button class="btn ghost" data-act2="share">Поделиться составом</button><button class="btn ghost" data-act2="reset">Новый драфт</button></div>
       <p class="xt-note">Турнир: 4 матча против ботов, каждый сильнее. Проиграл — вылетел. Награды: паки, монеты, трофеи и золотые мячи.</p>
 </div>`;
     Photos.hydrate($('#xd-body'));
@@ -368,6 +368,7 @@ const XDraft = (() => {
         if (k === 'finish') return finish();
         if (k === 'share') return share();
         if (k === 'bot') return XMatch.choose(XMatch.DRAFT);
+        if (k === 'online') return XMatch.online(XMatch.DRAFT);
         if (k === 'tour') return XMatch.tourStart();
         if (k === 'tour-go') { XMatch.use(XMatch.DRAFT); return XMatch.tourScreen(); }
         if (k === 'reset') {
@@ -377,6 +378,11 @@ const XDraft = (() => {
         }
       }
       const sl = e.target.closest('.fu[data-z]'); if (sl && A().stage !== 'done') return tapSlot(sl.dataset.z, +sl.dataset.i);
+    });
+    // перетащить игрока на другое место (на поле или со скамейки) — то же, что «выбрать → нажать место»
+    if (typeof Drag !== 'undefined') Drag.swap($('#xd-body'), '.fu[data-z]', {
+      ok: (el) => { const a = A(); if (!a || a.stage !== 'draft') return false; const arr = el.dataset.z === 'xi' ? a.xi : a.bench; return !!arr[+el.dataset.i]; },
+      drop: (f, t) => { const a = A(), arr = t.dataset.z === 'xi' ? a.xi : a.bench; if (!arr[+t.dataset.i]) return toast('Сначала заполни эту позицию'); sel = { zone: f.dataset.z, i: +f.dataset.i }; tapSlot(t.dataset.z, +t.dataset.i); haptic('ok'); },
     });
   }
   return { open, bind, render, P, xiOf: () => xiOf(A()), A, S, pool, mini, SYS };

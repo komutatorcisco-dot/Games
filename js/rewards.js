@@ -159,7 +159,7 @@ const Rewards = (() => {
     { id: 'auction', t: 'Выиграй аукцион', ev: 'win:act:auction-bot', n: 1, xp: 130 },
     { id: 'nation', t: 'Сыграй «Угадай сборную»', ev: 'end:act:nation', n: 1, xp: 100 },
     { id: 'nationw', t: 'Угадай сборную', ev: 'win:act:nation', n: 1, xp: 130 },
-    { id: 'pick', t: 'Обыграй бота в «Этого или того»', ev: 'win:pick-bot', n: 1, xp: 130 },
+    { id: 'pick', t: 'Обыграй бота в «Этого или того»', ev: 'win:act:pick-bot', n: 1, xp: 130 },
     { id: 'ttt', t: 'Сыграй в «Тики-таку»', ev: 'end:act:ttt', n: 1, xp: 110 },
     { id: 'trumps', t: 'Выиграй в «Козыри»', ev: 'win:ng:trumps', n: 1, xp: 140 },
     { id: 'career', t: 'Угадай игрока по карьере', ev: 'win:act:guess-career', n: 1, xp: 130 },
@@ -357,7 +357,9 @@ const Rewards = (() => {
     const sbcOn = Release.isOut('act:sbc');
     const locked = [!Release.feature('cards') && ['Галерея', 'feat:cards'], !Release.feature('pass') && ['Задания', 'feat:pass']].filter(Boolean);
     const lockBtns = locked.map(([n, k]) => `<button class="rw-lk" data-rwlock="${Release.need(k)}">${Ui.get('lock')} ${n}<small>${Release.need(k)} ${Ui.get('trophy')}</small></button>`).join('');
-    const tabs = !TB.length ? '' : `<nav class="rw-tabs" style="--n:${TB.length + (sbcOn ? 1 : 0) + locked.length + (Release.feature('cards') ? 1 : 0)}">${TB.map(([k, n, k2]) => `<button data-rwtab="${k}" class="${tab === k ? 'on' : ''}">${n}${k2 ? `<i>${k2}</i>` : ''}</button>`).join('')}${Release.feature('cards') ? '<button data-act="squad" class="rw-sbc rw-sq">Состав</button>' : ''}${sbcOn ? `<button data-act="sbc" class="rw-sbc">ИПК${typeof SBC !== 'undefined' && SBC.ready() ? '<i>1</i>' : ''}</button>` : ''}${lockBtns}</nav>`;
+    const IC = { road: 'trophy', cards: 'pack', pass: 'star', quests: 'target' };
+    const rb = (attr, ico, name, badge, cls = '') => `<button ${attr} class="sr-b ${cls}"><span class="sr-i">${Ui.get(ico)}</span><small>${name}</small>${badge ? `<i class="sr-n">${badge}</i>` : ''}</button>`;
+    const tabs = !TB.length ? '' : `<nav class="sr-rail rw-rail">${TB.map(([k, n, k2]) => rb(`data-rwtab="${k}"`, IC[k], n, k2, tab === k ? 'on' : '')).join('')}${Release.feature('cards') ? rb('data-act="squad"', 'shirt', 'Состав', '', 'go') : ''}${sbcOn ? rb('data-act="sbc"', 'puzzle', 'ИПК', typeof SBC !== 'undefined' && SBC.ready() ? '1' : '', 'go') : ''}${locked.map(([n, k]) => rb(`data-rwlock="${Release.need(k)}"`, 'lock', n, '', 'lk')).join('')}</nav>`;
     let body = '';
     const nx = Release.next();
     if (tab === 'road') body = trophyRoad(s);
@@ -386,9 +388,11 @@ const Rewards = (() => {
         <div class="qs-h"><b>Сезонные</b><small>до конца сезона ${dl} ${plural(dl, 'день', 'дня', 'дней')}</small></div>${(q.slist || []).map((x) => row(x, 's')).join('')}
         <p class="rw-note">Очки идут в сезонный пропуск — с ними открываются его награды.</p>`;
     }
+    // заглянул в галерею — значок NEW больше не горит (карточки помечены NEW в этот раз ещё видны)
+        if (tab === 'cards' && Cards.freshN()) setTimeout(() => { Cards.clearFresh(); const c2 = claimable(); $$('.rw-dot').forEach((el) => { el.textContent = c2.all > 9 ? '9+' : c2.all; el.hidden = !c2.all; }); }, 1200);
     const box = $('#rewards-body');
     const keep = box.querySelector('.rs-strip'), sx = keep ? keep.scrollLeft : null;
-    box.innerHTML = packs + tabs + body;
+    box.innerHTML = tabs ? `${packs}<div class="srw">${tabs}<div class="sr-main">${body}</div></div>` : packs + body;
     if (tab === 'road') {
       const here = box.querySelector('.rd-here'), path = box.querySelector('.rd-path'), fill = box.querySelector('.rd-fill');
       if (path && fill) fill.style.height = (here ? here.offsetTop + 26 : path.offsetHeight) + 'px';

@@ -39,22 +39,24 @@ const Board = (() => {
   function render(data) {
     const box = $('#board-body');
     const bt = $('#bd-tour'); if (bt) bt.textContent = `Тур ${Release.tour()}${data && data.weekEnd ? ` · до конца ${left(data.weekEnd)}` : ''}`;
-    const tabs = `<nav class="bd-tabs">${SCOPES.map(([k, n]) => `<button data-bd="${k}" class="${k === scope ? 'on' : ''}">${n}</button>`).join('')}</nav>`;
+    const IC = { tro: 'trophy', week: 'clock', game: 'gamepad', cup: 'crown', clubs: 'shield', friends: 'users', all: 'bolt', day: 'eye' };
+    const tabs = `<nav class="sr-rail bd-rail">${SCOPES.map(([k, n]) => `<button data-bd="${k}" class="sr-b ${k === scope ? 'on' : ''}"><span class="sr-i">${Ui.get(IC[k])}</span><small>${n}</small></button>`).join('')}</nav>`;
+    const set = (html) => { box.innerHTML = `<div class="srw">${tabs}<div class="sr-main">${html}</div></div>`; };
     if (!api()) {
-      box.innerHTML = `${tabs}<div class="bd-empty"><span>${Ui.get('trophy')}</span><h3>Рейтинг канала скоро запустится</h3><p>Здесь будут лучшие игроки недели и всех времён. Играй — опыт уже копится и попадёт в таблицу.</p></div>`;
+      set(`<div class="bd-empty"><span>${Ui.get('trophy')}</span><h3>Рейтинг канала скоро запустится</h3><p>Здесь будут лучшие игроки недели и всех времён. Играй — опыт уже копится и попадёт в таблицу.</p></div>`);
       return;
     }
     if (!TG || !TG.initData) {
-      box.innerHTML = `${tabs}<div class="bd-empty"><span>${Ui.get('phone')}</span><h3>Рейтинг работает в Telegram</h3><p>Открой игры через бота <b>@JacksonGamesbot</b> — там твои очки попадут в таблицу канала.</p></div>`;
+      set(`<div class="bd-empty"><span>${Ui.get('phone')}</span><h3>Рейтинг работает в Telegram</h3><p>Открой игры через бота <b>@JacksonGamesbot</b> — там твои очки попадут в таблицу канала.</p></div>`);
       return;
     }
-    if (!data) { box.innerHTML = `${tabs}<div class="bd-empty"><div class="bd-spin"></div><p>Загружаем таблицу…</p></div>`; return; }
-    if (data.error) { box.innerHTML = `${tabs}<div class="bd-empty"><span>${Ui.get('signal')}</span><h3>Не удалось загрузить</h3><p>Проверь интернет и попробуй ещё раз.</p><button class="btn gold" data-bd="${scope}">Обновить</button></div>`; return; }
+    if (!data) { set(`<div class="bd-empty"><div class="bd-spin"></div><p>Загружаем таблицу…</p></div>`); return; }
+    if (data.error) { set(`<div class="bd-empty"><span>${Ui.get('signal')}</span><h3>Не удалось загрузить</h3><p>Проверь интернет и попробуй ещё раз.</p><button class="btn gold" data-bd="${scope}">Обновить</button></div>`); return; }
     const gname = (k) => { const g = typeof Home !== 'undefined' && Home.catalog().get(k); return g ? g.title.split(':')[0] : k; };
-    const games = [...new Set(['ng:wordle', 'act:auction-bot', 'act:nation', 'pick-bot', 'ng:duel', 'act:ttt', 'ng:trumps', 'act:guess-career', 'act:xdraft', 'squad', ...Object.keys(Store.d.gw || {})])];
-    const gpick = scope === 'game' ? `<div class="bd-games">${games.map((k) => `<button data-bdg="${esc(k)}" class="${k === gsel ? 'on' : ''}">${esc(k === 'pick-bot' ? 'Этого или того' : k === 'squad' ? 'Мой состав' : gname(k))}</button>`).join('')}</div>` : '';
+    const games = [...new Set(['ng:wordle', 'act:auction-bot', 'act:nation', 'act:pick-bot', 'ng:duel', 'act:ttt', 'ng:trumps', 'act:guess-career', 'act:xdraft', 'squad', ...Object.keys(Store.d.gw || {})])];
+    const gpick = scope === 'game' ? `<div class="bd-games">${games.map((k) => `<button data-bdg="${esc(k)}" class="${k === gsel ? 'on' : ''}">${esc(k === 'act:pick-bot' ? 'Этого или того' : k === 'squad' ? 'Мой состав' : gname(k))}</button>`).join('')}</div>` : '';
     const head = scope === 'tro' ? 'У кого больше всего трофеев. Победа +12, матч +3, на выходных — ×2.'
-      : scope === 'game' ? `Больше всех побед в игре «${esc(gsel === 'pick-bot' ? 'Этого или того' : gsel === 'squad' ? 'Мой состав' : gname(gsel))}».`
+      : scope === 'game' ? `Больше всех побед в игре «${esc(gsel === 'act:pick-bot' ? 'Этого или того' : gsel === 'squad' ? 'Мой состав' : gname(gsel))}».`
       : scope === 'cup' ? 'Кубок драфта недели: кто выиграл больше турниров драфта (до финала с Барселоной и Реалом). Первое место в понедельник получает легендарный пак.'
       : scope === 'clubs' ? 'Клубы недели: сумма побед всех игроков клуба с понедельника.'
       : scope === 'week' ? `Неделя закончится через ${left(data.weekEnd)}. Очки начисляются за победы с понедельника 10:00 (по Европе).`
@@ -68,8 +70,8 @@ const Board = (() => {
     const you = data.me ? `<div class="bd-you">Ты <b>${data.me.place}-й</b> из ${data.total}</div>`
       : `<div class="bd-you muted">${scope === 'day' ? 'Угадай «Игрока дня», чтобы попасть в таблицу' : 'Выиграй любую игру, чтобы попасть в таблицу'}</div>`;
     const inv = scope === 'friends' ? `<button class="btn gold bd-invite" data-act="invite">${data.rows.length <= 1 ? 'Позови друга и соревнуйтесь' : 'Позвать ещё друга'}</button>` : '';
-    box.innerHTML = `${tabs}${gpick}<p class="bd-head">${head}</p>${scope === 'friends' ? inv : scope === 'clubs' ? `<button class="btn gold bd-invite" data-act="myclub">${Ui.get('users')} Мой клуб</button>` : you}
-      ${data.rows.length ? `<div class="bd-list">${rows}</div>` : `<div class="bd-empty"><span>${Ui.get('ball')}</span><p>Пока никого. Будь первым!</p></div>`}${mine}`;
+    set(`${gpick}<p class="bd-head">${head}</p>${scope === 'friends' ? inv : scope === 'clubs' ? `<button class="btn gold bd-invite" data-act="myclub">${Ui.get('users')} Мой клуб</button>` : you}
+      ${data.rows.length ? `<div class="bd-list">${rows}</div>` : `<div class="bd-empty"><span>${Ui.get('ball')}</span><p>Пока никого. Будь первым!</p></div>`}${mine}`);
   }
 
   async function load(sc = scope, force = false) {

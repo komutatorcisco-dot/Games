@@ -226,7 +226,8 @@
     const C = CFG.match, R = rng((M.seed + M.min * 7919) >>> 0), L = [M.home.lines, M.away.lines], out = [];
     M.tacHist.push(tac.slice());
     const minute = M.min + C.stepMin;
-    for (const s of [0, 1]) {
+    // flip — у гостя онлайн-матча «свои» в home, но моменты разыгрываются в том же порядке, что у хозяина: счёт совпадает
+    for (const s of M.flip ? [1, 0] : [0, 1]) {
       const o = 1 - s, A = L[s], D = L[o];
       const share = (A.mid * A.mid) / (A.mid * A.mid + D.mid * D.mid);
       const p = C.baseChance * share * 2 * Math.pow(A.att / D.def, 2) * C.tAtt[tac[s]] * C.tExp[tac[o]];

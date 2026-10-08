@@ -63,7 +63,6 @@ const Home = (() => {
         <div class="h2-side l">
           <button class="h2-sb ${dlyDone ? 'done' : 'hot'}" data-act="dly"><span class="h2-sbi dly"><img src="img/players/239085.webp" alt=""><i>?</i></span><b>Игрок дня</b></button>
           ${cards ? `<button class="h2-sb sq" data-act="squad"><span class="h2-sbi">${Ui.get('shirt')}</span><b>Состав</b></button>` : ''}
-          <button class="h2-sb cb" data-act="myclub"><span class="h2-sbi">${Ui.get('users')}</span><b>Клуб</b></button>
         </div>
         <div class="h2-side r">
           ${cards ? `<button class="h2-sb ${packReady ? 'hot' : 'done'}" data-act="wheel"><span class="h2-sbi">${PackOpen.art(packReady ? 1 : 0, 'rs')}</span><b>${packReady ? 'Пак дня' : 'Завтра'}</b></button>` : ''}

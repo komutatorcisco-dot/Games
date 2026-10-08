@@ -149,6 +149,15 @@ const Squad = (() => {
       if (k === 'auto') auto();
       if (k === 'play' && !b.disabled) XMatch.choose(CTX);
     });
+    // перетащить карточку на другую позицию — игроки меняются местами
+    if (typeof Drag !== 'undefined') Drag.swap($('#sq-body'), '.sq-slot', {
+      ok: (el) => !$('#sq-body .xm, #sq-body .xm-intro, #sq-body .xd-res') && !!S().xi[+el.dataset.slot],
+      drop: (f, t) => {
+        const x = S().xi, i = +f.dataset.slot, j = +t.dataset.slot;
+        [x[i], x[j]] = [x[j] || null, x[i]]; Store.save(); Sound.play('tap'); haptic('ok'); render();
+        [i, j].forEach((k) => { const el = $(`#sq-body [data-slot="${k}"]`); if (el) anim(el, [{ transform: 'translate(-50%,-50%) scale(1.25)' }, { transform: 'translate(-50%,-50%)' }], { duration: 320, easing: 'cubic-bezier(.2,1.4,.4,1)' }); });
+      },
+    });
   }
 
   return { open, bind, render, S };

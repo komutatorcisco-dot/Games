@@ -301,8 +301,7 @@ const Pick = (() => {
       Sound.play('goal');
       Store.d.pick.games++; Store.save();
       Profile.bump('pick', 8);
-      if (mode === 'bot' && typeof Rewards !== 'undefined') Rewards.onEnd(win === 0, 'pick-bot');
-      Modal.open(resultHtml({ act: 'pick-duo', ico: 'pick-duo', win: win >= 0, title: win < 0 ? 'Ничья!' : `Побеждает ${esc(win ? B : A)}!`,
+      Modal.open(resultHtml({ act: 'pick-duo', ico: 'pick-duo', win: mode === 'bot' ? win === 0 : win >= 0, // против бота победа — только если выиграл ты title: win < 0 ? 'Ничья!' : `Побеждает ${esc(win ? B : A)}!`,
         score: [sum[0], sum[1]], labels: [esc(A), esc(B)],
         text: `Эло состава по рейтингу игроков на пике карьеры. Шансы на победу: ${pA}% на ${100 - pA}%` }), [
         { label: 'Ещё раз', onClick: () => begin(club) },

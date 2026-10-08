@@ -4,7 +4,7 @@
 'use strict';
 
 (() => {
-  const ROUNDS = 15, HAND = 10;
+  const ROUNDS = 15, HAND = 15; // 15 карт на 15 розыгрышей — за партию ни одна карта не попадётся дважды
   const STATS = [['СКР', 'Скорость'], ['УДР', 'Удар'], ['ПАС', 'Пас'], ['ДРБ', 'Дриблинг'], ['ЗАЩ', 'Защита'], ['ФИЗ', 'Физика']];
   const POS = { ГК: 'ВР', ЦЗ: 'ЦЗ', ЛЗ: 'ЛЗ', ПЗ: 'ПЗ', ЦОП: 'ЦОП', ЦП: 'ЦП', ЦАП: 'ЦАП', ЛВ: 'ЛВ', ПВ: 'ПВ', ФРВ: 'ФРВ' };
   const st = (p) => FC_STATS[p.name];
@@ -31,46 +31,72 @@
   NG.register({
     id: 'trumps', group: 'cards', title: 'Козыри', c1: '#ffcf3a', c2: '#2a2a35', tag: 'Карточки FC против бота',
     meta: (s) => (s.wins ? `Побед: ${s.wins}` : 'Карточки FC против бота'),
-    start(api) {
-      // колода: известные полевые игроки с карточкой FC; раздаём по очереди от сильных к слабым, чтобы было поровну
-      const pool = shuffle(PLAYERS.filter((p) => p.tier <= 3 && p.pos !== 'ГК' && st(p)), Math.random).slice(0, HAND * 2)
-        .sort((a, b) => st(b)[0] - st(a)[0]);
-      let me = shuffle(pool.filter((_, i) => i % 2 === 0), Math.random), bot = shuffle(pool.filter((_, i) => i % 2 === 1), Math.random);
-      let round = 1, myTurn = true, phase = 'pick', last = null, pot = [], over = false;
+    start(api, opts = {}) {
       const b = api.body;
+      let stopNet = null;
+      // онлайн: сначала лобби (случайный соперник или комната), потом та же партия с живым игроком
+      if (opts.online) {
+        api.sub('Онлайн');
+        Online.open(b, { game: 'trumps', title: 'Козыри онлайн', join: typeof opts.online === 'string' ? opts.online : undefined,
+          lead: 'Одна колода на двоих, характеристику выбираете по очереди.', back: () => NG.open('trumps'),
+          onReady: (L) => { stopNet = () => L.close(); game(L); } });
+        return () => { if (stopNet) stopNet(); else Online.stop(); };
+      }
+      game(null);
+      return () => {};
+
+      // L — связь с соперником (null — игра против бота)
+      function game(L) {
+      const rnd = L ? (() => { let a = L.seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; })() : Math.random;
+      const opName = L ? L.op.nick : 'Бот';
+      // колода: известные полевые игроки с карточкой FC; раздаём по очереди от сильных к слабым, чтобы было поровну
+      // берём игроков разных позиций по очереди (не два центральных защитника подряд), без повторов имён
+      const all = shuffle(PLAYERS.filter((p) => p.tier <= 4 && p.pos !== 'ГК' && st(p)), rnd), byPos = {};
+      all.forEach((p) => { (byPos[p.pos] = byPos[p.pos] || []).push(p); });
+      const keys = shuffle(Object.keys(byPos).sort(), rnd), seen = new Set(), pool = [];
+      for (let k = 0; pool.length < HAND * 2 && k < 400; k++) { const l = byPos[keys[k % keys.length]], p = l && l.shift(); if (p && !seen.has(surname(p.name))) { seen.add(surname(p.name)); pool.push(p); } }
+      pool.sort((x, y) => st(y)[0] - st(x)[0] || (x.name < y.name ? -1 : 1));
+      const hA = shuffle(pool.filter((_, i) => i % 2 === 0), rnd), hB = shuffle(pool.filter((_, i) => i % 2 === 1), rnd);
+      // у хозяина «свои» — первая половина, у гостя — вторая
+      let me = L && !L.host ? hB : hA, bot = L && !L.host ? hA : hB;
+      let round = 1, myTurn = true, phase = 'pick', last = null, pot = [], over = false, pend = null;
+      const turnOf = () => (!L ? true : (round % 2 === 1) === L.host);
+      myTurn = turnOf();
 
       function render() {
-        api.sub(`Розыгрыш ${Math.min(round, ROUNDS)}/${ROUNDS}`);
+        api.sub(L ? `Онлайн · розыгрыш ${Math.min(round, ROUNDS)}/${ROUNDS}` : `Розыгрыш ${Math.min(round, ROUNDS)}/${ROUNDS}`);
         const tot = me.length + bot.length + pot.length;
         const show = phase !== 'pick' || !myTurn ? last : null;
         b.innerHTML = `<div class="tc-score"><span class="tc-me">Ты <b>${me.length}</b></span>
-            <div class="tr-bar"><i style="width:${(me.length / tot) * 100}%"></i></div><span class="tc-bot"><b>${bot.length}</b> Бот</span></div>
+            <div class="tr-bar"><i style="width:${(me.length / tot) * 100}%"></i></div><span class="tc-bot"><b>${bot.length}</b> ${esc(opName)}</span></div>
           ${pot.length ? `<p class="tc-pot">🏦 В банке ${pot.length} ${plural(pot.length, 'карта', 'карты', 'карт')} — заберёт победитель следующего розыгрыша</p>` : ''}
           <div class="tc-table ${phase}">
             <div class="tc-side"><small>Твоя карта</small>${card(me[0], { hl: show ? show.i : -1, res: show ? show.mine : '', pick: phase === 'pick' && myTurn })}</div>
-            <div class="tc-side"><small>Бот</small>${card(bot[0], { open: phase === 'shown', hl: show ? show.i : -1, res: show ? show.his : '' })}</div>
+            <div class="tc-side"><small>${esc(opName)}</small>${card(bot[0], { open: phase === 'shown', hl: show ? show.i : -1, res: show ? show.his : '' })}</div>
           </div>
-          <div class="tc-foot">${phase === 'shown' ? `<p class="tc-res ${last.res}">${last.text}</p><button class="btn gold" data-a="next">${me.length && bot.length && round < ROUNDS ? 'Дальше →' : 'Итоги'}</button>`
+          <div class="tc-foot">${phase === 'shown' ? `<p class="tc-res ${last.res}">${last.text}</p>${L ? '<p class="ng-lead">Следующий розыгрыш через секунду…</p>' : `<button class="btn gold" data-a="next">${me.length && bot.length && round < ROUNDS ? 'Дальше →' : 'Итоги'}</button>`}`
             : myTurn ? '<p class="ng-lead">Твой ход: нажми на характеристику, которой бьёшь</p>'
-              : '<p class="ng-lead tr-think">Ход бота, следующий — твой<i>.</i><i>.</i><i>.</i></p>'}</div>`;
+              : `<p class="ng-lead tr-think">Выбирает ${esc(opName)}<i>.</i><i>.</i><i>.</i></p>`}</div>
+          ${!L && phase === 'pick' && round === 1 ? `<button class="btn ghost tc-online" data-a="online">${Ui.get('bolt')} Играть онлайн с человеком</button>` : ''}`;
         Photos.hydrate(b);
         if (phase === 'shown') {
           $$('.tc-st.hl em', b).forEach((el) => countUp(el, +el.textContent, { from: 40, dur: 500 }));
         }
       }
 
-      function play(i, byBot) {
-        if (phase !== 'pick') return;
+      function play(i, byOp) {
+        if (phase !== 'pick' || over) return;
         const a = st(me[0])[i + 1], c = st(bot[0])[i + 1];
         const res = a > c ? 'win' : a < c ? 'lose' : 'draw';
         const label = STATS[i][1];
         last = {
           i, res, mine: res === 'win' ? 'won' : res === 'lose' ? 'lost' : '', his: res === 'lose' ? 'won' : res === 'win' ? 'lost' : '',
-          text: `${byBot ? `Бот выбрал «${label}»: ` : `${label}: `}${a} против ${c} — ${res === 'win' ? 'карта твоя!' : res === 'lose' ? 'забирает бот' : 'ничья, карты в банк'}`,
+          text: `${byOp ? `${esc(opName)} выбрал «${label}»: ` : `${label}: `}${a} против ${c} — ${res === 'win' ? 'карта твоя!' : res === 'lose' ? `забирает ${esc(opName)}` : 'ничья, карты в банк'}`,
         };
         phase = 'shown';
         Sound.play(res === 'win' ? 'kick' : res === 'lose' ? 'bad' : 'tap'); haptic(res === 'win' ? 'ok' : res === 'lose' ? 'bad' : 'tap');
         render();
+        if (L) later(next, 2200);
       }
       // забрать карты: проигравшая улетает к победителю
       function settle() {
@@ -80,34 +106,43 @@
         else pot.push(mine, his);
       }
       function next() {
-        if (phase !== 'shown') return;
+        if (phase !== 'shown' || over) return;
         const table = $('.tc-table', b);
         if (table) table.classList.add(last.res === 'win' ? 'fly-me' : last.res === 'lose' ? 'fly-bot' : 'fly-pot');
         later(() => {
           settle();
-          myTurn = true; // характеристику всегда выбирает игрок
           round++; phase = 'pick'; last = null;
+          myTurn = turnOf(); // против бота характеристику всегда выбирает игрок, онлайн — по очереди
           if (!me.length || !bot.length || round > ROUNDS) return finish();
           render();
-          if (!myTurn) later(() => play(botPick(bot[0]), true), 1100);
+          // ход соперника пришёл, пока у нас ещё доигрывалась анимация прошлого розыгрыша
+          if (pend !== null && !myTurn) { const i = pend; pend = null; play(i, true); }
         }, 420);
       }
       function finish() {
+        if (over) return;
         over = true;
         // карты, оставшиеся в банке, не считаются никому
         const won = me.length > bot.length, s = api.st();
         if (won) { s.wins = (s.wins || 0) + 1; api.save(); Profile.bump('trumps', 12); }
-        NG.end({ title: won ? 'Победа!' : me.length === bot.length ? 'Ничья' : 'Бот оказался сильнее', big: `${me.length}:${bot.length}`,
-          stats: [['Побед всего', s.wins || 0]], win: won, reward: won ? 20 + Math.floor(me.length / 2) : 3, again: { label: 'Новая раздача', fn: () => NG.open('trumps') } });
+        if (L) setTimeout(() => L.close(), 1500);
+        NG.end({ title: won ? 'Победа!' : me.length === bot.length ? 'Ничья' : L ? `${opName} оказался сильнее` : 'Бот оказался сильнее', big: `${me.length}:${bot.length}`,
+          stats: [['Побед всего', s.wins || 0]], win: won, reward: won ? 20 + Math.floor(me.length / 2) : 3,
+          again: L ? { label: 'Ещё онлайн', fn: () => NG.open('trumps', { online: true }) } : { label: 'Новая раздача', fn: () => NG.open('trumps') } });
       }
-      b.addEventListener('click', (e) => {
+      if (L) {
+        L.onMsg = (m) => { if (m.t !== 'pick') return; const i = Math.max(0, Math.min(5, m.i | 0)); if (!myTurn && phase === 'pick') play(i, true); else pend = i; };
+        L.onClose = () => { if (!over) { toast(`${opName} отключился`); finish(); } };
+      }
+      b.onclick = (e) => {
         if (over) return;
-        const s = e.target.closest('button.tc-st');
-        if (s && myTurn && phase === 'pick') return play(+s.dataset.s, false);
+        const sb = e.target.closest('button.tc-st');
+        if (sb && myTurn && phase === 'pick') { if (L) L.send({ t: 'pick', i: +sb.dataset.s }); return play(+sb.dataset.s, false); }
         if (e.target.closest('[data-a="next"]')) next();
-      });
+        if (e.target.closest('[data-a="online"]')) NG.open('trumps', { online: true });
+      };
       render();
-      if (!myTurn) later(() => play(botPick(bot[0]), true), 1200);
+      }
     },
   });
 })();

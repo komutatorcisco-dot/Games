@@ -116,6 +116,8 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS prefs (id INTEGER PRIMARY KEY, remind INTEGER NOT NULL DEFAULT 1, reminded TEXT)'),
     // подбор соперника для онлайн-дуэли
     db.prepare('CREATE TABLE IF NOT EXISTS mm (id INTEGER PRIMARY KEY, code TEXT NOT NULL, nick TEXT, emo TEXT, ts INTEGER NOT NULL, paired INTEGER)'),
+    // очередь онлайна по режимам: дуэль, драфт, козыри… (сводим только игроков одного режима)
+    db.prepare("CREATE TABLE IF NOT EXISTS mmg (id INTEGER PRIMARY KEY, game TEXT NOT NULL DEFAULT 'duel', code TEXT NOT NULL, nick TEXT, emo TEXT, ts INTEGER NOT NULL, paired INTEGER)"),
   ]);
   ready = true;
 }
@@ -575,23 +577,24 @@ async function club(env, user, body) {
 async function matchmake(env, user, body) {
   const db = env.DB, uid = user.id, now = Date.now();
   await schema(db);
-  await db.prepare('DELETE FROM mm WHERE ts < ?').bind(now - 30000).run();
-  if (body.act === 'cancel') { await db.prepare('DELETE FROM mm WHERE id = ?').bind(uid).run(); return { ok: true }; }
+  const game = ['duel', 'xdraft', 'trumps'].includes(body.game) ? body.game : 'duel';
+  await db.prepare('DELETE FROM mmg WHERE ts < ?').bind(now - 30000).run();
+  if (body.act === 'cancel') { await db.prepare('DELETE FROM mmg WHERE id = ?').bind(uid).run(); return { ok: true }; }
   const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   if (code.length !== 5) return { ok: false, error: 'bad code' };
   // меня уже нашли — второй игрок подключается по моему коду, просто ждём
-  const me = await db.prepare('SELECT paired FROM mm WHERE id = ?').bind(uid).first();
+  const me = await db.prepare('SELECT paired FROM mmg WHERE id = ?').bind(uid).first();
   if (me && me.paired) return { ok: true, role: 'host', paired: true };
-  // кто-то ещё ждёт: подключаемся к тому, кто ждёт дольше
-  const other = await db.prepare('SELECT id, code, nick, emo FROM mm WHERE id != ? AND paired IS NULL ORDER BY ts ASC LIMIT 1').bind(uid).first();
+  // кто-то ещё ждёт в этом режиме: подключаемся к тому, кто ждёт дольше
+  const other = await db.prepare('SELECT id, code, nick, emo FROM mmg WHERE id != ? AND game = ? AND paired IS NULL ORDER BY ts ASC LIMIT 1').bind(uid, game).first();
   if (other) {
-    await db.batch([db.prepare('UPDATE mm SET paired = ? WHERE id = ?').bind(uid, other.id), db.prepare('DELETE FROM mm WHERE id = ?').bind(uid)]);
+    await db.batch([db.prepare('UPDATE mmg SET paired = ? WHERE id = ?').bind(uid, other.id), db.prepare('DELETE FROM mmg WHERE id = ?').bind(uid)]);
     await setSetting(db, 'mm:' + dayKey(now), Number((await getSetting(db, 'mm:' + dayKey(now))) || 0) + 1);
     return { ok: true, role: 'join', code: other.code, nick: other.nick, emo: other.emo };
   }
-  await db.prepare('INSERT INTO mm (id, code, nick, emo, ts, paired) VALUES (?1, ?2, ?3, ?4, ?5, NULL) ON CONFLICT(id) DO UPDATE SET code = ?2, nick = ?3, emo = ?4, ts = ?5')
-    .bind(uid, code, clean(body.nick, 16), clean(body.emo, 4), now).run();
-  const waiting = (await db.prepare('SELECT COUNT(*) AS n FROM mm WHERE paired IS NULL').first()).n;
+  await db.prepare('INSERT INTO mmg (id, game, code, nick, emo, ts, paired) VALUES (?1, ?6, ?2, ?3, ?4, ?5, NULL) ON CONFLICT(id) DO UPDATE SET game = ?6, code = ?2, nick = ?3, emo = ?4, ts = ?5, paired = NULL')
+    .bind(uid, code, clean(body.nick, 16), clean(body.emo, 4), now, game).run();
+  const waiting = (await db.prepare('SELECT COUNT(*) AS n FROM mmg WHERE game = ? AND paired IS NULL').bind(game).first()).n;
   return { ok: true, role: 'host', paired: false, waiting };
 }
 

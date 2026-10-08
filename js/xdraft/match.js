@@ -4,7 +4,7 @@
 'use strict';
 
 const XMatch = (() => {
-  let M = null, timer = null, tac = 2, botTac = 2, A3 = null;
+  let M = null, timer = null, tac = 2, botTac = 2, A3 = null, link = null, queue = [];
   const stop3d = () => { if (A3) { A3.stop(); A3 = null; } };
   // цвета формы: клуб, из которого больше всего игроков; если формы похожи — гости в белом
   function kitOf(xi, fallback) {
@@ -18,7 +18,7 @@ const XMatch = (() => {
     if (typeof Arena3D === 'undefined' || !Arena3D.supported()) return;
     const stage = $('.xm-stage', box), m = S().match, ctx = C;
     const home = kitOf(C.xi(), ['#ffc21f', '#1a1446']);
-    let away = (m.club && typeof CLUB_COL !== 'undefined' && CLUB_COL[m.club]) || kitOf(m.bot.xi.map(XDraft.P), ['#e3243f', '#ffffff']);
+    let away = (m.club && typeof CLUB_COL !== 'undefined' && CLUB_COL[m.club]) || kitOf(botXi(m), ['#e3243f', '#ffffff']);
     const rgb = (x) => { const v = String(x).replace('#', ''); return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) || 0); };
     const dist = (a, b) => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
     if (dist(home[0], away[0]) < 150) away = dist(home[0], '#f4f4f4') < 150 ? ['#e3243f', '#ffffff'] : ['#f4f4f4', '#1a1446'];
@@ -32,8 +32,10 @@ const XMatch = (() => {
   let C = DRAFT;
   const S = () => C.st();
   const BODY = () => $(C.body);
-  const opp = (m) => (m.club ? m.club : `Бот · ${XD.BOTS[m.level].name}`);
-  const oppShort = (m) => (m.club ? m.club : XD.BOTS[m.level].name);
+  const opp = (m) => (m.online ? m.online.nick : m.club ? m.club : `Бот · ${XD.BOTS[m.level].name}`);
+  const oppShort = (m) => (m.online ? m.online.nick : m.club ? m.club : XD.BOTS[m.level].name);
+  // состав соперника: у онлайн-соперника приходят сами игроки (могут быть карточки не из базы драфта)
+  const botXi = (m) => (m.bot.obj ? m.bot.obj : m.bot.xi.map(XDraft.P));
   // соперник — настоящий клуб: лучшие игроки клуба по позициям (кого нет — добираем из его лиги)
   function clubTeam(club, pool) {
     const own = pool.filter((p) => p.club === club), lg = (own[0] || {}).lg;
@@ -55,14 +57,42 @@ const XMatch = (() => {
   function choose(ctx) {
     if (ctx) C = ctx;
     const cl = tourClubs(), pick3 = [[cl[0], 'easy', 'попроще'], [cl[1], 'normal', 'на равных'], [cl[3], 'hard', 'топ-клуб']];
-    Modal.open(`<h2>Товарищеский матч</h2><p>Соперник — настоящий клуб: лучшие игроки его состава по позициям.</p>`,
-      pick3.map(([c, lv, t], i) => ({ label: `${c} · ${t}`, cls: i === 1 ? '' : 'ghost', onClick: () => start(lv, undefined, c) })).concat([{ label: 'Отмена', cls: 'ghost' }]));
+    Modal.open(`<h2>Товарищеский матч</h2><p>Соперник — настоящий клуб: лучшие игроки его состава по позициям. Или сыграй онлайн с живым игроком.</p>`,
+      [{ label: 'Онлайн против игрока', onClick: () => { Modal.close(); online(C); } }].concat(pick3.map(([c, lv, t], i) => ({ label: `${c} · ${t}`, cls: i === 1 ? '' : 'ghost', onClick: () => start(lv, undefined, c) })), [{ label: 'Отмена', cls: 'ghost' }]));
   }
   function side(sys, form, xi) { const c = XD.chem(sys, form, xi).total; return { lines: XD.lines(sys, form, xi, c), rating: XD.teamRating(xi), chem: c }; }
   function build(m) {
     const xi = C.xi();
-    const bxi = m.bot.xi.map(XDraft.P);
-    return XD.matchNew(side(C.sys(), C.form(), xi), side(C.sys(), m.bot.form, bxi), m.seed);
+    const bxi = botXi(m);
+    const R = XD.matchNew(side(C.sys(), C.form(), xi), side(m.bot.sys || C.sys(), m.bot.form, bxi), m.seed);
+    if (m.online && !m.online.host) R.flip = true;
+    return R;
+  }
+  // ---------- онлайн-матч: хозяин ведёт часы и шлёт каждую минуту с тактиками обоих, гость повторяет ----------
+  // Движок детерминирован (зерно + тактики), поэтому у обоих выходит один и тот же матч.
+  function online(ctx, code) {
+    if (ctx) C = ctx;
+    const my = C;
+    if (!C.xi().every(Boolean)) { toast(code ? `Собери драфт до конца, потом введи код ${code} в «Онлайн-матч с игроком»` : 'Сначала собери всех 11 игроков'); return; }
+    Online.open(BODY(), {
+      game: 'xdraft', title: 'Онлайн-матч', join: code, lead: 'Твой состав против состава живого соперника. Тактику меняете оба прямо по ходу матча.',
+      hello: () => ({ form: my.form(), sys: my.sys(), xi: my.xi().map((p) => p && JSON.parse(JSON.stringify(p))) }),
+      back: () => my.back(),
+      onReady: (L) => { C = my; startOnline(L); },
+    });
+  }
+  function startOnline(L) {
+    const d = L.op.data || {};
+    if (!d.xi || !d.form || !XD.FORMATIONS[d.form]) { toast('У соперника не собран состав'); L.close(); return C.back(); }
+    link = L; queue = [];
+    S().match = { seed: L.seed, level: 'normal', club: null, online: { host: L.host, nick: L.op.nick }, bot: { form: d.form, sys: d.sys, xi: d.xi.map((p) => p && p.name), obj: d.xi }, hist: [], done: false };
+    tac = 2; botTac = 2; M = build(S().match);
+    L.onMsg = (m) => {
+      if (m.t === 'tac' && L.host) botTac = Math.max(0, Math.min(4, m.v | 0));
+      else if (m.t === 'st' && !L.host) queue.push({ h: Math.max(0, Math.min(4, m.h | 0)), g: Math.max(0, Math.min(4, m.g | 0)) });
+    };
+    L.onClose = () => { const m = S().match; if (m && m.online && M && !M.over) { m.online.solo = true; toast('Соперник отключился — матч доигрывается без него'); if (Screens.current === C.screen && $('.xm', BODY())) run(); } };
+    intro();
   }
   function start(level, tourRound, club) {
     const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
@@ -76,6 +106,7 @@ const XMatch = (() => {
   function resume(ctx) {
     if (ctx) C = ctx;
     const m = S().match; if (!m) return;
+    if (m.online) { S().match = null; Store.save(); return C.back(); } // онлайн-матч после перезапуска не восстановить
     M = build(m); m.hist.forEach((t) => XD.matchStep(M, t));
     const last = m.hist[m.hist.length - 1] || [2, 2]; tac = last[0]; botTac = last[1];
     if (m.done || M.over) return end();
@@ -102,21 +133,33 @@ const XMatch = (() => {
   // как смотреть матч: «Моменты» (3D, часы ждут, пока доиграется опасный момент) или «Комментарии» (текст), и скорость
   const UIS = () => Store.d.ui || (Store.d.ui = {});
   const view = () => 'comm';
-  const speed = () => [1, 2, 4].includes(UIS().xmSpeed) ? UIS().xmSpeed : 1;
+  const speed = () => { const m = C.st().match; if (m && m.online) return 1; return [1, 2, 4].includes(UIS().xmSpeed) ? UIS().xmSpeed : 1; };
   let waiting = false;
   function run() {
     clearInterval(timer); waiting = false; Sim.ensure();
     // «Моменты»: между опасными моментами время бежит быстро, поле притушено; в момент — розыгрыш в 3D
     const hl = view() === 'moments' && A3;
     const st = BODY() && $('.xm-stage', BODY()); if (st) st.classList.toggle('idle', !!hl);
-    timer = setInterval(tick, (XD.CFG.match.tickMs / speed()) / (hl ? 4 : 1));
+    const m = S().match, guest = m && m.online && !m.online.host && !m.online.solo;
+    timer = setInterval(tick, guest ? 120 : m && m.online ? XD.CFG.match.tickMs : (XD.CFG.match.tickMs / speed()) / (hl ? 4 : 1));
   }
   function tick() {
     if (Screens.current !== C.screen || !M) { clearInterval(timer); stop3d(); return; } // ушли с экрана — пауза, вернёмся — продолжим
     const m = S().match;
-    botTac = XD.botTactic(m.level, M, 1, botTac);
-    const evs = XD.matchStep(M, [tac, botTac]);
-    m.hist.push([tac, botTac]);
+    let evs;
+    if (m.online && !m.online.host && !m.online.solo) {
+      // гость: ждём минуту от хозяина; если отстали — догоняем пачкой
+      if (!queue.length) return;
+      evs = [];
+      const take = () => { const q = queue.shift(); botTac = q.h; m.hist.push([q.g, q.h]); return XD.matchStep(M, [q.g, q.h]); };
+      while (queue.length > 2) evs.push(...take());
+      evs.push(...take());
+    } else {
+      if (!m.online) botTac = XD.botTactic(m.level, M, 1, botTac);
+      evs = XD.matchStep(M, [tac, botTac]);
+      m.hist.push([tac, botTac]);
+      if (m.online && !m.online.solo && link) link.send({ t: 'st', h: tac, g: botTac });
+    }
     Store.save(true);
     const fin = () => { clearInterval(timer); Sound.play('whistle'); Store.save(); setTimeout(end, 900); };
     if (evs.length && Sim.on()) { // момент разыгрывается на поле: часы ждут, пока мяч не дойдёт до ворот
@@ -164,13 +207,13 @@ const XMatch = (() => {
   // кто бил и кто тащил: только для текста, выбор детерминирован (зерно + минута), поэтому после перезапуска тот же
   function who(side, minute) {
     const m = S().match;
-    const form = side ? m.bot.form : C.form(), xi = side ? m.bot.xi.map(XDraft.P) : C.xi();
+    const form = side ? m.bot.form : C.form(), xi = side ? botXi(m) : C.xi();
     const R = XD.rng((m.seed ^ (minute * 2654435761)) >>> 0);
     const W = { ST: 6, LW: 4, RW: 4, CAM: 4, LM: 2, RM: 2, CM: 1.5, CDM: 0.6, CB: 0.4, LB: 0.5, RB: 0.5, GK: 0 };
     const sl = XD.FORMATIONS[form].slots, tot = sl.reduce((t, q) => t + (W[q.pos] || 0), 0);
     let x = R() * tot, shooter = xi[0];
     for (let k = 0; k < sl.length; k++) { x -= W[sl[k].pos] || 0; if (x <= 0) { shooter = xi[k]; break; } }
-    const oform = side ? C.form() : m.bot.form, oxi = side ? C.xi() : m.bot.xi.map(XDraft.P);
+    const oform = side ? C.form() : m.bot.form, oxi = side ? C.xi() : botXi(m);
     const gk = oxi[XD.FORMATIONS[oform].slots.findIndex((q) => q.pos === 'GK')];
     let k = xi.indexOf(shooter); if (k < 0) k = 0;
     return { shooter: shooter ? sur(shooter.name) : '', gk: gk ? sur(gk.name) : 'вратарь', k };
@@ -193,7 +236,7 @@ const XMatch = (() => {
     const own = (s, x, y) => (s ? [100 - x, 100 - y] : [x, y]); // в «свою» систему: команда атакует вправо
     const dist = (a, b) => Math.hypot((a.x - b.x) * 1.75, a.y - b.y);
     function init(box) {
-      const m = S().match, T = [{ form: C.form(), xi: C.xi() }, { form: m.bot.form, xi: m.bot.xi.map(XDraft.P) }], pl = [];
+      const m = S().match, T = [{ form: C.form(), xi: C.xi() }, { form: m.bot.form, xi: botXi(m) }], pl = [];
       T.forEach((t, s) => XD.FORMATIONS[t.form].slots.forEach((q, k) => {
         const p = t.xi[k];
         pl.push({ s, k, gk: q.pos === 'GK', d: cl(((100 - q.y) / 100 - 0.12) / 0.72, 0, 1), lat: 8 + q.x * 0.84, name: p ? sur(p.name) : '', x: 50, y: 50, force: null, n: R() * 6 });
@@ -208,7 +251,7 @@ const XMatch = (() => {
     // цвета формы; если похожи — у соперника запасная
     function colors() {
       const m = S().match, home = kitOf(C.xi(), ['#ffc21f', '#1a1446']);
-      let away = (m.club && typeof CLUB_COL !== 'undefined' && CLUB_COL[m.club]) || kitOf(m.bot.xi.map(XDraft.P), ['#e3243f', '#ffffff']);
+      let away = (m.club && typeof CLUB_COL !== 'undefined' && CLUB_COL[m.club]) || kitOf(botXi(m), ['#e3243f', '#ffffff']);
       const rgb = (x) => { const v = String(x).replace('#', ''); return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) || 0); };
       const df = (a, b) => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
       if (df(home[0], away[0]) < 120) away = df(home[0], '#ffffff') > 160 ? ['#f4f4f4', '#222'] : ['#e3243f', '#fff'];
@@ -367,8 +410,8 @@ const XMatch = (() => {
     box.innerHTML = `<div class="xm ${view() === 'comm' ? 'comm' : ''}">
       <div class="xm-bug"><span class="xm-tm us"><i>${ab(me)}</i></span><span class="xm-s"><b class="d0">${M.score[0]}</b><em>–</em><b class="d1">${M.score[1]}</b></span><span class="xm-tm them"><i>${ab(oppShort(m))}</i></span>
         <span class="xm-clock"><i class="live"></i><b>${M.min}</b>'</span></div>
-      <div class="xm-ctl"><span class="xm-ctl-t">Скорость</span>
-        <div class="xm-seg">${[1, 2, 4].map((x) => `<button data-spd="${x}" class="${speed() === x ? 'on' : ''}">×${x}</button>`).join('')}</div></div>
+      ${m.online ? `<div class="xm-ctl"><span class="xm-ctl-t">${Ui.get('bolt')} Онлайн · ${esc(m.online.nick)}</span></div>` : `<div class="xm-ctl"><span class="xm-ctl-t">Скорость</span>
+        <div class="xm-seg">${[1, 2, 4].map((x) => `<button data-spd="${x}" class="${speed() === x ? 'on' : ''}">×${x}</button>`).join('')}</div></div>`}
       <div class="xm-stage"><div class="xm-pitch"><svg viewBox="0 0 100 60" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="58"/><line x1="50" y1="1" x2="50" y2="59"/><circle cx="50" cy="30" r="8"/>
         <rect x="1" y="16" width="14" height="28"/><rect x="85" y="16" width="14" height="28"/><rect x="1" y="24" width="5" height="12"/><rect x="94" y="24" width="5" height="12"/></svg>
         ${Array.from({ length: 22 }, (_, k) => `<i class="xm-p ${k < 11 ? 'us' : 'them'}"></i>`).join('')}<i class="xm-bsh"></i><i class="xm-ball"></i><span class="xm-tag"></span><span class="xm-prog"></span></div><div class="xm-wait"><b>⏩</b><span>Ждём опасный момент…</span></div></div>
@@ -414,17 +457,18 @@ const XMatch = (() => {
     }
   }
   function render(evs = []) { update(evs, false, true); }
-  function setTac(t) { t = Math.max(0, Math.min(4, t)); if (t === tac) return; tac = t; Sound.play('tap'); haptic('pop'); const box = BODY(); $('.xm-tn', box).textContent = SHORT[tac]; $$('.xm-bar button', box).forEach((b, k) => b.classList.toggle('on', k === tac)); $('.xm-knob', box).style.left = tac * 20 + 10 + '%'; }
+  function setTac(t) { t = Math.max(0, Math.min(4, t)); if (t === tac) return; tac = t; { const m = S().match; if (m && m.online && link) link.send({ t: 'tac', v: t }); } Sound.play('tap'); haptic('pop'); const box = BODY(); $('.xm-tn', box).textContent = SHORT[tac]; $$('.xm-bar button', box).forEach((b, k) => b.classList.toggle('on', k === tac)); $('.xm-knob', box).style.left = tac * 20 + 10 + '%'; }
   function end() {
     stop3d(); Sim.stop();
     const m = S().match, first = !m.done; m.done = true; Store.save();
     const w = M.score[0] > M.score[1] ? 'win' : M.score[0] < M.score[1] ? 'lose' : 'draw';
     if (first && C.onEnd) C.onEnd(w, m.level);
+    if (m.online && link) { const L = link; link = null; setTimeout(() => L.close(), 1500); }
     if (m.tour !== undefined && C === DRAFT) return tourAfter(m, first);
     BODY().innerHTML = `<div class="xd-res"><div class="sb"><div class="sb-k">ФИНАЛЬНЫЙ СВИСТОК · ${esc(oppShort(m).toUpperCase())}</div>
       <div class="xm-final ${w}"><b>${M.score[0]}</b><i>:</i><b>${M.score[1]}</b></div><div class="xd-best">${w === 'win' ? 'Победа!' : w === 'lose' ? 'Поражение' : 'Ничья'} · моменты ${M.stats.ch[0]}:${M.stats.ch[1]} · в створ ${M.stats.on[0]}:${M.stats.on[1]}</div></div>
       <div class="xm-feed all">${M.ev.filter((e) => e.t === 'goal').map((e) => `<div class="xm-ev ${e.s ? 'them' : 'us'} k-goal"><b>${e.m}'</b><span>${Ui.get('ball')}</span><em>${esc(who(e.s, e.m).shooter)}</em></div>`).join('') || '<p class="xm-note">Без голов</p>'}</div>
-      <div class="xd-act col"><button class="btn gold" data-xm="again">Ещё матч</button><button class="btn ghost" data-xm="share">Поделиться результатом</button><button class="btn ghost" data-xm="squad">К составу</button></div></div>`;
+      <div class="xd-act col"><button class="btn gold" data-xm="${m.online ? 'online' : 'again'}">${m.online ? 'Ещё онлайн-матч' : 'Ещё матч'}</button><button class="btn ghost" data-xm="share">Поделиться результатом</button><button class="btn ghost" data-xm="squad">К составу</button></div></div>`;
     if (w === 'win' && typeof confetti === 'function') confetti();
   }
   function share() {
@@ -510,6 +554,7 @@ const XMatch = (() => {
       const k = b.dataset.xm;
       if (k === 'go') { render(); run(); }
       if (k === 'again') choose();
+      if (k === 'online') online();
       if (k === 'share') share();
       if (k === 'squad') C.back();
       if (k === 'tnext') tourNext();
@@ -517,6 +562,7 @@ const XMatch = (() => {
       if (k === 'tnew') { S().tour = null; S().match = null; Store.save(); C.back(); }
     });
     box.addEventListener('change', (e) => { if (e.target.classList.contains('xm-range')) setTac(+e.target.value); });
+    if (typeof Drag !== 'undefined') Drag.slider(box, '.xm-bar', 5, (t) => { C = ctx; setTac(t); });
   }
-  return { Sim, choose, start, resume, bind, use, DRAFT, tourStart, tourScreen, tourState };
+  return { Sim, choose, start, resume, bind, use, online, DRAFT, tourStart, tourScreen, tourState };
 })();

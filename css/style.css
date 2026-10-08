@@ -4501,3 +4501,50 @@ body.at-home::before { display: none !important; }
 .ss-c.sk img { width: 100%; aspect-ratio: 390 / 520; object-fit: cover; object-position: 50% 100%; border-radius: 10px; }
 .ss-c.own em { background: rgba(255,255,255,.12); color: rgba(255,255,255,.7); }
 .ss-h { margin: 14px 0 8px; font: 900 15px "Rubik", sans-serif; }
+/* чип «Клуб» в верхней плашке и компактные боковые кнопки */
+.mh-club { gap: 5px !important; } .mh-club .ui-ic { width: 18px; height: 18px; color: #7af0c8; } .mh-club b { font: 800 13px "Rubik", sans-serif !important; -webkit-text-stroke: 0 !important; }
+.h2-side { gap: 10px !important; }
+/* страница не ездит вбок: ничего не вылезает за ширину экрана */
+html, body { overflow-x: clip; overscroll-behavior: none; }
+#app { overflow-x: clip; }
+
+/* ---------- перетаскивание игроков и ползунка тактики ---------- */
+.fu[data-z], .sq-slot { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.dg-src { z-index: 50 !important; pointer-events: none; scale: 1.12; filter: drop-shadow(0 12px 18px rgba(0,0,0,.55)); transition: scale .15s, translate 0s !important; }
+.dg-over { outline: 3px dashed #ffcf3a; outline-offset: 3px; border-radius: 12px; }
+body.dg-on { overscroll-behavior: none; }
+.xm-bar { touch-action: none; cursor: grab; }
+.dg-par { z-index: 50 !important; }
+
+/* ---------- боковая колонка иконок: таблица лидеров и награды ---------- */
+.srw { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 10px; align-items: start; }
+.sr-main { min-width: 0; }
+.sr-rail { position: sticky; top: calc(var(--tg-safe-top, 0px) + 74px); display: flex; flex-direction: column; gap: 8px; z-index: 3; }
+.sr-b { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 0; border: 0; background: none; color: rgba(255,255,255,.6); font: 700 9.5px/1.1 "Rubik", sans-serif; text-align: center; -webkit-tap-highlight-color: transparent; }
+.sr-i { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 16px; background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.12), 0 3px 0 rgba(0,0,0,.35); transition: transform .18s cubic-bezier(.3,1.5,.5,1), background .2s, box-shadow .2s; }
+.sr-i svg { width: 26px; height: 26px; }
+.sr-b small { font: inherit; max-width: 58px; overflow-wrap: anywhere; }
+.sr-b:active .sr-i { transform: scale(.9); }
+.sr-b.on { color: #ffcf3a; }
+.sr-b.on .sr-i { background: linear-gradient(180deg, #ffd84d, #f0a91c); color: #2a1d00; --ic-a: #fff3c2; --ic-bg: #f0a91c; box-shadow: inset 0 -3px 0 rgba(0,0,0,.18), 0 3px 0 #8a5a00, 0 0 0 2px rgba(255,207,58,.35); transform: translateX(3px); }
+.sr-b.go .sr-i { color: #7af0c8; }
+.sr-b.lk { opacity: .55; }
+.sr-n { position: absolute; top: -4px; right: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #ff3b5c; color: #fff; font: 800 10px/18px "Rubik", sans-serif; font-style: normal; box-shadow: 0 0 0 2px #0d0a26; }
+.sr-main > .bd-head:first-child, .sr-main > .bd-games:first-child { margin-top: 0; }
+.srw .bd-games { flex-wrap: wrap; }
+
+/* ---------- онлайн-лобби (драфт, козыри) ---------- */
+.on-wrap { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 18px 4px; text-align: center; }
+.on-wrap h3 { margin: 4px 0 0; font: 900 22px "Rubik", sans-serif; color: #fff; }
+.on-wrap p { margin: 0 0 6px; color: rgba(255,255,255,.7); font-size: 14px; line-height: 1.4; }
+.on-ico { display: grid; place-items: center; width: 74px; height: 74px; margin: 0 auto 4px; border-radius: 24px; background: linear-gradient(180deg, #ffd84d, #f0a91c); color: #2a1d00; --ic-a: #fff3c2; box-shadow: 0 4px 0 #8a5a00; }
+.on-ico svg { width: 40px; height: 40px; }
+.on-wrap .btn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.on-wrap .btn svg { width: 20px; height: 20px; }
+.on-join { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.on-join input { min-width: 0; padding: 12px 14px; border-radius: 14px; border: 0; background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.18); color: #fff; font: 900 20px "Rubik", sans-serif; letter-spacing: .3em; text-align: center; text-transform: uppercase; }
+.on-wait .du-radar { margin: 6px auto; }
+.xd-online { background: linear-gradient(180deg, #4fc3ff, #2a7fd6) !important; color: #fff !important; }
+.tc-online { margin: 14px auto 0; display: flex; align-items: center; gap: 8px; }
+.tc-online svg { width: 18px; height: 18px; }
+.xm-ctl-t svg { width: 14px; height: 14px; vertical-align: -2px; }
