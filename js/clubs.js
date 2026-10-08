@@ -24,7 +24,10 @@ const Clubs = (() => {
     if (!api()) throw new Error('offline');
     const r = await Board.post('/club', body);
     if (!r.ok) throw new Error(r.error || 'Ошибка');
-    data = r.club; gifts(); return data;
+    data = r.club;
+    // старый сервер (ещё не обновился) присылает клуб без новых разделов
+    if (data) data = Object.assign({ chat: [], reqs: [], gifts: [], league: { place: 0, clubs: 0, prevPlace: 0 }, myRole: data.owner ? 3 : 0, trophies: 0, descr: '', mintro: 0, nextReq: 0 }, data, { members: (data.members || []).map((m) => Object.assign({ role: 0, don: 0, seen: 0, uid: 0 }, m)) });
+    gifts(); return data;
   }
   const box = () => $('#club-body');
   const onScreen = () => Screens.current === 'myclub';
