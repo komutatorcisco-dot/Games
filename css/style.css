@@ -4290,3 +4290,45 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 .xm-stage.is3d.idle .xm-wait { display: grid; position: absolute; inset: 0; z-index: 3; place-content: center; justify-items: center; gap: 6px; color: #fff; pointer-events: none; }
 .xm-wait b { font-size: 34px; } .xm-wait span { font: 800 14px "Rubik", sans-serif; padding: 6px 12px; border-radius: 10px; background: rgba(10,12,34,.75); }
 .xm-stage.is3d.idle .a3d-tag { display: none; }
+.xm.comm .xm-stage { display: block; }
+.xm-ctl-t { align-self: center; font: 800 12px "Rubik", sans-serif; color: rgba(255,255,255,.6); text-transform: uppercase; letter-spacing: .06em; }
+
+/* ===== драфт в стиле FUT: выбор из пяти в ряд + большая карточка, тёмный газон как в FIFA ===== */
+#xd-pick.xp { grid-template-rows: auto auto 1fr auto !important; gap: 12px; background: radial-gradient(90% 45% at 50% 30%, rgba(60,80,110,.35), transparent 70%), linear-gradient(180deg, #10151d, #07090d) !important; }
+.xp-row5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; align-items: end; }
+.xp-row5 .xp-c { display: block; padding: 4px 0 6px !important; border-radius: 10px; transition: transform .15s, opacity .15s, background .15s; }
+.xp-row5 .xp-c .fu { --cw: min(66px, calc((100vw - 52px) / 5)); margin: 0 auto; pointer-events: none; }
+.xp-row5 .xp-c.on { background: rgba(255,207,58,.12) !important; box-shadow: inset 0 0 0 2px #ffcf3a !important; transform: translateY(-4px); }
+.xp-row5 .xp-c:not(.on) { opacity: .7; }
+.xp-big { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; align-self: start; padding: 14px; border-radius: 16px; background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); }
+.xp-bc .fu { --cw: min(40vw, 160px); pointer-events: none; }
+.xp-info { display: grid; gap: 6px; min-width: 0; }
+.xp-info > b { font: 900 19px "Rubik", sans-serif; line-height: 1.1; }
+.xp-info > small { font: 600 12px var(--font-body); color: rgba(255,255,255,.6); }
+.xp-info .xp-pos { padding: 0; background: none; color: rgba(255,255,255,.6); font: 600 12px var(--font-body); }
+.xp-st { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px 10px; margin: 4px 0; }
+.xp-st span { display: flex; align-items: baseline; gap: 6px; font: 700 12px "Rubik", sans-serif; color: rgba(255,255,255,.65); text-transform: uppercase; }
+.xp-st b { min-width: 24px; font: 900 17px "Rubik", sans-serif; }
+.xp-st b.hi { color: #4ee07a; } .xp-st b.mid { color: #f5c542; } .xp-st b.lo { color: #ff7a6a; }
+.xp-info .xp-d { justify-self: start; }
+/* поле */
+:is(.xd-pitch, .sq-pitch) {
+  background:
+    radial-gradient(130% 90% at 50% 45%, transparent 50%, rgba(0,0,0,.55) 100%),
+    repeating-linear-gradient(180deg, #2c5a2a 0 6.25%, #264f25 6.25% 12.5%) !important;
+  box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 16px 30px rgba(0,0,0,.5) !important;
+  border-radius: 10px !important;
+}
+.xd-field .mk polygon, .xd-field .mk line, .xd-field .mk ellipse { stroke: rgba(255,255,255,.28) !important; }
+.fu-ch.cl { display: flex; align-items: stretch; height: 18px; min-width: 0; padding: 0; gap: 0; margin-top: -2px; border-radius: 3px; overflow: hidden; background: #0d1014; box-shadow: 0 2px 4px rgba(0,0,0,.5); font: 800 11px/18px "Rubik", sans-serif; }
+.fu-ch.cl u { text-decoration: none; padding: 0 5px; color: #fff; background: #1c232c; }
+.fu-ch.cl { padding-right: 5px; }
+.fu-ch.cl u { margin-right: 5px; }
+.xd-stars { --s: 0; position: relative; display: block; width: 62px; height: 12px; font-size: 12px; line-height: 12px; letter-spacing: 1px; color: rgba(255,255,255,.2); }
+.xd-stars::before { content: "★★★★★"; }
+.xd-stars::after { content: "★★★★★"; position: absolute; left: 0; top: 0; width: calc(var(--s) * 20%); overflow: hidden; white-space: nowrap; color: #ffcf3a; }
+#xdraft { background: radial-gradient(100% 40% at 50% 20%, rgba(70,90,120,.25), transparent 70%), linear-gradient(180deg, #121821, #07090d) !important; }
+#app > #xdraft.screen > .topbar { background: #121821 !important; }
+#xdraft .xd-bar { background: rgba(255,255,255,.04) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08) !important; }
+#xdraft .xd-bar .xd-f { background: rgba(255,255,255,.06) !important; }
+#xdraft .fu.empty { background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(255,255,255,.04)); }

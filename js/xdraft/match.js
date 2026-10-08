@@ -14,6 +14,7 @@ const XMatch = (() => {
   }
   function mount3d(box) {
     stop3d();
+    return; // 3D в матче убрано: по отзыву неиграбельно — остаётся вид сверху и комментарий
     if (typeof Arena3D === 'undefined' || !Arena3D.supported()) return;
     const stage = $('.xm-stage', box), m = S().match, ctx = C;
     const home = kitOf(C.xi(), ['#ffc21f', '#1a1446']);
@@ -99,7 +100,7 @@ const XMatch = (() => {
   }
   // как смотреть матч: «Моменты» (3D, часы ждут, пока доиграется опасный момент) или «Комментарии» (текст), и скорость
   const UIS = () => Store.d.ui || (Store.d.ui = {});
-  const view = () => (UIS().xmView === 'comm' ? 'comm' : 'moments');
+  const view = () => 'comm';
   const speed = () => [1, 2, 4].includes(UIS().xmSpeed) ? UIS().xmSpeed : 1;
   let waiting = false;
   function run() {
@@ -142,7 +143,7 @@ const XMatch = (() => {
     const txt = arr[(Math.random() * arr.length) | 0].replace('{a}', esc(pick())).replace('{b}', esc(pick()));
     fd.insertAdjacentHTML('afterbegin', `<div class="xm-ev cm ${sideK ? 'them' : 'us'}"><b>${M.min}'</b><span>${Ui.get(kind === 'att' ? 'bolt' : kind === 'press' ? 'shield' : 'send')}</span><em>${txt}</em></div>`);
     anim(fd.firstElementChild, [{ transform: 'translateY(-10px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 300, easing: 'ease-out' });
-    while (fd.children.length > (view() === 'comm' ? 14 : 3)) fd.lastElementChild.remove();
+    while (fd.children.length > 6) fd.lastElementChild.remove();
   }
   function setView(v) {
     UIS().xmView = v; Store.save();
@@ -195,7 +196,7 @@ const XMatch = (() => {
     box.innerHTML = `<div class="xm ${view() === 'comm' ? 'comm' : ''}">
       <div class="xm-bug"><span class="xm-tm us"><i>${ab(me)}</i></span><span class="xm-s"><b class="d0">${M.score[0]}</b><em>–</em><b class="d1">${M.score[1]}</b></span><span class="xm-tm them"><i>${ab(oppShort(m))}</i></span>
         <span class="xm-clock"><i class="live"></i><b>${M.min}</b>'</span></div>
-      <div class="xm-ctl"><div class="xm-seg"><button data-view="moments" class="${view() === 'moments' ? 'on' : ''}">Моменты</button><button data-view="comm" class="${view() === 'comm' ? 'on' : ''}">Комментарии</button></div>
+      <div class="xm-ctl"><span class="xm-ctl-t">Скорость</span>
         <div class="xm-seg">${[1, 2, 4].map((x) => `<button data-spd="${x}" class="${speed() === x ? 'on' : ''}">×${x}</button>`).join('')}</div></div>
       <div class="xm-stage"><div class="xm-pitch"><svg viewBox="0 0 100 60" preserveAspectRatio="none"><rect x="1" y="1" width="98" height="58"/><line x1="50" y1="1" x2="50" y2="59"/><circle cx="50" cy="30" r="8"/>
         <rect x="1" y="16" width="14" height="28"/><rect x="85" y="16" width="14" height="28"/><rect x="1" y="24" width="5" height="12"/><rect x="94" y="24" width="5" height="12"/></svg>
@@ -234,7 +235,7 @@ const XMatch = (() => {
     M.ev.slice(shownEv).forEach((e) => {
       fd.insertAdjacentHTML('afterbegin', `<div class="xm-ev ${e.s ? 'them' : 'us'} k-${e.t}"><b>${e.m}'</b><span>${EV[e.t][0]}</span><em>${line(e)}</em></div>`);
       anim(fd.firstElementChild, [{ transform: 'translateY(-14px) rotateX(-70deg)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, easing: 'cubic-bezier(.2,.9,.3,1.2)' });
-      while (fd.children.length > (view() === 'comm' ? 14 : 3)) fd.lastElementChild.remove();
+      while (fd.children.length > 6) fd.lastElementChild.remove();
     });
     shownEv = M.ev.length;
     const goal = evs.find((e) => e.t === 'goal');

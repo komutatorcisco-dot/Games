@@ -128,26 +128,34 @@ const XDraft = (() => {
     el.className = 'xp'; el.id = 'xd-pick';
     const title = what === 'capt' ? 'Капитан' : pos ? XD.RU[pos] : 'Запас';
     el.innerHTML = `<div class="xp-top"><span class="xp-pos">${title}</span><b>${what === 'capt' ? 'Выбери капитана' : 'Выбери игрока'}</b><button class="xp-x" aria-label="Закрыть">✕</button></div>
-      <div class="xp-grid5">${list.map((p, k) => `<div class="xp-c ${k === 0 ? 'on' : ''}" data-k="${k}" role="button" tabindex="0">${mini(p, { slotPos: pos, idx: k, zone: 'pick', sys: a.sys, big: true })}${what === 'xi' ? chemDelta(i, p) : ''}</div>`).join('')}</div>
+      <div class="xp-row5">${list.map((p, k) => `<div class="xp-c ${k === 0 ? 'on' : ''}" data-k="${k}" role="button" tabindex="0">${mini(p, { slotPos: pos, idx: k, zone: 'pick', sys: a.sys })}</div>`).join('')}</div>
+      <div class="xp-big"></div>
       <div class="xp-foot"><div class="xp-sum"></div><button class="btn gold xp-ok">Взять</button></div>`;
     document.body.appendChild(el);
     const cards = $$('.xp-c', el);
-    // все пять видно сразу: нажал — выбрал, нажал ещё раз или «Взять» — забрал
+    const ST = ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'], STG = ['ПРЫ', 'РУК', 'ВЫБ', 'РЕА', 'СКР', 'ПОЗ'];
+    // как в FUT: пять карточек в ряд, выбранная — крупно под ними с характеристиками
     function sync() {
       if (!pick) return;
       const p = list[pick.chosen]; if (!p) return;
       cards.forEach((c, k) => c.classList.toggle('on', k === pick.chosen));
+      const names = p.pos[0] === 'GK' ? STG : ST;
+      $('.xp-big', el).innerHTML = `<div class="xp-bc">${mini(p, { slotPos: pos, idx: pick.chosen, zone: 'pick', sys: a.sys, big: true })}</div>
+        <div class="xp-info"><b>${esc(p.name)}</b><small>${esc(p.club)} · ${esc(p.lg || '')}</small>
+          <div class="xp-st">${(p.st || []).map((v, k) => `<span><b class="${v >= 80 ? 'hi' : v >= 65 ? 'mid' : 'lo'}">${v}</b>${names[k]}</span>`).join('')}</div>
+          <small class="xp-pos">Позиции: ${p.pos.map((q) => XD.RU[q]).join(', ')}</small>${what === 'xi' ? chemDelta(i, p) : ''}</div>`;
+      anim($('.xp-bc', el), [{ transform: 'rotateY(70deg) scale(.85)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 320, easing: 'cubic-bezier(.2,.9,.3,1.1)' });
       $('.xp-ok', el).textContent = `Взять ${surname(p.name)}`;
       if (what !== 'capt') { const pv = preview(what, i, p); $('.xp-sum', el).innerHTML = `<span>Рейтинг <b>${pv.before.r || '—'} → ${pv.after.r}</b></span><span>Химия <b>${pv.before.c} → ${pv.after.c}</b></span>`; }
     }
     requestAnimationFrame(() => {
       el.classList.add('in'); sync();
-      cards.forEach((c, k) => anim(c, [{ transform: 'translateY(120px) rotateX(60deg) scale(.7)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 560, delay: 60 * k, easing: 'cubic-bezier(.2,1.1,.3,1)', fill: 'backwards' }));
+      cards.forEach((c, k) => anim(c, [{ transform: 'translateY(60px) scale(.7)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, delay: 60 * k, easing: 'cubic-bezier(.2,1.1,.3,1)', fill: 'backwards' }));
     });
     el.addEventListener('click', (e) => {
       if (e.target.closest('.xp-x')) return closePick();
       const c = e.target.closest('.xp-c');
-      if (c) { const k = +c.dataset.k; if (k === pick.chosen) return confirmPick(); pick.chosen = k; sync(); Sound.play('tap'); haptic('tap'); return; }
+      if (c && !c.closest('.xp-big')) { const k = +c.dataset.k; if (k === pick.chosen) return confirmPick(); pick.chosen = k; sync(); Sound.play('tap'); haptic('tap'); return; }
       if (e.target.closest('.xp-ok')) confirmPick();
     });
   }
@@ -215,7 +223,7 @@ const XDraft = (() => {
     if (ch && zone === 'xi') {
       chem = sys === 'new'
         ? `<span class="fu-ch new" data-chem="${idx}">${[0, 1, 2].map((d) => `<i class="${d < ch.chem ? 'on' : ''}"></i>`).join('')}</span>`
-        : `<span class="fu-ch cl c${ch.chem >= 7 ? 'g' : ch.chem >= 4 ? 'y' : 'r'}" data-chem="${idx}">${ch.chem}</span>`;
+        : `<span class="fu-ch cl c${ch.chem >= 7 ? 'g' : ch.chem >= 4 ? 'y' : 'r'}" data-chem="${idx}"><u>${XD.RU[slotPos]}</u>${ch.chem}</span>`;
     }
     return `<button class="fu ${rarOf(p.r)} ${off ? 'off' : ''} ${big ? 'big' : ''}" data-z="${zone}" data-i="${idx}">
       <span class="fu-l"><b>${p.r}</b><small>${XD.RU[slotPos || p.pos[0]]}</small><em>${p.flag}</em>${cr ? `<img src="img/clubs/${cr}" alt="">` : ''}</span>
@@ -268,7 +276,7 @@ const XDraft = (() => {
     const done = filled(a), all = 11 + XD.BENCH, rating = XD.teamRating(xi);
     const capt = a.stage === 'capt' && a.captPick ? P(a.captPick) : null;
     const part = a.xi.filter(Boolean).length < 11;
-    box.innerHTML = `<div class="xd-bar"><span class="xd-f">${a.form}</span><span class="xd-st"><small>Рейтинг</small><b>${rating || '—'}</b>${part ? '<i>предв.</i>' : ''}</span>
+    box.innerHTML = `<div class="xd-bar"><span class="xd-f">${a.form}</span><span class="xd-st"><small>Рейтинг</small><b>${rating || '—'}</b><span class="xd-stars" style="--s:${rating ? Math.max(.5, Math.min(5, Math.round((rating - 64) / 4) / 2 + 2)) : 0}"></span></span>
         <button class="xd-st xd-chem" data-act2="chem"><small>Химия</small><b><span class="xd-ct">${c.total}</span><em>/${c.max}</em></b>${part ? '<i>предв.</i>' : ''}<span class="xd-cbar"><i style="width:${(c.total / c.max) * 100}%"></i></span></button></div>
       ${pitchHTML(a, xi, c, { capt })}
       ${[[0, XD.SUBS, 'Скамейка'], [XD.SUBS, XD.BENCH, 'Резерв']].map(([from, to, ttl]) => `<div class="xd-bench"><div class="xd-bh"><b>${ttl}</b><small>${bench.slice(from, to).filter(Boolean).length}/${to - from}</small></div>
