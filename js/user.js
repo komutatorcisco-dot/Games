@@ -56,7 +56,8 @@ const User = (() => {
     const av = $('#hub-ava');
     if (av) av.textContent = u.emoji || '⚽';
     const pn = $('#prof-nick');
-    if (pn) pn.innerHTML = u.nick ? `<span class="hub-emo">${u.emoji}</span> <b>${esc(u.nick)}</b>${u.since ? `<small>в игре с ${u.since.split('-').reverse().join('.')}</small>` : ''}` : '';
+    // Аватар и дата уже находятся в отдельных элементах карточки профиля.
+    if (pn) pn.textContent = u.nick || 'Игрок';
     const box = $('#recent');
     if (box) {
       const r = Store.d.recent.filter((x) => typeof Release === 'undefined' || Release.isOut(x.k)).slice(0, 4);
