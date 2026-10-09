@@ -25,7 +25,10 @@ const StarShop = (() => {
   }
   // сервер прислал список покупок (ответ /hello): выдаём то, что ещё не выдали
   function sync(list) { (list || []).forEach((p) => { if (p && p.item && p.n) grant(p.item, p.n); }); }
+  // админу всё бесплатно (кроме режима «как обычный игрок»): выдаём сразу, без счёта в Telegram
+  const free = () => !!(Store.d.admin && !(Store.d.ui && Store.d.ui.asPlayer));
   async function buy(item) {
+    if (free()) { Modal.close(); confetti(); Sound.play('goal'); grant(item, 'adm' + Date.now()); return; }
     const base = CONFIG.api;
     if (!(base && TG && TG.openInvoice && TG.initData)) { toast('Покупки работают в Telegram через бота @JacksonGamesbot'); return; }
     try {
@@ -40,9 +43,9 @@ const StarShop = (() => {
   function open() {
     const own = (k) => Skins.has(k);
     Modal.open(`<h3 class="sk-h">Магазин ⭐</h3><p class="sk-p">Покупки за звёзды Telegram. Всё, что есть в магазине, можно получить и бесплатно — играя.</p>
-      <div class="ss-grid">${ITEMS.map((x) => `<button class="ss-c" data-ss="${x.id}"><span class="ss-art">${x.art()}</span><b>${x.name}</b><small>${x.sub}</small><em>${x.stars} ⭐</em></button>`).join('')}</div>
+      <div class="ss-grid">${ITEMS.map((x) => `<button class="ss-c" data-ss="${x.id}"><span class="ss-art">${x.art()}</span><b>${x.name}</b><small>${x.sub}</small><em>${free() ? '0 ⭐ · админ' : `${x.stars} ⭐`}</em></button>`).join('')}</div>
       <h4 class="ss-h">Скины навсегда</h4>
-      <div class="ss-grid">${SKINS.map((k) => { const s = Skins.LIST.find((x) => x.id === k); return `<button class="ss-c sk ${own(k) ? 'own' : ''}" ${own(k) ? '' : `data-ss="skin:${k}"`}><img src="img/skins/${k}.webp" alt="" loading="lazy"><b>${esc(s.name)}</b><em>${own(k) ? 'Есть' : '29 ⭐'}</em></button>`; }).join('')}</div>`,
+      <div class="ss-grid">${SKINS.map((k) => { const s = Skins.LIST.find((x) => x.id === k); return `<button class="ss-c sk ${own(k) ? 'own' : ''}" ${own(k) ? '' : `data-ss="skin:${k}"`}><img src="img/skins/${k}.webp" alt="" loading="lazy"><b>${esc(s.name)}</b><em>${own(k) ? 'Есть' : free() ? '0 ⭐' : '29 ⭐'}</em></button>`; }).join('')}</div>`,
     [{ label: 'Закрыть', cls: 'ghost' }]);
   }
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-ss]'); if (b) { Sound.play('tap'); buy(b.dataset.ss); } });
