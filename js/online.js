@@ -11,6 +11,41 @@ const Online = (() => {
   const me = () => ({ nick: String(Store.d.user.nick || 'Игрок').slice(0, 16), emo: Store.d.user.emoji || '⚽' });
   const opts = () => Object.assign({ debug: 0 }, window.DUEL_PEER || {});
   let lib = null, cur = null;
+  let activity = 'hub', presenceTimer = null, presenceBusy = false, onlineCounts = { total: null, modes: {} };
+  function paintPresence() {
+    if (typeof document === 'undefined') return;
+    const total = document.querySelector('#online-total');
+    if (total) total.textContent = Number.isFinite(onlineCounts.total) ? onlineCounts.total.toLocaleString('ru-RU') : '—';
+    const badge = document.querySelector('#online-switch-count');
+    if (badge) badge.textContent = Number.isFinite(onlineCounts.total) ? onlineCounts.total.toLocaleString('ru-RU') : '—';
+    document.querySelectorAll('[data-presence-game]').forEach((el) => {
+      const n = onlineCounts.modes && onlineCounts.modes[el.dataset.presenceGame];
+      el.textContent = Number.isFinite(n) ? n.toLocaleString('ru-RU') : '—';
+    });
+  }
+  async function refreshPresence() {
+    if (presenceBusy || (typeof document !== 'undefined' && document.hidden) || !Board.ready()) return;
+    presenceBusy = true;
+    try {
+      const r = await Board.post('/presence', { act: 'heartbeat', game: activity });
+      if (r && r.ok) { onlineCounts = r; paintPresence(); }
+    } catch (e) { /* сеть может быть недоступна */ }
+    finally { presenceBusy = false; }
+  }
+  function setActivity(game) {
+    activity = ['duel', 'xdraft', 'trumps'].includes(game) ? game : 'hub';
+    refreshPresence();
+  }
+  function startPresence() {
+    if (presenceTimer) return;
+    refreshPresence();
+    presenceTimer = setInterval(refreshPresence, 20000);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden && Board.ready()) Board.post('/presence', { act: 'leave' }).catch(() => {});
+      else refreshPresence();
+    });
+    paintPresence();
+  }
   function loadPeer() {
     if (window.Peer) return Promise.resolve();
     return lib || (lib = new Promise((ok, bad) => {
@@ -30,10 +65,12 @@ const Online = (() => {
     if (c.mm) mm({ act: 'cancel', game: c.o.game });
     try { c.conn && c.conn.close(); } catch (e) { /* уже закрыто */ }
     try { c.peer && c.peer.destroy(); } catch (e) { /* уже закрыто */ }
+    setActivity('hub');
   }
 
   function open(box, o) {
     stop();
+    setActivity(o.game);
     const c = cur = { o, box, screen: Screens.current, alive: true, timers: [], peer: null, conn: null, mm: false };
     const T = (fn, ms) => { const id = setTimeout(() => c.alive && fn(), ms); c.timers.push(id); };
     let acts = {};
@@ -171,5 +208,5 @@ const Online = (() => {
     if (game === 'trumps') { NG.open('trumps', { online: m[2] }); return true; }
     return false;
   }
-  return { open, stop, deep, leaveScreen: id => { if (cur && cur.screen !== id) stop(); } };
+  return { open, stop, deep, startPresence, setActivity, refreshPresence, counts: () => onlineCounts, leaveScreen: id => { if (cur && cur.screen !== id) stop(); } };
 })();

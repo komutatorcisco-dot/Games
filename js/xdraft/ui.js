@@ -61,10 +61,18 @@ const XDraft = (() => {
     if (POOL) return POOL;
     // в драфт — только игроки с фото: серые силуэты в пятёрках выглядят как баг
     const withFace = PLAYERS.filter((p) => FC_STATS[p.name] && FC_POS[p.name] && FACES[p.name]);
-    POOL = (withFace.length > 1200 ? withFace : PLAYERS.filter((p) => FC_STATS[p.name] && FC_POS[p.name])).map((p) => ({
+    const active = (withFace.length > 1200 ? withFace : PLAYERS.filter((p) => FC_STATS[p.name] && FC_POS[p.name])).map((p) => ({
       name: p.name, r: FC_STATS[p.name][0], st: FC_STATS[p.name].slice(1, 7), pos: PlayerPositions.get(p.name, p.pos),
       club: p.club, lg: p.lg, nat: p.nat, flag: p.flag, face: FACES[p.name] || null,
     }));
+    // Исторические кумиры уже есть в коллекции, но раньше драфт брал только текущую базу FC.
+    // Добавляем легендарные карточки как Icons: их клуб не участвует в новой химии, а лига и нация — по правилам Icon.
+    const icons = typeof Cards !== 'undefined' ? Cards.all().filter((c) => c.icon && c.face).map((c) => {
+      const positions = c.positions || PlayerPositions.get(c.name, c.pos);
+      const pos = positions;
+      return { name: c.name, r: c.r, st: c.st || Array(6).fill(c.r), pos, club: c.club, lg: c.lg, nat: c.nat, flag: c.flag, face: c.face, icon: true, rar: c.rar };
+    }) : [];
+    POOL = active.concat(icons);
     BY = Object.fromEntries(POOL.map((p) => [p.name, p]));
     return POOL;
   }

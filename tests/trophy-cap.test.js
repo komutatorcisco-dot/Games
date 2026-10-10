@@ -1,0 +1,11 @@
+const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
+const ctx = { console, Store:{d:{rw:{trophies:10995}},save(){}}, Day:{key:()=> '2026-10-10'}, Release:{weekKey:()=> '2026-10-05'} };
+ctx.globalThis = ctx; vm.createContext(ctx);
+vm.runInContext(fs.readFileSync('js/rewards.js','utf8')+'\nglobalThis.testRewards=Rewards;',ctx);
+assert.equal(ctx.testRewards.S().trophies,10995);
+assert.equal(ctx.testRewards.addTrophies(40),5,'only the remaining trophies are awarded');
+assert.equal(ctx.testRewards.S().trophies,11000);
+assert.equal(ctx.testRewards.addTrophies(12),0,'repeat awards cannot pass the cap');
+ctx.Store.d.rw.trophies=20000;
+assert.equal(ctx.testRewards.S().trophies,11000,'older local saves are clamped');
+console.log('Trophy cap: award helpers and migrated local saves never exceed 11,000');

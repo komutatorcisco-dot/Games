@@ -487,14 +487,41 @@ const XMatch = (() => {
   const PRIZE = [{ coins: 60 }, { pack: 0, coins: 40 }, { pack: 1, ball: 'noir' }, { pack: 2, ball: 'ivory' }, { pack: 3, coins: 300, ball: 'gold' }];
   const TROPHY = [3, 8, 14, 22, 40];
   const prizeLine = (p) => [p.pack !== undefined ? ['Обычный', 'Сверхредкий', 'Эпический', 'Легендарный'][p.pack] + ' пак' : '', p.coins ? `${p.coins} монет` : '', p.ball ? `мяч «${Arena3D.BALLS[p.ball].name}»` : ''].filter(Boolean).join(' + ');
-  function tourStart() { C = DRAFT; const cl = tourClubs(); S().tour = { round: 0, res: [], over: false, paid: false, clubs: cl }; Store.save(); start(TOUR[0][0], 0, cl[0]); }
+  const tourRoster = () => XDraft.xiOf().map((p) => p && p.name);
+  async function tourStart() {
+    C = DRAFT;
+    const players = tourRoster();
+    if (players.length !== 11 || players.some((n) => !n)) return toast('Сначала собери стартовый состав из 11 игроков');
+    const cl = tourClubs(), initial = { round: 0, res: [], over: false, paid: false, clubs: cl };
+    if (Board.ready()) {
+      try {
+        const r = await Board.post('/tour', { act: 'start', players, state: JSON.stringify(initial) });
+        if (!r || !r.ok) return toast((r && r.error) || 'Не удалось сохранить попытку турнира. Попробуй ещё раз');
+        S().tour = Object.assign({}, r.state || initial, { attempt: r.attempt, paid: !!r.claimed || !!(r.state && r.state.paid) });
+        Store.save();
+        if (r.locked) { toast(r.claimed ? 'Этот состав уже прошёл турнир и забрал награду' : 'Этот состав уже проходил турнир'); return tourScreen(); }
+        if (S().tour.over) return tourScreen();
+      } catch (e) { return toast('Нет связи с сервером: турнир не начат, попробуй ещё раз'); }
+    } else {
+      const key = [...players].sort().join('|'), used = Store.d.xd.tourUsed || (Store.d.xd.tourUsed = []);
+      if (used.includes(key)) return toast('Этот состав уже проходил турнир. Собери новый драфт');
+      used.push(key); S().tour = initial;
+    }
+    Store.save(); start(TOUR[S().tour.round][0], S().tour.round, S().tour.clubs[S().tour.round]);
+  }
+  async function syncTour() {
+    const T = S().tour;
+    if (!T || !T.attempt || !Board.ready()) return { ok: true, local: true };
+    try { return await Board.post('/tour', { act: 'sync', attempt: T.attempt, state: JSON.stringify(T) }); }
+    catch (e) { return { ok: false, error: 'Нет связи с сервером' }; }
+  }
   function penalties() {
     const rA = M.home.rating, rB = M.away.rating, pA = Math.min(0.9, Math.max(0.6, 0.75 + (rA - rB) * 0.01)), pB = Math.min(0.9, Math.max(0.6, 0.75 + (rB - rA) * 0.01));
     const a = [], b = [];
     for (let i = 0; i < 5 || a.filter(Boolean).length === b.filter(Boolean).length; i++) { a.push(Math.random() < pA); b.push(Math.random() < pB); if (i > 14) break; }
     return { a, b, sa: a.filter(Boolean).length, sb: b.filter(Boolean).length };
   }
-  function tourAfter(m, first) {
+  async function tourAfter(m, first) {
     const T = S().tour; if (!T) return;
     if (first && T.res.length === m.tour) {
       let win = M.score[0] > M.score[1], pens = null;
@@ -504,6 +531,8 @@ const XMatch = (() => {
       // кубок драфта недели: считаем выигранные турниры за эту неделю (уходит в таблицу на сервер)
       if (win && m.tour === 3) { const wk = Release.weekKey(), c = Store.d.cup && Store.d.cup.week === wk ? Store.d.cup : (Store.d.cup = { week: wk, wins: 0 }); c.wins++; if (typeof Board !== 'undefined') Board.submit(); }
       Store.save();
+      const saved = await syncTour();
+      if (!saved.ok) toast('Не удалось сохранить ход турнира — проверь интернет перед продолжением');
       if (win && typeof confetti === 'function') confetti();
       Sound.play(win ? 'goal' : 'lose');
     }
@@ -527,16 +556,35 @@ const XMatch = (() => {
       <div class="xd-act col">${btn}<button class="btn ghost" data-xm="squad">К составу</button></div></div>`;
     if (T.over && wins === 4 && typeof confetti === 'function') confetti();
   }
-  function tourNext() { const T = S().tour; if (!T || T.over) return; start(TOUR[T.round][0], T.round, T.clubs && T.clubs[T.round]); }
-  function tourPrize() {
+  async function tourNext() {
+    const T = S().tour; if (!T || T.over || T.starting) return;
+    T.starting = true;
+    const saved = await syncTour();
+    T.starting = false;
+    if (!saved.ok) return toast('Не удалось проверить сохранение турнира. Проверь интернет и попробуй ещё раз');
+    Store.save(); start(TOUR[T.round][0], T.round, T.clubs && T.clubs[T.round]);
+  }
+  async function tourPrize() {
     const T = S().tour; if (!T || !T.over || T.paid) return;
+    if (T.claiming) return;
+    T.claiming = true;
+    if (Board.ready() && T.attempt) {
+      try {
+        const saved = await syncTour();
+        if (!saved.ok) { T.claiming = false; return toast('Не удалось проверить итог турнира. Проверь интернет и попробуй ещё раз'); }
+        const claim = await Board.post('/tour', { act: 'claim', attempt: T.attempt });
+        if (!claim || !claim.ok) { T.claiming = false; return toast((claim && claim.error) || 'Награду пока нельзя забрать'); }
+        if (!claim.granted) { T.paid = true; T.claiming = false; Store.save(); tourScreen(); return toast('Награда за этот состав уже получена'); }
+      } catch (e) { T.claiming = false; return toast('Нет связи с сервером — награда не списана и её можно забрать позже'); }
+    }
     const wins = T.res.filter((r) => r.win).length, p = PRIZE[wins];
-    T.paid = true;
+    T.paid = true; T.claiming = false;
     const u = Arena3D.ballState(); if (p.ball && !u.balls.includes(p.ball)) { u.balls.push(p.ball); u.ball = p.ball; }
-    const rs = Rewards.S(); rs.trophies += TROPHY[wins]; Store.save();
+    const trophyGain = Rewards.addTrophies(TROPHY[wins]); Store.save();
+    if (typeof Board !== 'undefined') Board.submit();
     if (p.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(p.coins); }
     if (p.pack !== undefined) Rewards.openDrop({ title: wins === 4 ? 'ЧЕМПИОН ТУРНИРА ДРАФТА' : `ТУРНИР ДРАФТА · ПОБЕД: ${wins}`, minLevel: p.pack });
-    toast(`+${TROPHY[wins]} трофеев${p.ball ? ` · новый мяч «${Arena3D.BALLS[p.ball].name}»` : ''}`);
+    toast(`${trophyGain ? `+${trophyGain} трофеев` : 'Лимит 11 000 трофеев достигнут'}${p.ball ? ` · новый мяч «${Arena3D.BALLS[p.ball].name}»` : ''}`);
     Rewards.refresh(); tourScreen();
   }
   const tourState = () => S().tour;

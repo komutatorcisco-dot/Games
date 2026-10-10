@@ -159,6 +159,7 @@ const App = (() => {
   const PANELS = ['home', 'games', 'friends'];
   const CATS = ['guess', 'hist', 'brain', 'puzzles', 'grid', 'cards', 'channel'];
   let panel = 'home', cat = null; // раздел игр берём из сохранения после Store.load()
+  let gamesMode = 'offline';
   const scrollMem = {};
 
   // ---------- какие игры видны (js/release.js): стартовые + вышедшие по неделям ----------
@@ -329,6 +330,36 @@ const App = (() => {
     if (on && animate) on.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' });
   }
 
+  function setGamesMode(mode) {
+    gamesMode = mode === 'online' ? 'online' : 'offline';
+    $$('#panel-games [data-games-mode]').forEach((b) => {
+      const on = b.dataset.gamesMode === gamesMode;
+      b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
+    });
+    $('#online-games-panel').hidden = gamesMode !== 'online';
+    $('#cat-nav').hidden = gamesMode === 'online' || compact;
+    $$('#panel-games .cat').forEach((el) => { el.hidden = gamesMode === 'online' || (compact ? !+el.dataset.n : el.dataset.cat !== cat); });
+    Online.setActivity('hub');
+    if (gamesMode === 'online') {
+      Online.refreshPresence();
+      $('#online-note').textContent = Board.ready() ? 'Активные игроки и те, кто сейчас играет в каждый режим.' : 'Число игроков обновляется в Telegram через @JacksonGamesbot.';
+    }
+  }
+
+  function launchOnlineGame(game) {
+    if (!Board.ready()) { toast('Открой игру через бота @JacksonGamesbot, чтобы играть онлайн'); return; }
+    if (game === 'duel') { Track.open('ng:duel', 'Футбольная дуэль'); NG.open('duel', { mode: 'rnd' }); return; }
+    if (game === 'trumps') { Track.open('ng:trumps', 'Козыри'); NG.open('trumps', { online: true }); return; }
+    if (game === 'xdraft') {
+      Track.open('act:xdraft', 'Драфт');
+      Promise.resolve(actions.xdraft()).then(() => {
+        const a = XDraft.A();
+        if (a && a.stage === 'done' && XDraft.xiOf().every(Boolean) && !(XDraft.S().match && !XDraft.S().match.done)) XMatch.online(XMatch.DRAFT);
+        else toast('Собери и заверши драфт, затем снова выбери онлайн-матч');
+      });
+    }
+  }
+
   function tabs() {
     const id = Screens.current;
     $('#tab-home').classList.toggle('on', id === 'hub' && panel === 'home');
@@ -484,6 +515,7 @@ const App = (() => {
 
   function init() {
     Store.load();
+    safe('Online presence', () => Online.startPresence());
     safe('Skins', () => Skins.apply());
     // каждый модуль подключаем отдельно: ошибка в одном не должна ломать весь экран
     [['Pass', () => Pass.bind()], ['Guess', () => Guess.bind()], ['Career', () => Career.bind()], ['Club', () => Club.bind()], ['Transfer', () => Transfer.bind()],
@@ -500,6 +532,11 @@ const App = (() => {
       if (e.target.closest('#pitch .tk:not(.soon), #bench .tk')) { Sound.play('token'); haptic('tap'); }
       const tb = e.target.closest('[data-tab]');
       if (tb) { Sound.play('tap'); tab(tb.dataset.tab); return; }
+      const gm = e.target.closest('#panel-games [data-games-mode]');
+      if (gm) { Sound.play('tap'); setGamesMode(gm.dataset.gamesMode); return; }
+      if (e.target.closest('[data-online-refresh]')) { Sound.play('tap'); Online.refreshPresence(); return; }
+      const og = e.target.closest('[data-online-game]');
+      if (og) { Sound.play('tap'); launchOnlineGame(og.dataset.onlineGame); return; }
       const ct = e.target.closest('#cat-nav [data-cat]');
       if (ct) { Sound.play('tap'); haptic('tap'); setCat(ct.dataset.cat); return; }
       const wg = e.target.closest('#week-game');

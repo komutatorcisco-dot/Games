@@ -20,7 +20,7 @@ const Board = (() => {
     clearTimeout(timer);
     timer = setTimeout(async () => {
       const d = Store.d, s = d.dly;
-      const body = { xp: d.stats.xp, nick: d.user.nick, emoji: d.user.emoji, tro: (d.rw && d.rw.trophies) || 0 };
+      const body = { xp: d.stats.xp, nick: d.user.nick, emoji: d.user.emoji, tro: typeof Rewards !== 'undefined' ? Rewards.S().trophies : Math.min(11000, (d.rw && d.rw.trophies) || 0) };
       // победы по играм — только те, что изменились с прошлой отправки (меньше записей в базу)
       const sent = (d.ui && d.ui.gwSent) || {}, gw = {};
       Object.entries(d.gw || {}).forEach(([k, v]) => { if (sent[k] !== v) gw[k] = v; });

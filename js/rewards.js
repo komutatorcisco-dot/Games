@@ -7,7 +7,7 @@
 'use strict';
 
 const Rewards = (() => {
-  const DROPS_PER_DAY = 5, WIN_TROPHIES = 12, PLAY_TROPHIES = 3;
+  const DROPS_PER_DAY = 5, WIN_TROPHIES = 12, PLAY_TROPHIES = 3, MAX_TROPHIES = 11000;
   const PASS_LEVELS = 30, PASS_STEP = 300, PASS_STARS = 100; // 300 очков на уровень: пропуск идёт весь сезон, а не неделю
   const SEASON_START = Date.parse('2026-10-05T08:00:00Z'), SEASON_DAYS = 28;
 
@@ -15,7 +15,7 @@ const Rewards = (() => {
     const d = Store.d;
     if (!d.rw) d.rw = {};
     const r = d.rw;
-    r.trophies = r.trophies || 0; r.road = r.road || []; r.pending = r.pending || 0;
+    r.trophies = Math.max(0, Math.min(MAX_TROPHIES, Math.floor(Number(r.trophies) || 0))); r.road = r.road || []; r.pending = r.pending || 0;
     // новая дорога (v2): что уже забрано по старой — считаем забранным до того же порога, чтобы не выдать дважды
     if (r.rv !== 2) { const max = Math.max(0, ...r.road.map((i) => OLD_ROAD[i] || 0)); r.road = ROAD.map(([t], i) => (t <= max ? i : -1)).filter((i) => i >= 0); r.rv = 2; }
     r.drops = r.drops || { day: '', n: 0 };
@@ -25,6 +25,11 @@ const Rewards = (() => {
     return r;
   };
   const dayKey = () => Day.key();
+  function addTrophies(n) {
+    const r = S(), before = r.trophies;
+    r.trophies = Math.min(MAX_TROPHIES, before + Math.max(0, Math.floor(Number(n) || 0)));
+    return r.trophies - before;
+  }
   // выходные по Москве: суббота и воскресенье
   const weekend = () => { const d = new Date(Date.now() + 3 * 3600e3).getUTCDay(); return d === 0 || d === 6; };
   const weekKey = () => Release.weekKey();
@@ -228,9 +233,9 @@ const Rewards = (() => {
     const q = questSync(); if (game && !q.dg.includes(game)) { q.dg.push(game); quest('dgame'); }
     addPassXp(win ? 20 : 5);
     const x2 = weekend() ? 2 : 1; // выходные: ×2 трофея
-    if (!win) { s.trophies += PLAY_TROPHIES * x2; Store.save(); refresh(); safe('board', () => Board.submit()); return ''; }
+    if (!win) { addTrophies(PLAY_TROPHIES * x2); Store.save(); refresh(); safe('board', () => Board.submit()); return ''; }
     quest('win', game);
-    s.trophies += WIN_TROPHIES * x2;
+    addTrophies(WIN_TROPHIES * x2);
     if (game) { const gw = Store.d.gw || (Store.d.gw = {}); gw[game] = (gw[game] || 0) + 1; } // победы по играм — для таблицы
     safe('board', () => Board.submit());
     if (s.drops.day !== dayKey()) s.drops = { day: dayKey(), n: 0 };
@@ -417,5 +422,5 @@ const Rewards = (() => {
     header();
   }
 
-  return { weekend, onEnd, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
+  return { weekend, onEnd, addTrophies, MAX_TROPHIES, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
 })();

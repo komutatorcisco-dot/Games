@@ -138,6 +138,12 @@ async function schema(db) {
     // резервная копия сохранения игрока: храним самую «продвинутую» (больше трофеев; при равенстве — новее)
     db.prepare('CREATE TABLE IF NOT EXISTS saves (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, tro INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL)'),
     db.prepare("CREATE TABLE IF NOT EXISTS mmg (id INTEGER PRIMARY KEY, game TEXT NOT NULL DEFAULT 'duel', code TEXT NOT NULL, nick TEXT, emo TEXT, ts INTEGER NOT NULL, paired INTEGER)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS presence (id INTEGER PRIMARY KEY, game TEXT NOT NULL DEFAULT 'hub', ts INTEGER NOT NULL)"),
+    db.prepare('CREATE INDEX IF NOT EXISTS presence_ts ON presence (ts)'),
+    db.prepare("CREATE TABLE IF NOT EXISTS draft_tours (attempt INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, roster TEXT NOT NULL, state TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', claimed INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, updated INTEGER NOT NULL, UNIQUE(uid, roster))"),
+    db.prepare('CREATE INDEX IF NOT EXISTS draft_tours_uid ON draft_tours (uid, updated DESC)'),
+    db.prepare('UPDATE ustats SET trophies = 11000 WHERE trophies > 11000'),
+    db.prepare('UPDATE saves SET tro = 11000 WHERE tro > 11000'),
   ]);
   ready = true;
 }
@@ -178,11 +184,11 @@ async function saveScore(env, user, body) {
     const tries = Math.max(1, Math.min(12, Math.floor(Number(d.tries) || 12)));
     ops.push(db.prepare('INSERT OR IGNORE INTO daily (day, id, tries, won, ts) VALUES (?, ?, ?, ?, ?)').bind(d.day, id, tries, d.won ? 1 : 0, now));
   }
-  // трофеи: только вверх и не больше 3000 за раз (защита от правки в браузере)
+  // Трофеи растут только вверх, максимум +3000 за запрос и никогда выше 11 000.
   const tro = Math.max(0, Math.floor(Number(body.tro) || 0));
   if (tro) {
     const ot = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(id).first();
-    const t = ot ? Math.max(ot.trophies, Math.min(tro, ot.trophies + 3000)) : Math.min(tro, 5000);
+    const t = Math.min(11000, ot ? Math.max(ot.trophies, Math.min(tro, ot.trophies + 3000)) : Math.min(tro, 5000));
     if (!ot || ot.trophies !== t) ops.push(db.prepare('INSERT INTO ustats (id, trophies, updated) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET trophies = ?2, updated = ?3 WHERE trophies != ?2').bind(id, t, now));
   }
   // победы по играм: { 'ng:wordle': 12, … }
@@ -323,7 +329,7 @@ async function hello(env, user, body) {
   const prev = weekKey(now - 7 * 864e5), cupWin = Number(await getSetting(db, 'cupwin:' + prev)) === user.id ? prev : null;
   const sv = await db.prepare('SELECT ts, tro FROM saves WHERE id = ?').bind(user.id).first();
   const ut = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(user.id).first();
-  return { admin: await isAdminId(env, user.id), pass, shop, cupWin, save: sv ? { ts: sv.ts, tro: sv.tro } : null, tro: ut ? ut.trophies : 0 };
+  return { admin: await isAdminId(env, user.id), pass, shop, cupWin, save: sv ? { ts: sv.ts, tro: Math.min(11000, sv.tro) } : null, tro: ut ? Math.min(11000, ut.trophies) : 0 };
 }
 
 // ---------- резервное сохранение ----------
@@ -335,16 +341,21 @@ async function saveData(env, user, body) {
   const str = typeof body.data === 'string' ? body.data : '';
   if (!str || str.length > 900000) return { ok: false, error: 'size' };
   let d; try { d = JSON.parse(str); } catch (e) { return { ok: false, error: 'bad data' }; }
-  const tro = Math.max(0, Math.floor(Number(d && d.rw && d.rw.trophies) || 0)), ts = Math.floor(Number(d && d.ts) || Date.now());
+  const tro = Math.max(0, Math.min(11000, Math.floor(Number(d && d.rw && d.rw.trophies) || 0))), ts = Math.floor(Number(d && d.ts) || Date.now());
+  if (d.rw) d.rw.trophies = tro;
+  const safeData = JSON.stringify(d);
   const old = await db.prepare('SELECT ts, tro FROM saves WHERE id = ?').bind(user.id).first();
   if (old && (tro < old.tro || (tro === old.tro && ts < old.ts))) return { ok: true, kept: true, ts: old.ts, tro: old.tro };
-  await db.prepare('INSERT INTO saves (id, ts, tro, data) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(id) DO UPDATE SET ts = ?2, tro = ?3, data = ?4').bind(user.id, ts, tro, str).run();
+  await db.prepare('INSERT INTO saves (id, ts, tro, data) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(id) DO UPDATE SET ts = ?2, tro = ?3, data = ?4').bind(user.id, ts, tro, safeData).run();
   return { ok: true, ts, tro };
 }
 async function loadData(env, user) {
   await schema(env.DB);
   const r = await env.DB.prepare('SELECT ts, tro, data FROM saves WHERE id = ?').bind(user.id).first();
-  return r ? { ok: true, ts: r.ts, tro: r.tro, data: r.data } : { ok: true, data: null };
+  if (!r) return { ok: true, data: null };
+  let data = r.data, tro = Math.min(11000, Math.max(0, Number(r.tro) || 0));
+  try { const d = JSON.parse(data); if (d.rw) d.rw.trophies = Math.min(11000, Math.max(0, Number(d.rw.trophies) || 0)); data = JSON.stringify(d); } catch (e) { /* проверка будет на клиенте */ }
+  return { ok: true, ts: r.ts, tro, data };
 }
 
 const knownNames = new Set(), evuMem = new Set();
@@ -801,6 +812,62 @@ async function club(env, user, body) {
   return { ok: true, ...(await clubInfo(db, uid, body.giftProtocol === 1)) };
 }
 
+// ---------- активность онлайн и число игроков по режимам ----------
+async function onlinePresence(env, user, body) {
+  const db = env.DB, now = Date.now();
+  await schema(db);
+  await db.prepare('DELETE FROM presence WHERE ts < ?').bind(now - 70000).run();
+  if (body.act === 'leave') await db.prepare('DELETE FROM presence WHERE id = ?').bind(user.id).run();
+  else if (body.act === 'heartbeat') {
+    const game = ['duel', 'xdraft', 'trumps'].includes(body.game) ? body.game : 'hub';
+    await db.prepare("INSERT INTO presence (id, game, ts) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET game = ?2, ts = ?3").bind(user.id, game, now).run();
+  }
+  const rows = (await db.prepare('SELECT game, COUNT(*) AS n FROM presence WHERE ts >= ? GROUP BY game').bind(now - 70000).all()).results || [];
+  const modes = { duel: 0, xdraft: 0, trumps: 0 };
+  let total = 0;
+  rows.forEach((r) => { const n = Number(r.n) || 0; total += n; if (Object.prototype.hasOwnProperty.call(modes, r.game)) modes[r.game] = n; });
+  return { ok: true, total, modes, ttl: 70 };
+}
+
+// ---------- один турнир на состав драфта: попытка и награда хранятся по Telegram ID ----------
+async function draftTour(env, user, body) {
+  const db = env.DB, uid = user.id, now = Date.now();
+  await schema(db);
+  const act = String(body.act || '');
+  if (act === 'start') {
+    const players = Array.isArray(body.players) ? body.players.map((n) => clean(n, 60)).filter(Boolean) : [];
+    if (players.length !== 11 || new Set(players).size !== 11) return { ok: false, error: 'Нужен полный состав из 11 игроков' };
+    const roster = [...players].sort().join('\n');
+    const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(roster)));
+    const fingerprint = [...digest].map((x) => x.toString(16).padStart(2, '0')).join('');
+    const state = typeof body.state === 'string' && body.state.length <= 12000 ? body.state : '{}';
+    await db.prepare("INSERT OR IGNORE INTO draft_tours (uid, roster, state, status, created, updated) VALUES (?1, ?2, ?3, 'active', ?4, ?4)").bind(uid, fingerprint, state, now).run();
+    const row = await db.prepare('SELECT attempt, state, status, claimed FROM draft_tours WHERE uid = ? AND roster = ?').bind(uid, fingerprint).first();
+    let saved = {}; try { saved = JSON.parse(row.state); } catch (e) { /* пустое сохранение */ }
+    return { ok: true, attempt: row.attempt, state: saved, locked: row.status === 'done', claimed: !!row.claimed, resumed: true };
+  }
+  const attempt = Math.max(0, Math.floor(Number(body.attempt) || 0));
+  if (!attempt) return { ok: false, error: 'Попытка не найдена' };
+  const row = await db.prepare('SELECT attempt, state, status, claimed FROM draft_tours WHERE attempt = ? AND uid = ?').bind(attempt, uid).first();
+  if (!row) return { ok: false, error: 'Попытка не найдена' };
+  if (act === 'claim') {
+    if (row.status !== 'done') return { ok: false, error: 'Сначала заверши турнир' };
+    const result = await db.prepare('UPDATE draft_tours SET claimed = 1, updated = ? WHERE attempt = ? AND uid = ? AND status = \'done\' AND claimed = 0').bind(now, attempt, uid).run();
+    return result.meta.changes ? { ok: true, granted: true } : { ok: true, granted: false, already: true };
+  }
+  if (act === 'sync') {
+    const state = typeof body.state === 'string' && body.state.length <= 12000 ? body.state : null;
+    if (!state) return { ok: false, error: 'Сохранение турнира слишком большое' };
+    let parsed = {}; try { parsed = JSON.parse(state); } catch (e) { return { ok: false, error: 'bad state' }; }
+    const done = parsed && parsed.over ? 'done' : 'active';
+    await db.prepare("UPDATE draft_tours SET state = ?1, status = CASE WHEN status = 'done' THEN 'done' ELSE ?2 END, updated = ?3 WHERE attempt = ?4 AND uid = ?5").bind(state, done, now, attempt, uid).run();
+    const updated = await db.prepare('SELECT state, status, claimed FROM draft_tours WHERE attempt = ? AND uid = ?').bind(attempt, uid).first();
+    let saved = {}; try { saved = JSON.parse(updated.state); } catch (e) { /* пустое сохранение */ }
+    return { ok: true, state: saved, done: updated.status === 'done', claimed: !!updated.claimed };
+  }
+  return { ok: false, error: 'unknown action' };
+}
+
 // ---------- онлайн: подбор случайного соперника для дуэли ----------
 // Первый ждёт (держит комнату PeerJS со своим кодом), второй получает его код и подключается сам.
 async function matchmake(env, user, body) {
@@ -888,7 +955,7 @@ async function route(request, env) {
   }
 
   // ---------- рейтинг ----------
-  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/save', '/load'].includes(url.pathname) && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
@@ -900,6 +967,8 @@ async function route(request, env) {
     if (url.pathname === '/report') return json(await report(env, user, body));
     if (url.pathname === '/club') return json(await club(env, user, body));
     if (url.pathname === '/mm') return json(await matchmake(env, user, body));
+    if (url.pathname === '/presence') return json(await onlinePresence(env, user, body));
+    if (url.pathname === '/tour') return json(await draftTour(env, user, body));
     if (url.pathname === '/save') return json(await saveData(env, user, body));
     if (url.pathname === '/load') return json(await loadData(env, user));
     if (url.pathname === '/admin/stats') {

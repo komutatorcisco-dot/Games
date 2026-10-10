@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;800&family=Rubik:ital,wght@0,500;0,700;0,800;0,900;1,900&family=Oswald:wght@500;700&family=Russo+One&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261010-icons-picker1">
+<link rel="stylesheet" href="css/style.css?v=20261010-online-hub1">
 <link rel="stylesheet" href="css/skins.css?v=20261014a">
 <style>
 #boot{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:radial-gradient(90% 50% at 50% 35%,#1d2433,#0b0e14 70%);color:#fff;font-family:Rubik,"Golos Text",system-ui,sans-serif;transition:opacity .45s ease,transform .45s ease}
@@ -130,6 +130,19 @@
     </div>
 
     <div class="hub-panel" id="panel-games" hidden>
+      <div class="games-mode-switch" role="tablist" aria-label="Режим игры">
+        <button data-games-mode="offline" class="on" role="tab" aria-selected="true">Офлайн</button>
+        <button data-games-mode="online" role="tab" aria-selected="false">Онлайн <span class="gms-live" id="online-switch-count">—</span></button>
+      </div>
+      <section class="online-games" id="online-games-panel" hidden>
+        <div class="online-presence"><span class="online-pulse"></span><span>Сейчас в сети</span><b id="online-total">—</b><button data-online-refresh aria-label="Обновить число игроков">↻</button></div>
+        <p class="online-note" id="online-note">Активные игроки и те, кто сейчас играет в каждый режим.</p>
+        <div class="online-game-list">
+          <button class="online-game-card" data-online-game="duel" style="--oc1:#ff8a5c;--oc2:#c2348d"><span class="online-game-ico">⚡</span><span><b>Футбольная дуэль</b><small><i data-presence-game="duel">—</i> играют сейчас</small></span><em>Играть →</em></button>
+          <button class="online-game-card" data-online-game="xdraft" style="--oc1:#34c46a;--oc2:#2f6fe4"><span class="online-game-ico">🏆</span><span><b>Драфт</b><small><i data-presence-game="xdraft">—</i> играют сейчас</small></span><em>Играть →</em></button>
+          <button class="online-game-card" data-online-game="trumps" style="--oc1:#a98bff;--oc2:#5541b9"><span class="online-game-ico">🃏</span><span><b>Козыри</b><small><i data-presence-game="trumps">—</i> играют сейчас</small></span><em>Играть →</em></button>
+        </div>
+      </section>
       <nav class="cat-nav" id="cat-nav">
         <button data-cat="guess">Угадайки</button><button data-cat="hist">История</button><button data-cat="brain">Знатокам</button>
         <button data-cat="puzzles">Головоломки</button><button data-cat="grid">Сетки</button><button data-cat="cards">Карты</button><button data-cat="channel">Рубрика</button>
@@ -643,9 +656,9 @@
   <div class="toast" id="toast" hidden></div>
 </div>
 
-<script defer src="js/core.js?v=20261010-clubs1"></script>
+<script defer src="js/core.js?v=20261010-online-hub1"></script>
 <script defer src="js/drag.js?v=20261014a"></script>
-<script defer src="js/online.js?v=20261010-clubs1"></script>
+<script defer src="js/online.js?v=20261010-online-hub1"></script>
 <script defer src="js/music.js?v=20261014a"></script>
 <script defer src="js/players.js?v=20261014a"></script>
 <script defer src="js/careers.js?v=20261014a"></script>
@@ -673,16 +686,16 @@
 <script defer src="js/icons.js?v=20261014a"></script>
 <script defer src="js/pack3d.js?v=20261014a"></script>
 <script defer src="js/xdraft/engine.js?v=20261010-icons-picker1"></script>
-<script defer src="js/xdraft/ui.js?v=20261010-clubs1"></script>
+<script defer src="js/xdraft/ui.js?v=20261010-online-hub1"></script>
 <script defer src="js/arena3d.js?v=20261014a"></script>
-<script defer src="js/xdraft/match.js?v=20261014a"></script>
+<script defer src="js/xdraft/match.js?v=20261010-online-hub1"></script>
 <script defer src="js/squad.js?v=20261010-icons-picker1"></script>
 <script defer src="js/data/fcpos.js?v=20261010-clubs1"></script>
 <script defer src="js/positions.js?v=20261010-eapos3"></script>
 <script defer src="js/data/cards.js?v=20261010-icons-picker1"></script>
 <script defer src="js/cards.js?v=20261010-icons-picker1"></script>
 <script defer src="js/packs.js?v=20261009-fs1"></script>
-<script defer src="js/rewards.js?v=20261014a"></script>
+<script defer src="js/rewards.js?v=20261010-online-hub1"></script>
 <script defer src="js/sbc.js?v=20261010-icons-picker1"></script>
 <script defer src="js/gate.js?v=20261014a"></script>
 <script defer src="js/skins.js?v=20261014a"></script>
@@ -734,8 +747,8 @@
 <script defer src="js/user.js?v=20261014b"></script>
 <script defer src="js/duel.js?v=20261010-clubs1"></script>
 <script defer src="js/release.js?v=20261014a"></script>
-<script defer src="js/board.js?v=20261014a"></script>
-<script defer src="js/track.js?v=20261014a"></script>
-<script defer src="js/app.js?v=20261014a"></script>
+<script defer src="js/board.js?v=20261010-online-hub1"></script>
+<script defer src="js/track.js?v=20261010-online-hub1"></script>
+<script defer src="js/app.js?v=20261010-online-hub1"></script>
 </body>
 </html>

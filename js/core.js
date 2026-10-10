@@ -163,7 +163,7 @@ const Cloud = (() => {
   };
   const call = (fn, ...args) => new Promise((ok) => { try { cs()[fn](...args, (err, res) => ok(err ? null : res)); } catch (e) { ok(null); } });
   const srvOn = () => typeof Board !== 'undefined' && Board.ready && Board.ready();
-  const tro = (d) => Math.floor(Number(d && d.rw && d.rw.trophies) || 0);
+  const tro = (d) => Math.min(11000, Math.max(0, Math.floor(Number(d && d.rw && d.rw.trophies) || 0)));
   const better = (a, b) => tro(a) > tro(b) || (tro(a) === tro(b) && (a.ts || 0) > (b.ts || 0));
 
   async function push() {
