@@ -3674,9 +3674,9 @@ body.gated { overflow: hidden; }
   padding: max(14px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); opacity: 0; transition: opacity .3s ease; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .po.in { opacity: 1; } .po.out { opacity: 0; pointer-events: none; }
 .po-bg { position: absolute; inset: 0; z-index: -1; background: radial-gradient(70% 45% at 50% 46%, color-mix(in srgb, var(--rc) 38%, #0b0b10) 0%, #08080c 72%); transition: background .5s ease; }
-.po-rays { position: absolute; left: 50%; top: 46%; width: 220vmax; height: 220vmax; margin: -110vmax 0 0 -110vmax; opacity: .22;
+.po-rays { position: absolute; left: 50%; top: 46%; width: 110vmin; height: 110vmin; margin: -55vmin 0 0 -55vmin; opacity: .22;
   background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--rc) 70%, #fff) 0deg 5deg, transparent 5deg 18deg);
-  -webkit-mask: radial-gradient(closest-side, #000 5%, transparent 60%); mask: radial-gradient(closest-side, #000 5%, transparent 60%); animation: poSpin 40s linear infinite; will-change: transform; }
+  -webkit-mask: radial-gradient(closest-side, #000 5%, transparent 60%); mask: radial-gradient(closest-side, #000 5%, transparent 60%);  }
 .po[data-phase="walk"] .po-rays, .po.jackson .po-rays { opacity: .38; animation-duration: 18s; }
 @keyframes poSpin { to { transform: rotate(360deg); } }
 .po-floor { position: absolute; left: -10%; right: -10%; bottom: 0; height: 32%; background: radial-gradient(60% 70% at 50% 0%, color-mix(in srgb, var(--rc) 22%, transparent), transparent 70%); }
@@ -3737,7 +3737,9 @@ body.gated { overflow: hidden; }
 .po-cell { position: relative; }
 .po-new, .po-dup { position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); padding: 1px 6px; border-radius: 6px; font: 800 10px "Rubik", sans-serif; font-style: normal; white-space: nowrap; z-index: 2; }
 .po-new { background: #ff4f66; color: #fff; } .po-dup { background: rgba(255,255,255,.14); color: rgba(255,255,255,.85); }
-.po-cell.legend .po-front, .po-cell.jack .po-front { animation: poRare 2.4s ease-in-out infinite; }
+.po-cell .cc { animation: none; }
+.po-grid .cc::before, .po-grid .cc::after, .po-grid .cc-ph::after { animation: none !important; }
+.po-grid .cc-face { filter: none; transition: none; }
 @keyframes poRare { 50% { filter: brightness(1.15); } }
 @media (prefers-reduced-motion: reduce) { .po-rays, .po-pack, .po-hint { animation: none !important; } }
 .po-stage:has(.po-grid) { align-items: center; }

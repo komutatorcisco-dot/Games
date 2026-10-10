@@ -24,8 +24,6 @@ const PackOpen = (() => {
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;
 
   const best = (res) => res.slice().sort((a, b) => ORDER.indexOf(b.c.rar) - ORDER.indexOf(a.c.rar) || b.c.r - a.c.r);
-  // заранее грузим лица, чтобы карточка не появлялась пустой
-  const preload = (res) => res.slice(0, 12).forEach((x) => { const m = Cards.html(x.c, { w: 100 }).match(/src="([^"]+)"/); if (m) { const i = new Image(); i.src = m[1]; } });
 
   // ---------- общий слой ----------
   function layer(cls = '') {
@@ -47,7 +45,6 @@ const PackOpen = (() => {
   async function showCards(el, res, { onDone, take = 'Забрать', coins = 0 } = {}) {
     const list = best(res);
     if (!list.length) { onDone && onDone(); return; }
-    preload(list);
     const stage = $('.po-stage', el), top = list[0];
     // 1) лучшая карточка выходит крупно
     el.dataset.phase = 'walk';
@@ -59,6 +56,11 @@ const PackOpen = (() => {
     stage.innerHTML = `<div class="po-walk"><div class="po-flip" style="--w:${big}px"><div class="po-back ${top.c.rar}"><b>ДЖ</b></div><div class="po-front">${Cards.html(top.c, { w: big })}</div></div>
       <div class="po-tag ${top.isNew ? 'new' : ''}">${top.isNew ? 'NEW' : `+${top.coins} <i class="coin"></i>`}</div></div>`;
     if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(stage);
+    const face = $('.cc-face', stage);
+    if (face) {
+      face.loading = 'eager'; face.decoding = 'async';
+      if (face.decode) await Promise.race([face.decode().catch(() => {}), wait(250)]);
+    }
     const flip = $('.po-flip', stage), special = top.c.rar === 'legend' || top.c.rar === 'jack' || top.c.rar === 'future';
     // подъём и прозрачность — у обёртки, поворот — у самой карточки: так 3D не сплющивается
     const dur = special ? 1500 : 1000;
@@ -69,7 +71,7 @@ const PackOpen = (() => {
     await wait(special ? 1250 : 800);
     flash(el, special); haptic(special ? 'ok' : 'pop');
     Sound.play(special ? 'goal' : top.c.rar === 'gold' ? 'coin' : 'token');
-    if (special && typeof confetti === 'function') confetti();
+    // Вспышка и звук отмечают редкость без десятков дополнительных частиц.
     $('.po-tag', stage).classList.add('on');
     const hint = $('.po-hint', el); hint.textContent = list.length > 1 ? `Нажми, чтобы увидеть все ${list.length}` : 'Нажми, чтобы продолжить';
     await tapOnce(el);
@@ -84,23 +86,17 @@ const PackOpen = (() => {
     $('.po-k', el).textContent = `${n} ${plural(n, 'карточка', 'карточки', 'карточек')}`;
     nm.textContent = nNew ? `НОВЫХ: ${nNew}` : 'НОВЫХ НЕТ'; slam(nm);
     stage.innerHTML = `<div class="po-grid" style="--cols:${cols};--cw:${w}px">${list.map((x, i) => `<div class="po-cell ${x.c.rar}" style="--i:${i}">
-        <div class="po-flip sm" style="--w:${w}px"><div class="po-back ${x.c.rar}"><b>ДЖ</b></div><div class="po-front">${Cards.html(x.c, { w })}</div></div>
+        ${Cards.html(x.c, { w })}
         ${x.isNew ? '<i class="po-new">NEW</i>' : `<i class="po-dup">+${x.coins}</i>`}</div>`).join('')}</div>`;
     if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(stage);
-    const cells = $$('.po-cell', stage), step = Math.max(28, Math.min(90, 1400 / n));
-    let skip = false;
-    const onSkip = () => { skip = true; };
-    el.addEventListener('pointerdown', onSkip, { once: true });
-    cells.forEach((c, i) => {
-      const f = $('.po-flip', c);
-      anim(c, [{ transform: 'translateY(40vh) scale(.3)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, delay: i * step, easing: 'cubic-bezier(.2,.9,.3,1)', fill: 'backwards' });
-      anim(f, [{ transform: 'rotateY(0deg)' }, { transform: 'rotateY(180deg)' }], { duration: 420, delay: i * step + 260, easing: 'cubic-bezier(.3,.7,.3,1)', fill: 'both' });
-    });
-    const tick = setInterval(() => Sound.play('token'), Math.max(70, step * 2));
-    for (let t = 0; t < n * step + 700 && !skip; t += 50) await wait(50);
-    clearInterval(tick);
-    if (skip) el.getAnimations({ subtree: true }).forEach((a) => { try { a.finish(); } catch (e) { /* уже */ } });
-    el.removeEventListener('pointerdown', onSkip);
+    // Одна короткая анимация сетки вместо двух 3D-анимаций на каждую карту.
+    const grid = $('.po-grid', stage);
+    const entry = anim(grid, [{ transform: 'translateY(16px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 240, easing: 'ease-out' });
+    const skip = () => { if (entry) entry.finish(); };
+    el.addEventListener('pointerdown', skip, { once: true });
+    if (entry) await entry.finished.catch(() => {});
+    el.removeEventListener('pointerdown', skip);
+    if (entry) entry.cancel();
     return finish(el, list, { onDone, take, coins });
   }
   function finish(el, list, { onDone, take, coins }) {
