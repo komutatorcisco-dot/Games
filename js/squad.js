@@ -4,7 +4,7 @@
 'use strict';
 
 const Squad = (() => {
-  const POSMAP = { НАП: ['ST'], ПЗ: ['CM'], ЗАЩ: ['CB'], ВРТ: ['GK'] };
+  const POSMAP = { НАП: ['ST'], ПЗ: ['CM'], ЗАЩ: ['CB'], ВРТ: ['GK'], ЛЗ: ['LB'] };
   const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const anim = (el, k, o) => (el && el.animate && !RM ? el.animate(k, o) : null);
   const S = () => {
@@ -20,6 +20,7 @@ const Squad = (() => {
   // карточка → игрок для движка драфта (у легенд нет статистики FC — берём рейтинг и позицию с карточки)
   function obj(key) {
     const c = key && Cards.get(key); if (!c) return null;
+    if (c.st) return { ...c, pos: POSMAP[c.pos] || ['CM'], st: c.st.slice() };
     const b = XDraft.P(c.name), up = c.rar === 'jack' ? 4 : 0;
     if (b) return { ...b, key, r: c.r, st: b.st.map((v) => Math.min(99, v + up)), rar: c.rar };
     return { name: c.name, key, r: c.r, st: Array(6).fill(c.r), pos: POSMAP[c.pos] || ['CM'], club: c.club, lg: c.lg, nat: c.nat || 'leg:' + c.name, flag: c.flag, face: c.face, rar: c.rar };

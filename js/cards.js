@@ -12,8 +12,9 @@ const Cards = (() => {
     gold: { n: 'ЗОЛОТО', dup: 12 },
     legend: { n: 'ЛЕГЕНДА', dup: 40 },
     jack: { n: 'ДЖЕКСОН!!', dup: 100 },
+    future: { n: 'БУДУЩИЕ ЗВЁЗДЫ', dup: 100 },
   };
-  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack'];
+  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future'];
   const LEAGUES = ['АПЛ', 'Ла Лига', 'Серия А', 'Бундеслига', 'Лига 1'];
   const POS = { ГК: 'ВРТ' };
 
@@ -28,7 +29,8 @@ const Cards = (() => {
     // «Джексон»: особые версии лучших — 12 действующих и 6 легенд, рейтинг выше обычного
     const top = (list, k) => list.slice().sort((a, b) => b.r - a.r).slice(0, k);
     const jack = [...top(cur, 12), ...top(legs, 6)].map((c) => ({ ...c, key: 'J:' + c.name, r: Math.min(99, c.r + 4), rar: 'jack' }));
-    ALL = [...cur, ...legs, ...jack];
+    const future = [{ key: 'FS:xavi-espart', name: 'Хави Эспарт', r: 91, pos: 'ЛЗ', club: 'Барселона', flag: '🇪🇸', nat: 'Испания', lg: 'Ла Лига', rar: 'future', sbcOnly: true, faceUrl: 'img/players/xavi-espart-future.webp', st: [93, 65, 86, 89, 90, 85] }];
+    ALL = [...cur, ...legs, ...jack, ...future];
     BY = Object.fromEntries(ALL.map((c) => [c.key, c]));
     return ALL;
   }
@@ -62,8 +64,9 @@ const Cards = (() => {
     return list[list.length - 1];
   }
   function draw(rar) {
-    let pool = all().filter((c) => c.rar === rar), r = rar;
-    for (let i = ORDER.indexOf(rar) + 1; !pool.length && i < ORDER.length; i++) { r = ORDER[i]; pool = all().filter((c) => c.rar === r); }
+    let pool = all().filter((c) => c.rar === rar && !c.sbcOnly), r = rar;
+    for (let i = ORDER.indexOf(rar) + 1; !pool.length && i < ORDER.length; i++) { r = ORDER[i]; pool = all().filter((c) => c.rar === r && !c.sbcOnly); }
+    if (!pool.length) return null;
     const fresh = pool.filter((c) => !owned(c.key));
     // треть шанса — карточка, которой ещё нет: коллекция растёт заметно
     const from = fresh.length && Math.random() < 0.35 ? fresh : pool;
@@ -113,7 +116,7 @@ const Cards = (() => {
     if (locked) return `<div class="cc lock ${cls}" style="--w:${w}px" data-lock="${esc(c.key)}"><div class="cc-ph"></div><span class="cc-sil"></span><div class="cc-r">??</div><div class="cc-band"><b>???</b><small>${RAR[c.rar].n}</small></div></div>`;
     const [k1, k2] = col(c.club), cr = CRESTS[c.club];
     return `<div class="cc ${c.rar} ${cls}" style="--w:${w}px;--k1:${k1};--k2:${k2}" data-card="${esc(c.key)}">
-      <div class="cc-ph"></div>${c.face ? `<img class="cc-face" src="${img(c.face)}" alt="" loading="lazy">` : '<span class="cc-sil"></span>'}
+      <div class="cc-ph"></div>${c.faceUrl || c.face ? `<img class="cc-face" src="${esc(c.faceUrl || img(c.face))}" alt="" loading="lazy">` : '<span class="cc-sil"></span>'}
       <div class="cc-r">${c.r}<small>${esc(c.pos)}</small></div>${cr ? `<img class="cc-cr" src="img/clubs/${cr}" alt="" loading="lazy">` : ''}
       <div class="cc-band"><b>${esc(surname(c.name))}</b><small>${c.flag ? c.flag + ' ' : ''}${RAR[c.rar].n}</small></div></div>`;
   }
@@ -164,9 +167,11 @@ const Cards = (() => {
   }
 
   // ---------- галерея как в EA FC: лиги → клубы → игроки; собрал клуб или лигу — награда ----------
-  const GROUPS = [...LEAGUES, 'Другие', 'Легенды', 'Джексон'];
+  const GROUPS = [...LEAGUES, 'Другие', 'Легенды', 'Джексон', 'Будущие звёзды'];
   const GROUP_ICO = { 'АПЛ': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Ла Лига': '🇪🇸', 'Серия А': '🇮🇹', 'Бундеслига': '🇩🇪', 'Лига 1': '🇫🇷', 'Другие': Ui.get('globe'), 'Легенды': Ui.get('crown'), 'Джексон': Ui.get('flame') };
   const groupOf = (c) => (c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
+  GROUP_ICO['Будущие звёзды'] = Ui.get('star');
+  const groupCards = (g) => all().filter((c) => g === 'Будущие звёзды' ? c.rar === 'future' : groupOf(c) === g);
   // награда за клуб — по числу карточек в нём; за лигу — легендарный пак и монеты
   const clubPrize = (n) => (n <= 1 ? { coins: 30 } : n <= 3 ? { coins: 75 } : n <= 7 ? { pack: 0 } : n <= 12 ? { pack: 1 } : n <= 16 ? { pack: 2 } : { pack: 3 });
   const groupPrize = (g) => (g === 'Джексон' ? { pack: 4, coins: 2000 } : g === 'Легенды' ? { pack: 4, coins: 1000 } : { pack: 4, coins: 500 });
@@ -175,7 +180,7 @@ const Cards = (() => {
   const prizeChip = (r) => `<span class="gl-prize" title="Награда за сбор">${Ui.get('lock')}${r.pack !== undefined ? `<i class="rw-pk" style="--c:${['#3ee66b', '#4fc3ff', '#c27bff', '#ffcf3a', '#ff3b5c'][r.pack]}"></i>` : ''}${r.coins ? `<i class="coin"></i>${r.coins}` : ''}</span>`;
   const claimed = () => { const s = S(); if (!Array.isArray(s.sets)) s.sets = []; return s.sets; };
   function sets(group) {
-    const list = all().filter((c) => groupOf(c) === group);
+    const list = groupCards(group);
     if (group === 'Джексон') return [{ club: '', cards: list }];
     const by = {};
     list.forEach((c) => { (by[c.club] = by[c.club] || []).push(c); });
@@ -193,7 +198,7 @@ const Cards = (() => {
   function ready() {
     const out = [];
     for (const g of GROUPS) {
-      const cards = all().filter((c) => groupOf(c) === g);
+      const cards = groupCards(g);
       if (have(cards) === cards.length && !claimed().includes('g:' + g)) out.push({ id: 'g:' + g, name: g, ico: GROUP_ICO[g], prize: groupPrize(g) });
       if (g !== 'Джексон') sets(g).forEach(({ club, cards: cc }) => { const id = `c:${g}:${club}`; if (have(cc) === cc.length && !claimed().includes(id)) out.push({ id, name: club, crest: CRESTS[club], prize: clubPrize(cc.length) }); });
     }
@@ -235,12 +240,12 @@ const Cards = (() => {
       if (al.length) out += `<h3 class="gl-h">Почти собраны</h3><div class="gl-almost">${al.map((a) => `<button class="gl-al" data-glg="${esc(a.g)}" data-glc="${esc(a.club)}">${CRESTS[a.club] ? `<img src="img/clubs/${CRESTS[a.club]}" alt="">` : `<span class="gl-noc">${Ui.get('ball')}</span>`}<span><b>${esc(a.club)}</b>${bar(a.h, a.n)}<small>ещё ${a.left} ${a.left === 1 ? 'карточка' : a.left < 5 ? 'карточки' : 'карточек'}</small></span></button>`).join('')}</div>`;
       out += `<h3 class="gl-h">Лиги</h3>`;
       out += `<div class="gl-list">${GROUPS.map((g) => {
-        const cards = all().filter((c) => groupOf(c) === g), h = have(cards), id = 'g:' + g;
+        const cards = groupCards(g), h = have(cards), id = 'g:' + g;
         return `<button class="gl-row" data-gl="${esc(g)}"><span class="gl-ico">${GROUP_ICO[g]}</span><span class="gl-mid"><b>${g}</b>${bar(h, cards.length)}<small>${h} / ${cards.length}${g === 'Джексон' ? '' : ` · клубов ${sets(g).length}`}</small></span>${claimBtn(id, h === cards.length, groupPrize(g))}</button>`;
       }).join('')}</div><p class="rw-note gl-foot">Собери всех игроков клуба — получишь пак. Собери всю лигу — пак «ДЖЕКСОН!!» и монеты.</p>`;
       return out;
     }
-    const g = view.g, all_ = all().filter((c) => groupOf(c) === g), hg = have(all_);
+    const g = view.g, all_ = groupCards(g), hg = have(all_);
     if (view.club === null && g !== 'Джексон') {
       out += `<div class="gl-top"><button class="gl-back" data-glback="1">← Лиги</button><span class="gl-ttl">${GROUP_ICO[g]} ${g}</span></div>
         <div class="gl-sum"><span>${hg} / ${all_.length}${bar(hg, all_.length)}</span><span class="gl-for">За всю лигу: ${prizeTxt(groupPrize(g))}</span>${claimBtn('g:' + g, hg === all_.length, groupPrize(g))}</div>
@@ -264,7 +269,7 @@ const Cards = (() => {
   function claim(id) {
     const cl = claimed(); if (cl.includes(id)) return;
     let cards, prize;
-    if (id.startsWith('g:')) { const g = id.slice(2); cards = all().filter((c) => groupOf(c) === g); prize = groupPrize(g); }
+    if (id.startsWith('g:')) { const g = id.slice(2); cards = groupCards(g); prize = groupPrize(g); }
     else { const [, g, ...rest] = id.split(':'); const club = rest.join(':'); const set = sets(g).find((x) => x.club === club); if (!set) return; cards = set.cards; prize = clubPrize(cards.length); }
     if (have(cards) < cards.length) return;
     cl.push(id); Store.save(); Sound.play('goal'); haptic('ok'); if (typeof confetti === 'function') confetti();
@@ -276,7 +281,7 @@ const Cards = (() => {
   function readySets() {
     let n = 0;
     for (const g of GROUPS) {
-      const cards = all().filter((c) => groupOf(c) === g);
+      const cards = groupCards(g);
       if (have(cards) === cards.length && !claimed().includes('g:' + g)) n++;
       if (g !== 'Джексон') sets(g).forEach(({ club, cards: cc }) => { if (have(cc) === cc.length && !claimed().includes(`c:${g}:${club}`)) n++; });
     }
@@ -284,7 +289,7 @@ const Cards = (() => {
   }
   function details(key) {
     const c = get(key); if (!c) return;
-    const st = FC_STATS[c.name];
+    const st = c.st ? [c.r, ...c.st] : FC_STATS[c.name];
     const names = c.pos === 'ВРТ' ? ['ПРЫ', 'РУК', 'ВЫБ', 'РЕА', 'СКР', 'ПОЗ'] : ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'];
     const stats = st ? `<div class="cd-st">${names.map((n, i) => `<span><b>${st[i + 1]}</b>${n}</span>`).join('')}</div>` : '';
     const s = S(); s.fresh = s.fresh.filter((k) => k !== key); Store.save();
@@ -296,6 +301,10 @@ const Cards = (() => {
   const price = (c) => (c.rar === 'jack' ? 0 : c.rar === 'legend' ? 600 : c.rar === 'gold' ? 150 + Math.max(0, c.r - 78) * 30 : c.rar === 'silver' ? 80 : 40);
   function buy(key) {
     const c = get(key); if (!c || owned(key)) return;
+    if (c.sbcOnly) {
+      Modal.open(`<div class="cd">${html(c, { w: 180 })}<h2>${esc(c.name)} · ${c.r}</h2><p>Будущие звёзды · Барселона · левый защитник</p><p>Уникальная награда ИПК: выполни 10 составов. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'К испытанию', onClick: () => SBC.open('fs:espart') }, { label: 'Закрыть', cls: 'ghost' }]);
+      return;
+    }
     const p = price(c);
     const body = `<div class="cd">${html(c, { w: 180, locked: true })}<h2>${c.rar === 'jack' ? 'Только из паков' : 'Купить карточку?'}</h2>
       <p class="cd-m">${c.rar === 'jack' ? 'Карточки «Джексон» выпадают только из паков' : `${RAR[c.rar].n} · ${esc(c.club)} · рейтинг ${c.r}. Кто внутри, узнаешь после покупки`}</p></div>`;
