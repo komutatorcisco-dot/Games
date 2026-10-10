@@ -462,17 +462,7 @@ const App = (() => {
     skins: () => Skins.open(),
     myclub: () => Clubs.open(),
     // онлайн с живым соперником: выбор режима
-    online: () => {
-      const out = (k) => typeof Release === 'undefined' || Release.isOut(k);
-      const opts = [{ label: 'Футбольная дуэль · вопросы', onClick: () => { Modal.close(); Track.open('ng:duel', 'Футбольная дуэль'); NG.open('duel', { mode: 'rnd' }); } }];
-      if (out('act:xdraft')) opts.push({ label: 'Драфт · матч составами', onClick: () => {
-        Modal.close();
-        Promise.resolve(actions.xdraft()).then(() => { const a = XDraft.A(); if (a && XDraft.xiOf().every(Boolean)) XMatch.online(XMatch.DRAFT); else toast('Собери драфт до конца — потом жми «Онлайн-матч с игроком»'); });
-      } });
-      if (out('ng:trumps')) opts.push({ label: 'Козыри · карточки', onClick: () => { Modal.close(); Track.open('ng:trumps', 'Козыри'); NG.open('trumps', { online: true }); } });
-      opts.push({ label: 'Отмена', cls: 'ghost' });
-      Modal.open('<h2>Онлайн</h2><p>Выбери режим — сыграешь с живым соперником. Случайным или другом по коду.</p>', opts);
-    },
+    online: () => Home.pick('online'),
     starshop: () => StarShop.open(),
     remind: () => { const ui = Store.d.ui || (Store.d.ui = {}); ui.noRemind = !ui.noRemind; Store.save(); Track.hello({ remind: !ui.noRemind }); renderProfile(); toast(ui.noRemind ? 'Напоминания выключены' : 'Напоминания включены'); },
     runner: () => {

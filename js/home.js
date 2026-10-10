@@ -124,7 +124,7 @@ const Home = (() => {
   }
 
   // ---------- выбор игры ----------
-  function pick() {
+  function pick(mode = 'offline') {
     if (typeof Coach !== 'undefined') Coach.close();
     // открытые игры и только три следующих закрытых — без стены замков
     let locked = 0;
@@ -137,17 +137,33 @@ const Home = (() => {
     };
     const el = document.createElement('div');
     el.className = 'sx-sheet-wrap h2-sheet';
+    const onlineGames = [['duel', 'Футбольная дуэль', 'Вопросы на скорость', '⚡'], ['xdraft', 'Драфт', 'Матч собранными составами', '🏆'], ['trumps', 'Козыри', 'Сравнивай карточки', '🃏']];
     el.innerHTML = `<div class="sx-sheet"><div class="sx-grab"></div><div class="sx-sh"><b>Выбери игру</b><button class="sx-x" data-sh="close" aria-label="Закрыть">✕</button></div>
-      <div class="h2-pl"><div class="h2-pg">${solo.map(cell).join('')}</div>
-      ${duo.length ? `<h4 class="h2-ph">${Ui.get('users')} С другом</h4><div class="h2-pg">${duo.map(cell).join('')}</div>` : ''}
-      <p class="h2-pn">У тебя ${t} ${Ui.get('trophy')}. Побеждай — откроются новые игры.</p></div></div>`;
+      <div class="games-mode-switch" role="tablist" aria-label="Режим игры"><button data-picker-mode="offline" role="tab">Офлайн</button><button data-picker-mode="online" role="tab">Онлайн <span class="gms-live" data-presence-total>—</span></button></div>
+      <div class="h2-pl" data-picker-panel="offline"><div class="h2-pg">${solo.filter(g => g.key !== 'ng:duel').map(cell).join('')}</div>
+      ${duo.length ? `<h4 class="h2-ph">${Ui.get('users')} На одном телефоне</h4><div class="h2-pg">${duo.map(cell).join('')}</div>` : ''}
+      <p class="h2-pn">У тебя ${t} ${Ui.get('trophy')}. Побеждай — откроются новые игры.</p></div>
+      <div class="h2-pl" data-picker-panel="online" hidden><div class="online-presence"><span class="online-pulse"></span><span>Сейчас в сети</span><b data-presence-total>—</b><button data-online-refresh aria-label="Обновить число игроков">↻</button></div>
+      <p class="h2-pn" data-presence-status>Обновляем число игроков…</p>
+      <div class="online-game-list">${onlineGames.map(([id,title,sub,ico]) => `<button class="online-game-card" data-online-game="${id}" style="--oc1:#8866ef;--oc2:#315aa3"><span class="online-game-ico">${ico}</span><span><b>${title}</b><small>${sub}</small><small><i data-presence-game="${id}">—</i> в режиме сейчас</small></span><em>Играть →</em></button>`).join('')}</div>
+      <p class="h2-pn">Выбери игру, затем найди соперника или пригласи друга. Аукцион вдвоём пока доступен на одном телефоне во вкладке «Офлайн».</p></div></div>`;
     document.body.appendChild(el);
+    const switchMode = (next) => {
+      $$('[data-picker-mode]', el).forEach(b => { const on = b.dataset.pickerMode === next; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); });
+      $$('[data-picker-panel]', el).forEach(p => { p.hidden = p.dataset.pickerPanel !== next; });
+      Online.paintPresence();
+      if (next === 'online') Online.refreshPresence();
+    };
+    switchMode(mode);
     if (typeof Icons !== 'undefined') Icons.fill(el);
     anim($('.sx-sheet', el), [{ transform: 'translateY(100%)' }, { transform: 'none' }], { duration: 360, easing: 'cubic-bezier(.2,.9,.3,1)' });
     $$('.h2-pc', el).forEach((c, i) => anim(c, [{ transform: 'translateY(24px) scale(.9)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 360, delay: 100 + i * 25, easing: 'cubic-bezier(.2,1.1,.4,1)', fill: 'backwards' }));
     const close = () => { const a = anim($('.sx-sheet', el), [{ transform: 'none' }, { transform: 'translateY(100%)' }], { duration: 220, easing: 'ease-in', fill: 'forwards' }); el.classList.add('out'); if (a) a.onfinish = () => el.remove(); else el.remove(); };
     el.addEventListener('click', (e) => {
       if (e.target === el || e.target.closest('[data-sh="close"]')) return close();
+      const modeButton = e.target.closest('[data-picker-mode]');
+      if (modeButton) { switchMode(modeButton.dataset.pickerMode); return; }
+      if (e.target.closest('[data-online-game]')) { close(); return; }
       const s = e.target.closest('[data-sel]');
       if (s) {
         const k = s.dataset.sel;
@@ -215,5 +231,5 @@ const Home = (() => {
     Screens.show = function (id) { const r = show.apply(this, arguments); requestAnimationFrame(fit); if (id !== 'hub') document.body.classList.remove('at-home'); return r; };
   }
 
-  return { render, bind, checkUnlocks, catalog, fit };
+  return { render, bind, checkUnlocks, catalog, fit, pick };
 })();

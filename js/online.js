@@ -12,25 +12,29 @@ const Online = (() => {
   const opts = () => Object.assign({ debug: 0 }, window.DUEL_PEER || {});
   let lib = null, cur = null;
   let activity = 'hub', presenceTimer = null, presenceBusy = false, onlineCounts = { total: null, modes: {} };
+  let presenceError = false;
   function paintPresence() {
     if (typeof document === 'undefined') return;
-    const total = document.querySelector('#online-total');
-    if (total) total.textContent = Number.isFinite(onlineCounts.total) ? onlineCounts.total.toLocaleString('ru-RU') : '—';
-    const badge = document.querySelector('#online-switch-count');
-    if (badge) badge.textContent = Number.isFinite(onlineCounts.total) ? onlineCounts.total.toLocaleString('ru-RU') : '—';
+    document.querySelectorAll('#online-total, #online-switch-count, [data-presence-total]').forEach(el => {
+      el.textContent = Number.isFinite(onlineCounts.total) ? onlineCounts.total.toLocaleString('ru-RU') : '—';
+    });
+    document.querySelectorAll('[data-presence-status]').forEach(el => {
+      el.textContent = presenceError ? 'Не удалось обновить число игроков. Попробуй ещё раз.' : Number.isFinite(onlineCounts.total) ? 'Живые данные · обновляются каждые 20 секунд' : 'Обновляем число игроков…';
+    });
     document.querySelectorAll('[data-presence-game]').forEach((el) => {
       const n = onlineCounts.modes && onlineCounts.modes[el.dataset.presenceGame];
       el.textContent = Number.isFinite(n) ? n.toLocaleString('ru-RU') : '—';
     });
   }
   async function refreshPresence() {
-    if (presenceBusy || (typeof document !== 'undefined' && document.hidden) || !Board.ready()) return;
+    if (presenceBusy || (typeof document !== 'undefined' && document.hidden)) return;
     presenceBusy = true;
     try {
-      const r = await Board.post('/presence', { act: 'heartbeat', game: activity });
-      if (r && r.ok) { onlineCounts = r; paintPresence(); }
-    } catch (e) { /* сеть может быть недоступна */ }
-    finally { presenceBusy = false; }
+      const r = Board.ready() ? await Board.post('/presence', { act: 'heartbeat', game: activity }) : await fetch(CONFIG.api + '/presence').then(r => r.json());
+      if (!r || !r.ok) throw new Error('presence');
+      onlineCounts = r; presenceError = false;
+    } catch (e) { presenceError = true; onlineCounts = {total:null,modes:{}}; }
+    finally { presenceBusy = false; paintPresence(); }
   }
   function setActivity(game) {
     activity = ['duel', 'xdraft', 'trumps'].includes(game) ? game : 'hub';
@@ -208,5 +212,5 @@ const Online = (() => {
     if (game === 'trumps') { NG.open('trumps', { online: m[2] }); return true; }
     return false;
   }
-  return { open, stop, deep, startPresence, setActivity, refreshPresence, counts: () => onlineCounts, leaveScreen: id => { if (cur && cur.screen !== id) stop(); } };
+  return { open, stop, deep, startPresence, setActivity, refreshPresence, paintPresence, counts: () => onlineCounts, leaveScreen: id => { if (cur && cur.screen !== id) stop(); if (id === 'hub') setActivity('hub'); } };
 })();

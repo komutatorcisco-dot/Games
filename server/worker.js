@@ -955,6 +955,10 @@ async function route(request, env) {
   }
 
   // ---------- рейтинг ----------
+  if (url.pathname === '/presence' && request.method === 'GET') {
+    if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
+    return json(await onlinePresence(env, null, { act: 'counts' }));
+  }
   if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;

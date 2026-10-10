@@ -67,12 +67,13 @@ const XDraft = (() => {
     }));
     // Исторические кумиры уже есть в коллекции, но раньше драфт брал только текущую базу FC.
     // Добавляем легендарные карточки как Icons: их клуб не участвует в новой химии, а лига и нация — по правилам Icon.
-    const icons = typeof Cards !== 'undefined' ? Cards.all().filter((c) => c.icon && c.face).map((c) => {
+    const icons = typeof Cards !== 'undefined' ? Cards.all().filter((c) => c.icon && c.rar === 'legend' && c.face).map((c) => {
       const positions = c.positions || PlayerPositions.get(c.name, c.pos);
       const pos = positions;
       return { name: c.name, r: c.r, st: c.st || Array(6).fill(c.r), pos, club: c.club, lg: c.lg, nat: c.nat, flag: c.flag, face: c.face, icon: true, rar: c.rar };
     }) : [];
-    POOL = active.concat(icons);
+    const iconNames = new Set(icons.map(p => p.name));
+    POOL = active.filter(p => !iconNames.has(p.name)).concat(icons);
     BY = Object.fromEntries(POOL.map((p) => [p.name, p]));
     return POOL;
   }
@@ -217,7 +218,7 @@ const XDraft = (() => {
   const colOf = (club) => (typeof CLUB_COL !== 'undefined' && CLUB_COL[club]) || ['#3b4f8f', '#141a3a'];
   function faceImg(p) { return p.face ? `<img class="xc-f" src="${(FreshFaces.on() ? FreshFaces.url(p.face, 120) : faceSrc(p.face))}" alt="">` : '<span class="xc-sil"></span>'; }
   function cardBig(p, slotPos) {
-    const c = { key: p.name, name: p.name, r: p.r, pos: XD.RU[p.pos[0]], club: p.club, flag: p.flag, face: p.face, rar: rarOf(p.r) };
+    const c = { key: p.name, name: p.name, r: p.r, pos: XD.RU[p.pos[0]], club: p.club, flag: p.flag, face: p.face, icon: !!p.icon, rar: p.icon ? 'legend' : rarOf(p.r) };
     return typeof Cards !== 'undefined' ? Cards.html(c, { w: 132 }) : `<div class="xc big ${c.rar}"><b class="xc-r">${p.r}</b><small>${c.pos}</small>${faceImg(p)}<span class="xc-n">${esc(surname(p.name))}</span></div>`;
   }
   // карточка-щит как в FUT: цвет — редкость, слева рейтинг/позиция/флаг/клуб, справа лицо, снизу фамилия
@@ -233,9 +234,9 @@ const XDraft = (() => {
         ? `<span class="fu-ch new" data-chem="${idx}">${[0, 1, 2].map((d) => `<i class="${d < ch.chem ? 'on' : ''}"></i>`).join('')}</span>`
         : `<span class="fu-ch cl c${ch.chem >= 7 ? 'g' : ch.chem >= 4 ? 'y' : 'r'}" data-chem="${idx}"><u>${XD.RU[slotPos]}</u>${ch.chem}</span>`;
     }
-    return `<button class="fu ${rarOf(p.r)} ${off ? 'off' : ''} ${big ? 'big' : ''}" data-z="${zone}" data-i="${idx}">
+    return `<button class="fu ${p.icon ? 'legend' : rarOf(p.r)} ${off ? 'off' : ''} ${big ? 'big' : ''}" data-z="${zone}" data-i="${idx}">
       <span class="fu-l"><b>${p.r}</b><small>${XD.RU[slotPos || p.pos[0]]}</small><em>${p.flag}</em>${cr ? `<img src="img/clubs/${cr}" alt="">` : ''}</span>
-      ${p.face ? `<img class="fu-f" src="${FreshFaces.on() ? FreshFaces.url(p.face, big ? 240 : 120) : faceSrc(p.face)}" alt="">` : '<span class="fu-sil"></span>'}
+      ${p.face ? `<img class="fu-f" src="${faceSrc(p.face)}" alt="${esc(p.name)}">` : '<span class="fu-sil"></span>'}
       <span class="fu-n">${esc(surname(p.name))}</span>${cap ? '<i class="fu-c">C</i>' : ''}</button>${chem}`;
   }
   // перспектива как у телекамеры: дальняя сторона уже, игроки там чуть меньше
@@ -333,11 +334,11 @@ const XDraft = (() => {
   function renderResult() {
     const a = A(), xi = xiOf(a), bench = benchOf(a), F_ = XD.FORMATIONS[a.form], c = XD.chem(a.sys, a.form, xi), b = S().best[a.sys] || {};
     $('#xd-body').innerHTML = `<div class="xd-res"><div class="sb"><div class="sb-k">ДРАФТ · ${a.form} · ${SYS[a.sys].toUpperCase()}</div>
-        <div class="xd-rs"><span><small>Рейтинг</small><b>${a.result.r}</b>${a.result.newR ? '<em>рекорд!</em>' : ''}</span><span><small>Химия</small><b>${a.result.c}<i>/${c.max}</i></b>${a.result.newC ? '<em>рекорд!</em>' : ''}</span></div>
+        <div class="xd-rs"><span><small>Рейтинг</small><b>${XD.teamRating(xi)}</b>${a.result && a.result.newR ? '<em>рекорд!</em>' : ''}</span><span><small>Химия</small><b>${c.total}<i>/${c.max}</i></b>${a.result && a.result.newC ? '<em>рекорд!</em>' : ''}</span></div>
         <div class="xd-best">${b.r ? `Лучшее в режиме «${SYS[a.sys]}»: рейтинг ${b.r} · химия ${b.c}/${c.max}` : 'Первый драфт в этом режиме — это и есть рекорд'}</div></div>
       ${pitchHTML(a, xi, c, { live: false })}
       <div class="xd-bench"><div class="xd-bh"><b>Скамейка и резерв</b></div><div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
-      <div class="xd-act col">${S().tour && !S().tour.paid ? `<button class="btn gold" data-act2="tour-go">${S().tour.over ? 'Итоги турнира' : 'Продолжить турнир'}</button>` : '<button class="btn gold" data-act2="tour">Турнир драфта · 4 матча</button>'}
+      <div class="xd-act col">${S().tour ? (S().tour.paid ? '<p class="xt-note">Турнир этим составом завершён. Для новой попытки собери новый драфт.</p>' : `<button class="btn gold" data-act2="tour-go">${S().tour.over ? 'Итоги турнира' : 'Продолжить турнир'}</button>`) : '<button class="btn gold" data-act2="tour">Турнир драфта · 4 матча</button>'}
         <button class="btn xd-online" data-act2="online">Онлайн-матч с игроком</button><button class="btn ghost" data-act2="bot">Товарищеский матч</button><button class="btn ghost" data-act2="share">Поделиться составом</button><button class="btn ghost" data-act2="reset">Новый драфт</button></div>
       <p class="xt-note">Турнир: 4 матча против ботов, каждый сильнее. Проиграл — вылетел. Награды: паки, монеты, трофеи и золотые мячи.</p>
 </div>`;

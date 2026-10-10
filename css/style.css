@@ -3247,6 +3247,11 @@ html, body { touch-action: manipulation; }
   background: radial-gradient(70% 40% at 70% 18%, rgba(255,255,255,.55), transparent 70%), linear-gradient(165deg, var(--g1), var(--g2) 45%, var(--g3));
   filter: drop-shadow(0 4px 6px rgba(0,0,0,.45)); transition: transform .18s; }
 .fu.silver { --t: #1d2433; --g1: #ffffff; --g2: #c9d1dc; --g3: #7c8796; }
+.fu.legend { --t: #493417; --g1: #fffef3; --g2: #ede6cd; --g3: #b79550; }
+.fu.legend .fu-f { top: 6%; height: 68%; object-fit: contain; object-position: center bottom; }
+.h2-sheet .games-mode-switch { margin: 0 18px 12px; flex-shrink: 0; }
+.h2-sheet [data-picker-panel][hidden] { display: none !important; }
+.h2-sheet .online-game-card { width: 100%; margin-bottom: 10px; }
 .fu.bronze { --t: #2b1606; --g1: #ffd9b8; --g2: #c98d5c; --g3: #7d4a24; }
 .fu::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(115deg, rgba(255,255,255,.07) 0 2px, transparent 2px 7px); pointer-events: none; }
 .fu-l { position: absolute; left: 9%; top: 11%; z-index: 2; display: grid; justify-items: center; gap: calc(var(--cw) * .02); line-height: 1; }

@@ -14,6 +14,8 @@ vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^
   assert.equal(counts.total,1); assert.equal(counts.modes.duel,1);
   counts=await api.onlinePresence(env,{id:2},{act:'heartbeat',game:'xdraft'});
   assert.equal(counts.total,2); assert.equal(counts.modes.xdraft,1);
+  const publicCounts = await api.onlinePresence(env,null,{act:'counts'});
+  assert.equal(publicCounts.total,2,'reading public totals never creates a fake online visitor');
   await api.onlinePresence(env,{id:1},{act:'leave'});
   counts=await api.onlinePresence(env,{id:3},{act:'count'});
   assert.equal(counts.total,1); assert.equal(counts.modes.duel,0);

@@ -29,7 +29,7 @@ const Track = (() => {
   function open(game, title) {
     if (!game) return;
     cur = { game, t: Date.now() };
-    if (typeof Online !== 'undefined' && Online.setActivity) Online.setActivity(game === 'ng:duel' ? 'duel' : game === 'ng:trumps' ? 'trumps' : 'hub');
+    if (typeof Online !== 'undefined' && Online.setActivity) Online.setActivity('hub');
     push({ game, kind: 'open', title: String(title || '').trim().slice(0, 40) });
   }
   // партия закончилась (вызывается из общего экрана итога)

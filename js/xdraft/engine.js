@@ -74,6 +74,10 @@
     const BUCKETS = [0, 1, 1.6];
     const LOYALTY = 1;
     function link(a, b) {
+      if (a.icon || b.icon) {
+        const strong = (a.icon && b.icon) || (a.nat && a.nat === b.nat);
+        return { color: strong ? 'green' : 'orange', v: strong ? 2 : 1, shared: strong ? 2 : 1 };
+      }
       const shared = (a.club === b.club ? 1 : 0) + (a.lg === b.lg ? 1 : 0) + (a.nat === b.nat ? 1 : 0);
       return shared >= 2 ? { color: 'green', v: 2, shared } : shared === 1 ? { color: 'orange', v: 1, shared } : { color: 'red', v: -1, shared };
     }
@@ -93,7 +97,7 @@
     }
     function explain(form, xi, i) {
       const c = calc(form, xi), x = c.per[i], p = xi[i]; if (!x) return '';
-      const lines = x.links.map((l) => { const o = xi[l.i === i ? l.j : l.i]; return { color: l.color, who: o.name, why: [p.club === o.club && 'клуб', p.lg === o.lg && 'лига', p.nat === o.nat && 'сборная'].filter(Boolean).join(' + ') || 'ничего общего' }; });
+      const lines = x.links.map((l) => { const o = xi[l.i === i ? l.j : l.i]; return { color: l.color, who: o.name, why: p.icon || o.icon ? (l.color === 'green' ? 'кумир + общая сборная или другой кумир' : 'связь с кумиром') : [p.club === o.club && 'клуб', p.lg === o.lg && 'лига', p.nat === o.nat && 'сборная'].filter(Boolean).join(' + ') || 'ничего общего' }; });
       const b = x.bucket, row = TABLE[x.fit];
       const nb = row.findIndex((v, k) => k > b && Math.min(10, v + LOYALTY) > x.chem);
       const next = x.chem >= 10 ? 'Максимум.' : nb > 0 ? `Нужно больше общих связей (средняя сила ≥ ${BUCKETS[nb - 1]}).` : `Поставь на ${RU[p.pos[0]]} , там можно до 10.`;

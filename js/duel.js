@@ -419,6 +419,7 @@ const Duel = (() => {
       const mm = (body) => Board.post('/mm', body).catch(() => ({ ok: false }));
       const mmStop = () => { if (mmOn) { mmOn = false; mm({ act: 'cancel' }); } };
       async function random() {
+        Online.setActivity('duel');
         if (!Board.ready()) { toast('Онлайн работает в Telegram через бота @JacksonGamesbot'); return; }
         api.sub('Случайный соперник');
         connecting('Ищем соперника…');
@@ -446,6 +447,7 @@ const Duel = (() => {
         peer.on('open', poll);
       }
       async function host() {
+        Online.setActivity('duel');
         connecting('Создаём комнату…');
         acts = { menu };
         try { await loadPeer(); } catch (e) { return fail('Не получилось загрузить онлайн-режим'); }
@@ -470,6 +472,7 @@ const Duel = (() => {
         peer.on('error', (e) => { if (e.type === 'unavailable-id') host(); else if (!conn) fail('Не удалось создать комнату'); });
       }
       async function join(code) {
+        Online.setActivity('duel');
         connecting(`Подключаемся к комнате ${code}…`);
         acts = { menu };
         try { await loadPeer(); } catch (e) { return fail('Не получилось загрузить онлайн-режим'); }
