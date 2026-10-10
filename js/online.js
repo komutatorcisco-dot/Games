@@ -13,13 +13,14 @@ const Online = (() => {
   let lib = null, cur = null;
   let activity = 'hub', presenceTimer = null, presenceBusy = false, onlineCounts = { total: null, modes: {} };
   let presenceError = false;
+  let presenceAt = 0, presenceFailures = 0, retryAt = 0;
   function paintPresence() {
     if (typeof document === 'undefined') return;
     document.querySelectorAll('#online-total, #online-switch-count, [data-presence-total]').forEach(el => {
       el.textContent = Number.isFinite(onlineCounts.total) ? onlineCounts.total.toLocaleString('ru-RU') : '—';
     });
     document.querySelectorAll('[data-presence-status]').forEach(el => {
-      el.textContent = presenceError ? 'Не удалось обновить число игроков. Попробуй ещё раз.' : Number.isFinite(onlineCounts.total) ? 'Живые данные · обновляются каждые 20 секунд' : 'Обновляем число игроков…';
+      el.textContent = presenceError ? 'Сервер временно недоступен. Повторим позже.' : Number.isFinite(onlineCounts.total) ? 'Активные за последние 5 минут · обновление раз в 2 минуты' : 'Обновляем число игроков…';
     });
     document.querySelectorAll('[data-presence-game]').forEach((el) => {
       const n = onlineCounts.modes && onlineCounts.modes[el.dataset.presenceGame];
@@ -28,25 +29,31 @@ const Online = (() => {
   }
   async function refreshPresence() {
     if (presenceBusy || (typeof document !== 'undefined' && document.hidden)) return;
+    const now = Date.now();
+    if (now < retryAt || (presenceAt && now - presenceAt < 20000)) return;
+    if (!Board.ready() && !Array.from(document.querySelectorAll('[data-presence-total], #online-total')).some(el => el.getClientRects().length)) return;
+    presenceAt = now;
     presenceBusy = true;
     try {
       const r = Board.ready() ? await Board.post('/presence', { act: 'heartbeat', game: activity }) : await fetch(CONFIG.api + '/presence').then(r => r.json());
       if (!r || !r.ok) throw new Error('presence');
-      onlineCounts = r; presenceError = false;
-    } catch (e) { presenceError = true; onlineCounts = {total:null,modes:{}}; }
+      onlineCounts = r; presenceError = false; presenceFailures = 0; retryAt = 0;
+    } catch (e) { presenceError = true; onlineCounts = {total:null,modes:{}}; retryAt = Date.now() + Math.min(900000, 120000 * 2 ** presenceFailures++); }
     finally { presenceBusy = false; paintPresence(); }
   }
   function setActivity(game) {
-    activity = ['duel', 'xdraft', 'trumps'].includes(game) ? game : 'hub';
+    const next = ['duel', 'xdraft', 'trumps'].includes(game) ? game : 'hub';
+    if (next === activity) return;
+    activity = next;
     refreshPresence();
   }
   function startPresence() {
     if (presenceTimer) return;
     refreshPresence();
-    presenceTimer = setInterval(refreshPresence, 20000);
+    presenceTimer = setInterval(refreshPresence, 120000);
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && Board.ready()) Board.post('/presence', { act: 'leave' }).catch(() => {});
-      else refreshPresence();
+      // Expiry removes disconnected players; hiding/reopening no longer deletes/reinserts rows.
+      if (!document.hidden) refreshPresence();
     });
     paintPresence();
   }

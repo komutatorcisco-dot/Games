@@ -3930,7 +3930,7 @@ const FreshFaces = (() => {
     // лицо показываем, когда оно готово: свежее — уже без серого фона, иначе сразу
     if (!raw || cutCache.get(t.currentSrc || t.src) === '') t.classList.add('ok');
   }, true);
-  return { local: (src) => { const m = String(src).match(/\/face\/(\d+)/); return m && LOCAL.has(m[1]) ? `img/players/${m[1]}.webp` : ''; }, fix: (im) => { if (/\/face\/\d+/.test(im.src)) process(im); }, on: () => on && !!api(), url: (id, s = 120) => `${api()}/face/${id}${s === 240 ? '?s=240' : ''}` };
+  return { local: (src) => { const m = String(src).match(/\/face\/(\d+)/); return m && LOCAL.has(m[1]) ? `img/players/${m[1]}.webp` : ''; }, fix: (im) => { if (/\/face\/\d+/.test(im.src)) process(im); }, on: () => on && !!api(), url: (id, s = 120) => LOCAL.has(String(id)) ? `img/players/${id}.webp` : `${api()}/face/${id}${s === 240 ? '?s=240' : ''}` };
 })();
 const faceSrc = (id) => FACE_DATA[id] || (FreshFaces.on() ? FreshFaces.url(id) : `img/players/${id}.webp`);
 

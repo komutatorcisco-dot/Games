@@ -12,6 +12,14 @@ vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^
   await api.schema(db);
   let counts=await api.onlinePresence(env,{id:1},{act:'heartbeat',game:'duel'});
   assert.equal(counts.total,1); assert.equal(counts.modes.duel,1);
+  const changes = () => sql.prepare('SELECT total_changes() AS n').get().n;
+  const beforeRepeated = changes();
+  for(let i=0;i<20;i++) await api.onlinePresence(env,{id:1},{act:'heartbeat',game:'duel'});
+  assert.equal(changes(),beforeRepeated,'repeated heartbeats from old clients do not write rows');
+  sql.exec('UPDATE presence SET ts = ts - 120000 WHERE id=1');
+  const beforeDue = changes();
+  await api.onlinePresence(env,{id:1},{act:'heartbeat',game:'duel'});
+  assert.equal(changes(),beforeDue+1,'heartbeat renews after two minutes');
   counts=await api.onlinePresence(env,{id:2},{act:'heartbeat',game:'xdraft'});
   assert.equal(counts.total,2); assert.equal(counts.modes.xdraft,1);
   const publicCounts = await api.onlinePresence(env,null,{act:'counts'});
@@ -20,8 +28,10 @@ vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^
   counts=await api.onlinePresence(env,{id:3},{act:'count'});
   assert.equal(counts.total,1); assert.equal(counts.modes.duel,0);
   sql.exec('UPDATE presence SET ts=1 WHERE id=2');
+  const beforeRead = changes();
   counts=await api.onlinePresence(env,{id:3},{act:'count'});
   assert.equal(counts.total,0,'a disconnected client expires after the heartbeat TTL');
+  assert.equal(changes(),beforeRead,'counting expired players never writes or deletes rows');
 
   const players=Array.from({length:11},(_,i)=>'Игрок '+i), initial={round:0,res:[],over:false,paid:false,clubs:['Лидс','Наполи','Интер','Барселона']};
   const started=await api.draftTour(env,{id:7},{act:'start',players,state:JSON.stringify(initial)});

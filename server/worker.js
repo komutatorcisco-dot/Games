@@ -142,9 +142,14 @@ async function schema(db) {
     db.prepare('CREATE INDEX IF NOT EXISTS presence_ts ON presence (ts)'),
     db.prepare("CREATE TABLE IF NOT EXISTS draft_tours (attempt INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, roster TEXT NOT NULL, state TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', claimed INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, updated INTEGER NOT NULL, UNIQUE(uid, roster))"),
     db.prepare('CREATE INDEX IF NOT EXISTS draft_tours_uid ON draft_tours (uid, updated DESC)'),
-    db.prepare('UPDATE ustats SET trophies = 11000 WHERE trophies > 11000'),
-    db.prepare('UPDATE saves SET tro = 11000 WHERE tro > 11000'),
   ]);
+  if (!(await db.prepare("SELECT v FROM settings WHERE k = 'migration:trophy-cap-11000'").bind().first())) {
+    await db.batch([
+      db.prepare('UPDATE ustats SET trophies = 11000 WHERE trophies > 11000'),
+      db.prepare('UPDATE saves SET tro = 11000 WHERE tro > 11000'),
+      db.prepare("INSERT OR IGNORE INTO settings (k, v) VALUES ('migration:trophy-cap-11000', '1')"),
+    ]);
+  }
   ready = true;
 }
 const clean = (s, n) => String(s || '').replace(/[<>\u0000-\u001f]/g, '').trim().slice(0, n);
@@ -554,7 +559,7 @@ export default {
   // Cron-триггер раз в час («0 * * * *», ставит .github/workflows/worker.yml): рассылка по понедельникам в 10:00 по Европе,
   // напоминания — в 18:00 по Москве. Каждая функция сама проверяет время и не шлёт дважды.
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(weekly(env).then(() => reminders(env)));
+    ctx.waitUntil(weekly(env).then(() => reminders(env)).then(() => env.DB.prepare('DELETE FROM presence WHERE ts < ?').bind(Date.now() - 86400000).run()));
   },
 };
 export { weekly, stats };
@@ -816,17 +821,20 @@ async function club(env, user, body) {
 async function onlinePresence(env, user, body) {
   const db = env.DB, now = Date.now();
   await schema(db);
-  await db.prepare('DELETE FROM presence WHERE ts < ?').bind(now - 70000).run();
   if (body.act === 'leave') await db.prepare('DELETE FROM presence WHERE id = ?').bind(user.id).run();
   else if (body.act === 'heartbeat') {
     const game = ['duel', 'xdraft', 'trumps'].includes(body.game) ? body.game : 'hub';
-    await db.prepare("INSERT INTO presence (id, game, ts) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET game = ?2, ts = ?3").bind(user.id, game, now).run();
+    const old = await db.prepare('SELECT game, ts FROM presence WHERE id = ?').bind(user.id).first();
+    // Enforce the write budget on the server too: old clients still send every 20s.
+    if (!old || now - old.ts >= 110000 || (old.game !== game && now - old.ts >= 20000)) {
+      await db.prepare("INSERT INTO presence (id, game, ts) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET game = ?2, ts = ?3 WHERE presence.ts <= ?3 - 110000 OR (presence.game != ?2 AND presence.ts <= ?3 - 20000)").bind(user.id, game, now).run();
+    }
   }
-  const rows = (await db.prepare('SELECT game, COUNT(*) AS n FROM presence WHERE ts >= ? GROUP BY game').bind(now - 70000).all()).results || [];
+  const rows = (await db.prepare('SELECT game, COUNT(*) AS n FROM presence WHERE ts >= ? GROUP BY game').bind(now - 300000).all()).results || [];
   const modes = { duel: 0, xdraft: 0, trumps: 0 };
   let total = 0;
   rows.forEach((r) => { const n = Number(r.n) || 0; total += n; if (Object.prototype.hasOwnProperty.call(modes, r.game)) modes[r.game] = n; });
-  return { ok: true, total, modes, ttl: 70 };
+  return { ok: true, total, modes, ttl: 300 };
 }
 
 // ---------- один турнир на состав драфта: попытка и награда хранятся по Telegram ID ----------
