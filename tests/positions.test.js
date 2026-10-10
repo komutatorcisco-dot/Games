@@ -12,6 +12,13 @@ for(const p of PLAYERS) assert.ok(P.get(p.name,p.pos).length,p.name+' has usable
 for(const c of Cards.all()) { assert.ok(c.positions.length,c.name); assert.notEqual(c.pos,'ЗАЩ'); }
 for(const pos of ['LB','CB','CDM','CAM','CM']) assert.ok(P.get('Нико О’Райли','ЛЗ').includes(pos));
 assert.ok(P.get('Unknown','ЦАП').includes('CM'));
+for (const name of ['Витинья','Стивен Джеррард','Тони Кроос','Андрес Иньеста','Арьен Роббен','Франк Рибери','Гарет Бэйл']) {
+  for (const pos of ['CB','LB','RB']) assert.ok(!P.get(name).includes(pos),`${name} must not gain ${pos} through a secondary role`);
+}
+for (const role of ['CDM','CM','CAM','LM','RM','LW','RW','ST']) {
+  for (const pos of ['CB','LB','RB']) assert.ok(!P.expand([role]).includes(pos),`${role} must not automatically become ${pos}`);
+}
+assert.ok(P.get('Орельен Чуамени','ЦОП').includes('CB'),'explicit defensive alternative is preserved');
 assert.deepEqual([...P.get('Unknown','ГК')],['GK']);
 assert.ok(!P.get('Unknown','ЦЗ').includes('ST'),'expansion does not chain through every role');
 // A right-back icon now counts as in-position in the actual chemistry engine.

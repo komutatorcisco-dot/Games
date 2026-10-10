@@ -4,7 +4,7 @@
 const PlayerPositions = (() => {
   const RU = { GK:'ВРТ', CB:'ЦЗ', LB:'ЛЗ', RB:'ПЗ', CDM:'ЦОП', CM:'ЦП', CAM:'ЦАП', LM:'ЛП', RM:'ПП', LW:'ЛВ', RW:'ПВ', ST:'НАП' };
   const FROM = { ...Object.fromEntries(Object.entries(RU).map(([k,v]) => [v,k])), ГК:'GK', ФРВ:'ST', ЗАЩ:'CB' };
-  const NEAR = { GK:[], CB:['CDM'], LB:['LM'], RB:['RM'], CDM:['CM','CB'], CM:['CDM','CAM'], CAM:['CM','ST'], LM:['LW','LB','CM'], RM:['RW','RB','CM'], LW:['LM','ST'], RW:['RM','ST'], ST:['CAM'] };
+  const NEAR = { GK:[], CB:[], LB:['LM'], RB:['RM'], CDM:['CM'], CM:['CDM','CAM'], CAM:['CM'], LM:['LW'], RM:['RW'], LW:['LM','ST'], RW:['RM','ST'], ST:['CAM'] };
   const LEGENDS = {
     'Гарет Бэйл':'RW LW LM', 'Рауль':'ST CAM', 'Гонсало Игуаин':'ST', 'Тони Кроос':'CM CDM', 'Гути':'CAM CM',
     'Серхио Рамос':'CB RB', 'Марсело':'LB LM', 'Роберто Карлос':'LB LM', 'Пепе':'CB', 'Рафаэль Варан':'CB', 'Икер Касильяс':'GK',
@@ -23,7 +23,9 @@ const PlayerPositions = (() => {
   const SPECIAL = { 'Нико О’Райли':'LB CB CDM CAM CM', 'Хави Эспарт':'LB RB' };
   function expand(base) {
     const normal = base.map(p => p === 'LWB' ? 'LB' : p === 'RWB' ? 'RB' : p === 'CF' ? 'ST' : p).filter(p => RU[p]);
-    return [...new Set([...normal, ...normal.flatMap(p => NEAR[p])])];
+    // Only the primary role adds neighbours. Defensive roles must be explicit
+    // in the player's data; a secondary CDM/LM/RM must never invent CB/LB/RB.
+    return [...new Set([...normal, ...(NEAR[normal[0]] || [])])];
   }
   function get(name, fallback) {
     const raw = SPECIAL[name] || LEGENDS[name] || (typeof FC_POS !== 'undefined' && FC_POS[name]);
