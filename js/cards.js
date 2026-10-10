@@ -177,7 +177,7 @@ const Cards = (() => {
   GROUP_ICO['Будущие звёзды'] = Ui.get('star');
   const groupCards = (g) => all().filter((c) => g === 'Будущие звёзды' ? c.rar === 'future' : groupOf(c) === g);
   // награда за клуб — по числу карточек в нём; за лигу — легендарный пак и монеты
-  const clubPrize = (n) => (n <= 1 ? { coins: 30 } : n <= 3 ? { coins: 75 } : n <= 7 ? { pack: 0 } : n <= 12 ? { pack: 1 } : n <= 16 ? { pack: 2 } : { pack: 3 });
+  const clubPrize = (n) => (n <= 1 ? { coins: 50 } : n <= 3 ? { coins: 150 } : n <= 7 ? { pack: 0, coins: 150 } : n <= 12 ? { pack: 1, coins: 250 } : n <= 16 ? { pack: 2, coins: 400 } : { pack: 3, coins: 600 });
   const groupPrize = (g) => (g === 'Джексон' ? { pack: 4, coins: 2000 } : g === 'Легенды' ? { pack: 4, coins: 1000 } : { pack: 4, coins: 500 });
   const PACKN = ['пак', 'сверхредкий пак', 'эпический пак', 'легендарный пак', 'пак «ДЖЕКСОН!!»'];
   const prizeTxt = (r) => [r.pack !== undefined ? PACKN[r.pack] : '', r.coins ? `${r.coins} монет` : ''].filter(Boolean).join(' + ');
@@ -302,7 +302,7 @@ const Cards = (() => {
     if (typeof Tilt !== 'undefined') Tilt.spin($('#modal-card .cd > .cc'));
   }
   // купить недостающую карточку: как трансферный рынок
-  const price = (c) => (c.rar === 'jack' ? 0 : c.rar === 'legend' ? 600 : c.rar === 'gold' ? 150 + Math.max(0, c.r - 78) * 30 : c.rar === 'silver' ? 80 : 40);
+  const price = (c) => (c.sbcOnly || c.rar === 'jack' ? 0 : c.rar === 'legend' ? 6000 + Math.max(0, c.r - 90) * 600 : c.rar === 'gold' ? 900 + Math.max(0, c.r - 78) * 300 : c.rar === 'silver' ? 320 : 120);
   function buy(key) {
     const c = get(key); if (!c || owned(key)) return;
     if (c.sbcOnly) {
@@ -314,7 +314,7 @@ const Cards = (() => {
       <p class="cd-m">${c.rar === 'jack' ? 'Карточки «Джексон» выпадают только из паков' : `${RAR[c.rar].n} · ${esc(c.club)} · рейтинг ${c.r}. Кто внутри, узнаешь после покупки`}</p></div>`;
     if (!p) { Modal.open(body, [{ label: 'Понятно', cls: 'ghost' }]); return; }
     Modal.open(body, [
-      { label: `Купить за ${p} монет`, onClick: () => { if (!Coins.spend(p)) return; Modal.close(); const res = add([key]); reveal(res, () => { if (typeof Rewards !== 'undefined') Rewards.refresh(); }); } },
+      { label: `Купить за ${p} монет`, onClick: () => { if (owned(key) || !Coins.spend(p)) return; Modal.close(); const res = add([key]); reveal(res, () => { if (typeof Rewards !== 'undefined') Rewards.refresh(); }); } },
       { label: 'Не сейчас', cls: 'ghost' },
     ]);
   }

@@ -62,7 +62,7 @@ const Board = (() => {
     const gname = (k) => { const g = typeof Home !== 'undefined' && Home.catalog().get(k); return g ? g.title.split(':')[0] : k; };
     const games = [...new Set(['ng:wordle', 'act:auction-bot', 'act:nation', 'act:pick-bot', 'ng:duel', 'act:ttt', 'ng:trumps', 'act:guess-career', 'act:xdraft', 'squad', ...Object.keys(Store.d.gw || {})])];
     const gpick = scope === 'game' ? `<div class="bd-games">${games.map((k) => `<button data-bdg="${esc(k)}" class="${k === gsel ? 'on' : ''}">${esc(k === 'act:pick-bot' ? 'Этого или того' : k === 'squad' ? 'Мой состав' : gname(k))}</button>`).join('')}</div>` : '';
-    const head = scope === 'tro' ? 'У кого больше всего трофеев. Победа +12, матч +3, на выходных — ×2.'
+    const head = scope === 'tro' ? 'У кого больше всего трофеев. Победа +12, матч +3. Лимит — 11 000.'
       : scope === 'game' ? `Больше всех побед в игре «${esc(gsel === 'act:pick-bot' ? 'Этого или того' : gsel === 'squad' ? 'Мой состав' : gname(gsel))}».`
       : scope === 'cup' ? 'Кубок драфта недели: кто выиграл больше турниров драфта (до финала с Барселоной и Реалом). Первое место в понедельник получает легендарный пак.'
       : scope === 'clubs' ? 'Клубы недели: сумма побед всех игроков клуба с понедельника.'

@@ -94,8 +94,7 @@ const SBC = (() => {
   const doneN = (id) => S().done[id] || 0;
 
   // ---------- испытания ----------
-  // Цены выверены симуляцией паков (≈7 паков в день у активного игрока, «Джексон» выпадает примерно раз на 67 паков):
-  // дневное — бонус за вход; улучшения — честный обмен; игрок недели — около 80 паков, это главная цель недели.
+  // Стартовые задания доступны новичкам; улучшения ограничены днём или неделей.
   let cache = null;
   function defs() {
     const W = wk(), D = Day.key();
@@ -129,10 +128,10 @@ const SBC = (() => {
           req: [{ t: 'rating', v: r }, ...(i === 1 ? [{ t: 'from', k: 'nat', v: 'Испания', min: 2 }] : i === 2 ? [{ t: 'from', k: 'club', v: 'Барселона', min: 1 }] : i === 3 ? [{ t: 'from', k: 'lg', v: 'Ла Лига', min: 3 }] : [])],
           reward: { coins: 100 }, limit: 1,
         })) },
-      { id: 'up:b', cat: 'up', ico: 'medal:#d9905a', diff: 1, title: 'Бронзовое улучшение', desc: 'Сдай пять бронзовых, получи пак с гарантированным серебром.', n: 5, req: [{ t: 'only', in: ['bronze'] }], reward: { pack: 1 }, limit: 0 },
-      { id: 'up:s', cat: 'up', ico: 'medal:#d6dde6', diff: 1, title: 'Серебряное улучшение', desc: 'Сдай пять серебряных, получи пак с гарантированным золотом.', n: 5, req: [{ t: 'only', in: ['silver'] }], reward: { pack: 2 }, limit: 0 },
-      { id: 'up:g', cat: 'up', ico: 'medal:#ffcf3a', diff: 3, title: 'Улучшение 82+', desc: 'Сдай семь золотых, получи пак с гарантированной легендой.', n: 7, req: [{ t: 'only', in: GOLDUP }, { t: 'rating', v: 82 }], reward: { pack: 3 }, limit: 0 },
-      { id: 'up:j:' + W, cat: 'up', ico: 'pack:#ff4f66', diff: 4, title: 'Пак «ДЖЕКСОН!!»', desc: 'Лучший пак игры: внутри точно «Джексон». Раз в неделю.', n: 11, req: [{ t: 'rating', v: 85 }, { t: 'rar', in: ['legend', 'jack'], min: 2 }], reward: { pack: 4 }, limit: 1, ends: weekEnd() },
+      { id: 'up:b:' + D, cat: 'up', ico: 'medal:#d9905a', diff: 1, title: 'Бронзовое улучшение', desc: '11 бронзовых за 5 карточек, включая золотую. Раз в день.', n: 11, req: [{ t: 'only', in: ['bronze'] }], reward: { pack: 1 }, limit: 1, ends: dayEnd() },
+      { id: 'up:s:' + D, cat: 'up', ico: 'medal:#d6dde6', diff: 2, title: 'Серебряное улучшение', desc: '11 серебряных за 8 карточек, включая две золотые. Раз в день.', n: 11, req: [{ t: 'only', in: ['silver'] }], reward: { pack: 2 }, limit: 1, ends: dayEnd() },
+      { id: 'up:g:' + W, cat: 'up', ico: 'medal:#ffcf3a', diff: 4, title: 'Улучшение 85+', desc: '11 золотых или особых карт, рейтинг состава 85. Пак с легендой — раз в неделю.', n: 11, req: [{ t: 'only', in: GOLDUP }, { t: 'rating', v: 85 }], reward: { pack: 3 }, limit: 1, ends: weekEnd() },
+      { id: 'up:j:' + W, cat: 'up', ico: 'pack:#ff4f66', diff: 4, title: 'Пак «ДЖЕКСОН!!»', desc: 'Состав на 88 с четырьмя легендами или «Джексонами». Гарантированный «Джексон» — раз в неделю.', n: 11, req: [{ t: 'rating', v: 88 }, { t: 'rar', in: ['legend', 'jack'], min: 4 }], reward: { pack: 4 }, limit: 1, ends: weekEnd() },
       { id: 'b:first', cat: 'base', ico: '1', diff: 1, title: 'Первый состав', desc: 'Любые три карточки. Начни с простого.', n: 3, req: [], reward: { coins: 150 }, limit: 1 },
       { id: 'b:league', cat: 'base', ico: '2', diff: 1, title: 'Одна лига', desc: 'Все пятеро из одной лиги.', n: 5, req: [{ t: 'same', k: 'lg', min: 5 }], reward: { pack: 1 }, limit: 1 },
       { id: 'b:nation', cat: 'base', ico: '3', diff: 2, title: 'Одна сборная', desc: 'Четверо из одной страны.', n: 4, req: [{ t: 'same', k: 'nat', min: 4 }], reward: { pack: 1 }, limit: 1 },
@@ -498,12 +497,18 @@ const SBC = (() => {
     ]);
   }
   function submit(ch) {
-    if (!cur || closed(ch)) return;
+    if (!cur || cur.submitted || cur.id !== ch.id || closed(ch) || (ch.ends && ch.ends <= Date.now())) return;
     const keys = cur.sq.filter(Boolean);
     if (new Set(keys).size !== ch.n || !allOk(ch, keys.map(Cards.get)) || keys.some((k) => !Cards.spare(k) || Cards.get(k).sbcOnly)) return;
+    cur.submitted = true;
     Cards.use(keys);
     S().done[ch.id] = doneN(ch.id) + 1; Store.save();
     const groupRes = claimGroup(ch.parent);
+    // Выдаём до анимации: закрытие приложения не должно терять награду.
+    const rewardCards = ch.reward.pack !== undefined ? Cards.packCards(ch.reward.pack) : ch.reward.card ? [ch.reward.card] : [];
+    const prizeRes = Cards.add(rewardCards);
+    const prizeCoins = (ch.reward.coins || 0) + prizeRes.reduce((sum, x) => sum + x.coins, 0);
+    if (prizeCoins) Coins.add(prizeCoins);
     Sound.play('goal'); haptic('ok');
     const box = $('#sbc-body'), rew = $('.sx-rew', box), pitch = $('.sx-pitch', box);
     const tr = (rew || pitch).getBoundingClientRect(), cx = tr.left + tr.width / 2, cy = tr.top + tr.height / 2;
@@ -526,7 +531,9 @@ const SBC = (() => {
         view = parent ? { mode: 'group', id: parent.id } : { mode: 'list', tab: lastTab };
         paint(enterFx); scrollTo(0, 0);
       };
-      give(ch.reward, `ИПК: ${ch.title.toUpperCase()}`, then);
+      Rewards.refresh();
+      if (prizeRes.length) PackOpen.reveal(prizeRes, then);
+      else { toast(`ИПК выполнено! +${prizeCoins} монет`); then(); }
     };
     setTimeout(after, reduce ? 0 : t + 200);
   }
@@ -538,12 +545,6 @@ const SBC = (() => {
     if (dup) Coins.add(dup);
     Store.save();
     return res;
-  }
-  function give(r, ttl, then) {
-    if (typeof Rewards !== 'undefined') Rewards.refresh();
-    if (r.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(r.coins); toast(`ИПК выполнено! +${r.coins} монет`); then && then(); return; }
-    if (r.pack !== undefined) { Rewards.openDrop({ title: ttl, minLevel: r.pack, label: 'И П К', onDone: () => then && then() }); return; }
-    if (r.card) { const res = Cards.add([r.card]); const dup = res.reduce((s, x) => s + x.coins, 0); if (dup) Coins.add(dup); Cards.reveal(res, () => { Rewards.refresh(); then && then(); }); }
   }
 
   function openItem(id) {

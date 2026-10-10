@@ -1,0 +1,16 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+const ctx={console,TextEncoder};vm.createContext(ctx);
+vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^}]+\};/gm,'').replace('export default {','const worker = {').replace(/^export /gm,'')+'\nglobalThis.validate=validPayment;',ctx);
+const payment=(payload,amount=39,currency='XTR')=>({invoice_payload:JSON.stringify(payload),total_amount:amount,currency});
+const payload={item:'legend',uid:42,n:1760000000000001};
+assert.equal(ctx.validate(payment(payload),42),true);
+assert.equal(ctx.validate(payment(payload),43),false);
+assert.equal(ctx.validate(payment(payload,1),42),false);
+assert.equal(ctx.validate(payment(payload,39,'USD'),42),false);
+assert.equal(ctx.validate(payment({...payload,n:0}),42),false);
+assert.equal(ctx.validate(payment({...payload,item:'unknown'}),42),false);
+assert.equal(ctx.validate(payment({item:'pass',uid:42,season:1},100),42),true);
+assert.equal(ctx.validate(payment({stars:50},50),42),true);
+assert.equal(ctx.validate(payment({stars:1},1),42),false);
+assert.equal(ctx.validate({invoice_payload:'invalid'},42),false);
+console.log('Payment validation: owner, price, currency, item and purchase id checked');

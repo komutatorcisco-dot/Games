@@ -30,8 +30,8 @@ const Rewards = (() => {
     r.trophies = Math.min(MAX_TROPHIES, before + Math.max(0, Math.floor(Number(n) || 0)));
     return r.trophies - before;
   }
-  // выходные по Москве: суббота и воскресенье
-  const weekend = () => { const d = new Date(Date.now() + 3 * 3600e3).getUTCDay(); return d === 0 || d === 6; };
+  // Одинаковое начисление трофеев во все дни недели.
+  const weekend = () => false;
   const weekKey = () => Release.weekKey();
   const season = () => Math.max(1, Math.floor((Date.now() - SEASON_START) / (SEASON_DAYS * 864e5)) + 1);
   const seasonEnd = () => SEASON_START + season() * SEASON_DAYS * 864e5;
@@ -232,7 +232,7 @@ const Rewards = (() => {
     if (game && !g.ids.includes(game)) { g.ids.push(game); quest('game'); }
     const q = questSync(); if (game && !q.dg.includes(game)) { q.dg.push(game); quest('dgame'); }
     addPassXp(win ? 20 : 5);
-    const x2 = weekend() ? 2 : 1; // выходные: ×2 трофея
+    const x2 = 1;
     if (!win) { addTrophies(PLAY_TROPHIES * x2); Store.save(); refresh(); safe('board', () => Board.submit()); return ''; }
     quest('win', game);
     addTrophies(WIN_TROPHIES * x2);

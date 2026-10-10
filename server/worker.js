@@ -104,6 +104,7 @@ async function schema(db) {
     // друзья: кто пришёл по чьей ссылке ?startapp=ref_<id> — связь в обе стороны
     // покупки за звёзды: сезонный пропуск
     db.prepare('CREATE TABLE IF NOT EXISTS purchases (id INTEGER NOT NULL, item TEXT NOT NULL, season INTEGER NOT NULL DEFAULT 0, stars INTEGER NOT NULL DEFAULT 0, ts INTEGER NOT NULL, PRIMARY KEY (id, item, season))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS payment_receipts (charge TEXT PRIMARY KEY, id INTEGER NOT NULL, item TEXT NOT NULL, purchase INTEGER NOT NULL, stars INTEGER NOT NULL, ts INTEGER NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS friends (a INTEGER NOT NULL, b INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (a, b))'),
     // трофеи и победы по играм (для таблиц), кубок драфта недели
     db.prepare('CREATE TABLE IF NOT EXISTS ustats (id INTEGER PRIMARY KEY, trophies INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL DEFAULT 0)'),
@@ -904,6 +905,20 @@ async function matchmake(env, user, body) {
 
 // ---------- магазин за звёзды ----------
 // Цены и что выдаётся — одинаковые здесь и в js/shopstars.js
+async function recordPurchase(db, uid, item, n, payment) {
+  const ts = Date.now();
+  await db.batch([
+    db.prepare('INSERT OR IGNORE INTO payment_receipts (charge, id, item, purchase, stars, ts) VALUES (?, ?, ?, ?, ?, ?)').bind(payment.telegram_payment_charge_id, uid, item, n, payment.total_amount, ts),
+    db.prepare('INSERT OR IGNORE INTO purchases (id, item, season, stars, ts) VALUES (?, ?, ?, ?, ?)').bind(uid, item, n, payment.total_amount, ts),
+  ]);
+}
+function validPayment(payment, uid) {
+  let p; try { p = JSON.parse(payment.invoice_payload); } catch (_) { return false; }
+  if (!p || payment.currency !== 'XTR') return false;
+  if (p.item === 'pass') return p.uid === uid && Number.isInteger(p.season) && p.season >= 1 && p.season <= 999 && payment.total_amount === PASS_STARS;
+  if (Object.prototype.hasOwnProperty.call(SHOP, p.item)) return p.uid === uid && Number.isSafeInteger(p.n) && p.n > 0 && payment.total_amount === SHOP[p.item].stars;
+  return !p.item && ALLOWED.includes(p.stars) && payment.total_amount === p.stars;
+}
 const SHOP = {
   legend: { stars: 39, title: 'Легендарный пак', desc: 'Пак с гарантированной легендарной редкостью' },
   epic3: { stars: 49, title: '3 эпических пака', desc: 'Три пака эпической редкости' },
@@ -991,6 +1006,17 @@ async function route(request, env) {
     return json({ ok: true, ...(await top(env, user, scope, String(body.game || ''))) });
   }
 
+  // Read-only confirmation: the client invoice callback is not proof of payment.
+  if (url.pathname === '/shop/purchase' && request.method === 'POST') {
+    const body = await request.json();
+    const user = await verifyInit(body.initData, env.BOT_TOKEN);
+    if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
+    if (!env.DB || !SHOP[body.item] || !Number.isSafeInteger(body.n)) return json({ ok: false, error: 'bad purchase' }, 400);
+    await schema(env.DB);
+    const row = await env.DB.prepare('SELECT season FROM purchases WHERE id = ? AND item = ? AND season = ?').bind(user.id, body.item, body.n).first();
+    return json({ ok: true, paid: !!row });
+  }
+
   // ---------- донат ----------
   if (url.pathname === '/invoice' && url.searchParams.get('item') === 'pass') {
     // премиум-пропуск сезона: кто покупает, узнаём по подписи Telegram
@@ -1008,7 +1034,7 @@ async function route(request, env) {
   if (url.pathname === '/invoice' && SHOP[url.searchParams.get('item')]) {
     const user = await verifyInit(url.searchParams.get('initData'), env.BOT_TOKEN);
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
-    const item = url.searchParams.get('item'), it = SHOP[item], n = Date.now() % 1e9; // n — номер покупки, чтобы одну и ту же вещь можно было купить снова
+    const item = url.searchParams.get('item'), it = SHOP[item], n = Date.now() * 1000 + crypto.getRandomValues(new Uint32Array(1))[0] % 1000;
     const r = await tg(env, 'createInvoiceLink', {
       title: it.title, description: it.desc, payload: JSON.stringify({ item, n, uid: user.id }),
       currency: 'XTR', prices: [{ label: it.title, amount: it.stars }],
@@ -1035,17 +1061,31 @@ async function route(request, env) {
     if (env.WEBHOOK_SECRET && request.headers.get('x-telegram-bot-api-secret-token') !== env.WEBHOOK_SECRET) return new Response('forbidden', { status: 403 });
     const u = await request.json();
     if (u.pre_checkout_query) {
-      await tg(env, 'answerPreCheckoutQuery', { pre_checkout_query_id: u.pre_checkout_query.id, ok: true });
+      const q = u.pre_checkout_query;
+      let ok = validPayment(q, q.from.id);
+      if (ok) {
+        const order = JSON.parse(q.invoice_payload);
+        if (order.item) {
+          if (!env.DB) ok = false;
+          else {
+            await schema(env.DB);
+            const already = await env.DB.prepare('SELECT id FROM purchases WHERE id = ? AND item = ? AND season = ?').bind(q.from.id, order.item, order.item === 'pass' ? order.season : order.n).first();
+            if (already) ok = false;
+          }
+        }
+      }
+      await tg(env, 'answerPreCheckoutQuery', { pre_checkout_query_id: q.id, ok, ...(ok ? {} : { error_message: 'Счёт недействителен. Открой магазин и создай новый.' }) });
     } else if (u.message && u.message.successful_payment) {
       const p = u.message.successful_payment;
+      if (!validPayment(p, u.message.from.id)) return json({ ok: false, error: 'invalid payment' });
       let pl = {}; try { pl = JSON.parse(p.invoice_payload || '{}'); } catch (e) { /* старый формат */ }
       if (pl.item === 'pass' && env.DB) {
         await schema(env.DB);
-        await env.DB.prepare('INSERT OR IGNORE INTO purchases (id, item, season, stars, ts) VALUES (?, ?, ?, ?, ?)').bind(u.message.from.id, 'pass', Number(pl.season) || 0, p.total_amount, Date.now()).run();
+        await recordPurchase(env.DB, u.message.from.id, 'pass', pl.season, p);
         await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Премиум-пропуск сезона ${pl.season} открыт ⭐ Забирай награды во вкладке «Награды»!` });
       } else if (SHOP[pl.item] && env.DB) {
         await schema(env.DB);
-        await env.DB.prepare('INSERT OR IGNORE INTO purchases (id, item, season, stars, ts) VALUES (?, ?, ?, ?, ?)').bind(u.message.from.id, pl.item, Number(pl.n) || 0, p.total_amount, Date.now()).run();
+        await recordPurchase(env.DB, u.message.from.id, pl.item, pl.n, p);
         await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Покупка «${SHOP[pl.item].title}» прошла ⭐ Открой игру — награда уже ждёт!` });
       } else {
         await tg(env, 'sendMessage', { chat_id: u.message.chat.id, text: `Спасибо за ${p.total_amount} ⭐! Это очень помогает каналу 🙌` });
