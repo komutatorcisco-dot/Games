@@ -23,8 +23,8 @@ const Squad = (() => {
     const positions = PlayerPositions.get(c.name, c.pos);
     if (c.st) return { ...c, pos: positions, st: c.st.slice() };
     const b = XDraft.P(c.name), up = c.rar === 'jack' ? 4 : 0;
-    if (b) return { ...b, key, pos: positions, r: c.r, st: b.st.map((v) => Math.min(99, v + up)), rar: c.rar };
-    return { name: c.name, key, r: c.r, st: Array(6).fill(c.r), pos: positions, club: c.club, lg: c.lg, nat: c.nat || 'leg:' + c.name, flag: c.flag, face: c.face, rar: c.rar };
+    if (b) return { ...b, key, icon: c.icon, nat: c.nat || b.nat, pos: positions, r: c.r, st: b.st.map((v) => Math.min(99, v + up)), rar: c.rar };
+    return { name: c.name, key, icon: c.icon, r: c.r, st: Array(6).fill(c.r), pos: positions, club: c.club, lg: c.lg, nat: c.nat || 'leg:' + c.name, flag: c.flag, face: c.face, rar: c.rar };
   }
   const xi = () => S().xi.map(obj);
   const fits = (p, pos) => p.pos.includes(pos);
@@ -79,11 +79,14 @@ const Squad = (() => {
   function pickFor(i) {
     const s = S(), pos = XD.FORMATIONS[s.form].slots[i].pos, here = s.xi[i];
     const names = new Set(s.xi.map((k, j) => (k && j !== i ? Cards.get(k).name : null)).filter(Boolean));
-    const cand = mine().map((c) => ({ c, p: obj(c.key) })).filter((x) => !names.has(x.c.name))
+    const cand = mine().filter(c => !names.has(c.name)).map(c => ({ c, p: { pos: c.positions } }))
       .sort((a, b) => (fits(b.p, pos) - fits(a.p, pos)) || b.c.r - a.c.r);
     const cell = (x) => `<button class="sq-pc ${fits(x.p, pos) ? '' : 'off'} ${x.c.key === here ? 'sel' : ''}" data-card="${esc(x.c.key)}">${Cards.html(x.c, { w: 76 })}${fits(x.p, pos) ? '' : '<em>не своя позиция</em>'}</button>`;
-    const el = sheet(`${XD.RU[pos]} · выбери карточку`, cand.length ? `<div class="sq-grid">${cand.map(cell).join('')}</div>${here ? '<button class="btn ghost sq-rm" data-rm="1">Убрать из состава</button>' : ''}`
+    let page = 0, query = '';
+    const el = sheet(`${XD.RU[pos]} · выбери карточку`, cand.length ? `<input class="card-search" type="search" placeholder="Имя или клуб" aria-label="Поиск карточек"><div class="sq-grid"></div><div class="card-pages"></div>${here ? '<button class="btn ghost sq-rm" data-rm="1">Убрать из состава</button>' : ''}`
       : '<p class="sq-note">Нет свободных карточек. Открывай паки за победы.</p>', (e, close) => {
+      const pg = e.target.closest('[data-page]');
+      if (pg) { page = Number(pg.dataset.page); drawPage(); return; }
       if (e.target.closest('[data-rm]')) { s.xi[i] = null; Store.save(); close(); render(); return; }
       const b = e.target.closest('[data-card]'); if (!b) return;
       const k = b.dataset.card;
@@ -92,6 +95,18 @@ const Squad = (() => {
       const slot = $(`#sq-body [data-slot="${i}"]`);
       anim(slot, [{ transform: 'translate(-50%,-50%) translateY(-60px) rotateY(180deg) scale(1.3)', opacity: 0 }, { transform: 'translate(-50%,-50%) rotateY(-10deg) scale(1.08)', opacity: 1, offset: 0.7 }, { transform: 'translate(-50%,-50%)' }], { duration: 560, easing: 'cubic-bezier(.2,.9,.3,1)' });
     });
+    function drawPage() {
+      const list = cand.filter(x => (x.c.name + ' ' + x.c.club).toLocaleLowerCase('ru').includes(query));
+      const pages = Math.max(1, Math.ceil(list.length / 24));
+      page = Math.min(page, pages - 1);
+      $('.sq-grid', el).innerHTML = list.slice(page * 24, (page + 1) * 24).map(cell).join('') || '<p>Карточки не найдены.</p>';
+      $('.card-pages', el).innerHTML = `<button data-page="${page - 1}" ${page === 0 ? 'disabled' : ''}>←</button><span>${page + 1} / ${pages} · ${list.length} карт</span><button data-page="${page + 1}" ${page + 1 === pages ? 'disabled' : ''}>→</button>`;
+      $('.sq-pl', el).scrollTop = 0;
+    }
+    if (cand.length) {
+      drawPage();
+      $('.card-search', el).addEventListener('input', e => { query = e.target.value.trim().toLocaleLowerCase('ru'); page = 0; drawPage(); });
+    }
     if (typeof Icons !== 'undefined') Icons.fill(el);
   }
 

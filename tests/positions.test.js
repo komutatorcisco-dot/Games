@@ -54,5 +54,10 @@ ctx.Store.d.squad.xi[2]='Витинья';
 assert.equal(ctx.window.XD.ChemNew.onPos(ctx.squad.CTX.xi()[2],'CB'),false,'saved squad must not retain invented CB');
 assert.deepEqual([...vm.runInContext("XDraft.P('Витинья').pos",ctx)],['CM','CDM'],'draft and collection share exact positions');
 const sources=fs.readFileSync('docs/player-position-sources.md','utf8');
+for(const [name] of CARD_LEGENDS) { assert.ok(Cards.get(name).icon); assert.ok(Cards.get(name).nat,name+' national team'); }
+assert.ok(Cards.get('J:Тьерри Анри').icon,'Jackson legend keeps icon chemistry');
+assert.ok(!Cards.get('FS:xavi-espart').icon,'custom rarity does not imply icon');
+assert.ok(ctx.squad.CTX.xi()[4].icon,'squad keeps icon flag');
+assert.equal(ctx.squad.CTX.xi()[4].nat,'Бразилия');
 for(const name of Object.keys(P.LEGENDS)) assert.ok(sources.includes(name),name+' has a source record');
 console.log(`Positions: ${Cards.all().length} cards, ${PLAYERS.length} players, ${Object.keys(FC_POS).length} exact imported position lists, legends and chemistry passed`);

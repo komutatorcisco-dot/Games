@@ -398,7 +398,8 @@ const SBC = (() => {
     const goal = ch.req.find((r) => r.t === 'rating');
     // карточка помогает, если двигает невыполненное условие
     const open = ch.req.filter((r) => r.t !== 'rating' && r.t !== 'only' && !test(r, sq, ch.n).ok);
-    const helps = (c) => { const s2 = sq.slice(); s2[i] = c; return open.some((r) => test(r, s2, ch.n).now > test(r, sq, ch.n).now); };
+    const baseline = open.map(r => test(r, sq, ch.n).now);
+    const helps = (c) => { const s2 = sq.slice(); s2[i] = c; return open.some((r, j) => test(r, s2, ch.n).now > baseline[j]); };
     let list = avail().filter((c) => !inSq.has(c.key) && fitsOnly(ch, c));
     if (filt === 'dup') list = list.filter((c) => Cards.spare(c.key) > 1);
     else if (filt !== 'all') list = list.filter((c) => (filt === 'gold' ? GOLDUP.includes(c.rar) : c.rar === filt));
@@ -416,13 +417,24 @@ const SBC = (() => {
       <div class="sx-sh"><b>${has ? 'Заменить игрока' : 'Выбери игрока'}</b><button class="sx-x" data-sh="close" aria-label="Закрыть">✕</button></div>
       ${open.length || (goal && others) ? `<div class="sx-legend">${open.length ? '<span><i class="sx-hl"></i>помогает с условием</span>' : ''}${goal && others ? '<span><b>→ 80</b> рейтинг с ним</span>' : ''}</div>` : ''}
       <div class="sx-filt">${[['all', 'Все'], ['dup', 'Повторы'], ['bronze', 'Бронза'], ['silver', 'Серебро'], ['gold', 'Золото+']].filter(([k]) => !only || k === 'all' || k === 'dup' || (k === 'gold' ? only.in.some((x) => GOLDUP.includes(x)) : only.in.includes(k))).map(([k, n]) => `<button class="${filt === k ? 'on' : ''}" data-sf="${k}">${n}</button>`).join('')}<button class="sx-sort" data-sh="sort">ОБЩ ${up ? '↑' : '↓'}</button></div>
-      <div class="sx-grid">${list.length ? list.slice(0, 160).map((c) => `<button class="sx-pick ${H.get(c.key) ? 'hlp' : ''}" data-pk="${esc(c.key)}">${Cards.html(c, { w })}${Cards.spare(c.key) > 1 ? `<i class="sx-dup">×${Cards.spare(c.key)}</i>` : ''}${preview(c)}</button>`).join('') : '<p class="sx-none">Подходящих карточек нет. Открывай паки — их дают за победы в играх.</p>'}</div>
+      <input class="card-search" type="search" placeholder="Имя или клуб" aria-label="Поиск карточек">
+      <div class="sx-grid"></div><div class="card-pages"></div>
       ${has ? '<button class="fx-btn ghost sx-rm" data-sh="rm">Убрать из состава</button>' : ''}</div>`;
     document.body.appendChild(el);
+    let page = 0, query = '';
+    function drawPage() {
+      const filtered = list.filter(c => (c.name + ' ' + c.club).toLocaleLowerCase('ru').includes(query));
+      const pages = Math.max(1, Math.ceil(filtered.length / 24)); page = Math.min(page, pages - 1);
+      const grid = $('.sx-grid', el);
+      grid.innerHTML = filtered.slice(page * 24, (page + 1) * 24).map(c => `<button class="sx-pick ${H.get(c.key) ? 'hlp' : ''}" data-pk="${esc(c.key)}">${Cards.html(c, { w })}${Cards.spare(c.key) > 1 ? `<i class="sx-dup">×${Cards.spare(c.key)}</i>` : ''}${preview(c)}</button>`).join('') || '<p class="sx-none">Подходящих карточек нет.</p>';
+      grid.scrollTop = 0;
+      $('.card-pages', el).innerHTML = `<button data-page="${page - 1}" ${page === 0 ? 'disabled' : ''}>←</button><span>${page + 1} / ${pages} · ${filtered.length} карт</span><button data-page="${page + 1}" ${page + 1 === pages ? 'disabled' : ''}>→</button>`;
+    }
+    drawPage();
+    $('.card-search', el).addEventListener('input', e => { query = e.target.value.trim().toLocaleLowerCase('ru'); page = 0; drawPage(); });
     sheet = { el, i };
     if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el);
     anim($('.sx-sheet', el), [{ transform: 'translateY(100%)' }, { transform: 'none' }], { duration: 360, easing: 'cubic-bezier(.2,.9,.3,1)' });
-    $$('.sx-pick', el).slice(0, 16).forEach((p, k) => anim(p, [{ transform: 'translateY(34px) rotateX(55deg) scale(.9)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, delay: 140 + k * 24, easing: 'cubic-bezier(.2,1.1,.4,1)', fill: 'backwards' }));
     // смахнуть шторку вниз
     const sh = $('.sx-sheet', el), grab = $('.sx-grab', el);
     let y0 = null;
@@ -432,6 +444,7 @@ const SBC = (() => {
     el.addEventListener('pointerup', (e) => { if (y0 === null) return; const dy = e.clientY - y0; y0 = null; sh.style.transition = 'transform .25s'; if (dy > 90) closeSheet(); else sh.style.transform = ''; });
     el.addEventListener('click', (e) => {
       if (e.target === el || e.target.closest('[data-sh="close"]')) return closeSheet();
+      const pg = e.target.closest('[data-page]'); if (pg) { page = Number(pg.dataset.page); drawPage(); return; }
       const f = e.target.closest('[data-sf]'); if (f) { filt = f.dataset.sf; Sound.play('tap'); return openSheet(i); }
       if (e.target.closest('[data-sh="sort"]')) { sortUp = !(sortUp === null ? !(goal && goal.v >= 80) : sortUp); Sound.play('tap'); return openSheet(i); }
       if (e.target.closest('[data-sh="rm"]')) {

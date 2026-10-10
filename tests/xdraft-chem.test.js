@@ -42,6 +42,30 @@ t('запасной не считается, пока не в основе; за
 t('максимум 33', () => { const xi = s3.map((s, i) => P('m' + i, s.pos, 'Реал', 'Ла Лига', 'Испания')); assert.strictEqual(N.calc(f3, xi).total, 33); });
 
 // ---- рейтинг ----
+t('кумир: всегда 3 на своей позиции, включая дополнительную', () => {
+  const xi = base(); xi[0] = loner(0, {icon:true, pos:['CM','GK']});
+  assert.strictEqual(N.calc(f3, xi).per[0].chem, 3);
+  assert.strictEqual(N.explain(f3, xi, 0).rows.length, 0);
+});
+t('кумир: +1 каждой лиге, +1 сборной, без связи с историческим клубом', () => {
+  const xi = base(); xi[0] = loner(0,{icon:true,club:'K1',nat:'N1',lg:'Icons'});
+  xi[2].lg='L1'; xi[4].lg='L3';
+  const r=N.calc(f3,xi);
+  assert.strictEqual(r.counts.lg.L1,3); assert.strictEqual(r.counts.lg.L3,3);
+  assert.strictEqual(r.counts.nat.N1,2); assert.strictEqual(r.counts.club.K1,1);
+  assert.strictEqual(r.per[1].chem,2); assert.strictEqual(r.per[3].chem,1);
+});
+t('кумир вне позиции не даёт бонусов', () => {
+  const xi=base(); xi[0]=loner(0,{icon:true,pos:['ST'],nat:'N1'});
+  const r=N.calc(f3,xi); assert.strictEqual(r.total,0); assert.strictEqual(r.counts.nat.N1,1); assert.strictEqual(r.counts.lg.L1,1);
+});
+t('бонусы кумиров складываются, 11 кумиров дают 33', () => {
+  const xi=base(); for(let i=0;i<2;i++)xi[i].icon=true;
+  assert.strictEqual(N.calc(f3,xi).per[2].chem,1);
+  xi.forEach(p=>p.icon=true); assert.strictEqual(N.calc(f3,xi).total,33);
+});
+
+// ---- рейтинг ----
 t('рейтинг FUT: 11×80 = 80; одна звезда поднимает выше среднего', () => { assert.strictEqual(XD.teamRating(Array(11).fill({ r: 80 })), 80); const x = Array(10).fill({ r: 80 }).concat([{ r: 91 }]); assert.strictEqual(XD.teamRating(x), 81); });
 
 // ---- подборка: без дублей ----

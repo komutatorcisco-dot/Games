@@ -112,7 +112,16 @@
     const onPos = (p, slotPos) => p.pos.includes(slotPos);
     function counts(form, xi) {
       const F_ = FORMATIONS[form], c = { club: {}, nat: {}, lg: {} };
-      xi.forEach((p, i) => { if (p && onPos(p, F_.slots[i].pos)) ['club', 'nat', 'lg'].forEach((k) => { c[k][p[k]] = (c[k][p[k]] || 0) + 1; }); });
+      let icons = 0;
+      xi.forEach((p, i) => {
+        if (!p || !F_.slots[i] || !onPos(p, F_.slots[i].pos)) return;
+        if (p.icon) icons++;
+        (p.icon ? ['nat'] : ['club', 'nat', 'lg']).forEach(k => {
+          if (p[k]) c[k][p[k]] = (c[k][p[k]] || 0) + 1;
+        });
+      });
+      // FC 27: each in-position ICON contributes +1 to every league and nation.
+      Object.keys(c.lg).forEach(lg => { c.lg[lg] += icons; });
       return c;
     }
     function calc(form, xi) {
@@ -120,6 +129,7 @@
       const per = xi.map((p, i) => {
         if (!p) return null;
         if (!onPos(p, F_.slots[i].pos)) return { chem: 0, onPos: false };
+        if (p.icon) return { chem: 3, onPos: true, icon: true };
         const parts = { club: pts(c.club[p.club], TH.club), nat: pts(c.nat[p.nat], TH.nat), lg: pts(c.lg[p.lg], TH.lg) };
         return { chem: Math.min(3, parts.club + parts.nat + parts.lg), onPos: true, parts };
       });
@@ -129,6 +139,7 @@
     function explain(form, xi, i) {
       const r = calc(form, xi), x = r.per[i], p = xi[i]; if (!x) return '';
       if (!x.onPos) return { chem: 0, max: 3, off: true, next: `${p.name} не играет на ${RU[FORMATIONS[form].slots[i].pos]} (его позиции: ${p.pos.map((q) => RU[q]).join(', ')}). Переставь на свою — тогда он получит химию и будет считаться в порогах.` };
+      if (p.icon) return { chem: 3, max: 3, rows: [], next: 'Кумир на своей позиции: 3/3 химии. Даёт +1 к счётчику каждой лиги и +1 своей сборной.' };
       const rows = ['club', 'nat', 'lg'].map((k) => {
         const n = r.counts[k][p[k]] || 0, th = TH[k], got = pts(n, th), nx = th.find((t) => n < t);
         return { k, name: NAME[k], value: p[k], n, got, need: nx ? nx - n : 0, th };

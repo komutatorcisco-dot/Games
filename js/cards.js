@@ -25,7 +25,7 @@ const Cards = (() => {
       const r = FC_STATS[p.name][0];
       return { key: p.name, name: p.name, r, pos: POS[p.pos] || p.pos, club: p.club, flag: p.flag, nat: p.nat, lg: p.lg, face: FACES[p.name], rar: r >= 78 ? 'gold' : r >= 73 ? 'silver' : 'bronze' };
     });
-    const legs = CARD_LEGENDS.map(([name, r, club, pos]) => ({ key: name, name, r, pos, club, flag: '', lg: 'Легенды', face: FACES[name], rar: 'legend' }));
+    const legs = CARD_LEGENDS.map(([name, r, club, pos]) => ({ key: name, name, r, pos, club, flag: '', nat: CARD_LEGEND_NATIONS[name], icon: true, lg: 'Легенды', face: FACES[name], rar: 'legend' }));
     // «Джексон»: особые версии лучших — 12 действующих и 6 легенд, рейтинг выше обычного
     const top = (list, k) => list.slice().sort((a, b) => b.r - a.r).slice(0, k);
     const jack = [...top(cur, 12), ...top(legs, 6)].map((c) => ({ ...c, key: 'J:' + c.name, r: Math.min(99, c.r + 4), rar: 'jack' }));
@@ -298,7 +298,7 @@ const Cards = (() => {
     const stats = st ? `<div class="cd-st">${names.map((n, i) => `<span><b>${st[i + 1]}</b>${n}</span>`).join('')}</div>` : '';
     const s = S(); s.fresh = s.fresh.filter((k) => k !== key); Store.save();
     Modal.open(`<div class="cd">${html(c, { w: 220 })}<h2>${esc(c.name)}</h2><p class="cd-m">${esc(c.club)}${c.rar === 'legend' || c.rar === 'jack' ? '' : ` · ${esc(c.lg || '')}`}</p>${stats}
-      ${c.positions ? `<p class="cd-m">Позиции: ${PlayerPositions.labels(c.positions)}</p>` : ''}<p class="cd-own">В клубе: ×${spare(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
+      ${c.positions ? `<p class="cd-m">Позиции: ${PlayerPositions.labels(c.positions)}</p>` : ''}${c.icon ? `<p class="cd-m">Кумир · ${esc(c.nat)}<br>Новая химия: 3/3 на своей позиции, +1 к каждой лиге и своей сборной.</p>` : ''}<p class="cd-own">В клубе: ×${spare(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
     if (typeof Tilt !== 'undefined') Tilt.spin($('#modal-card .cd > .cc'));
   }
   // купить недостающую карточку: как трансферный рынок
