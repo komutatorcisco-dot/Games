@@ -1,0 +1,31 @@
+const fs=require('node:fs'), vm=require('node:vm'), assert=require('node:assert/strict');
+const ctx={ console, setTimeout(){}, document:{addEventListener(){}}, window:{}, Ui:{get:()=>''}, Store:{d:{},save(){}}, esc:String };
+vm.createContext(ctx);
+for(const f of ['js/players.js','js/media.js','js/data/fcstats.js','js/data/fcpos.js','js/data/cards.js','js/positions.js','js/cards.js','js/xdraft/engine.js']) vm.runInContext(fs.readFileSync(f,'utf8'),ctx);
+vm.runInContext('globalThis.api={PlayerPositions,Cards,CARD_LEGENDS,PLAYERS}',ctx);
+const {PlayerPositions:P,Cards,CARD_LEGENDS,PLAYERS}=ctx.api;
+assert.equal(Cards.get('Дани Алвес').pos,'ПЗ');
+assert.ok(Cards.get('Дани Алвес').positions.includes('RB'));
+assert.equal(Cards.get('Роберто Карлос').pos,'ЛЗ');
+for(const [name] of CARD_LEGENDS) assert.ok(P.LEGENDS[name],name+' has precise legend role');
+for(const p of PLAYERS) assert.ok(P.get(p.name,p.pos).length,p.name+' has usable roles');
+for(const c of Cards.all()) { assert.ok(c.positions.length,c.name); assert.notEqual(c.pos,'ЗАЩ'); }
+for(const pos of ['LB','CB','CDM','CAM','CM']) assert.ok(P.get('Нико О’Райли','ЛЗ').includes(pos));
+assert.ok(P.get('Unknown','ЦАП').includes('CM'));
+assert.deepEqual([...P.get('Unknown','ГК')],['GK']);
+assert.ok(!P.get('Unknown','ЦЗ').includes('ST'),'expansion does not chain through every role');
+// A right-back icon now counts as in-position in the actual chemistry engine.
+const p={name:'Дани Алвес',pos:P.get('Дани Алвес'),club:'Барселона',nat:'Бразилия',lg:'Легенды',r:89};
+const xi=Array(11).fill(null); xi[4]=p;
+const chem=ctx.window.XD.chem('new','4-3-3',xi);
+assert.equal(ctx.window.XD.ChemNew.onPos(p,'RB'),true);
+assert.equal(ctx.window.XD.ChemNew.onPos(p,'GK'),false);
+ctx.XD=ctx.window.XD;
+vm.runInContext(fs.readFileSync('js/xdraft/ui.js','utf8'),ctx);
+vm.runInContext(fs.readFileSync('js/squad.js','utf8')+'\nglobalThis.squad=Squad;',ctx);
+ctx.Store.d.squad={form:'4-3-3',xi:Array(11).fill(null)};
+ctx.Store.d.squad.xi[4]='Дани Алвес';
+ctx.Store.d.squad.xi[1]='Роберто Карлос';
+assert.ok(ctx.squad.CTX.xi()[4].pos.includes('RB'),'actual squad conversion preserves right-back');
+assert.ok(ctx.squad.CTX.xi()[1].pos.includes('LB'),'actual squad conversion preserves left-back');
+console.log(`Positions: ${Cards.all().length} cards and ${PLAYERS.length} players, all legends, adjacent roles and goalkeeper isolation passed`);

@@ -25,6 +25,7 @@ const Online = (() => {
   function stop() {
     if (!cur) return;
     const c = cur; cur = null;
+    if (c.inviteCleanup) { c.inviteCleanup(); c.inviteCleanup = null; }
     c.alive = false; c.timers.forEach(clearTimeout);
     if (c.mm) mm({ act: 'cancel', game: c.o.game });
     try { c.conn && c.conn.close(); } catch (e) { /* уже закрыто */ }
@@ -33,7 +34,7 @@ const Online = (() => {
 
   function open(box, o) {
     stop();
-    const c = cur = { o, box, alive: true, timers: [], peer: null, conn: null, mm: false };
+    const c = cur = { o, box, screen: Screens.current, alive: true, timers: [], peer: null, conn: null, mm: false };
     const T = (fn, ms) => { const id = setTimeout(() => c.alive && fn(), ms); c.timers.push(id); };
     let acts = {};
     box.onclick = null;
@@ -60,6 +61,7 @@ const Online = (() => {
       box.innerHTML = `<div class="on-wrap on-wait"><div class="du-radar"><i></i><i></i><i></i><span>${esc(me().emo)}</span></div><h3>${text}</h3>
         ${code ? `<div class="du-code">${code.split('').map((ch, k) => `<b style="--i:${k}">${ch}</b>`).join('')}</div>
         <button class="btn gold" data-on="invite">${Ui.get('send')} Отправить приглашение</button><button class="btn ghost" data-on="copy">Скопировать код</button>` : ''}
+        ${code && o.onCode ? '<p>Вызов в чате клуба. Оставайся здесь до подключения соперника. Отмена закроет вызов.</p>' : ''}
         <button class="btn ghost" data-on="menu">Отмена</button></div>`;
       acts = { menu: () => { mmStop(); menu(); } };
     }
@@ -70,7 +72,8 @@ const Online = (() => {
         <button class="btn gold" data-on="menu">Попробовать снова</button><button class="btn ghost" data-on="back">Назад</button></div>`;
       acts = { menu, back: leave };
     }
-    function killPeer() { try { c.conn && c.conn.close(); } catch (e) { /* */ } try { c.peer && c.peer.destroy(); } catch (e) { /* */ } c.conn = null; c.peer = null; }
+    function clearInvite() { if (c.inviteCleanup) { c.inviteCleanup(); c.inviteCleanup = null; } }
+    function killPeer() { clearInvite(); try { c.conn && c.conn.close(); } catch (e) { /* */ } try { c.peer && c.peer.destroy(); } catch (e) { /* */ } c.conn = null; c.peer = null; }
     const mmStop = () => { if (c.mm) { c.mm = false; mm({ act: 'cancel', game: o.game }); } };
 
     async function random() {
@@ -108,10 +111,18 @@ const Online = (() => {
       c.peer = new window.Peer(PRE + code, opts());
       c.peer.on('open', () => {
         wait('Ждём друга…', code);
-        if (o.onCode) { try { o.onCode(code); } catch (e) { /* */ } o.onCode = null; }
+        if (o.onCode) {
+          const advertisedPeer = c.peer;
+          Promise.resolve().then(() => o.onCode(code)).then(clean => {
+            if (typeof clean !== 'function') return;
+            if (cur === c && c.peer === advertisedPeer && !c.conn) c.inviteCleanup = clean; else clean();
+          }).catch(() => { if (cur === c && c.peer === advertisedPeer) fail('Не удалось отправить вызов в клуб'); });
+        }
         acts.invite = () => Duel.share(`o_${SHORT[o.game] || o.game}_${code}`, `⚡ ${o.title} — сыграем онлайн! Код комнаты: ${code}`);
         acts.copy = () => { try { navigator.clipboard.writeText(code).then(() => toast('Код скопирован')); } catch (e) { toast(code); } };
       });
+      c.peer.on('disconnected', () => { clearInvite(); if (cur === c && !c.conn) fail('Соединение с комнатой потеряно — создай новый вызов'); });
+      c.peer.on('close', clearInvite);
       c.peer.on('connection', (x) => { if (c.conn) { x.on('open', () => x.close()); return; } wire(x, true); });
       c.peer.on('error', (e) => { if (e.type === 'unavailable-id') host(); else if (!c.conn) fail('Не удалось создать комнату'); });
     }
@@ -130,7 +141,7 @@ const Online = (() => {
       c.conn = x;
       let link = null, op = null;
       const send = (m) => { try { x.open && x.send(m); } catch (e) { /* соединение пропало */ } };
-      x.on('open', () => send({ t: 'hi', ...me(), data: o.hello ? o.hello() : null }));
+      x.on('open', () => { clearInvite(); send({ t: 'hi', ...me(), data: o.hello ? o.hello() : null }); });
       x.on('close', () => { if (c.conn !== x) return; c.conn = null; if (link) { if (link.onClose) link.onClose(); } else fail('Соединение закрыто'); });
       x.on('error', () => {});
       const ready = (seed) => {
@@ -160,5 +171,5 @@ const Online = (() => {
     if (game === 'trumps') { NG.open('trumps', { online: m[2] }); return true; }
     return false;
   }
-  return { open, stop, deep };
+  return { open, stop, deep, leaveScreen: id => { if (cur && cur.screen !== id) stop(); } };
 })();

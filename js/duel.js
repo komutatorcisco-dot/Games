@@ -173,9 +173,11 @@ const Duel = (() => {
     start(api, opts = {}) {
       const b = api.body;
       let onPick = null, acts = {}, timers = [], peer = null, conn = null, alive = true, rematchFn = null;
+      let inviteCleanup = null;
+      const clearInvite = () => { if (inviteCleanup) { inviteCleanup(); inviteCleanup = null; } };
       const T = (fn, ms) => { const id = later(() => alive && fn(), ms); timers.push(id); return id; };
       const clearT = () => { timers.forEach(clearTimeout); timers = []; };
-      const stopPeer = () => { try { conn && conn.close(); } catch (e) { /* уже закрыто */ } try { peer && peer.destroy(); } catch (e) { /* уже закрыто */ } conn = null; peer = null; };
+      const stopPeer = () => { clearInvite(); try { conn && conn.close(); } catch (e) { /* уже закрыто */ } try { peer && peer.destroy(); } catch (e) { /* уже закрыто */ } conn = null; peer = null; };
 
       b.addEventListener('click', (e) => {
         const o = e.target.closest('.du-opt');
@@ -400,6 +402,7 @@ const Duel = (() => {
         b.innerHTML = `<div class="du-intro du-wait"><div class="du-radar"><i></i><i></i><i></i><span>${me().emo}</span></div>
             <h3>${text}</h3>${code ? `<div class="du-code">${code.split('').map((c, k) => `<b style="--i:${k}">${c}</b>`).join('')}</div>
             <button class="btn gold" data-du="invite">${Ui.get('send')} Пригласить друга</button><button class="btn ghost" data-du="copy">Скопировать код</button>` : ''}
+            ${code && opts.onCode ? '<p>Вызов в чате клуба. Оставайся здесь до подключения соперника. Отмена закроет вызов.</p>' : ''}
             <button class="btn ghost" data-du="menu">Отмена</button></div>`;
       }
       function fail(msg) {
@@ -452,9 +455,17 @@ const Duel = (() => {
         peer = new window.Peer(PEER_PREFIX + code, peerOpts());
         peer.on('open', () => {
           connecting('Ждём друга…', code);
-          if (opts.onCode) { try { opts.onCode(code); } catch (e) { /* чат клуба недоступен */ } opts.onCode = null; }
+          if (opts.onCode) {
+            const advertisedPeer = peer;
+            Promise.resolve().then(() => opts.onCode(code)).then(clean => {
+              if (typeof clean !== 'function') return;
+              if (alive && peer === advertisedPeer && !conn) inviteCleanup = clean; else clean();
+            }).catch(() => { if (alive && peer === advertisedPeer) fail('Не удалось отправить вызов в клуб'); });
+          }
           acts = { menu, invite: () => shareLink('r_' + code, `⚡ Залетай на футбольную дуэль онлайн! Код комнаты: ${code}`), copy: () => { try { navigator.clipboard.writeText(code).then(() => toast('Код скопирован')); } catch (e) { toast(code); } } };
         });
+        peer.on('disconnected', () => { clearInvite(); if (alive && !conn) fail('Соединение с комнатой потеряно — создай новый вызов'); });
+        peer.on('close', clearInvite);
         peer.on('connection', (c) => { if (conn) { c.on('open', () => c.close()); return; } wire(c, true); });
         peer.on('error', (e) => { if (e.type === 'unavailable-id') host(); else if (!conn) fail('Не удалось создать комнату'); });
       }
@@ -474,7 +485,7 @@ const Duel = (() => {
         conn = c;
         let op = null, game = null, reMe = false, reOp = false;
         const send = (m) => { try { c.open && c.send(m); } catch (e) { /* соединение пропало */ } };
-        c.on('open', () => send({ t: 'hi', ...me() }));
+        c.on('open', () => { clearInvite(); send({ t: 'hi', ...me() }); });
         c.on('close', () => { if (alive && conn === c) { conn = null; if (game && !game.over) fail('Соперник отключился'); else if (!game) fail('Соединение закрыто'); else toast('Соперник вышел'); } });
         c.on('error', () => {});
         const startGame = (seed) => { reMe = reOp = false; game = live(seed, op, send); };

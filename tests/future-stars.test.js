@@ -1,7 +1,7 @@
 const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict');
 const ctx = { console, setTimeout(){}, document:{addEventListener(){}}, window:{matchMedia:()=>({matches:true})}, Ui:{get:()=>''}, Store:{d:{},save(){}}, Release:{weekKey:()=> '2026-10-05', at:Date.parse}, Day:{key:()=> '2026-10-09'}, FC_STATS:{}, FACES:{}, PLAYERS:[], CARD_LEGENDS:[], CRESTS:{}, Coins:{add(){}}, esc:String };
 vm.createContext(ctx);
-for (const file of ['js/players.js','js/media.js','js/data/fcstats.js','js/data/cards.js']) {
+for (const file of ['js/players.js','js/media.js','js/data/fcstats.js','js/data/cards.js','js/data/fcpos.js','js/positions.js']) {
   // Full real player pools for feasibility, not invented test players.
   vm.runInContext(fs.readFileSync(file,'utf8'),ctx);
 }

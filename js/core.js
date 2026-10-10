@@ -376,6 +376,7 @@ const Screens = {
   gen: 0, // растёт при каждой смене экрана: отложенные действия прошлой игры по нему понимают, что устарели
   show(id) {
     if (typeof Coach !== 'undefined') Coach.close();
+    if (typeof Online !== 'undefined' && Online.leaveScreen) Online.leaveScreen(id);
     this.gen++;
     $$('.screen').forEach((s) => { s.hidden = s.id !== id; });
     // плавное появление экрана и каскад карточек

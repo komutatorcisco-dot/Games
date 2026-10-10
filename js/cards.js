@@ -31,6 +31,10 @@ const Cards = (() => {
     const jack = [...top(cur, 12), ...top(legs, 6)].map((c) => ({ ...c, key: 'J:' + c.name, r: Math.min(99, c.r + 4), rar: 'jack' }));
     const future = [{ key: 'FS:xavi-espart', name: 'Хави Эспарт', r: 91, pos: 'ЛЗ', club: 'Барселона', flag: '🇪🇸', nat: 'Испания', lg: 'Ла Лига', rar: 'future', sbcOnly: true, faceUrl: 'img/players/xavi-espart-future.webp', st: [93, 65, 86, 89, 90, 85] }];
     ALL = [...cur, ...legs, ...jack, ...future];
+    if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
+      c.positions = PlayerPositions.get(c.name, c.pos);
+      c.pos = PlayerPositions.RU[c.positions[0]] || c.pos;
+    });
     BY = Object.fromEntries(ALL.map((c) => [c.key, c]));
     return ALL;
   }
@@ -294,7 +298,7 @@ const Cards = (() => {
     const stats = st ? `<div class="cd-st">${names.map((n, i) => `<span><b>${st[i + 1]}</b>${n}</span>`).join('')}</div>` : '';
     const s = S(); s.fresh = s.fresh.filter((k) => k !== key); Store.save();
     Modal.open(`<div class="cd">${html(c, { w: 220 })}<h2>${esc(c.name)}</h2><p class="cd-m">${esc(c.club)}${c.rar === 'legend' || c.rar === 'jack' ? '' : ` · ${esc(c.lg || '')}`}</p>${stats}
-      <p class="cd-own">В клубе: ×${spare(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
+      ${c.positions ? `<p class="cd-m">Позиции: ${PlayerPositions.labels(c.positions)}</p>` : ''}<p class="cd-own">В клубе: ×${spare(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
     if (typeof Tilt !== 'undefined') Tilt.spin($('#modal-card .cd > .cc'));
   }
   // купить недостающую карточку: как трансферный рынок

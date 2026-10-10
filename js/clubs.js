@@ -17,16 +17,17 @@ const Clubs = (() => {
   // призы клубной лиги за прошлую неделю
   const LEAGUE = [[1, { pack: 3 }, '1 место'], [3, { pack: 2 }, '2–3 место'], [10, { pack: 1 }, '4–10 место'], [999, { coins: 100 }, 'Участие']];
   const DON_COINS = { bronze: 5, silver: 10, gold: 50 }, NEED = { bronze: 8, silver: 4, gold: 1 };
-  const GAMES = { duel: 'Футбольная дуэль', xdraft: 'Драфт', trumps: 'Козыри' };
+  const GAMES = { duel: 'Футбольная дуэль', xdraft: 'Драфт', squad: 'Мой состав', trumps: 'Козыри' };
   let data = null, busy = false, loading = false, failed = false, tab = 'chat', poll = null; // data: null — не в клубе
   const api = () => typeof Board !== 'undefined' && Board.ready();
   async function call(body) {
     if (!api()) throw new Error('offline');
-    const r = await Board.post('/club', body);
+    const r = await Board.post('/club', { ...body, giftProtocol:1 });
     if (!r.ok) throw new Error(r.error || 'Ошибка');
     data = r.club;
     // старый сервер (ещё не обновился) присылает клуб без новых разделов
     if (data) data = Object.assign({ chat: [], reqs: [], gifts: [], league: { place: 0, clubs: 0, prevPlace: 0 }, myRole: data.owner ? 3 : 0, trophies: 0, descr: '', mintro: 0, nextReq: 0 }, data, { members: (data.members || []).map((m) => Object.assign({ role: 0, don: 0, seen: 0, uid: 0 }, m)) });
+    if (data) data.nextReqAt = Date.now() + data.nextReq;
     gifts(); return data;
   }
   const box = () => $('#club-body');
@@ -44,20 +45,29 @@ const Clubs = (() => {
       if (!data || busy || document.hidden || tab !== 'chat') return;
       const last = data.chat.length ? data.chat[data.chat.length - 1].id : 0;
       try {
-        const r = await Board.post('/club', { act: 'poll', after: last });
+        const r = await Board.post('/club', { act: 'poll', after: last, giftProtocol:1 });
         if (!r || !r.ok || !data) return;
         if (r.club === null) { data = null; return render(); }
         data.reqs = r.reqs || data.reqs;
-        if (r.chat && r.chat.length) { data.chat = data.chat.concat(r.chat).slice(-60); if (onScreen() && tab === 'chat') renderTab(true); }
+        data.battles = r.battles || [];
+        data.gifts = r.gifts || []; gifts();
+        if (r.chat && r.chat.length) data.chat = data.chat.concat(r.chat).slice(-60);
+        if (onScreen() && tab === 'chat') renderTab(true);
       } catch (e) { /* нет сети — попробуем позже */ }
     }, 15000);
   }
   // подарки от соклубников приходят с сервера один раз — сразу в коллекцию
   function gifts() {
     if (!data || !data.gifts || !data.gifts.length) return;
-    const list = data.gifts.filter((g) => Cards.get(g.card)); data.gifts = [];
-    if (!list.length) return;
+    const received = Store.d.clubGiftIds || (Store.d.clubGiftIds = []);
+    const pending = data.gifts.filter(g => Cards.get(g.card)); data.gifts = [];
+    const list = pending.filter(g => !g.id || !received.includes(g.id));
+    list.forEach(g => { if (g.id) received.push(g.id); });
+    // Cards.add saves the receipt IDs and inventory together before acknowledgement.
     Cards.add(list.map((g) => g.card));
+    const ids = pending.map(g => g.id).filter(Number.isSafeInteger);
+    if (ids.length) Board.post('/club', { act:'giftAck', ids }).catch(() => {});
+    if (!list.length) return;
     const by = [...new Set(list.map((g) => g.from))].slice(0, 3).join(', ');
     toast(`${Ui.get('gift')} ${list.length} ${plural(list.length, 'карточка', 'карточки', 'карточек')} в подарок от: ${esc(by)}`);
     Sound.play('coin'); haptic('ok');
@@ -106,31 +116,39 @@ const Clubs = (() => {
     const c = data;
     if (tab === 'chat') {
       const feed = $('.kb-feed', b), atEnd = !feed || feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60;
-      const reqOf = (h) => c.reqs.find((r) => r.uid === h.uid && h.meta && r.card === h.meta.card);
+      const reqOf = (h) => c.reqs.find((r) => h.meta && (h.meta.requestId ? r.id === h.meta.requestId : r.uid === h.uid && r.card === h.meta.card && Math.abs(r.ts - h.ts) < 5000));
       const msg = (h) => {
         if (h.kind === 'sys') return `<div class="kb-sys">${esc(h.text)}</div>`;
         const who = `<span class="kb-who">${esc(h.emoji)} ${esc(h.nick)} <small>${ago(h.ts)}</small></span>`;
         if (h.kind === 'req') {
           const r = reqOf(h), card = Cards.get(h.meta.card); if (!card) return '';
-          const need = r ? r.need : NEED[h.meta.rar] || 1, got = r ? r.got : need, sp = Cards.spare(card.key);
+          const need = r ? r.need : NEED[h.meta.rar] || 1, got = r ? r.got : 0, sp = Cards.spare(card.key);
           const can = r && !h.me && sp >= 2;
           return `<div class="kb-msg kb-req ${h.me ? 'me' : ''}">${who}<div class="kb-rq">${Cards.html(card, { w: 62 })}<div class="kb-rqb"><b>Просит карточку</b>
-              <span class="kb-bar"><i style="width:${Math.min(100, (got / need) * 100)}%"></i><em>${got}/${need}</em></span>
+              ${r ? `<span class="kb-bar"><i style="width:${Math.min(100, (got / need) * 100)}%"></i><em>${got}/${need}</em></span>` : ''}
               ${!r ? '<small>Запрос закрыт</small>' : h.me ? '<small>Соклубники дарят свои повторки</small>'
                 : can ? `<button class="btn gold kb-don" data-don="${r.id}">Подарить · +${DON_COINS[card.rar] || 5} <i class="coin"></i></button><small>У тебя ${sp} шт.</small>`
                 : `<small>${sp ? 'Последнюю копию подарить нельзя' : 'У тебя нет такой карточки'}</small>`}</div></div></div>`;
         }
         if (h.kind === 'battle') {
+          const active = (c.battles || []).some(r => r.game === h.meta.game && r.code === h.meta.code && r.uid === h.uid);
           return `<div class="kb-msg kb-bt ${h.me ? 'me' : ''}">${who}<div class="kb-btb"><span class="kb-swd">${Ui.get('swords')}</span><div><b>Товарищеский матч</b><small>${esc(GAMES[h.meta.game] || 'Матч')}</small></div>
-            ${h.me ? '<small>Ждём соперника</small>' : Date.now() - h.ts < 15 * 6e4 ? `<button class="btn gold" data-bt="${esc(h.meta.game)}:${esc(h.meta.code)}">Принять</button>` : '<small>Вызов истёк</small>'}</div></div>`;
+            ${!active ? '<small>Вызов закрыт</small>' : h.me ? '<small>Ждём соперника</small>' : `<button class="btn gold" data-bt="${esc(h.meta.game)}:${esc(h.meta.code)}">Принять</button>`}</div></div>`;
         }
         return `<div class="kb-msg ${h.me ? 'me' : ''}">${h.me ? '' : who}<p>${esc(h.text)}</p></div>`;
       };
-      const left = c.nextReq > 0 ? Math.ceil(c.nextReq / 36e5) : 0;
-      b.innerHTML = `<div class="kb-feed">${c.chat.map(msg).join('') || '<div class="kb-sys">Здесь пока тихо. Напиши первым!</div>'}</div>
-        <div class="kb-acts"><button class="btn kb-a" data-cl="req" ${left ? 'disabled' : ''}>${Ui.get('pack')} ${left ? `Запрос через ${left} ч` : 'Запросить карточку'}</button>
+      const left = Math.max(0, Math.ceil(((c.nextReqAt || 0) - Date.now()) / 6e4));
+      const chatHTML = `<div class="kb-feed">${c.chat.map(msg).join('') || '<div class="kb-sys">Здесь пока тихо. Напиши первым!</div>'}</div>
+        <div class="kb-acts"><button class="btn kb-a" data-cl="req" ${left ? 'disabled' : ''}>${Ui.get('pack')} ${left ? `Через ${Math.floor(left / 60)} ч ${left % 60} мин` : 'Запросить карточку'}</button>
           <button class="btn kb-a" data-cl="battle">${Ui.get('swords')} Товарищеский</button></div>
         <div class="kb-say"><input id="kb-in" maxlength="200" placeholder="Сообщение клубу" autocomplete="off"><button class="btn gold" data-cl="say" aria-label="Отправить">${Ui.get('send')}</button></div>`;
+      if (keepScroll && feed) {
+        const fresh = document.createElement('div'); fresh.innerHTML = chatHTML;
+        const oldTop = feed.scrollTop;
+        feed.innerHTML = $('.kb-feed', fresh).innerHTML;
+        $('.kb-acts', b).innerHTML = $('.kb-acts', fresh).innerHTML;
+        if (!atEnd) feed.scrollTop = oldTop;
+      } else b.innerHTML = chatHTML;
       const f = $('.kb-feed', b); if (f && (!keepScroll || atEnd)) f.scrollTop = f.scrollHeight;
       if (typeof Photos !== 'undefined') Photos.hydrate(b);
     } else if (tab === 'members') {
@@ -164,25 +182,50 @@ const Clubs = (() => {
   // ---------- выбор карточки для запроса ----------
   function pickRequest() {
     const own = Object.keys(Store.d.cards && Store.d.cards.own || {}).map((k) => Cards.get(k)).filter((x) => x && NEED[x.rar])
-      .sort((a, b2) => ['gold', 'silver', 'bronze'].indexOf(a.rar) - ['gold', 'silver', 'bronze'].indexOf(b2.rar) || b2.r - a.r).slice(0, 90);
+      .sort((a, b2) => ['gold', 'silver', 'bronze'].indexOf(a.rar) - ['gold', 'silver', 'bronze'].indexOf(b2.rar) || b2.r - a.r);
     if (!own.length) { toast('Запросить можно только карточку, которая у тебя уже есть. Открой пак!'); return; }
     Modal.open(`<h3 class="sk-h">Какую карточку попросить?</h3><p class="sk-p">Бронза — соберёшь до 8 штук, серебро — до 4, золото — 1. Повторки потом можно сдать в ИПК.</p>
-      <div class="kb-pick">${own.map((x) => `<button data-reqcard="${esc(x.key)}">${Cards.html(x, { w: 70 })}</button>`).join('')}</div>`, [{ label: 'Отмена', cls: 'ghost' }]);
+      <div class="kb-request-filter"><input id="kb-search" placeholder="Имя или клуб" autocomplete="off"><select id="kb-rarity" aria-label="Редкость"><option value="">Все редкости</option value="bronze">Бронза · 8 шт.</option value="silver">Серебро · 4 шт.</option value="gold">Золото · 1 шт.</option></select></div><p id="kb-found" class="sk-p"></p><div class="kb-pick" id="kb-request-cards"></div><button class="btn ghost" id="kb-more">Показать ещё</button>`, [{ label: 'Отмена', cls: 'ghost' }]);
+    let limit = 48;
+    const draw = () => {
+      const q = $('#kb-search').value.toLocaleLowerCase('ru').replace(/ё/g, 'е').trim(), rarity = $('#kb-rarity').value;
+      const found = own.filter(x => (!rarity || x.rar === rarity) && (!q || (x.name + ' ' + x.club).toLocaleLowerCase('ru').replace(/ё/g, 'е').includes(q)));
+      $('#kb-found').textContent = `Найдено: ${found.length}. Выбери карточку для запроса.`;
+      $('#kb-request-cards').innerHTML = found.slice(0, limit).map(x => `<button data-reqcard="${esc(x.key)}">${Cards.html(x, { w:70 })}<small>${esc(x.name)} · есть ${Cards.spare(x.key)}</small></button>`).join('');
+      $('#kb-more').hidden = found.length <= limit;
+      if (typeof Photos !== 'undefined') Photos.hydrate($('#modal') || document);
+    };
+    $('#kb-search').oninput = $('#kb-rarity').onchange = () => { limit = 48; draw(); };
+    $('#kb-more').onclick = () => { limit += 48; draw(); }; draw();
     if (typeof Photos !== 'undefined') Photos.hydrate($('#modal') || document);
   }
   // ---------- товарищеский матч: создаём комнату и зовём весь клуб ----------
   function battle() {
-    const post = (game) => (code) => call({ act: 'battle', game, code }).then(() => toast('Вызов отправлен в чат клуба')).catch((e) => toast(e.message));
+    const post = game => async code => {
+      await call({ act:'battle', game, code });
+      toast('Вызов в чате клуба. Оставайся на экране ожидания!');
+      const timer = setInterval(() => Board.post('/club', { act:'battlePulse', game, code }).catch(() => {}), 15000);
+      return () => { clearInterval(timer); Board.post('/club', { act:'battleClose', game, code }).catch(() => {}); };
+    };
     const opts = [{ label: 'Футбольная дуэль · вопросы', onClick: () => { Modal.close(); NG.open('duel', { mode: 'host', onCode: post('duel') }); } }];
+    opts.push({ label:'Мой состав · против соклубника', onClick: () => { Modal.close(); Promise.resolve(Squad.open()).then(() => XMatch.online(Squad.CTX, undefined, post('squad'))); } });
     if (typeof Release === 'undefined' || Release.isOut('act:xdraft')) opts.push({ label: 'Драфт · матч составами', onClick: () => {
       Modal.close(); Promise.resolve(XDraft.open()).then(() => { if (XDraft.xiOf().every(Boolean)) XMatch.online(XMatch.DRAFT, undefined, post('xdraft')); else toast('Сначала собери драфт до конца'); }); } });
     if (typeof Release === 'undefined' || Release.isOut('ng:trumps')) opts.push({ label: 'Козыри · карточки', onClick: () => { Modal.close(); NG.open('trumps', { online: true, onCode: post('trumps') }); } });
     opts.push({ label: 'Отмена', cls: 'ghost' });
-    Modal.open('<h3 class="sk-h">Товарищеский матч</h3><p class="sk-p">Создаём комнату — вызов появится в чате клуба, любой соклубник сможет принять. Трофеи за товарищеские не теряются.</p>', opts);
+    Modal.open('<h3 class="sk-h">Товарищеский матч</h3><p class="sk-p">Вызов появится в чате клуба. Оставайся на экране ожидания, пока соклубник принимает его. Выход или отмена закрывают комнату.</p>', opts);
   }
-  function accept(v) {
+  async function accept(v) {
     const [game, code] = v.split(':');
+    if (busy) return;
+    busy = true;
+    try {
+      const check = await Board.post('/club', { act:'battleCheck', game, code });
+      if (!check.ok) { toast(check.error || 'Вызов уже закрыт'); await load(); return; }
+    } catch (e) { toast('Не удалось проверить вызов. Попробуй ещё раз'); return; }
+    finally { busy = false; }
     if (game === 'duel') return NG.open('duel', { mode: 'join', code });
+    if (game === 'squad') return Promise.resolve(Squad.open()).then(() => XMatch.online(Squad.CTX, code));
     if (game === 'xdraft') return Promise.resolve(XDraft.open()).then(() => XMatch.online(XMatch.DRAFT, code));
     if (game === 'trumps') return NG.open('trumps', { online: code });
   }
@@ -245,7 +288,7 @@ const Clubs = (() => {
     try {
       const res = await Board.post('/club', { act: 'don', id });
       if (!res.ok) throw new Error(res.error || 'Ошибка');
-      const own = Store.d.cards.own; own[card.key] = Math.max(1, (own[card.key] || 1) - 1);
+      Cards.use([card.key]);
       Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(DON_COINS[card.rar] || 5);
       Store.save(); haptic('ok'); toast(`Подарено: ${card.name}`);
       await call({ act: 'get' });

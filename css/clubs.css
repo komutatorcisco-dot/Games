@@ -1,0 +1,4 @@
+.kb-request-filter { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.kb-request-filter input, .kb-request-filter select { min-width: 0; flex: 1 1 130px; padding: 12px; border: 1px solid #ffffff30; border-radius: 12px; background: #172235; color: #fff; font: inherit; }
+#kb-request-cards button { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
+#kb-request-cards small { display: block; max-width: 90px; font-size: 10px; line-height: 1.3; color: #d7e1f0; }

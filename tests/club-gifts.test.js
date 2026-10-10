@@ -1,0 +1,13 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
+let copies=0,acks=[];
+const ctx={Store:{d:{},save(){}},Cards:{get:()=>({}),add:keys=>copies+=keys.length},Board:{post:async(_,body)=>{acks.push(body.ids);throw Error('temporary network failure')}},Ui:{get:()=>''},Sound:{play(){}},haptic(){},toast(){},plural:()=>'',esc:String};
+vm.createContext(ctx);
+vm.runInContext(fs.readFileSync('js/clubs.js','utf8').replace('return { open, bind, deep,','return { deliver: rows => { data={gifts:rows}; gifts(); }, open, bind, deep,')+'\nglobalThis.clubs=Clubs;',ctx);
+const gifts=[{id:1,card:'Example',from:'Friend'}];
+ctx.clubs.deliver(gifts);ctx.clubs.deliver(gifts);
+assert.equal(copies,1,'retry after failed acknowledgement must not duplicate card');
+assert.equal(acks.length,2,'unacknowledged delivery is acknowledged again');
+ctx.clubs.deliver([{id:2,card:'Example',from:'Friend'}]);
+assert.equal(copies,2,'different gift of same card is not suppressed');
+assert.deepEqual([...ctx.Store.d.clubGiftIds],[1,2]);
+console.log('Club gifts: retry-safe receipt persistence and repeated-card delivery passed');

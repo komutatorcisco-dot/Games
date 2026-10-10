@@ -120,6 +120,7 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS cinfo (club INTEGER PRIMARY KEY, descr TEXT, mintro INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE TABLE IF NOT EXISTS cchat (id INTEGER PRIMARY KEY AUTOINCREMENT, club INTEGER NOT NULL, uid INTEGER NOT NULL, ts INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT, meta TEXT)'),
     db.prepare('CREATE INDEX IF NOT EXISTS cchat_club ON cchat (club, id)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS croom (uid INTEGER PRIMARY KEY, club INTEGER NOT NULL, game TEXT NOT NULL, code TEXT NOT NULL, ts INTEGER NOT NULL)'),
     db.prepare('CREATE INDEX IF NOT EXISTS purchases_id ON purchases (id)'),
     // победы за неделю на игрока — счётчик, чтобы клуб и лига не пересчитывали всю таблицу событий
     db.prepare('CREATE TABLE IF NOT EXISTS cwins (id INTEGER NOT NULL, week TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (week, id))'),
@@ -622,7 +623,7 @@ async function clubPlaces(db, wk, final) {
   await setSetting(db, key, JSON.stringify({ ts: now, final: !!final, list }));
   return list;
 }
-async function clubInfo(db, uid) {
+async function clubInfo(db, uid, ackGifts = false) {
   const m = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first();
   if (!m) return { club: null };
   const c = await db.prepare('SELECT id, code, name, emoji, owner FROM clubs WHERE id = ?').bind(m.club).first();
@@ -640,7 +641,9 @@ async function clubInfo(db, uid) {
   const myReq = await db.prepare('SELECT ts FROM creq WHERE uid = ? ORDER BY ts DESC LIMIT 1').bind(uid).first();
   // подарки от соклубников: отдаём один раз
   const gifts = (await db.prepare('SELECT id, card, frm FROM cgift WHERE uid = ? AND done = 0 LIMIT 40').bind(uid).all()).results;
-  if (gifts.length) await db.prepare(`UPDATE cgift SET done = 1 WHERE id IN (${gifts.map(() => '?').join(',')})`).bind(...gifts.map((g) => g.id)).run();
+  if (!ackGifts && gifts.length) await db.prepare(`UPDATE cgift SET done = 1 WHERE id IN (${gifts.map(() => '?').join(',')})`).bind(...gifts.map(g => g.id)).run();
+  // Mark delivered only after the client has persisted these IDs and cards.
+  const battles = (await db.prepare('SELECT game, code, uid FROM croom WHERE club = ? AND ts > ?').bind(c.id, now - 45000).all()).results;
   // клубная лига: место на этой неделе и итог прошлой
   const cur = await clubPlaces(db, wk), prev = await clubPlaces(db, weekKey(now - 7 * 864e5), true);
   const place = cur.findIndex((x) => x[0] === c.id) + 1, pi = prev.findIndex((x) => x[0] === c.id);
@@ -653,17 +656,34 @@ async function clubInfo(db, uid) {
     members: members.map((x) => ({ uid: x.id, nick: x.nick || 'Игрок', emoji: x.emoji || '⚽', trophies: x.trophies, wins: x.wins, role: role(x), don: x.don, seen: x.seen || 0, me: x.id === uid })),
     chat: chat.map((h) => ({ id: h.id, uid: h.uid, ts: h.ts, kind: h.kind, text: h.text || '', meta: h.meta ? JSON.parse(h.meta) : null, nick: h.nick || 'Игрок', emoji: h.emoji || '⚽', me: h.uid === uid })),
     reqs: reqs.map((r) => ({ id: r.id, uid: r.uid, card: r.card, rar: r.rar, need: r.need, got: r.got, ts: r.ts, me: r.uid === uid })),
-    gifts: gifts.map((g) => ({ card: g.card, from: g.frm || 'Соклубник' })) } };
+    battles, gifts: gifts.map((g) => ({ id: g.id, card: g.card, from: g.frm || 'Соклубник' })) } };
 }
 async function club(env, user, body) {
   const db = env.DB, uid = user.id, now = Date.now();
+  const err = (e) => ({ ok: false, error: e });
   await schema(db);
+  if (body.act === 'giftAck') {
+    const ids = (Array.isArray(body.ids) ? body.ids : []).filter(Number.isSafeInteger).slice(0, 40);
+    if (ids.length) await db.prepare(`UPDATE cgift SET done = 1 WHERE uid = ? AND id IN (${ids.map(() => '?').join(',')})`).bind(uid, ...ids).run();
+    return { ok: true };
+  }
   const say = (clubId, kind, text, meta) => db.prepare('INSERT INTO cchat (club, uid, ts, kind, text, meta) VALUES (?, ?, ?, ?, ?, ?)').bind(clubId, uid, now, kind, text ? String(text).slice(0, 300) : null, meta ? JSON.stringify(meta) : null).run();
   const nickOf = async (id) => ((await db.prepare('SELECT nick FROM users WHERE id = ?').bind(id).first()) || {}).nick || 'Игрок';
   const mine = async () => {
     const m = await db.prepare('SELECT m.club, c.owner, COALESCE(r.role, 0) AS role FROM cmembers m JOIN clubs c ON c.id = m.club LEFT JOIN crole r ON r.id = m.id WHERE m.id = ?').bind(uid).first();
     return m ? { club: m.club, role: m.owner === uid ? 3 : Math.min(2, m.role) } : null;
   };
+  if (['battlePulse', 'battleClose', 'battleCheck'].includes(body.act)) {
+    const m = await mine(); if (!m) return err('Ты не в клубе');
+    const game = String(body.game || ''), code = String(body.code || '');
+    if (body.act === 'battleClose') await db.prepare('DELETE FROM croom WHERE uid = ? AND game = ? AND code = ?').bind(uid, game, code).run();
+    if (body.act === 'battlePulse') await db.prepare('UPDATE croom SET ts = ? WHERE uid = ? AND club = ? AND game = ? AND code = ?').bind(now, uid, m.club, game, code).run();
+    if (body.act === 'battleCheck') {
+      const room = await db.prepare('SELECT uid FROM croom WHERE club = ? AND game = ? AND code = ? AND ts > ?').bind(m.club, game, code, now - 45000).first();
+      return room && room.uid !== uid ? { ok: true } : err('Вызов закрыт: хозяин уже вышел или начал матч. Попроси новый вызов.');
+    }
+    return { ok: true };
+  }
   const leave = async (quiet) => {
     const m = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first(); if (!m) return;
     await db.batch([db.prepare('DELETE FROM cmembers WHERE id = ?').bind(uid), db.prepare('DELETE FROM crole WHERE id = ?').bind(uid)]);
@@ -676,7 +696,6 @@ async function club(env, user, body) {
       else { await db.batch([db.prepare('UPDATE clubs SET owner = ? WHERE id = ?').bind(next.id, m.club), db.prepare('DELETE FROM crole WHERE id = ?').bind(next.id)]); await say(m.club, 'sys', `${await nickOf(next.id)} — новый президент клуба`); }
     }
   };
-  const err = (e) => ({ ok: false, error: e });
   if (body.act === 'create') {
     const name = clean(body.name, 20); if (name.length < 2) return err('Название — от 2 букв');
     await leave();
@@ -707,7 +726,9 @@ async function club(env, user, body) {
     const m = await mine(); if (!m) return { ok: true, club: null };
     const chat = (await db.prepare(`SELECT h.id, h.uid, h.ts, h.kind, h.text, h.meta, u.nick, u.emoji FROM cchat h LEFT JOIN users u ON u.id = h.uid WHERE h.club = ? AND h.id > ? ORDER BY h.id LIMIT 40`).bind(m.club, Number(body.after) || 0).all()).results;
     const reqs = (await db.prepare('SELECT id, uid, card, rar, need, got, ts FROM creq WHERE club = ? AND ts > ? AND got < need').bind(m.club, now - 24 * 3600e3).all()).results;
-    return { ok: true, poll: true, chat: chat.map((h) => ({ id: h.id, uid: h.uid, ts: h.ts, kind: h.kind, text: h.text || '', meta: h.meta ? JSON.parse(h.meta) : null, nick: h.nick || 'Игрок', emoji: h.emoji || '⚽', me: h.uid === uid })),
+    const battles = (await db.prepare('SELECT game, code, uid FROM croom WHERE club = ? AND ts > ?').bind(m.club, now - 45000).all()).results;
+    const gifts = (await db.prepare('SELECT id, card, frm FROM cgift WHERE uid = ? AND done = 0 LIMIT 40').bind(uid).all()).results;
+    return { ok: true, poll: true, battles, gifts: gifts.map(g => ({ id:g.id, card:g.card, from:g.frm })), chat: chat.map((h) => ({ id: h.id, uid: h.uid, ts: h.ts, kind: h.kind, text: h.text || '', meta: h.meta ? JSON.parse(h.meta) : null, nick: h.nick || 'Игрок', emoji: h.emoji || '⚽', me: h.uid === uid })),
       reqs: reqs.map((r) => ({ id: r.id, uid: r.uid, card: r.card, rar: r.rar, need: r.need, got: r.got, ts: r.ts, me: r.uid === uid })) };
   } else if (body.act !== 'get') {
     const m = await mine(); if (!m) return err('Ты не в клубе');
@@ -718,27 +739,30 @@ async function club(env, user, body) {
       await say(m.club, 'msg', text);
     } else if (body.act === 'battle') {
       // вызов на товарищеский матч: в чате появляется кнопка «Принять» с кодом комнаты
-      const game = ['duel', 'xdraft', 'trumps'].includes(body.game) ? body.game : 'duel';
+      const game = ['duel', 'xdraft', 'squad', 'trumps'].includes(body.game) ? body.game : 'duel';
       const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5); if (code.length !== 5) return err('bad code');
+      await db.prepare('INSERT INTO croom (uid, club, game, code, ts) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(uid) DO UPDATE SET club = ?2, game = ?3, code = ?4, ts = ?5').bind(uid, m.club, game, code, now).run();
       await say(m.club, 'battle', null, { game, code });
     } else if (body.act === 'req') {
       const rar = Object.keys(REQ_NEED).includes(body.rar) ? body.rar : null, card = String(body.card || '').slice(0, 80);
       if (!rar || !card) return err('Эту карточку запросить нельзя');
       const last = await db.prepare('SELECT ts FROM creq WHERE uid = ? ORDER BY ts DESC LIMIT 1').bind(uid).first();
       if (last && now - last.ts < REQ_EVERY) return err('Новый запрос — через ' + Math.ceil((last.ts + REQ_EVERY - now) / 3600e3) + ' ч');
-      await db.prepare('INSERT INTO creq (club, uid, card, rar, need, got, ts) VALUES (?, ?, ?, ?, ?, 0, ?)').bind(m.club, uid, card, rar, REQ_NEED[rar], now).run();
-      await say(m.club, 'req', null, { card, rar });
+      const made = await db.prepare('INSERT INTO creq (club, uid, card, rar, need, got, ts) VALUES (?, ?, ?, ?, ?, 0, ?)').bind(m.club, uid, card, rar, REQ_NEED[rar], now).run();
+      await say(m.club, 'req', null, { card, rar, requestId: made.meta.last_row_id });
     } else if (body.act === 'don') {
-      const r = await db.prepare('SELECT id, club, uid, card, rar, need, got FROM creq WHERE id = ?').bind(Number(body.id) || 0).first();
+      const r = await db.prepare('SELECT id, club, uid, card, rar, need, got, ts FROM creq WHERE id = ?').bind(Number(body.id) || 0).first();
       if (!r || r.club !== m.club) return err('Запрос не найден');
       if (r.uid === uid) return err('Себе дарить нельзя');
       if (r.got >= r.need) return err('Уже собрали');
+      if (r.ts <= now - 24 * 3600e3) return err('Запрос истёк');
       const wk = weekKey(now);
-      await db.batch([
-        db.prepare('UPDATE creq SET got = got + 1 WHERE id = ?').bind(r.id),
-        db.prepare('INSERT INTO cgift (uid, card, frm, ts) VALUES (?, ?, ?, ?)').bind(r.uid, r.card, await nickOf(uid), now),
-        db.prepare('INSERT INTO cdon (id, week, n) VALUES (?1, ?2, 1) ON CONFLICT(id, week) DO UPDATE SET n = n + 1').bind(uid, wk),
+      const sent = await db.batch([
+        db.prepare('INSERT INTO cgift (uid, card, frm, ts) SELECT ?, ?, ?, ? FROM creq WHERE id = ? AND got < need AND ts > ?').bind(r.uid, r.card, await nickOf(uid), now, r.id, now - 24 * 3600e3),
+        db.prepare('UPDATE creq SET got = got + 1 WHERE id = ? AND changes() > 0').bind(r.id),
+        db.prepare('INSERT INTO cdon (id, week, n) SELECT ?1, ?2, 1 WHERE changes() > 0 ON CONFLICT(id, week) DO UPDATE SET n = n + 1').bind(uid, wk),
       ]);
+      if (!sent[0].meta.changes) return err('Запрос уже закрыт');
       return { ok: true, donated: { card: r.card, rar: r.rar } };
     } else if (['promote', 'demote', 'kick'].includes(body.act)) {
       const t = await db.prepare('SELECT m.id, c.owner, COALESCE(r.role, 0) AS role FROM cmembers m JOIN clubs c ON c.id = m.club LEFT JOIN crole r ON r.id = m.id WHERE m.id = ? AND m.club = ?').bind(Number(body.uid) || 0, m.club).first();
@@ -774,7 +798,7 @@ async function club(env, user, body) {
       await say(m.club, 'sys', 'Настройки клуба обновлены');
     } else return err('unknown');
   }
-  return { ok: true, ...(await clubInfo(db, uid)) };
+  return { ok: true, ...(await clubInfo(db, uid, body.giftProtocol === 1)) };
 }
 
 // ---------- онлайн: подбор случайного соперника для дуэли ----------
