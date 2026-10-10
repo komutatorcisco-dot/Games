@@ -125,6 +125,7 @@ const Home = (() => {
 
   // ---------- выбор игры ----------
   function pick() {
+    if (typeof Coach !== 'undefined') Coach.close();
     // открытые игры и только три следующих закрытых — без стены замков
     let locked = 0;
     const all = games().filter((g) => open(g) || (!DUO.includes(g.key) && locked++ < 3)), solo = all.filter((g) => !DUO.includes(g.key)), duo = all.filter((g) => DUO.includes(g.key) && open(g));
@@ -173,6 +174,7 @@ const Home = (() => {
     celebrate(u);
   }
   function celebrate(u) {
+    if (typeof Coach !== 'undefined') Coach.close();
     showing = true;
     const k = u[2][0], f = FEAT[k], g = f ? { ...f, key: k } : catalog().get(k) || { title: u[1], sub: '', c1: '#ffcf3a', c2: '#ff8a2a' };
     const el = document.createElement('div');

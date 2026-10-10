@@ -34,7 +34,7 @@ const Tilt = (() => {
     if (!cc || cc.closest('.spin3d')) return;
     const wrap = document.createElement('div'); wrap.className = 'spin3d';
     const inner = document.createElement('div'); inner.className = 'spin-in';
-    const back = document.createElement('div'); back.className = 'spin-back ' + (['bronze', 'silver', 'gold', 'legend', 'jack'].find((r) => cc.classList.contains(r)) || '');
+    const back = document.createElement('div'); back.className = 'spin-back ' + (['bronze', 'silver', 'gold', 'legend', 'jack', 'future'].find((r) => cc.classList.contains(r)) || '');
     back.innerHTML = '<b>ДЖ</b>';
     cc.parentNode.insertBefore(wrap, cc); inner.appendChild(cc); inner.appendChild(back); wrap.appendChild(inner);
     let ry = 0, rx = 0, vy = 0, drag = null, raf = 0, settle = false;
@@ -121,6 +121,14 @@ const SBC = (() => {
           { id: `pl:${W}:2`, ico: 'flame', diff: 3, title: 'Топ-форма', desc: 'Сильный полный состав', n: 11, req: [{ t: 'rating', v: 82 + tier }], reward: { pack: 2 }, limit: 1 },
           { id: `pl:${W}:3`, ico: 'crown', diff: 4, title: 'Состав мечты', desc: 'С легендой и рейтингом элиты', n: 11, req: [{ t: 'rating', v: 84 + tier }, { t: 'rar', in: ['legend', 'jack'], min: 1 }], reward: { pack: 3 }, limit: 1 },
         ] },
+      { id: 'fs:espart', cat: 'pl', group: true, ico: 'star', diff: 4, title: 'Будущие звёзды: Хави Эспарт', desc: '10 составов — уникальный левый защитник Барселоны с рейтингом 91. Без срока окончания. За каждый этап — 100 монет.', reward: { card: 'FS:xavi-espart' }, limit: 1,
+        items: [75, 76, 77, 78, 79, 80, 81, 82, 83, 85].map((r, i) => ({
+          id: 'fs:espart:' + (i + 1), ico: 'star', diff: i < 3 ? 2 : i < 7 ? 3 : 4,
+          title: ['Первый шаг', 'Испанские корни', 'Ла Масия', 'Ла Лига', 'Командная игра', 'Новая надежда', 'Большая сцена', 'Звёздный состав', 'Путь к вершине', 'Будущая звезда'][i],
+          desc: 'Состав ' + (i + 1) + ' из 10', n: 11,
+          req: [{ t: 'rating', v: r }, ...(i === 1 ? [{ t: 'from', k: 'nat', v: 'Испания', min: 2 }] : i === 2 ? [{ t: 'from', k: 'club', v: 'Барселона', min: 1 }] : i === 3 ? [{ t: 'from', k: 'lg', v: 'Ла Лига', min: 3 }] : [])],
+          reward: { coins: 100 }, limit: 1,
+        })) },
       { id: 'up:b', cat: 'up', ico: 'medal:#d9905a', diff: 1, title: 'Бронзовое улучшение', desc: 'Сдай пять бронзовых, получи пак с гарантированным серебром.', n: 5, req: [{ t: 'only', in: ['bronze'] }], reward: { pack: 1 }, limit: 0 },
       { id: 'up:s', cat: 'up', ico: 'medal:#d6dde6', diff: 1, title: 'Серебряное улучшение', desc: 'Сдай пять серебряных, получи пак с гарантированным золотом.', n: 5, req: [{ t: 'only', in: ['silver'] }], reward: { pack: 2 }, limit: 0 },
       { id: 'up:g', cat: 'up', ico: 'medal:#ffcf3a', diff: 3, title: 'Улучшение 82+', desc: 'Сдай семь золотых, получи пак с гарантированной легендой.', n: 7, req: [{ t: 'only', in: GOLDUP }, { t: 'rating', v: 82 }], reward: { pack: 3 }, limit: 0 },
@@ -177,7 +185,7 @@ const SBC = (() => {
   const fitsOnly = (ch, c) => { const o = ch.req.find((r) => r.t === 'only'); return !o || o.in.includes(c.rar); };
 
   // ---------- автосбор: самые «дешёвые» карточки, сначала повторы ----------
-  const avail = () => Cards.all().filter((c) => Cards.spare(c.key) > 0);
+  const avail = () => Cards.all().filter((c) => !c.sbcOnly && Cards.spare(c.key) > 0);
   const clubCount = () => avail().reduce((s, c) => s + Cards.spare(c.key), 0);
   // P — свой набор карточек (для расчёта экономики): { cards, spare(key) }
   function autofill(ch, keep = [], P = null) {
@@ -261,7 +269,7 @@ const SBC = (() => {
     if (r.coins) return `<span class="fx-coins ${sz}"><i class="coin"></i><i class="coin"></i><i class="coin"></i><b>${r.coins}</b></span>`;
     return '';
   }
-  const rewardTxt = (r) => (r.pack !== undefined ? PACKNAME[r.pack] : r.card ? `${(Cards.get(r.card) || {}).name || 'Игрок'} · «Джексон»` : `${r.coins} монет`);
+  const rewardTxt = (r) => (r.pack !== undefined ? PACKNAME[r.pack] : r.card ? `${(Cards.get(r.card) || {}).name || 'Игрок'} · ${(Cards.RAR[(Cards.get(r.card) || {}).rar] || {}).n || ''}` : `${r.coins} монет`);
   const icoHTML = (ico) => { if (/^\d$/.test(ico)) return `<b class="fx-num">${ico}</b>`; const [n, col] = ico.split(':'); return `<span class="fx-ig"${col ? ` style="--ic-a:${col};color:${col}"` : ''}>${Ui.get(n)}</span>`; };
   const diffChip = (d, cost) => (d ? `<span class="fx-diff d${d}"><i></i><i></i><i></i><i></i>${DIFF[d]}${cost ? ` · ≈${cost} паков` : ''}</span>` : '');
 
@@ -297,7 +305,7 @@ const SBC = (() => {
         <div class="fx-gart">${art(g.reward, 'xl')}${got ? '<i class="fx-gok">✓</i>' : ''}</div>
         <div class="fx-gl"><b>${esc(g.title)}</b><p>${esc(g.desc)}</p>
           <div class="fx-prog"><span class="fx-seg">${g.items.map((it) => `<i class="${doneN(it.id) ? 'on' : ''}"></i>`).join('')}</span><small>${n} из ${g.items.length} ИПК</small></div>
-          <div class="fx-f">${diffChip(g.diff, g.cost)}<span class="fx-left"><i class="fx-ic">${Ui.get('clock')}</i><b data-left="${g.ends}">${left(g.ends)}</b></span></div></div></div>
+          <div class="fx-f">${diffChip(g.diff, g.cost)}${g.ends ? `<span class="fx-left"><i class="fx-ic">${Ui.get('clock')}</i><b data-left="${g.ends}">${left(g.ends)}</b></span>` : '<span class="fx-left">Без срока</span>'}</div></div></div>
       <div class="fx-list">${g.items.map((x, i) => card(x, i)).join('')}</div>`;
   }
   const rows = (n) => ({ 3: [3], 4: [2, 2], 5: [3, 2], 7: [3, 2, 2], 11: [3, 3, 4, 1] }[n] || [n]);
@@ -336,7 +344,7 @@ const SBC = (() => {
   function title() {
     const t = $('#sbc-title'), sub = $('#sbc-sub');
     if (view.mode === 'list') { t.textContent = 'ИПК'; sub.textContent = 'Сдавай карточки, получай паки'; }
-    else if (view.mode === 'group') { const g = find(view.id); t.textContent = 'Игрок недели'; sub.textContent = g ? `Истекает через ${left(g.ends)}` : ''; }
+    else if (view.mode === 'group') { const g = find(view.id); t.textContent = g ? g.title : 'Игрок'; sub.textContent = g && g.ends ? `Истекает через ${left(g.ends)}` : 'Без срока окончания'; }
     else { const ch = find(view.id); t.textContent = ch.title; sub.textContent = `Награда: ${rewardTxt(ch.reward)}`; }
   }
   function paint(fx) {
@@ -370,7 +378,7 @@ const SBC = (() => {
     const r = x.reward;
     let what = '';
     if (r.pack !== undefined) what = `<p class="cd-m"><b>${PACK_N[r.pack]} ${plural(PACK_N[r.pack], 'карточка', 'карточки', 'карточек')}</b>${PACK_SURE[r.pack] ? `, гарантированно ${PACK_SURE[r.pack]}` : ''}. Пак может «прокачаться» до более редкого прямо при открытии.</p>`;
-    else if (r.card) { const c = Cards.get(r.card); what = c ? `<p class="cd-m">Особая карточка «Джексон»: ${esc(c.name)}, рейтинг <b>${c.r}</b>. Такие выпадают примерно раз на 67 паков.</p>` : ''; }
+    else if (r.card) { const c = Cards.get(r.card); what = c ? `<p class="cd-m">${esc(Cards.RAR[c.rar].n)}: ${esc(c.name)}, рейтинг <b>${c.r}</b>. ${c.sbcOnly ? 'Только за 10 составов этого ИПК. В паках и магазине недоступна.' : 'Особая награда за выполнение группы.'}</p>` : ''; }
     else what = `<p class="cd-m">${r.coins} монет сразу на счёт.</p>`;
     const reqs = x.items ? `<ol class="fx-steps">${x.items.map((it) => `<li class="${doneN(it.id) ? 'ok' : ''}"><b>${esc(it.title)}</b><span>${it.n} игроков · ${it.req.map(label).join(' · ')}</span><em>${esc(rewardTxt(it.reward))}</em></li>`).join('')}</ol>`
       : `<ul class="fx-rl">${[`Игроков в составе: ${x.n}`, ...x.req.map(label)].map((t) => `<li>${t}</li>`).join('')}</ul>`;
@@ -477,9 +485,12 @@ const SBC = (() => {
     ]);
   }
   function submit(ch) {
+    if (!cur || closed(ch)) return;
     const keys = cur.sq.filter(Boolean);
+    if (new Set(keys).size !== ch.n || !allOk(ch, keys.map(Cards.get)) || keys.some((k) => !Cards.spare(k) || Cards.get(k).sbcOnly)) return;
     Cards.use(keys);
     S().done[ch.id] = doneN(ch.id) + 1; Store.save();
+    const groupRes = claimGroup(ch.parent);
     Sound.play('goal'); haptic('ok');
     const box = $('#sbc-body'), rew = $('.sx-rew', box), pitch = $('.sx-pitch', box);
     const tr = (rew || pitch).getBoundingClientRect(), cx = tr.left + tr.width / 2, cy = tr.top + tr.height / 2;
@@ -494,10 +505,9 @@ const SBC = (() => {
       const parent = ch.parent;
       const then = () => {
         cur = null;
-        if (parent && groupDone(find(parent.id)) === parent.items.length && !doneN(parent.id)) {
-          S().done[parent.id] = 1; Store.save();
+        if (groupRes.length) {
           view = { mode: 'group', id: parent.id }; paint(enterFx);
-          setTimeout(() => { if (typeof confetti === 'function') confetti(); give(parent.reward, 'ГРУППА ВЫПОЛНЕНА', () => paint(enterFx)); }, 500);
+          Cards.reveal(groupRes, () => paint(enterFx));
           return;
         }
         view = parent ? { mode: 'group', id: parent.id } : { mode: 'list', tab: lastTab };
@@ -506,6 +516,15 @@ const SBC = (() => {
       give(ch.reward, `ИПК: ${ch.title.toUpperCase()}`, then);
     };
     setTimeout(after, reduce ? 0 : t + 200);
+  }
+  function claimGroup(parent) {
+    if (!parent || closed(parent) || groupDone(parent) !== parent.items.length) return [];
+    S().done[parent.id] = 1;
+    const res = parent.reward.card ? Cards.add([parent.reward.card]) : [];
+    const dup = res.reduce((sum, item) => sum + item.coins, 0);
+    if (dup) Coins.add(dup);
+    Store.save();
+    return res;
   }
   function give(r, ttl, then) {
     if (typeof Rewards !== 'undefined') Rewards.refresh();

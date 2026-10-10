@@ -1071,7 +1071,7 @@ body[data-balls="crests"] .sball, .shop-balls[data-balls="crests"] .sball {
 /* wordle */
 .wd-grid { display: grid; gap: 5px; justify-content: center; }
 .wd-row { display: grid; grid-template-columns: repeat(var(--l), minmax(0, 40px)); gap: 5px; }
-.wd-row i { aspect-ratio: 1; display: grid; place-content: center; border-radius: 8px; border: 2px solid var(--night-3); font: 20px var(--font-display); font-style: normal; text-transform: uppercase; }
+.wd-row i { aspect-ratio: 1; display: grid; place-content: center; border-radius: 8px; background: #202a36; border: 2px solid #748296; font: 20px var(--font-display); font-style: normal; text-transform: uppercase; }
 .wd-row i.typed { border-color: #8d84c4; animation: numPop .2s; }
 .wd-row i.hit, .wd-kb .hit { background: var(--hit); border-color: var(--hit); color: #06210f; }
 .wd-row i.near, .wd-kb .near { background: var(--near); border-color: var(--near); color: #2a1d00; }

@@ -1,0 +1,10 @@
+/* Future Stars: violet glass, turquoise stars and a magenta frame. */
+.cc.future { background: linear-gradient(145deg,#7636bc,#241348 55%,#0c626b); border: 2px solid #8bfff5; box-shadow: 0 0 0 2px #ac48e0,0 8px 22px #110c2b99; }
+.cc.future .cc-ph { background: radial-gradient(circle at 75% 25%,#67fff888,transparent 38%),repeating-linear-gradient(135deg,transparent 0 24px,#de80ff20 25px 28px),linear-gradient(150deg,#672eaa,#171e42); }
+.cc.future .cc-ph::after { content:'✦'; position:absolute; right:9%; top:5%; font-size:calc(var(--w)*.25); color:#b5fff3; text-shadow:0 0 14px #6afbf4; }
+.cc.future .cc-band { background:linear-gradient(110deg,#7130a8,#30235f 55%,#12505b); color:#fff; border-top:2px solid #79fff1; }
+.cc.future .cc-band small { font-size:calc(var(--w)*.048); color:#adfff5; letter-spacing:.02em; }
+.cc.future .cc-r { color:#e6fffd; }
+.cc.future .cc-face { object-fit:contain; }
+.spin-back.future,.po-back.future { background:linear-gradient(145deg,#7f36c7,#1a2044,#22868d); color:#acfff2; }
+.fx-seg { min-width:0; }

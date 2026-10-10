@@ -375,6 +375,7 @@ const Screens = {
   current: 'hub',
   gen: 0, // растёт при каждой смене экрана: отложенные действия прошлой игры по нему понимают, что устарели
   show(id) {
+    if (typeof Coach !== 'undefined') Coach.close();
     this.gen++;
     $$('.screen').forEach((s) => { s.hidden = s.id !== id; });
     // плавное появление экрана и каскад карточек
@@ -413,6 +414,7 @@ function toast(text) {
 // Модалка: html-содержимое + список кнопок [{label, cls, onClick}].
 const Modal = {
   open(html, buttons = []) {
+    if (typeof Coach !== 'undefined') Coach.close();
     const card = $('#modal-card');
     card.innerHTML = html + '<div class="btns"></div>';
     const box = $('.btns', card);
