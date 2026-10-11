@@ -87,6 +87,8 @@ const countDelivered = () => sent.filter((x) => x.method === 'sendMessage' && x.
   assert.equal(await api.broadcast(env, 'stopped'), 0);
   assert.equal(await api.reminders(env), 'рассылки отключены');
   assert.equal(countDelivered(), 2);
+  await api.adminCommand(env, { chat: { id: 7, type: 'private' }, text: '/status' });
+  assert.match(sent.at(-1).body.text, /Массовые сообщения: выключены/);
 
   const ev = [{ game: 'ng:wordle', kind: 'win', ms: 12000 }, { game: 'ng:wordle', kind: 'end', ms: 12000 }];
   const first = await api.events(env, { id: 42 }, { events: ev, batchId: 'batch-test-0001' });
