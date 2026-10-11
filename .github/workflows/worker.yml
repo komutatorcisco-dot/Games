@@ -6,14 +6,27 @@ name: Обновить сервер
 
 on:
   push:
-    paths: ['server/worker.js']
+    branches: ['claude/telegram-channel-games-kj1xly']
+    paths: ['server/worker.js', '.github/workflows/worker.yml']
   workflow_dispatch:
 
 jobs:
   deploy:
+    if: github.ref == 'refs/heads/claude/telegram-channel-games-kj1xly'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Проверить сервер и тесты перед деплоем
+        run: |
+          node --check server/worker.js
+          for test in tests/*.test.js; do
+            case "$test" in *-browser.test.js) continue ;; esac
+            echo "Testing $test"
+            node "$test"
+          done
       - name: Загрузить код в Cloudflare
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
