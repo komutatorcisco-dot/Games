@@ -22,6 +22,8 @@ const db = {
         };
       },
       async run() { return this.bind().run(); },
+      async all() { return this.bind().all(); },
+      async first() { return this.bind().first(); },
     };
   },
   async batch(items) {
