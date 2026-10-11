@@ -99,6 +99,8 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS reports (ts INTEGER NOT NULL, id INTEGER NOT NULL, nick TEXT, text TEXT, info TEXT)'),
     db.prepare('CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT)'),
     db.prepare('CREATE TABLE IF NOT EXISTS bot (chat INTEGER PRIMARY KEY, started INTEGER NOT NULL, blocked INTEGER NOT NULL DEFAULT 0)'),
+    // Track manual broadcast update IDs: Telegram may retry a slow webhook request.
+    db.prepare('CREATE TABLE IF NOT EXISTS tg_broadcast_updates (id INTEGER PRIMARY KEY, received INTEGER NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS names (game TEXT PRIMARY KEY, title TEXT)'),
     db.prepare('CREATE INDEX IF NOT EXISTS weekly_xp ON weekly (week, xp)'),
     // друзья: кто пришёл по чьей ссылке ?startapp=ref_<id> — связь в обе стороны
@@ -486,8 +488,12 @@ async function recipients(db) {
 async function broadcast(env, text, button = 'Играть') {
   const db = env.DB;
   await schema(db);
-  let sent = 0;
+  // Emergency fail-safe: bulk messages are disabled until an admin explicitly enables them.
+  if ((await getSetting(db, 'broadcast:enabled')) !== '1') return 0;
+  let sent = 0, processed = 0;
   for (const id of await recipients(db)) {
+    // /stop also interrupts a running mailing within 10 recipients.
+    if (processed++ % 10 === 0 && (await getSetting(db, 'broadcast:enabled')) !== '1') break;
     const r = await tg(env, 'sendMessage', { chat_id: id, text, reply_markup: { inline_keyboard: [[{ text: button, web_app: { url: `${ORIGIN}/Games/` } }]] } }).catch(() => null);
     if (r && r.ok) sent++;
     else if (r && r.error_code === 403) await db.batch([
@@ -606,7 +612,16 @@ async function adminCommand(env, m) {
   }
   if (!(await isAdminId(env, chat))) return say('Команда только для админа.');
   if (text.startsWith('/stats')) return say(statsText(await stats(env)));
-  if (text.startsWith('/broadcast')) {
+  if (/^\/(stop|broadcast_off)(?:\s|$)/.test(text)) {
+    await setSetting(db, 'broadcast:enabled', '0');
+    return say('🛑 Все массовые рассылки выключены. Для включения: /broadcast_on');
+  }
+  if (/^\/broadcast_on(?:\s|$)/.test(text)) {
+    await setSetting(db, 'broadcast:enabled', '1');
+    return say('✅ Массовые рассылки включены. Используй /broadcast только один раз на кампанию.');
+  }
+  if (/^\/broadcast(?:\s|$)/.test(text)) {
+    if ((await getSetting(db, 'broadcast:enabled')) !== '1') return say('🛑 Рассылки выключены. Для включения: /broadcast_on');
     const msg = text.replace(/^\/broadcast\s*/, '').trim();
     if (!msg) return say('Напиши так: /broadcast текст сообщения');
     const n = await broadcast(env, msg);
@@ -1060,6 +1075,14 @@ async function route(request, env) {
     // защита: Telegram присылает секрет, заданный в setWebhook
     if (env.WEBHOOK_SECRET && request.headers.get('x-telegram-bot-api-secret-token') !== env.WEBHOOK_SECRET) return new Response('forbidden', { status: 403 });
     const u = await request.json();
+    // Telegram retries timed-out /broadcast updates: claim once before sending any messages.
+    if (u.message && /^\/broadcast(?:\s|$)/.test(u.message.text || '')) {
+      if (!env.DB || !Number.isSafeInteger(u.update_id)) return new Response('bad broadcast update', { status: 400 });
+      await schema(env.DB);
+      const claim = await env.DB.prepare('INSERT OR IGNORE INTO tg_broadcast_updates (id, received) VALUES (?1, ?2)').bind(u.update_id, Date.now()).run();
+      if (!claim.success) return new Response('broadcast unavailable', { status: 503 });
+      if (claim.meta?.changes !== 1) return new Response('ok');
+    }
     if (u.pre_checkout_query) {
       const q = u.pre_checkout_query;
       let ok = validPayment(q, q.from.id);
@@ -1092,7 +1115,7 @@ async function route(request, env) {
       }
     } else if (u.message && /^\/(terms|paysupport|support)\b/.test(u.message.text || '')) {
       await infoCommand(env, u.message);
-    } else if (u.message && /^\/(admin|stats|broadcast)\b/.test(u.message.text || '')) {
+    } else if (u.message && /^\/(admin|stats|stop|broadcast(?:_on|_off)?)\b/.test(u.message.text || '')) {
       await adminCommand(env, u.message);
     } else if (u.message && /^\/start\b/.test(u.message.text || '')) {
       if (env.DB) { await schema(env.DB); await env.DB.prepare('INSERT INTO bot (chat, started, blocked) VALUES (?1, ?2, 0) ON CONFLICT(chat) DO UPDATE SET blocked = 0').bind(u.message.chat.id, Date.now()).run(); }
