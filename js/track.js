@@ -12,17 +12,33 @@ const Track = (() => {
   const ver = () => ((document.querySelector('script[src*="js/app.js"]') || {}).src || '').split('v=')[1] || '';
 
   // ---------- события игр ----------
-  let queue = [], timer = null, cur = null;
+  let queue = [], timer = null, cur = null, pending = null, sending = false, serial = 0;
   function push(e) {
     if (!on()) return;
     queue.push(e);
     clearTimeout(timer);
-    timer = setTimeout(flush, queue.length >= 30 ? 0 : 30000); // копим пачку: сервер склеивает одинаковые события в одну запись
+    timer = setTimeout(flush, queue.length >= 30 ? 0 : 30000); // batch events to reduce writes
   }
   function flush() {
-    if (!on() || !queue.length) return;
-    const batch = queue.splice(0, 40);
-    post('/event', { events: batch }).catch(() => { queue = batch.concat(queue).slice(0, 80); });
+    if (!on() || sending) return;
+    if (!pending && queue.length) {
+      pending = {
+        events: queue.splice(0, 40),
+        batchId: [Date.now().toString(36), Math.random().toString(36).slice(2, 12), (++serial).toString(36)].join('-'),
+      };
+    }
+    if (!pending) return;
+    sending = true;
+    post('/event', pending).then((r) => {
+      if (!r || r.ok !== true) throw new Error('event batch was not accepted');
+      pending = null;
+      sending = false;
+      if (queue.length) { clearTimeout(timer); timer = setTimeout(flush, 1000); }
+    }).catch(() => {
+      // Retry the SAME batchId: if the server committed before a lost response, it will not count twice.
+      sending = false;
+      clearTimeout(timer); timer = setTimeout(flush, 10000);
+    });
   }
   document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
   // игру открыли: game — ключ плитки ('ng:wordle', 'act:nation'…), title — название
