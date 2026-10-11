@@ -592,8 +592,17 @@ export default {
           .then(() => env.DB.prepare('DELETE FROM event_batches WHERE ts < ?').bind(Date.now() - 7 * 86400000).run()),
       ];
       const results = await Promise.allSettled(jobs);
-      for (let i = 0; i < results.length; i++) if (results[i].status === 'rejected') console.error(['weekly', 'reminders', 'cleanup'][i] + ' cron failed', results[i].reason);
-      if (results.some((r) => r.status === 'rejected')) throw new Error('One or more scheduled tasks failed');
+      const failed = [];
+      for (let i = 0; i < results.length; i++) if (results[i].status === 'rejected') {
+        const name = ['weekly', 'reminders', 'cleanup'][i];
+        console.error(name + ' cron failed', results[i].reason);
+        failed.push(name);
+      }
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO settings (k, v) VALUES ('cron:last', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(String(Date.now())),
+        env.DB.prepare("INSERT INTO settings (k, v) VALUES ('cron:errors', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(failed.join(', ')),
+      ]);
+      if (failed.length) throw new Error('Scheduled tasks failed: ' + failed.join(', '));
     })());
   },
 };
@@ -640,6 +649,17 @@ async function adminCommand(env, m) {
   }
   if (!(await isAdminId(env, chat))) return say('Команда только для админа.');
   if (text.startsWith('/stats')) return say(statsText(await stats(env)));
+  if (/^\/status(?:\s|$)/.test(text)) {
+    const last = Number(await getSetting(db, 'cron:last')) || 0;
+    const errors = (await getSetting(db, 'cron:errors')) || '';
+    const enabled = (await getSetting(db, 'broadcast:enabled')) === '1';
+    return say(['🛠 Джексоны · состояние сервера',
+      'Массовые сообщения: ' + (enabled ? 'включены' : 'выключены'),
+      'Последний Cron: ' + (last ? new Date(last).toISOString() : 'нет данных'),
+      'Ошибки Cron: ' + (errors || 'нет'),
+      'Для остановки рассылок: /stop',
+    ].join('\n'));
+  }
   if (/^\/(stop|broadcast_off)(?:\s|$)/.test(text)) {
     await setSetting(db, 'broadcast:enabled', '0');
     return say('🛑 Все массовые рассылки выключены. Для включения: /broadcast_on');
@@ -1149,7 +1169,7 @@ async function route(request, env) {
       }
     } else if (u.message && /^\/(terms|paysupport|support)\b/.test(u.message.text || '')) {
       await infoCommand(env, u.message);
-    } else if (u.message && /^\/(admin|stats|stop|broadcast(?:_on|_off)?)\b/.test(u.message.text || '')) {
+    } else if (u.message && /^\/(admin|stats|status|stop|broadcast(?:_on|_off)?)\b/.test(u.message.text || '')) {
       await adminCommand(env, u.message);
     } else if (u.message && /^\/start\b/.test(u.message.text || '')) {
       if (env.DB) { await schema(env.DB); await env.DB.prepare('INSERT INTO bot (chat, started, blocked) VALUES (?1, ?2, 0) ON CONFLICT(chat) DO UPDATE SET blocked = 0').bind(u.message.chat.id, Date.now()).run(); }
