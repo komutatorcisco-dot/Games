@@ -25,8 +25,8 @@ matchmaking, tracking and mobile readability changes are retained.
   orphan/mismatched payments and payment-only players.
 
 No client code, runtime routes, existing tables, deployment workflow or balances changed.
-No production backup has been taken by this PR. No remote D1 has been provisioned or tested.
-Local tests simulate D1 `batch`; they are **not** proof of remote D1 behavior.
+A real backup and remote staging restore were verified on 2026-10-11 (see below).
+Remote tests used the D1 REST batch API; the deployed Worker binding remains untested.
 
 ## Corrections to PR #3's proposal
 
@@ -96,3 +96,35 @@ match verification, client integration and performance baselines remain future s
 Progress preservation and distrust of legacy client balances cannot be solved by choosing
 an automatic maximum. Disputed snapshots stay intact while an explicit reconciliation
 policy is agreed; no data is deleted or silently reduced here.
+
+## Verified staging drill — 2026-10-11
+
+- Authenticated with Wrangler OAuth using account/user read and D1 write scopes.
+- Exported production `jackson` without modifying its records. Original SQL and its SHA-256,
+  restore reports and local databases remain in ignored `private-economy/backup-20261011/`.
+- Created distinct `jackson-economy-staging-20261011`; checked its UUID differs from production.
+  No Worker, live Telegram webhook, bot credentials or scheduled broadcasts were attached.
+- Restored locally with integrity and foreign-key checks. The ordinary remote import failed
+  with `SQLITE_TOOBIG`; a subsequent read confirmed the staging database had no user tables.
+  Five INSERT statements exceeded the SQL length limit. Imported the remaining statements,
+  then inserted those five original save rows using bound parameters through the D1 REST API.
+  The original export was preserved; no saves were truncated or rewritten.
+- Exported staging again and restored that export to another new local SQLite file.
+  All **36 tables / 55,023 rows** matched by content fingerprints; schema fingerprints and
+  `sqlite_sequence` counters also matched the original restored export exactly.
+- Applied `001-shadow.sql` only to staging. Tested `savePreview` through an adapter to actual
+  D1 REST batches: replay, conflicting replay, concurrent replay, rollback after a failing
+  second statement, and update/delete rejection for snapshots and reviews. All passed.
+  Remote foreign-key and quick integrity checks passed too. Synthetic test evidence is
+  deliberately retained in the append-only shadow tables; it is not a real player import.
+  This verifies remote REST batch behavior, not an end-to-end deployed Worker route.
+- Read-only baseline: 543 players, 183 pending and 360 requiring review. Unknown catalog
+  keys occurred in 360 saves; two legacy purchase records lacked matching receipts.
+  These are reconciliation findings, not proof of cheating. No balances were activated,
+  reduced, re-granted or selected from competing devices.
+
+The backup is verified against this snapshot, not a continuous backup policy. Production
+has continued running since the export. Resolve historical catalog/payment evidence and
+verify deployed Worker integration before any authority migration. Production D1 was not
+restored to or migrated; this drill did not deploy or merge a release.
+
