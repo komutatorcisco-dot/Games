@@ -1,0 +1,30 @@
+name: Quality checks
+
+on:
+  push:
+    branches:
+      - 'claude/telegram-channel-games-kj1xly'
+      - 'jarvis/**'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Syntax check all JavaScript sources
+        run: |
+          find js server tests -name '*.js' -not -path '*/vendor/*' -print0 | xargs -0 -n1 node --check
+      - name: Run Node unit and integration tests
+        run: |
+          for test in tests/*.test.js; do
+            case "$test" in *-browser.test.js) continue ;; esac
+            echo "=== $test ==="
+            node "$test"
+          done
