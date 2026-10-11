@@ -28,3 +28,31 @@ jobs:
             echo "=== $test ==="
             node "$test"
           done
+
+  browser-tests:
+    if: github.event_name == 'pull_request'
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install browser QA dependencies
+        run: |
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chrome
+      - name: Run phone-size browser regression tests
+        run: |
+          for test in tests/*-browser.test.js; do
+            echo "=== $test ==="
+            node "$test"
+          done
+      - name: Save test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jackson-mobile-browser-qa
+          path: tests/*-qa.png
+          if-no-files-found: ignore
