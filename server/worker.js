@@ -389,14 +389,15 @@ async function events(env, user, body) {
   const newSeen = [...seenG].filter((g) => !evuMem.has(today + g + user.id));
   newSeen.forEach((g) => evuMem.add(today + g + user.id));
   if (evuMem.size > 50000) evuMem.clear();
+  const w = list.filter((e) => e.kind === 'win').length;
+  if (w) await fillWins(db, weekKey(now));
   if (list.length) await db.batch([
     ...Object.values(agg).map((a) => db.prepare('INSERT INTO evd (day, game, kind, n, ms) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(day, game, kind) DO UPDATE SET n = n + ?4, ms = ms + ?5').bind(today, a.game, a.kind, a.n, a.ms)),
     ...newSeen.map((g) => db.prepare('INSERT OR IGNORE INTO evu (day, game, id) VALUES (?, ?, ?)').bind(today, g, user.id)),
     // русские названия игр для статистики — пишем только новые (запомненные в памяти воркера не трогаем)
     ...list.filter((e) => e.title && !knownNames.has(e.game)).map((e) => { knownNames.add(e.game); return db.prepare('INSERT INTO names (game, title) VALUES (?1, ?2) ON CONFLICT(game) DO UPDATE SET title = ?2').bind(e.game, clean(e.title, 40)); }),
+    ...(w ? [db.prepare('INSERT INTO cwins (id, week, n) VALUES (?1, ?2, ?3) ON CONFLICT(week, id) DO UPDATE SET n = n + ?3').bind(user.id, weekKey(now), w)] : []),
   ]);
-  const w = list.filter((e) => e.kind === 'win').length;
-  if (w) { await fillWins(db, weekKey(now)); await db.prepare('INSERT INTO cwins (id, week, n) VALUES (?1, ?2, ?3) ON CONFLICT(week, id) DO UPDATE SET n = n + ?3').bind(user.id, weekKey(now), w).run(); }
   return { saved: list.length };
   } catch (e) {
     if (batchId) await db.prepare('DELETE FROM event_batches WHERE uid = ? AND id = ?').bind(user.id, batchId).run().catch(() => {});
@@ -581,12 +582,19 @@ export default {
   // Cron-триггер раз в час («0 * * * *», ставит .github/workflows/worker.yml): рассылка по понедельникам в 10:00 по Европе,
   // напоминания — в 18:00 по Москве. Каждая функция сама проверяет время и не шлёт дважды.
   async scheduled(event, env, ctx) {
-    // An error in one scheduled task must not prevent the others from running.
-    ctx.waitUntil(weekly(env).catch((e) => { console.error('weekly cron failed', e); throw e; }));
-    ctx.waitUntil(reminders(env).catch((e) => { console.error('reminders cron failed', e); throw e; }));
-    ctx.waitUntil(env.DB.prepare('DELETE FROM presence WHERE ts < ?').bind(Date.now() - 86400000).run()
-      .then(() => env.DB.prepare('DELETE FROM event_batches WHERE ts < ?').bind(Date.now() - 7 * 86400000).run())
-      .catch((e) => { console.error('cleanup cron failed', e); throw e; }));
+    ctx.waitUntil((async () => {
+      await schema(env.DB);
+      // Independence: failures are collected after all tasks have had a chance to run.
+      const jobs = [
+        weekly(env),
+        reminders(env),
+        env.DB.prepare('DELETE FROM presence WHERE ts < ?').bind(Date.now() - 86400000).run()
+          .then(() => env.DB.prepare('DELETE FROM event_batches WHERE ts < ?').bind(Date.now() - 7 * 86400000).run()),
+      ];
+      const results = await Promise.allSettled(jobs);
+      for (let i = 0; i < results.length; i++) if (results[i].status === 'rejected') console.error(['weekly', 'reminders', 'cleanup'][i] + ' cron failed', results[i].reason);
+      if (results.some((r) => r.status === 'rejected')) throw new Error('One or more scheduled tasks failed');
+    })());
   },
 };
 export { weekly, stats };
