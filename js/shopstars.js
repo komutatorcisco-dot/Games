@@ -26,6 +26,7 @@ const StarShop = (() => {
     PackOpen.reveal(res);
   }
   function buyCoins(id) {
+    if (typeof EconomyClient !== 'undefined' && EconomyClient.configured()) return EconomyClient.buyPack(id);
     const x = COIN_PACKS.find(x => x.id === id); if (!x) return;
     let used = false;
     Modal.open(`<h2>${esc(x.name)}</h2><p>${esc(x.sub)}</p><p>Цена: ${x.coins} монет. Карты могут повторяться.</p>`, [
@@ -54,10 +55,11 @@ const StarShop = (() => {
     return true;
   }
   // сервер прислал список покупок (ответ /hello): выдаём то, что ещё не выдали
-  function sync(list) { (list || []).forEach((p) => { if (p && p.item && p.n) grant(p.item, p.n); }); }
+  function sync(list) { if (typeof EconomyClient !== 'undefined' && EconomyClient.configured()) { EconomyClient.restore().catch(() => toast('Не удалось синхронизировать серверный клуб')); return; } (list || []).forEach((p) => { if (p && p.item && p.n) grant(p.item, p.n); }); }
   // админу всё бесплатно (кроме режима «как обычный игрок»): выдаём сразу, без счёта в Telegram
   const free = () => !!(Store.d.admin && !(Store.d.ui && Store.d.ui.asPlayer));
   async function buy(item) {
+    if (typeof EconomyClient !== 'undefined' && EconomyClient.configured()) return EconomyClient.buyStars(item);
     if (free()) { Modal.close(); confetti(); Sound.play('goal'); grant(item, 'adm' + Date.now()); return; }
     const base = CONFIG.api;
     if (!(base && TG && TG.openInvoice && TG.initData)) { toast('Покупки работают в Telegram через бота @JacksonGamesbot'); return; }

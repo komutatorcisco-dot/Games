@@ -20,7 +20,11 @@ jobs:
           node-version: '24'
       - name: Syntax check all JavaScript sources
         run: |
-          find js server tests -name '*.js' -not -path '*/vendor/*' -print0 | xargs -0 -n1 node --check
+          find js server tests \( -name '*.js' -o -name '*.mjs' \) -not -path '*/vendor/*' -print0 | xargs -0 -n1 node --check
+      - name: Verify generated economy catalog
+        run: |
+          node tools/economy-catalog.mjs
+          git diff --exit-code -- server/economy/generated
       - name: Run Node unit and integration tests
         run: |
           for test in tests/*.test.js; do

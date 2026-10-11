@@ -8,7 +8,8 @@ import { savePreview } from '../server/economy/migration-preview.mjs';
 export function cardCatalog() {
   const ctx={console,Ui:{get:()=>''},document:{addEventListener(){}},window:{matchMedia:()=>({matches:true})},setTimeout(){}};
   vm.createContext(ctx);
-  for(const file of ['js/players.js','js/media.js','js/data/fcstats.js','js/data/cards.js','js/data/fcpos.js','js/positions.js','js/cards.js']) vm.runInContext(fs.readFileSync(file,'utf8'),ctx);
+  for(const file of ['js/players.js','js/media.js','js/data/faces2.js','js/data/fcstats.js','js/data/cards.js','js/data/fcpos.js','js/positions.js','js/cards.js']) vm.runInContext(fs.readFileSync(file,'utf8'),ctx);
+  vm.runInContext('Object.assign(FACES,FACES_EXTRA);Cards.reset()',ctx);
   return new Set(vm.runInContext('Cards.all().map(c=>c.key)',ctx));
 }
 
