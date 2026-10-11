@@ -75,7 +75,9 @@ export async function verifyInit(initData, token, maxAgeSec = 7 * 86400) {
   const secret = await hmac('WebAppData', token);
   const sig = [...new Uint8Array(await hmac(secret, check))].map((b) => b.toString(16).padStart(2, '0')).join('');
   if (sig !== hash) return null;
-  if (Date.now() / 1000 - Number(p.get('auth_date') || 0) > maxAgeSec) return null;
+  const authDate = Number(p.get('auth_date'));
+  const age = Date.now() / 1000 - authDate;
+  if (!Number.isFinite(authDate) || authDate <= 0 || age < -120 || age > maxAgeSec) return null;
   try { const u = JSON.parse(p.get('user')); if (u && u.id) u.start_param = p.get('start_param') || ''; return u && u.id ? u : null; } catch (e) { return null; }
 }
 
@@ -101,6 +103,7 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS bot (chat INTEGER PRIMARY KEY, started INTEGER NOT NULL, blocked INTEGER NOT NULL DEFAULT 0)'),
     // Track manual broadcast update IDs: Telegram may retry a slow webhook request.
     db.prepare('CREATE TABLE IF NOT EXISTS tg_broadcast_updates (id INTEGER PRIMARY KEY, received INTEGER NOT NULL)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS event_batches (uid INTEGER NOT NULL, id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (uid, id))'),
     db.prepare('CREATE TABLE IF NOT EXISTS names (game TEXT PRIMARY KEY, title TEXT)'),
     db.prepare('CREATE INDEX IF NOT EXISTS weekly_xp ON weekly (week, xp)'),
     // друзья: кто пришёл по чьей ссылке ?startapp=ref_<id> — связь в обе стороны
@@ -372,21 +375,34 @@ async function events(env, user, body) {
   await schema(db);
   const list = (Array.isArray(body.events) ? body.events : []).slice(0, 40)
     .filter((e) => e && /^[a-z0-9:-]{2,40}$/.test(e.game) && ['open', 'end', 'win'].includes(e.kind));
+  // Ignore retries of the same analytics batch (prevents duplicate club wins on failed responses).
+  // Old app versions without batchId continue to work during migration.
+  const batchId = typeof body.batchId === 'string' && /^[a-zA-Z0-9:_-]{10,96}$/.test(body.batchId) ? body.batchId : null;
+  if (batchId) {
+    const claimed = await db.prepare('INSERT OR IGNORE INTO event_batches (uid, id, ts) VALUES (?, ?, ?)').bind(user.id, batchId, now).run();
+    if (claimed.meta?.changes !== 1) return { saved: 0, duplicate: true };
+  }
+  try {
   // склеиваем пачку: по одной записи на игру+тип, игрок за день в игре отмечается один раз (повтор не пишется)
   const agg = {}, seenG = new Set();
   list.forEach((e) => { const k = e.game + '|' + e.kind; const a = agg[k] || (agg[k] = { game: e.game, kind: e.kind, n: 0, ms: 0 }); a.n++; a.ms += Math.max(0, Math.min(3600e3, Math.floor(Number(e.ms) || 0))); seenG.add(e.game); });
   const newSeen = [...seenG].filter((g) => !evuMem.has(today + g + user.id));
   newSeen.forEach((g) => evuMem.add(today + g + user.id));
   if (evuMem.size > 50000) evuMem.clear();
+  const w = list.filter((e) => e.kind === 'win').length;
+  if (w) await fillWins(db, weekKey(now));
   if (list.length) await db.batch([
     ...Object.values(agg).map((a) => db.prepare('INSERT INTO evd (day, game, kind, n, ms) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(day, game, kind) DO UPDATE SET n = n + ?4, ms = ms + ?5').bind(today, a.game, a.kind, a.n, a.ms)),
     ...newSeen.map((g) => db.prepare('INSERT OR IGNORE INTO evu (day, game, id) VALUES (?, ?, ?)').bind(today, g, user.id)),
     // русские названия игр для статистики — пишем только новые (запомненные в памяти воркера не трогаем)
     ...list.filter((e) => e.title && !knownNames.has(e.game)).map((e) => { knownNames.add(e.game); return db.prepare('INSERT INTO names (game, title) VALUES (?1, ?2) ON CONFLICT(game) DO UPDATE SET title = ?2').bind(e.game, clean(e.title, 40)); }),
+    ...(w ? [db.prepare('INSERT INTO cwins (id, week, n) VALUES (?1, ?2, ?3) ON CONFLICT(week, id) DO UPDATE SET n = n + ?3').bind(user.id, weekKey(now), w)] : []),
   ]);
-  const w = list.filter((e) => e.kind === 'win').length;
-  if (w) { await fillWins(db, weekKey(now)); await db.prepare('INSERT INTO cwins (id, week, n) VALUES (?1, ?2, ?3) ON CONFLICT(week, id) DO UPDATE SET n = n + ?3').bind(user.id, weekKey(now), w).run(); }
   return { saved: list.length };
+  } catch (e) {
+    if (batchId) await db.prepare('DELETE FROM event_batches WHERE uid = ? AND id = ?').bind(user.id, batchId).run().catch(() => {});
+    throw e;
+  }
 }
 
 async function report(env, user, body) {
@@ -566,7 +582,28 @@ export default {
   // Cron-триггер раз в час («0 * * * *», ставит .github/workflows/worker.yml): рассылка по понедельникам в 10:00 по Европе,
   // напоминания — в 18:00 по Москве. Каждая функция сама проверяет время и не шлёт дважды.
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(weekly(env).then(() => reminders(env)).then(() => env.DB.prepare('DELETE FROM presence WHERE ts < ?').bind(Date.now() - 86400000).run()));
+    ctx.waitUntil((async () => {
+      await schema(env.DB);
+      // Independence: failures are collected after all tasks have had a chance to run.
+      const jobs = [
+        weekly(env),
+        reminders(env),
+        env.DB.prepare('DELETE FROM presence WHERE ts < ?').bind(Date.now() - 86400000).run()
+          .then(() => env.DB.prepare('DELETE FROM event_batches WHERE ts < ?').bind(Date.now() - 7 * 86400000).run()),
+      ];
+      const results = await Promise.allSettled(jobs);
+      const failed = [];
+      for (let i = 0; i < results.length; i++) if (results[i].status === 'rejected') {
+        const name = ['weekly', 'reminders', 'cleanup'][i];
+        console.error(name + ' cron failed', results[i].reason);
+        failed.push(name);
+      }
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO settings (k, v) VALUES ('cron:last', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(String(Date.now())),
+        env.DB.prepare("INSERT INTO settings (k, v) VALUES ('cron:errors', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").bind(failed.join(', ')),
+      ]);
+      if (failed.length) throw new Error('Scheduled tasks failed: ' + failed.join(', '));
+    })());
   },
 };
 export { weekly, stats };
@@ -612,6 +649,17 @@ async function adminCommand(env, m) {
   }
   if (!(await isAdminId(env, chat))) return say('Команда только для админа.');
   if (text.startsWith('/stats')) return say(statsText(await stats(env)));
+  if (/^\/status(?:\s|$)/.test(text)) {
+    const last = Number(await getSetting(db, 'cron:last')) || 0;
+    const errors = (await getSetting(db, 'cron:errors')) || '';
+    const enabled = (await getSetting(db, 'broadcast:enabled')) === '1';
+    return say(['🛠 Джексоны · состояние сервера',
+      'Массовые сообщения: ' + (enabled ? 'включены' : 'выключены'),
+      'Последний Cron: ' + (last ? new Date(last).toISOString() : 'нет данных'),
+      'Ошибки Cron: ' + (errors || 'нет'),
+      'Для остановки рассылок: /stop',
+    ].join('\n'));
+  }
   if (/^\/(stop|broadcast_off)(?:\s|$)/.test(text)) {
     await setSetting(db, 'broadcast:enabled', '0');
     return say('🛑 Все массовые рассылки выключены. Для включения: /broadcast_on');
@@ -908,9 +956,13 @@ async function matchmake(env, user, body) {
   // кто-то ещё ждёт в этом режиме: подключаемся к тому, кто ждёт дольше
   const other = await db.prepare('SELECT id, code, nick, emo FROM mmg WHERE id != ? AND game = ? AND paired IS NULL ORDER BY ts ASC LIMIT 1').bind(uid, game).first();
   if (other) {
-    await db.batch([db.prepare('UPDATE mmg SET paired = ? WHERE id = ?').bind(uid, other.id), db.prepare('DELETE FROM mmg WHERE id = ?').bind(uid)]);
-    await setSetting(db, 'mm:' + dayKey(now), Number((await getSetting(db, 'mm:' + dayKey(now))) || 0) + 1);
-    return { ok: true, role: 'join', code: other.code, nick: other.nick, emo: other.emo };
+    // Atomically claim the host: concurrent guests must not both join the same waiting player.
+    const claimed = await db.prepare('UPDATE mmg SET paired = ? WHERE id = ? AND game = ? AND paired IS NULL AND ts > ?').bind(uid, other.id, game, now - 30000).run();
+    if (claimed.meta?.changes === 1) {
+      await db.prepare('DELETE FROM mmg WHERE id = ?').bind(uid).run();
+      await db.prepare("INSERT INTO settings (k, v) VALUES (?1, '1') ON CONFLICT(k) DO UPDATE SET v = CAST(v AS INTEGER) + 1").bind('mm:' + dayKey(now)).run();
+      return { ok: true, role: 'join', code: other.code, nick: other.nick, emo: other.emo };
+    }
   }
   await db.prepare('INSERT INTO mmg (id, game, code, nick, emo, ts, paired) VALUES (?1, ?6, ?2, ?3, ?4, ?5, NULL) ON CONFLICT(id) DO UPDATE SET game = ?6, code = ?2, nick = ?3, emo = ?4, ts = ?5, paired = NULL WHERE ts < ?5 - 10000 OR code != ?2 OR game != ?6')
     .bind(uid, code, clean(body.nick, 16), clean(body.emo, 4), now, game).run();
@@ -955,13 +1007,15 @@ const UNLOCK_AT = [[40, 'Тики-така'], [60, 'Пропуск и задан
 async function reminders(env) {
   const db = env.DB, now = Date.now(), today = dayKey(now), h = msk(now).getUTCHours(), wd = msk(now).getUTCDay();
   await schema(db);
+  if ((await getSetting(db, 'broadcast:enabled')) !== '1') return 'рассылки отключены';
   if (h !== 18) return 'не время';
   if ((await getSetting(db, 'remind')) === today) return 'уже';
   await setSetting(db, 'remind', today);
   const list = (await db.prepare(`SELECT s.id, COALESCE(t.trophies, 0) AS tro FROM seen s LEFT JOIN prefs p ON p.id = s.id LEFT JOIN ustats t ON t.id = s.id
     WHERE s.writable = 1 AND s.last > ?1 AND s.lastday != ?2 AND COALESCE(p.remind, 1) = 1 AND COALESCE(p.reminded, '') != ?2 LIMIT 3000`).bind(now - 14 * 864e5, today).all()).results;
-  let sent = 0;
+  let sent = 0, processed = 0;
   for (const r of list) {
+    if (processed++ % 10 === 0 && (await getSetting(db, 'broadcast:enabled')) !== '1') break;
     const next = UNLOCK_AT.find(([t]) => t > r.tro);
     const lines = ['🎁 Пак дня уже ждёт тебя — заходи забрать!'];
     if (next && next[0] - r.tro <= 40) lines.push(`🔓 До новой игры «${next[1]}» осталось всего ${next[0] - r.tro} 🏆`);
@@ -1073,7 +1127,7 @@ async function route(request, env) {
   // ---------- бот ----------
   if (url.pathname === '/webhook' && request.method === 'POST') {
     // защита: Telegram присылает секрет, заданный в setWebhook
-    if (env.WEBHOOK_SECRET && request.headers.get('x-telegram-bot-api-secret-token') !== env.WEBHOOK_SECRET) return new Response('forbidden', { status: 403 });
+    if (!env.WEBHOOK_SECRET || request.headers.get('x-telegram-bot-api-secret-token') !== env.WEBHOOK_SECRET) return new Response('forbidden', { status: 403 });
     const u = await request.json();
     // Telegram retries timed-out /broadcast updates: claim once before sending any messages.
     if (u.message && /^\/broadcast(?:\s|$)/.test(u.message.text || '')) {
@@ -1115,7 +1169,7 @@ async function route(request, env) {
       }
     } else if (u.message && /^\/(terms|paysupport|support)\b/.test(u.message.text || '')) {
       await infoCommand(env, u.message);
-    } else if (u.message && /^\/(admin|stats|stop|broadcast(?:_on|_off)?)\b/.test(u.message.text || '')) {
+    } else if (u.message && /^\/(admin|stats|status|stop|broadcast(?:_on|_off)?)\b/.test(u.message.text || '')) {
       await adminCommand(env, u.message);
     } else if (u.message && /^\/start\b/.test(u.message.text || '')) {
       if (env.DB) { await schema(env.DB); await env.DB.prepare('INSERT INTO bot (chat, started, blocked) VALUES (?1, ?2, 0) ON CONFLICT(chat) DO UPDATE SET blocked = 0').bind(u.message.chat.id, Date.now()).run(); }

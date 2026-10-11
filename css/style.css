@@ -4529,7 +4529,7 @@ body.at-home::before { display: none !important; }
 .ss-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .ss-c { display: grid; justify-items: center; gap: 4px; padding: 12px 8px; border: 0; border-radius: 16px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.09); color: #fff; }
 .ss-art { display: grid; place-items: center; height: 64px; } .ss-art .fpk { --pw: 40px; --ph: 56px; --d: 4px; } .ss-art .rs-coins .coin { width: 30px !important; height: 30px !important; }
-.ss-c b { font: 900 13.5px "Rubik", sans-serif; text-align: center; } .ss-c small { font: 600 11px var(--font-body); color: rgba(255,255,255,.55); }
+.ss-c b { font: 900 13.5px "Rubik", sans-serif; text-align: center; } .ss-c small { font: 650 12px/1.4 var(--font-body); color: rgba(255,255,255,.78); text-align: center; }
 .ss-c em { margin-top: 2px; padding: 4px 12px; border-radius: 99px; background: #ffcf3a; color: #1a1406; font: 900 13px "Rubik", sans-serif; font-style: normal; }
 .ss-c.sk img { width: 100%; aspect-ratio: 390 / 520; object-fit: cover; object-position: 50% 100%; border-radius: 10px; }
 .ss-c.own em { background: rgba(255,255,255,.12); color: rgba(255,255,255,.7); }

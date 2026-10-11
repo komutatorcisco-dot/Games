@@ -80,11 +80,12 @@ const PackOpen = (() => {
     // 2) все карточки сеткой
     el.dataset.phase = 'grid';
     setCol(el, RCOL[top.c.rar]);
-    const n = list.length, cols = n <= 3 ? 3 : n <= 8 ? 4 : 5;
+    const n = list.length, cols = n <= 3 ? 3 : n <= 8 || innerWidth < 420 ? 4 : 5;
     const W = Math.min(480, innerWidth) - 32, w = Math.floor((W - (cols - 1) * 8) / cols);
     const nNew = list.filter((x) => x.isNew).length;
     $('.po-k', el).textContent = `${n} ${plural(n, 'карточка', 'карточки', 'карточек')}`;
     nm.textContent = nNew ? `НОВЫХ: ${nNew}` : 'НОВЫХ НЕТ'; slam(nm);
+    hint.textContent = n > 8 ? 'Листай список, чтобы увидеть все карточки' : '';
     stage.innerHTML = `<div class="po-grid" style="--cols:${cols};--cw:${w}px">${list.map((x, i) => `<div class="po-cell ${x.c.rar}" style="--i:${i}">
         ${Cards.html(x.c, { w })}
         ${x.isNew ? '<i class="po-new">NEW</i>' : `<i class="po-dup">+${x.coins}</i>`}</div>`).join('')}</div>`;
