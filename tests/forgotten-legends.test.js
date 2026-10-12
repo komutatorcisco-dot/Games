@@ -72,6 +72,12 @@ assert.equal(JSON.stringify([...S.FL_ITALY].sort()), JSON.stringify(poolIta), 's
   const tour = (uid, body) => S.draftTour({ DB: db }, { id: uid }, body);
   await S.schema(db);
   assert.equal((await L(OFF, 1, { act: 'status' })).disabled, true, 'disabled without FL_ENABLED');
+  // включение только для проверяющих: список ID и режим «только админы»
+  assert.equal((await L({ DB: db, FL_TESTERS: '42, 43' }, 42, { act: 'status' })).ok, true, 'tester id enabled');
+  assert.equal((await L({ DB: db, FL_TESTERS: '42, 43' }, 44, { act: 'status' })).disabled, true, 'other players stay disabled');
+  vm.runInContext('adminIds = async () => [99];', sctx);
+  assert.equal((await L({ DB: db, FL_ENABLED: 'admins' }, 99, { act: 'status' })).ok, true, 'admin enabled in admins mode');
+  assert.equal((await L({ DB: db, FL_ENABLED: 'admins' }, 98, { act: 'status' })).disabled, true, 'non-admin disabled in admins mode');
 
   // турниры: 3 попытки по 4 матча; результаты только дописываются
   const roster = (k) => Array.from({ length: 11 }, (_, i) => `Игрок ${k}-${i}`);

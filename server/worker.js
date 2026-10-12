@@ -959,7 +959,7 @@ async function draftTour(env, user, body) {
 }
 
 // ---------- «Забытые легенды»: испытание за карточку (выдача только сервером, один раз) ----------
-// Включается переменной FL_ENABLED=1 (сначала staging). Прогресс считается по серверным записям:
+// Включается переменной FL_ENABLED: «1» — всем, «admins» — только админам; FL_TESTERS — отдельные Telegram ID. Прогресс считается по серверным записям:
 // матчи и победы — из попыток турниров драфта (draft_tours, результаты только дописываются),
 // «7 итальянцев» — по составу, присланному при завершении драфта, и серверному списку итальянцев пула драфта.
 // Ограничение: сами матчи и подбор игроков драфта идут на устройстве — сервер их не переигрывает.
@@ -981,7 +981,10 @@ async function flStatus(db, uid, start) {
   return { card: FL.card, need: { matches: FL.matches, wins: FL.wins, italians: FL.italians }, tasks, done, claimed: !!got };
 }
 async function legends(env, user, body) {
-  if (String(env.FL_ENABLED || '') !== '1') return { ok: false, disabled: true, error: 'Испытание ещё не включено' };
+  // FL_ENABLED: «1» — всем; «admins» — только админам игры; FL_TESTERS — список Telegram ID через запятую (для проверки)
+  const mode = String(env.FL_ENABLED || ''), testers = String(env.FL_TESTERS || '').split(/[\s,]+/).filter(Boolean).map(Number);
+  const on = mode === '1' || testers.includes(Number(user.id)) || (mode === 'admins' && (await isAdminId(env, user.id)));
+  if (!on) return { ok: false, disabled: true, error: 'Испытание ещё не включено' };
   const db = env.DB, uid = user.id, now = Date.now();
   await schema(db);
   const start = Number(env.FL_START) || FL.start;
