@@ -1,0 +1,82 @@
+{
+  "status": "preview_ready_requires_visual_review",
+  "source": "C:\\Users\\danil\\Documents\\Codex\\balotelli-preview\\source.blend",
+  "prototype": true,
+  "requires_visual_review": true,
+  "original_polygons": 1890134,
+  "normalized_dimensions": [
+    0.6444375514984131,
+    0.36673426628112793,
+    1.9000000953674316
+  ],
+  "mobile_polygons": 49999,
+  "mobile_vertices": 31048,
+  "initial_unweighted_vertices": 12,
+  "weight_repairs": [
+    {
+      "vertex": 2057,
+      "donor": 2056,
+      "distance_metres": 0.0002908414462581277
+    },
+    {
+      "vertex": 2058,
+      "donor": 2033,
+      "distance_metres": 0.00012335393694229424
+    },
+    {
+      "vertex": 2059,
+      "donor": 2055,
+      "distance_metres": 0.00032348200329579413
+    },
+    {
+      "vertex": 2060,
+      "donor": 2035,
+      "distance_metres": 0.00012399934348650277
+    },
+    {
+      "vertex": 2061,
+      "donor": 2036,
+      "distance_metres": 0.001370881567709148
+    },
+    {
+      "vertex": 30728,
+      "donor": 30606,
+      "distance_metres": 0.001049261773005128
+    },
+    {
+      "vertex": 30729,
+      "donor": 29412,
+      "distance_metres": 0.000907893234398216
+    },
+    {
+      "vertex": 30730,
+      "donor": 29414,
+      "distance_metres": 0.00017634926189202815
+    },
+    {
+      "vertex": 30731,
+      "donor": 30608,
+      "distance_metres": 0.0004494368040468544
+    },
+    {
+      "vertex": 30808,
+      "donor": 30652,
+      "distance_metres": 0.0008414793410338461
+    },
+    {
+      "vertex": 30809,
+      "donor": 30650,
+      "distance_metres": 0.00018243897648062557
+    },
+    {
+      "vertex": 30810,
+      "donor": 30651,
+      "distance_metres": 0.0008087190217338502
+    }
+  ],
+  "unweighted_vertices": 0,
+  "bones": 20,
+  "max_deform_influences": 4,
+  "glb_bytes": 13849876,
+  "pose_revision": 2
+}
