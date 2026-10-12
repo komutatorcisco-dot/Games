@@ -66,10 +66,10 @@ export async function suite(db,base=8000000000000000+Date.now()){
  const httpState=await call('/state');assert.equal(httpState.state.wallet.uid,base);assert.equal(httpState.state.wallet.coins,final.wallet.coins);
  const restored=await call('/stars/restore');assert.equal(restored.results.length,1);assert.deepEqual(restored.results[0],paid);assert.equal(restored.state.wallet.revision,final.wallet.revision);
  // Explicit reviewed activation is replay-safe and carries spent cards / completed SBCs.
- const raw=JSON.stringify({coins:12,rw:{trophies:7},cards:{own:{[bronze[0]]:3},used:{[bronze[0]]:2}},sbc:{done:{'b:first':1}},paid:['jack:historical']});
+ const raw=JSON.stringify({coins:12,rw:{trophies:7},cards:{own:{[bronze[0]]:3},used:{[bronze[0]]:2}},sbc:{done:{'b:first':1,'old-repeatable-sbc':3}},paid:['jack:historical']});
  const review=await reconcile(raw),approval={approved:true,sourceHash:review.sourceHash,reviewer:'synthetic-review'};
  await activateReviewed(db,base+1,raw,approval,{environment:'staging'});await activateReviewed(db,base+1,raw,approval,{environment:'staging'});
- const migrated=await state(db,base+1);assert.equal(migrated.inventory[bronze[0]].spent,2);assert.ok(migrated.claims.includes('sbc:b:first'));
+ const migrated=await state(db,base+1);assert.equal(migrated.inventory[bronze[0]].spent,2);assert.ok(migrated.claims.includes('sbc:b:first'));assert.ok(migrated.claims.includes('sbc:old-repeatable-sbc'));
  await assert.rejects(()=>operate(db,base+1,'old-paid-restore','stars',{order:'historical-order'}));
  // Guarantees and current prices are asserted independently of outputs.
  assert.equal(products.get('basic').coins,400);assert.equal(products.get('jack').coins,20000);

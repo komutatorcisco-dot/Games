@@ -35,7 +35,7 @@ export async function activateReviewed(db,uid,raw,approval,{aliases={},environme
  const sql=(s,...v)=>db.prepare(s).bind(...v);
  const batch=[sql('INSERT INTO econ_wallets VALUES (?,?,?,?,?,?,?)',uid,r.coins,r.trophies,0,now,evidence,'reviewed'),sql('INSERT INTO econ_legacy_evidence VALUES (?,?,?,?)',uid,'reviewed_snapshot',r.sourceHash,raw),sql('INSERT INTO econ_openings VALUES (?,?,?,?)',uid,evidence,canonical({coins:r.coins,trophies:r.trophies,inventory:r.inventory}),now),sql('INSERT INTO econ_operations VALUES (?,?,?,?,?,?,?)',uid,id,r.sourceHash,'migration',JSON.stringify(result),0,now)];
  for(const [key,v] of Object.entries(r.inventory))batch.push(sql('INSERT INTO econ_inventory VALUES (?,?,?,?)',uid,key,v.received,v.spent));
- for(const [challenge,n] of Object.entries(r.legacy.sbc?.done||{})){requireValue(amount(n)&&n<=1,'invalid SBC evidence');if(n)batch.push(sql('INSERT INTO econ_claims VALUES (?,?,?)',uid,'sbc:'+challenge,id));}
+ for(const [challenge,n] of Object.entries(r.legacy.sbc?.done||{})){requireValue(amount(n,1e9),'invalid SBC evidence');if(n)batch.push(sql('INSERT INTO econ_claims VALUES (?,?,?)',uid,'sbc:'+challenge,id));}
  // Existing paid markers, pass state and purchases remain in the raw immutable evidence.
  // They are NOT converted to fresh receipt entitlements. Only new v2 orders can grant rewards.
  await db.batch(batch);
