@@ -4,9 +4,9 @@ const EconomyClient = (() => {
   const configured=()=>typeof CONFIG!=='undefined'&&CONFIG.economyStaging===true&&!!CONFIG.economyApi;
   const pendingKey=()=>`jx-economy-pending:${TG?.initDataUnsafe?.user?.id||'test'}`;
   async function request(path,body={}){
-    if(!configured()||!TG?.initData)throw Error('РЎРµСЂРІРµСЂРЅР°СЏ СЌРєРѕРЅРѕРјРёРєР° РЅРµРґРѕСЃС‚СѓРїРЅР°');
+    if(!configured()||!TG?.initData)throw Error('Серверная экономика недоступна');
     const r=await fetch(CONFIG.economyApi+path,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...body,initData:TG.initData})});
-    const j=await r.json();if(!r.ok||!j.ok)throw Error('РћРїРµСЂР°С†РёСЏ РЅРµ РїРѕРґС‚РІРµСЂР¶РґРµРЅР°. РџРѕРІС‚РѕСЂРё РїРѕСЃР»Рµ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ СЃРІСЏР·Рё.');
+    const j=await r.json();if(!r.ok||!j.ok)throw Error('Операция не подтверждена. Повтори после восстановления связи.');
     if(j.state)apply(j.state);return j;
   }
   function apply(s){
@@ -20,10 +20,10 @@ const EconomyClient = (() => {
   }
   let busy=false;
   async function transact(path,payload){
-    if(busy)throw Error('Р”РѕР¶РґРёСЃСЊ РїРѕРґС‚РІРµСЂР¶РґРµРЅРёСЏ РїСЂРµРґС‹РґСѓС‰РµР№ РїРѕРєСѓРїРєРё');busy=true;
+    if(busy)throw Error('Дождись подтверждения предыдущей покупки');busy=true;
     try{
       const saved=localStorage.getItem(pendingKey());let pending=saved?JSON.parse(saved):null;
-      if(pending&&(pending.path!==path||JSON.stringify(pending.payload)!==JSON.stringify(payload)))throw Error('РЎРЅР°С‡Р°Р»Р° РїРѕРІС‚РѕСЂРё РЅРµР·Р°РІРµСЂС€С‘РЅРЅСѓСЋ РѕРїРµСЂР°С†РёСЋ');
+      if(pending&&(pending.path!==path||JSON.stringify(pending.payload)!==JSON.stringify(payload)))throw Error('Сначала повтори незавершённую операцию');
       if(!pending){pending={id:crypto.randomUUID(),path,payload};localStorage.setItem(pendingKey(),JSON.stringify(pending));}
       const result=await request(path,{id:pending.id,payload:pending.payload});localStorage.removeItem(pendingKey());return result.result;
     }finally{busy=false;}
@@ -34,7 +34,7 @@ const EconomyClient = (() => {
   async function restore(){return request('/stars/restore');}
   async function buyStars(item){try{
     const id=crypto.randomUUID();const order=await request('/invoice',{id,item});
-    TG.openInvoice(order.link,async status=>{if(status==='paid'){try{const r=await restore();const own=r.results.find(x=>x.id==='stars:'+order.order);if(own?.cards.length)PackOpen.reveal(renderCards(own));}catch{toast('РћРїР»Р°С‚Р° СЃРѕС…СЂР°РЅРµРЅР°. РџРѕРІС‚РѕСЂРё РІС…РѕРґ РїРѕСЃР»Рµ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ СЃРІСЏР·Рё.');}}});
+    TG.openInvoice(order.link,async status=>{if(status==='paid'){try{const r=await restore();const own=r.results.find(x=>x.id==='stars:'+order.order);if(own?.cards.length)PackOpen.reveal(renderCards(own));}catch{toast('Оплата сохранена. Повтори вход после восстановления связи.');}}});
   }catch(e){toast(e.message);}}
   return {configured,sync,restore,buyPack,buyStars,transact,renderCards};
 })();
