@@ -64,6 +64,8 @@ function findBones(obj) {
 }
 
 function setupRig(model) {
+  // вернуть позу привязки (bind pose) из скина: узлы в GLB могут хранить кадр анимации, а не исходную позу
+  model.traverse((o) => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.pose(); });
   const { out: B, missing } = findBones(model);
   if (missing.length) throw new Error('нет костей: ' + missing.join(', '));
   model.updateMatrixWorld(true);
@@ -174,16 +176,16 @@ function pose(t) {
   [['L', 1, 0], ['R', -1, Math.PI]].forEach(([s, side, off]) => {
     const p = ph + off;
     const swing = -Math.sin(p) * deg(24) * walkK;
-    const walkUp = armDir(side, swing, deg(9));
-    const celUp = armDir(side, deg(12), deg(42) + breathe * deg(2) + bounce * deg(4)); // «Why always me?»: руки вниз и в стороны
+    const walkUp = armDir(side, swing, deg(13));
+    const celUp = armDir(side, deg(10), deg(36) + breathe * deg(2) + bounce * deg(4)); // «Why always me?»: руки вниз и в стороны
     const up = walkUp.clone().lerp(celUp, celK).normalize();
     aim('upper_arm.' + s, up);
     // предплечье: в ходьбе согнуто вперёд, в праздновании почти прямое и раскрыто наружу
     const fwdBend = (deg(18) + Math.max(0, swing) * 0.6) * (1 - celK);
     const fore = up.clone().applyAxisAngle(X, -fwdBend * FACE);
-    const celFore = armDir(side, deg(26), deg(50) + bounce * deg(3)); // ладони раскрыты к зрителю
+    const celFore = armDir(side, deg(24), deg(44) + bounce * deg(3)); // ладони раскрыты к зрителю
     aim('forearm.' + s, fore.lerp(celFore, celK).normalize());
-    keepWorld('hand.' + s);
+    // кисть следует за предплечьем (как в позе покоя), иначе запястье выворачивается и тянет руку вниз
   });
 
   // опора: самая низкая лодыжка всегда на уровне покоя — ноги не проваливаются и не висят
@@ -230,7 +232,7 @@ function loop(now) {
   if (!rig) return;
   const t = (now - t0) / 1000;
   const a = clamp01(t / T.appear);
-  pose(t);
+  if (Q.get('bind') !== '1') pose(t);
   placeCamera(t);
   rig.model.traverse((o) => { if (o.material && 'opacity' in o.material && o.userData.fade) { o.material.opacity = a; o.material.transparent = a < 1; } });
   beam.material.opacity = 0.22 * (1 - ease((t - T_WALK0) / (T.walk * 0.8))) + 0.02;
@@ -253,6 +255,7 @@ async function load() {
   model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (o.material) o.userData.fade = true; } });
   scene.add(model);
   rig = setupRig(model);
+  if (Q.get('bones') === '1') { const h = new THREE.SkeletonHelper(model); h.material.depthTest = false; h.material.linewidth = 2; scene.add(h); }
   rig.restRootInv = rig.rest.root.wq.clone().invert();
   status.textContent = `${from} · рост ${rig.height.toFixed(2)} м`;
   frame(); restart();
@@ -262,4 +265,5 @@ requestAnimationFrame(loop);
 
 // для проверок: перемотать на момент t
 window.__seek = (t) => { t0 = performance.now() - t * 1000; };
+window.__dbg = () => { const o = {}; ['upper_arm.L','forearm.L','hand.L','upper_arm.R','forearm.R','hand.R','clavicle.L'].forEach((n) => { const b = rig.B[n]; const w = b.getWorldPosition(new THREE.Vector3()); o[n] = w.toArray().map((x) => +x.toFixed(3)); o[n + ' ld'] = rig.localDir[n] ? rig.localDir[n].toArray().map((x) => +x.toFixed(2)) : null; }); o.sideL = rig.sideL; return JSON.stringify(o); };
 window.__phases = { T_WALK0, T_STOP0, T_CEL0, T_END };
