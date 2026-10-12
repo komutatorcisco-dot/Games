@@ -882,23 +882,29 @@ async function club(env, user, body) {
 }
 
 // ---------- активность онлайн и число игроков по режимам ----------
+let presenceMem = null;
+const resetPresenceCache = () => { presenceMem = null; }; // для тестов
 async function onlinePresence(env, user, body) {
   const db = env.DB, now = Date.now();
   await schema(db);
-  if (body.act === 'leave') await db.prepare('DELETE FROM presence WHERE id = ?').bind(user.id).run();
+  if (body.act === 'leave') { presenceMem = null; await db.prepare('DELETE FROM presence WHERE id = ?').bind(user.id).run(); }
   else if (body.act === 'heartbeat') {
     const game = ['duel', 'xdraft', 'trumps'].includes(body.game) ? body.game : 'hub';
     const old = await db.prepare('SELECT game, ts FROM presence WHERE id = ?').bind(user.id).first();
     // Enforce the write budget on the server too: old clients still send every 20s.
     if (!old || now - old.ts >= 110000 || (old.game !== game && now - old.ts >= 20000)) {
+      presenceMem = null; // кто-то пришёл или сменил режим — пересчитаем
       await db.prepare("INSERT INTO presence (id, game, ts) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET game = ?2, ts = ?3 WHERE presence.ts <= ?3 - 110000 OR (presence.game != ?2 AND presence.ts <= ?3 - 20000)").bind(user.id, game, now).run();
     }
   }
+  // счётчик «в сети» общий для всех: пересчитываем не чаще раза в минуту на копию воркера (иначе каждый пинг читает всех онлайн)
+  if (presenceMem && now - presenceMem.ts < 60000) return presenceMem.v;
   const rows = (await db.prepare('SELECT game, COUNT(*) AS n FROM presence WHERE ts >= ? GROUP BY game').bind(now - 300000).all()).results || [];
   const modes = { duel: 0, xdraft: 0, trumps: 0 };
   let total = 0;
   rows.forEach((r) => { const n = Number(r.n) || 0; total += n; if (Object.prototype.hasOwnProperty.call(modes, r.game)) modes[r.game] = n; });
-  return { ok: true, total, modes, ttl: 300 };
+  presenceMem = { ts: now, v: { ok: true, total, modes, ttl: 300 } };
+  return presenceMem.v;
 }
 
 // ---------- один турнир на состав драфта: попытка и награда хранятся по Telegram ID ----------

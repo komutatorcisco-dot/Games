@@ -6,7 +6,7 @@ const db={
 };
 const ctx={console,Date,crypto:require('node:crypto').webcrypto,TextEncoder,URL,Response,Request,fetch:()=>{throw Error('Unexpected network')}};
 vm.createContext(ctx);
-vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^}]+\};/gm,'').replace('export default {','const worker = {').replace(/^export /gm,'')+'\nglobalThis.testAPI={schema,onlinePresence,draftTour,saveScore,saveData,loadData};',ctx);
+vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^}]+\};/gm,'').replace('export default {','const worker = {').replace(/^export /gm,'')+'\nglobalThis.testAPI={resetPresenceCache,schema,onlinePresence,draftTour,saveScore,saveData,loadData};',ctx);
 (async()=>{
   const api=ctx.testAPI, env={DB:db};
   await api.schema(db);
@@ -16,7 +16,7 @@ vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^
   const beforeRepeated = changes();
   for(let i=0;i<20;i++) await api.onlinePresence(env,{id:1},{act:'heartbeat',game:'duel'});
   assert.equal(changes(),beforeRepeated,'repeated heartbeats from old clients do not write rows');
-  sql.exec('UPDATE presence SET ts = ts - 120000 WHERE id=1');
+  sql.exec('UPDATE presence SET ts = ts - 120000 WHERE id=1'); api.resetPresenceCache();
   const beforeDue = changes();
   await api.onlinePresence(env,{id:1},{act:'heartbeat',game:'duel'});
   assert.equal(changes(),beforeDue+1,'heartbeat renews after two minutes');
@@ -27,7 +27,7 @@ vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^
   await api.onlinePresence(env,{id:1},{act:'leave'});
   counts=await api.onlinePresence(env,{id:3},{act:'count'});
   assert.equal(counts.total,1); assert.equal(counts.modes.duel,0);
-  sql.exec('UPDATE presence SET ts=1 WHERE id=2');
+  sql.exec('UPDATE presence SET ts=1 WHERE id=2'); api.resetPresenceCache();
   const beforeRead = changes();
   counts=await api.onlinePresence(env,{id:3},{act:'count'});
   assert.equal(counts.total,0,'a disconnected client expires after the heartbeat TTL');
