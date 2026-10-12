@@ -3,30 +3,80 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Выход игрока</title>
+<title>Выход из пака</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@600;800;900&display=swap" rel="stylesheet">
 <style>
-  :root { --gold: #ffcf3a; }
-  html, body { margin: 0; height: 100%; background: #07060f; color: #fff; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; overflow: hidden; }
+  :root { --gold: #ffcf3a; --ink: #05040b; --sat: env(safe-area-inset-top, 0px); }
+  html, body { margin: 0; height: 100%; background: var(--ink); color: #fff; font-family: Rubik, system-ui, sans-serif; overflow: hidden; -webkit-user-select: none; user-select: none; }
   #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
-  .ui { position: fixed; left: 0; right: 0; display: flex; justify-content: center; gap: 10px; padding: 0 16px; }
-  .top { top: max(14px, env(safe-area-inset-top)); flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
-  .top b { font: 900 clamp(26px, 7vw, 44px)/1 system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; opacity: 0; transform: translateY(8px); transition: opacity .5s, transform .5s; }
-  .top small { color: var(--gold); font-weight: 800; letter-spacing: .2em; font-size: 12px; opacity: 0; transition: opacity .5s .1s; }
-  body.done .top b, body.done .top small { opacity: 1; transform: none; }
-  .bottom { bottom: max(18px, env(safe-area-inset-bottom)); }
-  button { padding: 12px 22px; border: 0; border-radius: 999px; background: rgba(255,255,255,.12); color: #fff; font: 800 15px system-ui, sans-serif; }
-  #replay { background: var(--gold); color: #1d1400; display: none; }
-  body.done #replay { display: block; }
-  body.done #skip { display: none; }
-  #status { position: fixed; left: 8px; bottom: 4px; font-size: 10px; color: rgba(255,255,255,.35); }
+
+  /* ---- этапы раскрытия: нация, позиция, клуб ---- */
+  .beat { position: fixed; left: 50%; top: 52%; transform: translate(-50%, -50%) scale(.86); display: grid; justify-items: center; gap: 10px; opacity: 0; pointer-events: none; text-align: center; z-index: 5; max-width: min(56vw, 250px); }
+  .blab { font: 800 13px/1 Rubik; letter-spacing: .32em; color: var(--c1, #ffcf3a); text-shadow: 0 0 16px currentColor; }
+  .beat b { font: 900 clamp(26px, 7.5vw, 46px)/1 Rubik; letter-spacing: .03em; text-transform: uppercase; text-shadow: 0 4px 30px rgba(0,0,0,.6); }
+  .beat b.big { font-size: clamp(56px, 16vw, 96px); }
+  .beat small { font: 700 12px Rubik; color: rgba(255,255,255,.55); letter-spacing: .08em; }
+  .bflag { width: clamp(90px, 26vw, 150px); aspect-ratio: 3/2; border-radius: 6px; box-shadow: 0 0 0 2px rgba(255,255,255,.25), 0 10px 40px rgba(0,0,0,.6); }
+  .bcrest { width: clamp(80px, 22vw, 130px); height: clamp(80px, 22vw, 130px); object-fit: contain; filter: drop-shadow(0 8px 24px rgba(0,0,0,.6)); }
+
+  /* ---- карточка Jackson ---- */
+  /* положение, размер и прозрачность карточки задаёт walkout.js по времени сцены (перемотка и пропуск точны) */
+  .jc { --w: 280px; position: fixed; z-index: 4; width: var(--w); aspect-ratio: .72; left: 50%; top: 52%; transform: translate(-50%, -50%); border-radius: calc(var(--w) * .09); opacity: 0; }
+  .jc-in { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; background: #0d0a1c; box-shadow: 0 0 0 2px rgba(255,255,255,.08), 0 30px 70px rgba(0,0,0,.6); }
+  /* силуэт: тёмная карточка, свет редкости нарастает по краю (--charge 0→1) */
+  .jc::before { content: ''; position: absolute; inset: calc(-14px - 22px * var(--charge, 0)); border-radius: inherit; z-index: -1; filter: blur(calc(14px + 18px * var(--charge, 0)));
+    background: conic-gradient(from 0deg, var(--c1), var(--c2), var(--c3), var(--c1)); opacity: calc(.15 + .75 * var(--charge, 0)); animation: spin 6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .jc-face { position: absolute; inset: 0; opacity: 0; }
+  .jc-bg { position: absolute; inset: 0; background: radial-gradient(120% 80% at 50% 10%, color-mix(in srgb, var(--c1) 55%, #fff 0%), transparent 60%), linear-gradient(160deg, var(--c2), #120d26 70%); opacity: .9; }
+  .jc.legend .jc-bg { background: radial-gradient(110% 70% at 50% 8%, rgba(255,255,255,.35), transparent 60%), linear-gradient(135deg, #ff9ae2, #ffe27a 30%, #8ff0d8 55%, #9fdcff 75%, #d6b2ff); }
+  .jc-holo { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.45) 45%, transparent 60%); background-size: 250% 100%; animation: holo 3.2s ease-in-out infinite; mix-blend-mode: overlay; }
+  @keyframes holo { 0% { background-position: 120% 0 } 100% { background-position: -120% 0 } }
+  .jc-ph { position: absolute; left: 22%; right: 0; top: 4%; height: 68%; background: center bottom / contain no-repeat; filter: drop-shadow(0 8px 14px rgba(0,0,0,.45)); }
+  .jc-r { position: absolute; left: 9%; top: 8%; display: grid; justify-items: center; line-height: .9; color: #160f2c; }
+  .jc-r b { font: 900 calc(var(--w) * .16)/1 Rubik; letter-spacing: -.03em; }
+  .jc-r small { font: 800 calc(var(--w) * .07)/1 Rubik; letter-spacing: .06em; margin-top: 4px; }
+  .jc-flag { display: block; width: calc(var(--w) * .13); aspect-ratio: 3/2; margin-top: calc(var(--w) * .035); border-radius: 3px; box-shadow: 0 0 0 1.5px rgba(0,0,0,.25); }
+  .jc-crest { margin-top: calc(var(--w) * .03); width: calc(var(--w) * .13); height: calc(var(--w) * .13); display: grid; place-items: center; }
+  .jc-crest img { width: 100%; height: 100%; object-fit: contain; }
+  .jc-band { position: absolute; left: 0; right: 0; bottom: 0; height: 28%; display: grid; align-content: center; justify-items: center; gap: 4px; background: linear-gradient(180deg, rgba(10,6,24,.0), rgba(10,6,24,.92) 35%); }
+  .jc-name { font: 900 calc(var(--w) * .1)/1 Rubik; letter-spacing: .04em; }
+  .jc-rar { font: 800 calc(var(--w) * .045)/1 Rubik; letter-spacing: .3em; color: var(--c1); }
+  .jc.legend .jc-rar { background: linear-gradient(90deg, #ff9ae2, #ffe27a, #8ff0d8, #9fdcff, #d6b2ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .jc-test { position: absolute; top: 4%; right: -30%; transform: rotate(35deg); width: 100%; text-align: center; background: #ff3b5c; color: #fff; font: 900 calc(var(--w) * .045)/1 Rubik; letter-spacing: .2em; padding: 5px 0; display: none; }
+  .jc.test .jc-test { display: block; }
+  #flash { position: fixed; inset: 0; z-index: 5; pointer-events: none; opacity: 0; background: radial-gradient(circle at 50% 50%, #fff, color-mix(in srgb, var(--c1, #fff) 70%, transparent) 40%, transparent 75%); }
+
+  /* ---- кнопки ---- */
+  .bar { position: fixed; left: 0; right: 0; bottom: max(16px, env(safe-area-inset-bottom)); z-index: 6; display: flex; justify-content: center; gap: 10px; padding: 0 16px; }
+  .bar button { min-width: 120px; padding: 13px 22px; border: 0; border-radius: 999px; font: 800 15px Rubik; color: #fff; background: rgba(255,255,255,.13); backdrop-filter: blur(6px); }
+  #cont { background: var(--gold); color: #1d1400; }
+  body[data-ui="play"] #cont, body[data-ui="play"] #replay { display: none; }
+  body[data-ui="end"] #skip { display: none; }
+  .meta { position: fixed; left: 10px; top: max(8px, env(safe-area-inset-top)); z-index: 6; font: 600 10px/1.35 Rubik; color: rgba(255,255,255,.34); max-width: 52vw; }
+  #loading { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 6; font: 700 12px Rubik; color: rgba(255,255,255,.6); }
+  #toast { position: fixed; left: 50%; top: 18px; transform: translate(-50%, -40px); z-index: 7; max-width: 86vw; padding: 10px 14px; border-radius: 12px; background: rgba(20,16,40,.92); font: 600 13px Rubik; opacity: 0; transition: .3s; text-align: center; }
+  #toast.on { opacity: 1; transform: translate(-50%, 0); }
+  @media (prefers-reduced-motion: reduce) { .jc::before, .jc-holo { animation: none; } }
 </style>
+<script src="../../js/data/cards.js"></script>
+<script src="../../js/media.js"></script>
 <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
 </head>
-<body>
+<body data-ui="play">
 <canvas id="c"></canvas>
-<div class="ui top"><small>ЛЕГЕНДА · 88</small><b>Балотелли</b></div>
-<div class="ui bottom"><button id="skip">Пропустить</button><button id="replay">Повторить</button></div>
-<div id="status">загрузка…</div>
+<div id="beat" class="beat"></div>
+<div id="card" class="jc" data-st="off"><div class="jc-in">
+  <div class="jc-face"><div class="jc-bg"></div><div class="jc-holo"></div><div class="jc-ph"></div>
+    <div class="jc-r"><b>??</b><small>—</small><i class="jc-flag"></i><span class="jc-crest"></span></div>
+    <div class="jc-band"><span class="jc-name"></span><span class="jc-rar"></span></div><div class="jc-test">ТЕСТ</div></div>
+</div></div>
+<div id="flash"></div>
+<div class="bar"><button id="skip">Пропустить</button><button id="replay">Повторить</button><button id="cont">Продолжить</button></div>
+<div id="loading" hidden>Загружаем 3D…</div>
+<div id="toast"></div>
+<div class="meta"><span id="src"></span><br><span id="stat">3D грузится…</span> · демо: награды не начисляются</div>
 <script type="module" src="./walkout.js"></script>
 </body>
 </html>

@@ -1,269 +1,367 @@
-// Выход игрока из пака: настоящая скелетная анимация (кости двигаются кодом), без CSS-перемещения неподвижной модели.
-// Скелет — 20 костей: root, pelvis, spine, chest, neck, head, clavicle/upper_arm/forearm/hand (L/R), thigh/shin/foot (L/R).
-// Позы задаются направлениями костей в мировых координатах, поэтому не зависят от исходной позы модели (T/A-поза)
-// и от того, как в Blender повёрнуты оси костей.
+// Jackson Games — кинематографичный выход игрока из пака (демо, в игру не подключено).
 //
-// Фазы: появление из света → шаги вперёд → остановка → празднование (разведение рук, грудь вперёд) → дыхание.
+// Сценарий ~10 с: тёмная сцена и силуэт карточки → нация → позиция → клуб/«Герой» → вспышка и карточка →
+// игрок выходит из глубины, шагает к карточке, останавливается, празднует → спокойное ожидание.
+// Результат пака задаётся ДО начала (объект RESULT, только для чтения): сцена его лишь показывает.
+// Пропуск, повтор и перезагрузка ничего не начисляют — здесь вообще нет обращений к экономике.
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from './vendor/meshopt_decoder.module.js';
+import { createRig, planWalk, pose, smooth, smoother } from './motion.js';
 
 const Q = new URLSearchParams(location.search);
-const MODEL_URL = Q.get('model') || 'balotelli.glb';
-const FACE = Q.get('face') === '-1' ? -1 : 1; // если модель смотрит спиной к камере — ?face=-1
-const deg = THREE.MathUtils.degToRad;
-const ease = (t) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
-const clamp01 = (t) => Math.min(1, Math.max(0, t));
+const $ = (s) => document.querySelector(s);
 
-// ---------- тайминг ----------
-const T = { appear: 0.7, walk: 2.6, stop: 0.6, celebrate: 1.1 };
-const T_WALK0 = T.appear, T_STOP0 = T_WALK0 + T.walk, T_CEL0 = T_STOP0 + T.stop, T_END = T_CEL0 + T.celebrate;
-const WALK_DIST = 2.6; // метров к камере
-const CYCLE = 1.05; // секунд на полный цикл шага (два шага)
-
-// ---------- сцена ----------
-const canvas = document.getElementById('c');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
-renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x07060f);
-scene.fog = new THREE.Fog(0x07060f, 8, 18);
-const camera = new THREE.PerspectiveCamera(32, 1, 0.05, 60);
-
-scene.add(new THREE.HemisphereLight(0x9fb4ff, 0x1a1020, 0.9));
-const key = new THREE.DirectionalLight(0xfff1d6, 2.4);
-key.position.set(2.2, 5, 4.5); key.castShadow = true;
-key.shadow.mapSize.set(1024, 1024);
-Object.assign(key.shadow.camera, { left: -3, right: 3, top: 4, bottom: -1, near: 0.5, far: 15 });
-scene.add(key);
-const rim = new THREE.DirectionalLight(0xffc23a, 2.2); rim.position.set(-3, 3, -4); scene.add(rim);
-// луч света из «пака» за спиной игрока
-const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 1.1, 7, 40, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd25a, transparent: true, opacity: 0.0, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }));
-beam.position.set(0, 3.2, -WALK_DIST - 0.4); scene.add(beam);
-const floor = new THREE.Mesh(new THREE.CircleGeometry(6, 64), new THREE.MeshStandardMaterial({ color: 0x12101f, roughness: 0.85, metalness: 0.1 }));
-floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
-const ring = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.62, 64), new THREE.MeshBasicMaterial({ color: 0xffcf3a, transparent: true, opacity: 0 }));
-ring.rotation.x = -Math.PI / 2; ring.position.y = 0.005; scene.add(ring);
-
-// ---------- модель ----------
-let rig = null; // { root, bones: {name: bone}, rest: {...}, height }
-const status = document.getElementById('status');
-
-function findBones(obj) {
-  const bones = {};
-  obj.traverse((o) => { if (o.isBone) { bones[o.name] = o; bones[o.name.replace(/\./g, '')] = o; } });
-  const get = (n) => bones[n] || bones[n.replace(/\./g, '')] || bones[n.replace('.', '_')];
-  const names = ['root', 'pelvis', 'spine', 'chest', 'neck', 'head', 'clavicle.L', 'upper_arm.L', 'forearm.L', 'hand.L', 'clavicle.R', 'upper_arm.R', 'forearm.R', 'hand.R', 'thigh.L', 'shin.L', 'foot.L', 'thigh.R', 'shin.R', 'foot.R'];
-  const out = {}, missing = [];
-  names.forEach((n) => { const b = get(n); if (b) out[n] = b; else missing.push(n); });
-  return { out, missing };
+// ---------- результат пака: из каталога игры; если игрока нет — явно помеченная тестовая карточка ----------
+const RAR = {
+  bronze: { n: 'БРОНЗА', c: ['#f3b98a', '#8f5a32', '#f0b98c'] },
+  silver: { n: 'СЕРЕБРО', c: ['#ffffff', '#8a94a6', '#dfe5ee'] },
+  gold: { n: 'ЗОЛОТО', c: ['#fff3b0', '#e0a21a', '#ffcf3a'] },
+  legend: { n: 'ЛЕГЕНДА', c: ['#ff9ae2', '#ffe27a', '#8ff0d8', '#9fdcff', '#d6b2ff'] },
+  jack: { n: 'ДЖЕКСОН!!', c: ['#ff4a62', '#2a0610', '#ff5a6e'] },
+};
+function resolveCard(name) {
+  const row = (window.CARD_LEGENDS || []).find((r) => r[0] === name);
+  if (row) {
+    const nat = window.CARD_LEGEND_NATIONS && window.CARD_LEGEND_NATIONS[name];
+    return { name, rating: row[1], club: row[2], pos: row[3], nation: nat || null, rarity: 'legend', hero: false, test: false, src: 'каталог: CARD_LEGENDS' };
+  }
+  // Балотелли нет в каталоге карточек: не выдумываем рейтинг, клуб и редкость
+  return { name: 'Марио Балотелли', rating: null, club: null, pos: null, nation: 'Италия', rarity: Q.get('rar') || 'legend', hero: false, test: true, src: 'нет в каталоге — тестовая карточка (нация из «Угадай карьеру»)' };
 }
-
-function setupRig(model) {
-  // вернуть позу привязки (bind pose) из скина: узлы в GLB могут хранить кадр анимации, а не исходную позу
-  model.traverse((o) => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.pose(); });
-  const { out: B, missing } = findBones(model);
-  if (missing.length) throw new Error('нет костей: ' + missing.join(', '));
-  model.updateMatrixWorld(true);
-  const rest = {};
-  const wp = (b) => b.getWorldPosition(new THREE.Vector3());
-  Object.entries(B).forEach(([n, b]) => { rest[n] = { q: b.quaternion.clone(), p: b.position.clone(), wq: b.getWorldQuaternion(new THREE.Quaternion()), wp: wp(b) }; });
-  // направление кости в её локальных осях = на дочернюю кость цепочки
-  const CHILD = { 'upper_arm.L': 'forearm.L', 'forearm.L': 'hand.L', 'upper_arm.R': 'forearm.R', 'forearm.R': 'hand.R', 'thigh.L': 'shin.L', 'shin.L': 'foot.L', 'thigh.R': 'shin.R', 'shin.R': 'foot.R' };
-  const localDir = {};
-  Object.entries(CHILD).forEach(([n, c]) => { localDir[n] = B[c].position.clone().normalize(); });
-  // рост и стороны: где у модели «лево» в мире (L может быть +X или −X)
-  const box = new THREE.Box3().setFromObject(model);
-  const height = box.max.y - box.min.y;
-  const sideL = Math.sign(rest['upper_arm.L'].wp.x - rest['upper_arm.R'].wp.x) || 1;
-  const ankleY = Math.min(rest['foot.L'].wp.y, rest['foot.R'].wp.y);
-  return { model, B, rest, localDir, height, sideL, ankleY, groundY: box.min.y };
-}
-
-// мировой кватернион родителя кости (с учётом уже выставленных в этом кадре поз)
-const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3();
-function parentWorldQ(b) { return b.parent ? b.parent.getWorldQuaternion(new THREE.Quaternion()) : new THREE.Quaternion(); }
-// повернуть кость так, чтобы она смотрела в мировом направлении dir (минимальным поворотом от позы покоя)
-function aim(name, dir) {
-  const b = rig.B[name]; b.parent.updateMatrixWorld(true);
-  const Qp = parentWorldQ(b);
-  const base = Qp.clone().multiply(rig.rest[name].q); // мир. ориентация кости в позе покоя при текущем родителе
-  const cur = _v.copy(rig.localDir[name]).applyQuaternion(base);
-  const delta = _q.setFromUnitVectors(cur.normalize(), dir.clone().normalize());
-  const world = delta.multiply(base);
-  b.quaternion.copy(Qp.invert().multiply(world));
-  b.updateMatrixWorld(true);
-}
-// повернуть кость относительно позы покоя вокруг мировой оси
-function turn(name, axis, angle) {
-  const b = rig.B[name]; b.parent && b.parent.updateMatrixWorld(true);
-  const Qp = parentWorldQ(b);
-  const restWorld = Qp.clone().multiply(rig.rest[name].q);
-  const world = _q2.setFromAxisAngle(axis, angle).multiply(restWorld);
-  b.quaternion.copy(Qp.invert().multiply(world));
-  b.updateMatrixWorld(true);
-}
-// держать кость в мировой ориентации «как в покое» (стопы ровно, кисти не крутятся)
-function keepWorld(name, extraAxis, extraAngle) {
-  const b = rig.B[name]; b.parent.updateMatrixWorld(true);
-  const Qp = parentWorldQ(b);
-  const rootQ = rig.B.root.getWorldQuaternion(new THREE.Quaternion());
-  let world = rootQ.multiply(rig.restRootInv.clone().multiply(rig.rest[name].wq));
-  if (extraAxis) world = new THREE.Quaternion().setFromAxisAngle(extraAxis, extraAngle).multiply(world);
-  b.quaternion.copy(Qp.invert().multiply(world));
-}
-
-const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
-// направление «вниз, отклонённое вперёд на a (рад.) и вбок на s»
-const legDir = (a) => new THREE.Vector3(0, -Math.cos(a), Math.sin(a) * FACE);
-const armDir = (side, fwd, out, up = 0) => {
-  // side: +1 — левая, −1 — правая рука (в мировой X через sideL)
-  const x = Math.sin(out) * side * rig.sideL, y = -Math.cos(out) * Math.cos(fwd) + up, z = Math.sin(fwd) * Math.cos(out) * FACE;
-  return new THREE.Vector3(x, y, z).normalize();
+const RESULT = Object.freeze(resolveCard(Q.get('card') || 'Марио Балотелли'));
+const RC = RAR[RESULT.rarity] || RAR.legend;
+const surname = (n) => { const w = n.split(' '); return w.length > 1 ? w.slice(1).join(' ') : n; };
+const FLAGS = { // флаги рисуем полосами — эмодзи-флаги не видны на Windows
+  'Италия': 'linear-gradient(90deg,#009246 33.3%,#fff 33.3% 66.6%,#ce2b37 66.6%)',
+  'Франция': 'linear-gradient(90deg,#0055a4 33.3%,#fff 33.3% 66.6%,#ef4135 66.6%)',
+  'Германия': 'linear-gradient(#000 33.3%,#dd0000 33.3% 66.6%,#ffce00 66.6%)',
+  'Испания': 'linear-gradient(#aa151b 25%,#f1bf00 25% 75%,#aa151b 75%)',
+  'Нидерланды': 'linear-gradient(#ae1c28 33.3%,#fff 33.3% 66.6%,#21468b 66.6%)',
+  'Бельгия': 'linear-gradient(90deg,#000 33.3%,#fae042 33.3% 66.6%,#ed2939 66.6%)',
+  'Аргентина': 'linear-gradient(#74acdf 33.3%,#fff 33.3% 66.6%,#74acdf 66.6%)',
+  'Украина': 'linear-gradient(#0057b7 50%,#ffd700 50%)',
+  'Кот-д’Ивуар': 'linear-gradient(90deg,#f77f00 33.3%,#fff 33.3% 66.6%,#009e60 66.6%)',
+  'Бразилия': 'radial-gradient(circle at 50% 50%,#002776 18%,#ffdf00 19% 38%,#009c3b 39%)',
+  'Португалия': 'linear-gradient(90deg,#006600 40%,#ff0000 40%)',
+  'Англия': 'linear-gradient(90deg,transparent 43%,#ce1124 43% 57%,transparent 57%),linear-gradient(#fff 43%,#ce1124 43% 57%,#fff 57%)',
 };
 
-// ---------- поза на момент времени t ----------
-function pose(t) {
-  const B = rig.B;
-  // сброс к покою
-  Object.entries(rig.rest).forEach(([n, r]) => { B[n].quaternion.copy(r.q); if (n !== 'root') B[n].position.copy(r.p); });
+// ---------- сцена ----------
+const canvas = $('#c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+const DPR = Math.min(2, devicePixelRatio || 1);
+renderer.setPixelRatio(DPR);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.0;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05040b);
+scene.fog = new THREE.FogExp2(0x05040b, 0.045);
+const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 80);
+const cols = RC.c.map((c) => new THREE.Color(c));
 
-  const walkK = t < T_WALK0 ? 0 : t < T_STOP0 ? 1 : 1 - ease((t - T_STOP0) / T.stop); // сила шага
-  const celK = ease((t - T_CEL0) / T.celebrate); // празднование 0→1
-  const breathe = t > T_END ? Math.sin((t - T_END) * 2.2) : 0;
-  // на праздновании — два лёгких покачивания корпусом в такт, как подбадривание трибун
-  const bounce = t > T_CEL0 ? Math.sin(Math.min(1, (t - T_CEL0) / (T.celebrate + 0.8)) * Math.PI * 2) * Math.max(0, 1 - (t - T_CEL0) / (T.celebrate + 1.2)) : 0;
+const hemi = new THREE.HemisphereLight(0x8fa0ff, 0x120a18, 0.0); scene.add(hemi);
+const key = new THREE.DirectionalLight(0xfff0dc, 0.0); key.position.set(1.6, 3.2, 4.2); scene.add(key);
+const fill = new THREE.DirectionalLight(0x9fb6ff, 0.0); fill.position.set(-3, 1.5, 2.5); scene.add(fill);
+const rimA = new THREE.DirectionalLight(cols[0], 0.0); rimA.position.set(-2.5, 2.6, -3.5); scene.add(rimA);
+const rimB = new THREE.DirectionalLight(cols[Math.min(2, cols.length - 1)], 0.0); rimB.position.set(2.6, 2.4, -3.5); scene.add(rimB);
 
-  // путь: идём к камере, к концу шага замедляемся
-  const tw = clamp01((t - T_WALK0) / (T.walk + T.stop * 0.5));
-  const z = (-WALK_DIST + WALK_DIST * (tw < 1 ? 1 - Math.pow(1 - tw, 1.6) : 1)) * FACE * FACE;
-  B.root.position.set(rig.rest.root.p.x, rig.rest.root.p.y, rig.rest.root.p.z + z * FACE);
+// пол: тёмный диск с мягким цветным пятном и кольцами
+function radialTex(stops, size = 512) {
+  const c = document.createElement('canvas'); c.width = c.height = size; const g = c.getContext('2d');
+  const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  stops.forEach(([o, col]) => gr.addColorStop(o, col)); g.fillStyle = gr; g.fillRect(0, 0, size, size);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+const floor = new THREE.Mesh(new THREE.CircleGeometry(14, 72), new THREE.MeshStandardMaterial({ color: 0x0b0a12, roughness: 0.92, metalness: 0.05 }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor);
+const glow = new THREE.Mesh(new THREE.CircleGeometry(3.2, 64), new THREE.MeshBasicMaterial({ map: radialTex([[0, 'rgba(255,255,255,0.55)'], [0.35, 'rgba(255,255,255,0.16)'], [1, 'rgba(255,255,255,0)']]), color: cols[0], transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
+glow.rotation.x = -Math.PI / 2; glow.position.y = 0.004; scene.add(glow);
+const rings = [0.7, 1.15].map((r, i) => { const m = new THREE.Mesh(new THREE.RingGeometry(r, r + 0.025, 96), new THREE.MeshBasicMaterial({ color: cols[i % cols.length], transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending })); m.rotation.x = -Math.PI / 2; m.position.y = 0.006; scene.add(m); return m; });
+// тени-пятна под стопами и телом (дешевле карты теней и мягче на телефоне)
+const blobTex = radialTex([[0, 'rgba(0,0,0,0.75)'], [0.6, 'rgba(0,0,0,0.25)'], [1, 'rgba(0,0,0,0)']], 128);
+const blob = (s) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(s, s), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = 0.008; scene.add(m); return m; };
+const blobs = { body: blob(0.9), L: blob(0.34), R: blob(0.34) };
 
-  // фаза шага
-  const ph = (Math.max(0, t - T_WALK0) / CYCLE) * Math.PI * 2;
-  const A = deg(27) * walkK; // размах бедра
-  const legs = [['L', 0], ['R', Math.PI]];
+// лучи света из глубины в цветах редкости
+function beamTex() {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 256; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0.9)');
+  g.fillStyle = gr; g.fillRect(0, 0, 64, 256);
+  const h = g.createLinearGradient(0, 0, 64, 0); h.addColorStop(0, 'rgba(0,0,0,1)'); h.addColorStop(0.5, 'rgba(0,0,0,0)'); h.addColorStop(1, 'rgba(0,0,0,1)');
+  g.globalCompositeOperation = 'destination-out'; g.fillStyle = h; g.fillRect(0, 0, 64, 256);
+  return new THREE.CanvasTexture(c);
+}
+const bt = beamTex();
+const beams = Array.from({ length: 7 }, (_, i) => {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 9), new THREE.MeshBasicMaterial({ map: bt, color: cols[i % cols.length], transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }));
+  m.position.set((i - 3) * 0.9, 4.2, -6.5 - (i % 2) * 0.8); m.rotation.z = (i - 3) * 0.12; m.userData.ph = i * 1.7; scene.add(m); return m;
+});
 
-  // таз и корпус: покачивание и поворот против шага, при праздновании — грудь вперёд, лёгкий прогиб назад
-  turn('pelvis', Y, Math.sin(ph) * deg(6) * walkK);
-  turn('pelvis', Z, Math.cos(ph * 2) * deg(2.5) * walkK);
-  turn('spine', X, (-deg(4) * walkK + deg(-6) * celK) * FACE);
-  turn('chest', Y, -Math.sin(ph) * deg(9) * walkK);
-  turn('chest', X, (deg(-10) * celK + breathe * deg(1.2) - bounce * deg(3)) * FACE);
-  turn('neck', X, deg(-4) * celK * FACE);
-  turn('head', X, (deg(-8) * celK + deg(3) * walkK) * FACE);
-  if (t > T_END) turn('head', Y, Math.sin((t - T_END) * 0.9) * deg(10));
-
-  // ноги
-  legs.forEach(([s, off]) => {
-    const p = ph + off;
-    const a = Math.sin(p) * A; // бедро вперёд(+)/назад(−)
-    // колено сильнее сгибается в переносе (бедро идёт вперёд), в опоре почти прямое
-    const knee = (deg(6) + deg(52) * Math.pow(Math.max(0, Math.cos(p)), 1.6)) * walkK + deg(3) * celK;
-    aim('thigh.' + s, legDir(a));
-    aim('shin.' + s, legDir(a - knee));
-    // стопа: в покое ровно; при отрыве носок вниз, при постановке — пятка
-    // отрыв: бедро сзади и пошло вперёд — носок вниз; постановка: бедро впереди — пятка (носок вверх)
-    const toe = (-deg(22) * Math.max(0, -Math.sin(p)) * Math.max(0, Math.cos(p)) * 2 + deg(10) * Math.max(0, Math.sin(p))) * walkK;
-    keepWorld('foot.' + s, X, toe * FACE);
-  });
-
-  // руки: в ходьбе — противоход ногам, в праздновании — разведены в стороны и чуть вперёд, ладони открыты
-  [['L', 1, 0], ['R', -1, Math.PI]].forEach(([s, side, off]) => {
-    const p = ph + off;
-    const swing = -Math.sin(p) * deg(24) * walkK;
-    const walkUp = armDir(side, swing, deg(13));
-    const celUp = armDir(side, deg(10), deg(36) + breathe * deg(2) + bounce * deg(4)); // «Why always me?»: руки вниз и в стороны
-    const up = walkUp.clone().lerp(celUp, celK).normalize();
-    aim('upper_arm.' + s, up);
-    // предплечье: в ходьбе согнуто вперёд, в праздновании почти прямое и раскрыто наружу
-    const fwdBend = (deg(18) + Math.max(0, swing) * 0.6) * (1 - celK);
-    const fore = up.clone().applyAxisAngle(X, -fwdBend * FACE);
-    const celFore = armDir(side, deg(24), deg(44) + bounce * deg(3)); // ладони раскрыты к зрителю
-    aim('forearm.' + s, fore.lerp(celFore, celK).normalize());
-    // кисть следует за предплечьем (как в позе покоя), иначе запястье выворачивается и тянет руку вниз
-  });
-
-  // опора: самая низкая лодыжка всегда на уровне покоя — ноги не проваливаются и не висят
-  B.root.updateMatrixWorld(true);
-  const yL = B['foot.L'].getWorldPosition(_v).y, yR = B['foot.R'].getWorldPosition(new THREE.Vector3()).y;
-  B.root.position.y += rig.ankleY - Math.min(yL, yR);
-  B.root.updateMatrixWorld(true);
+// частицы: медленная пыль в цвете редкости + всплеск при раскрытии
+const N = 520;
+const pGeo = new THREE.BufferGeometry(), pPos = new Float32Array(N * 3), pCol = new Float32Array(N * 3), pSeed = new Float32Array(N * 4);
+for (let i = 0; i < N; i++) {
+  pSeed.set([Math.random(), Math.random(), Math.random(), Math.random()], i * 4);
+  const c = cols[i % cols.length]; pCol.set([c.r, c.g, c.b], i * 3);
+}
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3)); pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+const dot = radialTex([[0, 'rgba(255,255,255,1)'], [0.25, 'rgba(255,255,255,0.6)'], [1, 'rgba(255,255,255,0)']], 64);
+const pMat = new THREE.PointsMaterial({ size: 0.05, map: dot, vertexColors: true, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, sizeAttenuation: true });
+scene.add(new THREE.Points(pGeo, pMat));
+function updateParticles(t) {
+  const burst = t - T.FLASH;
+  for (let i = 0; i < N; i++) {
+    const [a, b, c, d] = [pSeed[i * 4], pSeed[i * 4 + 1], pSeed[i * 4 + 2], pSeed[i * 4 + 3]];
+    const life = (t * (0.05 + 0.08 * d) + a) % 1;
+    let x = (b - 0.5) * 7, y = life * 5.5, z = -6 + c * 7.5;
+    x += Math.sin(t * 0.6 + a * 20) * 0.25;
+    if (burst > 0 && i < 220) { // всплеск: разлёт от центра раскрытия
+      const k = 1 - Math.exp(-burst * 2.4), ang = a * Math.PI * 2, el = (b - 0.3) * 1.6;
+      x = Math.cos(ang) * (0.2 + 3.2 * k * (0.4 + c)); y = 1.6 + el * 2.2 * k + Math.sin(ang * 3) * 0.2 - burst * burst * 0.08; z = -1.2 + Math.sin(ang) * 1.5 * k;
+    }
+    pPos[i * 3] = x; pPos[i * 3 + 1] = y; pPos[i * 3 + 2] = z;
+  }
+  pGeo.attributes.position.needsUpdate = true;
 }
 
-// ---------- камера: голова и стопы целиком на любом экране ----------
-function frame() {
-  const w = canvas.clientWidth, h = canvas.clientHeight, aspect = w / h;
-  camera.aspect = aspect;
-  const H = rig.height * 1.16, W = rig.height * 0.82; // запас сверху/снизу и на разведённые руки
-  const vfov = deg(camera.fov);
-  const dV = (H / 2) / Math.tan(vfov / 2);
-  const dH = (W / 2) / (Math.tan(vfov / 2) * aspect);
-  const d = Math.max(dV, dH) + 0.3;
-  camDist = d;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h, false);
-}
+// ---------- тайминг ----------
+const T = { SIL: 0.25, NAT: 1.0, POS: 2.1, CLUB: 3.2, FLASH: 4.3, DOCK: 5.15, WALK: 5.6 };
+let plan = null, rig = null;
 
-// камера: в шаге — сбоку на три четверти (видно работу ног), к празднованию — почти анфас
-let camDist = 6;
+// часы: реальное время, но с паузой, если 3D ещё грузится к моменту выхода игрока
+let clock0 = performance.now(), held = 0, holdFrom = null, frozen = null;
+const now = () => (frozen !== null ? frozen : (performance.now() - clock0) / 1000 - held);
+function restart() { clock0 = performance.now(); held = 0; holdFrom = null; frozen = null; setUI('play'); }
+function skip() { if (!rig) return; frozen = null; clock0 = performance.now() - (plan.tEnd + 4.6) * 1000; held = 0; holdFrom = null; }
+
+// ---------- карточка и этапы (HTML поверх 3D, текст чёткий) ----------
+const card = $('#card'), beat = $('#beat');
+function buildCard() {
+  const r = RESULT;
+  card.className = 'jc ' + r.rarity + (r.test ? ' test' : '');
+  document.body.style.setProperty('--c1', RC.c[0]); card.style.setProperty('--c1', RC.c[0]); card.style.setProperty('--c2', RC.c[1]); card.style.setProperty('--c3', RC.c[2] || RC.c[0]);
+  const crest = r.club && window.CRESTS && window.CRESTS[r.club];
+  card.querySelector('.jc-r b').textContent = r.rating == null ? '??' : r.rating;
+  card.querySelector('.jc-r small').textContent = r.pos || '—';
+  card.querySelector('.jc-flag').style.background = FLAGS[r.nation] || '#444';
+  card.querySelector('.jc-crest').innerHTML = crest ? `<img src="../../img/clubs/${crest}" alt="">` : (r.hero ? '<b>ГЕРОЙ</b>' : '');
+  card.querySelector('.jc-name').textContent = surname(r.name).toUpperCase();
+  card.querySelector('.jc-rar').textContent = RC.n + (r.test ? ' · ТЕСТ' : '');
+  $('#src').textContent = 'Данные: ' + r.src;
+}
+const BEATS = [
+  { t: T.NAT, k: 'nat', label: 'НАЦИЯ', html: () => `<i class="bflag" style="background:${FLAGS[RESULT.nation] || '#333'}"></i><b>${RESULT.nation || '—'}</b>` },
+  { t: T.POS, k: 'pos', label: 'ПОЗИЦИЯ', html: () => `<b class="big">${RESULT.pos || '—'}</b>${RESULT.pos ? '' : '<small>нет в каталоге</small>'}` },
+  { t: T.CLUB, k: 'club', label: RESULT.hero ? 'ГЕРОЙ' : 'КЛУБ', html: () => {
+    const crest = RESULT.club && window.CRESTS && window.CRESTS[RESULT.club];
+    if (RESULT.hero) return '<b class="big">ГЕРОЙ</b>';
+    return RESULT.club ? `${crest ? `<img class="bcrest" src="../../img/clubs/${crest}" alt="">` : ''}<b>${RESULT.club}</b>` : '<b class="big">—</b><small>тестовая карточка</small>';
+  } },
+];
+let beatShown = -1;
+let SAT = 0; // вырез экрана сверху (iPhone)
+const readSat = () => { SAT = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sat')) || 0; };
+readSat(); addEventListener('resize', readSat);
+const easeBack = (x) => { x = Math.min(1, Math.max(0, x)); const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+// где стоит карточка: по центру (раскрытие) и у края (пока игрок выходит) — лицо игрока она не закрывает
+function cardRect(dock) {
+  const W = innerWidth, H = innerHeight, portrait = H > W * 1.1;
+  if (!dock) { const w = Math.min(0.62 * W, 280, 0.42 * H * 0.72); return { w, x: W / 2, y: 0.52 * H, r: 0 }; }
+  if (portrait) { const w = Math.min(0.3 * W, 150); return { w, x: W - w / 2 - 0.04 * W, y: Math.max(12, SAT) + 0.04 * H + w / 0.72 / 2, r: 3 }; }
+  const w = Math.min(0.22 * W, 250, 0.62 * H * 0.72); return { w, x: W - w / 2 - 0.07 * W, y: 0.47 * H, r: 3 };
+}
+function updateHTML(t) {
+  // этапы раскрытия: каждый — отдельный акцент (появление с отскоком, затем уход)
+  const i = BEATS.findIndex((b, j) => t >= b.t && t < (BEATS[j + 1] ? BEATS[j + 1].t : T.FLASH - 0.1));
+  if (i !== beatShown) {
+    beatShown = i;
+    if (i >= 0) { beat.innerHTML = `<small class="blab">${BEATS[i].label}</small>${BEATS[i].html()}`; beat.className = 'beat ' + BEATS[i].k; }
+  }
+  if (i >= 0) {
+    const b0 = BEATS[i].t, b1 = BEATS[i + 1] ? BEATS[i + 1].t : T.FLASH - 0.1;
+    const op = Math.min(smooth((t - b0) / 0.3), 1 - smooth((t - (b1 - 0.22)) / 0.22));
+    beat.style.opacity = op.toFixed(3);
+    beat.style.transform = `translate(-50%, -50%) scale(${(0.86 + 0.14 * easeBack((t - b0) / 0.55)).toFixed(4)})`;
+  } else beat.style.opacity = '0';
+  // силуэт → свечение → вспышка → лицо карточки → к краю
+  const st = t < T.SIL ? 'off' : t < T.FLASH ? 'sil' : t < T.DOCK ? 'face' : 'dock';
+  if (card.dataset.st !== st) card.dataset.st = st;
+  const k = smoother((t - T.DOCK) / 0.9), A = cardRect(false), Bd = cardRect(true);
+  const w = A.w + (Bd.w - A.w) * k, x = A.x + (Bd.x - A.x) * k, y = A.y + (Bd.y - A.y) * k;
+  const pop = 0.92 + 0.08 * easeBack((t - T.FLASH) / 0.5); // карточка «выстреливает» при вспышке
+  card.style.setProperty('--w', w.toFixed(1) + 'px');
+  card.style.left = x.toFixed(1) + 'px'; card.style.top = y.toFixed(1) + 'px';
+  card.style.transform = `translate(-50%, -50%) rotate(${(Bd.r * k).toFixed(2)}deg) scale(${pop.toFixed(4)})`;
+  card.style.opacity = smooth((t - T.SIL) / 0.4).toFixed(3);
+  card.querySelector('.jc-face').style.opacity = smooth((t - T.FLASH + 0.04) / 0.18).toFixed(3);
+  card.style.setProperty('--charge', smooth((t - T.SIL) / (T.FLASH - T.SIL)).toFixed(3));
+  const fl = Math.max(0, 1 - Math.abs(t - T.FLASH) / 0.22);
+  $('#flash').style.opacity = (fl * fl).toFixed(3);
+  const end = rig && t > plan.tEnd + 1.6;
+  setUI(end ? 'end' : 'play');
+  $('#loading').hidden = !(holdFrom !== null);
+}
+let uiState = '';
+function setUI(s) { if (s === uiState) return; uiState = s; document.body.dataset.ui = s; }
+
+// ---------- камера ----------
+// Кадр строится по реальным габаритам позы (рост с головой, размах рук при праздновании), поэтому
+// голова и стопы всегда целиком. Игрок — в левой/центральной части, карточка справа сверху (портрет) или справа (альбом).
+function layout() {
+  const w = innerWidth, h = innerHeight, portrait = h > w * 1.1;
+  return portrait ? { w, h, portrait, cx: 0.45, top: 0.1, bottom: 0.15, side: 0.43 } : { w, h, portrait, cx: 0.36, top: 0.08, bottom: 0.14, side: 0.3 };
+}
+function fitDistance(L) {
+  const vf = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2), aspect = L.w / L.h;
+  const ext = rig ? rig.ext : { top: 2.0, half: 0.7 };
+  const dV = (ext.top * 1.04) / (2 * vf * (1 - L.top - L.bottom));
+  const dH = (ext.half * 1.08) / (2 * vf * aspect * L.side);
+  return Math.max(dV, dH);
+}
 function placeCamera(t) {
-  const k = ease((t - T_STOP0 + 0.4) / 1.4), yaw = deg(26) * (1 - k) + deg(8) * k;
-  const d = camDist * (1.05 - 0.05 * k) + 1.6 * (1 - ease((t - 0.2) / (T_STOP0 - 0.2))); // наезд камеры к остановке
-  // камера едет следом: игрок всегда по центру, и ближе к концу он целиком в кадре
-  const pz = rig.B.root.position.z - rig.rest.root.p.z;
-  camera.position.set(Math.sin(yaw) * d, rig.groundY + rig.height * 0.52, pz + Math.cos(yaw) * d * FACE);
-  camera.lookAt(0, rig.groundY + rig.height * 0.46, pz); // чуть ниже центра — стопы не упираются в кнопки
+  const L = layout();
+  camera.aspect = L.w / L.h;
+  const d = fitDistance(L);
+  // смещение проекции: центр игрока в L.cx по ширине и посередине между резервами по высоте
+  camera.setViewOffset(L.w, L.h, (0.5 - L.cx) * L.w, ((L.bottom - L.top) / 2) * L.h, L.w, L.h);
+  const pz = rig ? rig.B.root.position.z - rig.rest.root.p.z : -3.4;
+  const walk = plan ? smoother((t - plan.t0) / (plan.tEnd - plan.t0)) : 0;
+  const settle = plan ? smoother((t - plan.tEnd + 0.6) / 1.6) : 0;
+  const yaw = THREE.MathUtils.degToRad(22 * (1 - settle) + 8 * settle);
+  const intro = 1 - smoother((t - T.SIL) / (T.WALK + 0.6)); // медленный наезд из глубины на этапах раскрытия
+  const dist = d * (1 + 0.5 * intro) * (1.03 - 0.03 * settle);
+  const g = rig ? rig.groundY : 0, top = rig ? rig.ext.top : 2.0;
+  const lookY = g + top * 0.5;
+  const camY = lookY + top * (0.03 + 0.05 * (1 - walk));
+  // камера отъезжает за игроком не полностью — он заметно приближается к зрителю, но в кадре остаётся целиком
+  const z = pz * 0.45;
+  camera.position.set(Math.sin(yaw) * dist, camY, z + Math.cos(yaw) * dist);
+  camera.lookAt(0, lookY, pz); // смотрим на самого игрока: он держится в своей точке кадра, а не уезжает к карточке
+  camera.updateProjectionMatrix();
 }
 
-// ---------- запуск ----------
-let t0 = performance.now(), skipped = false;
-function restart() { t0 = performance.now(); skipped = false; document.body.classList.remove('done'); }
-document.getElementById('replay').onclick = restart;
-document.getElementById('skip').onclick = () => { t0 = performance.now() - T_END * 1000; skipped = true; };
-addEventListener('resize', () => rig && frame());
-
-function loop(now) {
-  requestAnimationFrame(loop);
-  if (!rig) return;
-  const t = (now - t0) / 1000;
-  const a = clamp01(t / T.appear);
-  if (Q.get('bind') !== '1') pose(t);
+// ---------- кадр ----------
+let last = performance.now(), fpsAvg = 60;
+function frame(nowMs) {
+  requestAnimationFrame(frame);
+  const dtReal = (nowMs - last) / 1000; last = nowMs; fpsAvg = fpsAvg * 0.95 + (1 / Math.max(1e-3, dtReal)) * 0.05;
+  let t = now();
+  // 3D ещё грузится, а пора выходить игроку — придерживаем сцену на раскрытой карточке
+  if (!rig && frozen === null && t > T.WALK) { held += t - T.WALK; t = T.WALK; holdFrom = t; } else holdFrom = null;
+  render(t);
+}
+function render(t) {
+  const charge = smooth((t - T.SIL) / (T.FLASH - T.SIL)), after = smooth((t - T.FLASH) / 0.6);
+  hemi.intensity = 0.25 + 0.55 * after; key.intensity = 2.6 * smooth((t - T.WALK) / 1.2); fill.intensity = 0.6 * after;
+  rimA.intensity = rimB.intensity = 0.6 + 2.6 * Math.max(charge, after);
+  beams.forEach((b) => { b.material.opacity = (0.05 + 0.28 * charge + 0.25 * Math.max(0, 1 - Math.abs(t - T.FLASH) / 0.5)) * (1 - 0.45 * after) * (0.75 + 0.25 * Math.sin(t * 0.9 + b.userData.ph)); b.rotation.z += Math.sin(t * 0.3 + b.userData.ph) * 0.0006; });
+  glow.material.opacity = 0.18 + 0.5 * charge - 0.1 * after;
+  rings.forEach((r, i) => { r.material.opacity = (rig && plan ? smooth((t - plan.tEnd) / 0.8) : 0) * (0.55 - i * 0.2); r.scale.setScalar(1 + 0.03 * Math.sin(t * 1.4 + i)); });
+  pMat.opacity = 0.25 + 0.55 * charge; updateParticles(t);
+  if (rig) {
+    const info = pose(rig, plan, t);
+    const vis = smooth((t - T.WALK) / 0.8); // выходит из темноты, когда карточка уже ушла к краю
+    rig.mats.forEach((m) => { m.opacity = vis; m.transparent = vis < 0.999; m.depthWrite = vis > 0.5; });
+    const v = new THREE.Vector3();
+    ['L', 'R'].forEach((s) => { rig.B['foot.' + s].getWorldPosition(v); blobs[s].position.set(v.x, 0.008, v.z + 0.04); blobs[s].material.opacity = vis * Math.max(0.2, 1 - (v.y - rig.ankleY) * 8); });
+    rig.B.pelvis.getWorldPosition(v); blobs.body.position.set(v.x, 0.007, v.z); blobs.body.material.opacity = vis * 0.8;
+    glow.position.set(0, 0.004, info.z * 0.25);
+  }
   placeCamera(t);
-  rig.model.traverse((o) => { if (o.material && 'opacity' in o.material && o.userData.fade) { o.material.opacity = a; o.material.transparent = a < 1; } });
-  beam.material.opacity = 0.22 * (1 - ease((t - T_WALK0) / (T.walk * 0.8))) + 0.02;
-  ring.material.opacity = ease((t - T_CEL0) / 0.5) * 0.9;
-  ring.scale.setScalar(1 + Math.max(0, Math.sin((t - T_CEL0) * 2)) * 0.05);
-  document.body.classList.toggle('done', t > T_END);
+  updateHTML(t);
+  renderer.setSize(innerWidth, innerHeight, false);
   renderer.render(scene, camera);
 }
 
-async function load() {
-  let model, from = 'файл ' + MODEL_URL;
-  try {
-    const gltf = await new GLTFLoader().loadAsync(MODEL_URL);
-    model = gltf.scene;
-    // встроенный клип (финты с мячом) не запускаем — выход управляется кодом
-  } catch (e) {
-    model = (await import('./mannequin.js')).mannequin(THREE);
-    from = 'тестовый манекен (balotelli.glb не найден)';
-  }
-  model.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; if (o.material) o.userData.fade = true; } });
+// ---------- загрузка 3D (по требованию, параллельно этапам раскрытия) ----------
+const MODEL = Q.get('model') || 'balotelli-mobile.glb';
+const loadT0 = performance.now();
+async function loadModel() {
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const gltf = await loader.loadAsync(MODEL);
+  const model = gltf.scene; // встроенный клип (финты с мячом) не используем
+  const mats = [];
+  model.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; const m = o.material; if (m) { m.transparent = true; m.fog = false; mats.push(m); } } });
   scene.add(model);
-  rig = setupRig(model);
-  if (Q.get('bones') === '1') { const h = new THREE.SkeletonHelper(model); h.material.depthTest = false; h.material.linewidth = 2; scene.add(h); }
-  rig.restRootInv = rig.rest.root.wq.clone().invert();
-  status.textContent = `${from} · рост ${rig.height.toFixed(2)} м`;
-  frame(); restart();
+  // у модели пол на y = −1 (так экспортировано): ставим стопы на пол сцены
+  model.traverse((o) => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.pose(); });
+  model.updateMatrixWorld(true);
+  model.position.y -= new THREE.Box3().setFromObject(model).min.y;
+  model.updateMatrixWorld(true);
+  const r = createRig(model);
+  r.mats = mats;
+  window.__loadMs = Math.round(performance.now() - loadT0);
+  // портрет для карточки — снимок лица этой же 3D-модели (никаких выдуманных фото)
+  portrait(r);
+  plan = planWalk(r, { t0: T.WALK, startZ: -3.4 * r.height / 1.9, endZ: 0 });
+  r.ext = extents(r, plan);
+  rig = r; window.__rig = r;
+  $('#stat').textContent = `${MODEL} · загрузка ${window.__loadMs} мс`;
 }
-load().catch((e) => { status.textContent = 'Ошибка: ' + e.message; console.error(e); });
-requestAnimationFrame(loop);
+// габариты в финальной части (празднование и ожидание): высота макушки над полом и половина размаха рук
+function extents(r, pl) {
+  const v = new THREE.Vector3(); let top = 0, half = 0;
+  for (let t = pl.tEnd - 0.5; t < pl.tEnd + 6; t += 0.1) {
+    pose(r, pl, t);
+    const root = r.B.root.getWorldPosition(new THREE.Vector3());
+    top = Math.max(top, r.B.head.getWorldPosition(v).y - r.groundY + 0.15 * r.height / 1.9);
+    ['hand.L', 'hand.R', 'forearm.L', 'forearm.R'].forEach((n) => { half = Math.max(half, Math.abs(r.B[n].getWorldPosition(v).x - root.x) + 0.07 * r.height / 1.9); });
+  }
+  pose(r, pl, 0);
+  return { top, half };
+}
+function portrait(r) {
+  const cam = new THREE.PerspectiveCamera(22, 0.8, 0.05, 10);
+  const head = r.B.head.getWorldPosition(new THREE.Vector3());
+  cam.position.set(head.x + 0.1, head.y + 0.03, head.z + 1.5); cam.lookAt(head.x, head.y - 0.03, head.z);
+  const rt = new THREE.WebGLRenderTarget(320, 400, { samples: 4 });
+  const prevBg = scene.background, prevFog = scene.fog;
+  scene.background = null; scene.fog = null;
+  const saved = [key.intensity, hemi.intensity, fill.intensity]; key.intensity = 3.4; hemi.intensity = 1.4; fill.intensity = 1.2;
+  r.mats.forEach((m) => { m.opacity = 1; m.transparent = false; });
+  renderer.setRenderTarget(rt); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(scene, cam);
+  const px = new Uint8Array(320 * 400 * 4); renderer.readRenderTargetPixels(rt, 0, 0, 320, 400, px);
+  renderer.setRenderTarget(null);
+  [key.intensity, hemi.intensity, fill.intensity] = saved; scene.background = prevBg; scene.fog = prevFog;
+  const c = document.createElement('canvas'); c.width = 320; c.height = 400; const g = c.getContext('2d'); const img = g.createImageData(320, 400);
+  for (let y = 0; y < 400; y++) img.data.set(px.subarray((399 - y) * 320 * 4, (400 - y) * 320 * 4), y * 320 * 4);
+  g.putImageData(img, 0, 0);
+  card.querySelector('.jc-ph').style.backgroundImage = `url(${c.toDataURL('image/png')})`;
+  rt.dispose();
+}
 
-// для проверок: перемотать на момент t
-window.__seek = (t) => { t0 = performance.now() - t * 1000; };
-window.__dbg = () => { const o = {}; ['upper_arm.L','forearm.L','hand.L','upper_arm.R','forearm.R','hand.R','clavicle.L'].forEach((n) => { const b = rig.B[n]; const w = b.getWorldPosition(new THREE.Vector3()); o[n] = w.toArray().map((x) => +x.toFixed(3)); o[n + ' ld'] = rig.localDir[n] ? rig.localDir[n].toArray().map((x) => +x.toFixed(2)) : null; }); o.sideL = rig.sideL; return JSON.stringify(o); };
-window.__phases = { T_WALK0, T_STOP0, T_CEL0, T_END };
+// ---------- кнопки ----------
+$('#skip').onclick = skip;
+$('#replay').onclick = restart;
+$('#cont').onclick = () => { $('#toast').textContent = 'В игре здесь — возврат к открытию паков. Награда уже выдана до начала сцены.'; $('#toast').classList.add('on'); setTimeout(() => $('#toast').classList.remove('on'), 2600); };
+
+buildCard();
+requestAnimationFrame(frame);
+loadModel().catch((e) => { $('#stat').textContent = 'Ошибка 3D: ' + e.message; console.error(e); });
+
+// ---------- для проверок ----------
+window.__seek = (t) => { frozen = t; };
+window.__dbg = { scene, floor, glow, rings, beams, blobs, camera };
+window.__play = () => { const t = frozen || 0; frozen = null; clock0 = performance.now() - t * 1000; held = 0; };
+window.__ready = () => !!rig;
+window.__T = () => ({ ...T, tEnd: plan && plan.tEnd, steps: plan && plan.steps.length, H: rig && rig.height, ext: rig && rig.ext });
+window.__fps = () => Math.round(fpsAvg);
+window.__probe = (t0, t1, dt) => {
+  const out = [], v = new THREE.Vector3();
+  for (let t = t0; t <= t1 + 1e-9; t += dt) {
+    pose(rig, plan, t);
+    const f = (n) => rig.B[n].getWorldPosition(v).toArray();
+    const ang = (a, b, c) => { const A = new THREE.Vector3(...f(a)), Bp = new THREE.Vector3(...f(b)), C = new THREE.Vector3(...f(c)); return THREE.MathUtils.radToDeg(A.sub(Bp).angleTo(C.sub(Bp))); };
+    out.push({ t, L: f('foot.L'), R: f('foot.R'), P: f('pelvis'), Hd: f('head'), root: f('root'), kneeL: ang('thigh.L', 'shin.L', 'foot.L'), kneeR: ang('thigh.R', 'shin.R', 'foot.R'), elbowL: ang('upper_arm.L', 'forearm.L', 'hand.L'), elbowR: ang('upper_arm.R', 'forearm.R', 'hand.R') });
+  }
+  return out;
+};
+// где на экране голова, стопы, карточка и надписи (для проверки, что ничего не обрезано и не перекрыто)
+window.__frameCheck = () => {
+  const v = new THREE.Vector3(), W = innerWidth, Hh = innerHeight;
+  const scr = (n, dy = 0) => { rig.B[n].getWorldPosition(v); v.y += dy; v.project(camera); return [(v.x + 1) / 2 * W, (1 - v.y) / 2 * Hh]; };
+  const rect = (el) => { const r = el.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; };
+  return { W, H: Hh, headTop: scr('head', 0.14 * rig.height / 1.9), head: scr('head', 0.05), footL: scr('foot.L', -0.09), footR: scr('foot.R', -0.09), handL: scr('hand.L'), handR: scr('hand.R'), card: rect(card), beat: rect(beat), buttons: rect($('.bar')) };
+};
