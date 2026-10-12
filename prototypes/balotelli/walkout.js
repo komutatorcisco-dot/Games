@@ -20,14 +20,20 @@ const RAR = {
   legend: { n: 'ЛЕГЕНДА', c: ['#ff9ae2', '#ffe27a', '#8ff0d8', '#9fdcff', '#d6b2ff'] },
   jack: { n: 'ДЖЕКСОН!!', c: ['#ff4a62', '#2a0610', '#ff5a6e'] },
 };
+// каталоги объявлены в обычных скриптах через const — это глобальные имена, но не свойства window
+const CAT = {
+  legends: typeof CARD_LEGENDS !== 'undefined' ? CARD_LEGENDS : [],
+  nations: typeof CARD_LEGEND_NATIONS !== 'undefined' ? CARD_LEGEND_NATIONS : {},
+  crests: typeof CRESTS !== 'undefined' ? CRESTS : {},
+};
 function resolveCard(name) {
-  const row = (window.CARD_LEGENDS || []).find((r) => r[0] === name);
+  const row = CAT.legends.find((r) => r[0] === name);
   if (row) {
-    const nat = window.CARD_LEGEND_NATIONS && window.CARD_LEGEND_NATIONS[name];
+    const nat = CAT.nations[name];
     return { name, rating: row[1], club: row[2], pos: row[3], nation: nat || null, rarity: 'legend', hero: false, test: false, src: 'каталог: CARD_LEGENDS' };
   }
   // Балотелли нет в каталоге карточек: не выдумываем рейтинг, клуб и редкость
-  return { name: 'Марио Балотелли', rating: null, club: null, pos: null, nation: 'Италия', rarity: Q.get('rar') || 'legend', hero: false, test: true, src: 'нет в каталоге — тестовая карточка (нация из «Угадай карьеру»)' };
+  return { name: 'Марио Балотелли', rating: null, club: null, pos: null, nation: 'Италия', rarity: Q.get('rar') || 'legend', hero: Q.get('hero') === '1', test: true, src: 'нет в каталоге — тестовая карточка (нация из «Угадай карьеру»)' };
 }
 const RESULT = Object.freeze(resolveCard(Q.get('card') || 'Марио Балотелли'));
 const RC = RAR[RESULT.rarity] || RAR.legend;
@@ -127,14 +133,15 @@ function updateParticles(t) {
 }
 
 // ---------- тайминг ----------
-const T = { SIL: 0.25, NAT: 1.0, POS: 2.1, CLUB: 3.2, FLASH: 4.3, DOCK: 5.15, WALK: 5.6 };
+// основной сценарий ≈ 8 с до кнопок: по ~0,85 с на нацию, позицию и клуб, затем раскрытие и выход
+const T = { SIL: 0.15, NAT: 0.45, POS: 1.3, CLUB: 2.15, FLASH: 3.0, DOCK: 3.6, WALK: 3.8 };
 let plan = null, rig = null;
 
 // часы: реальное время, но с паузой, если 3D ещё грузится к моменту выхода игрока
 let clock0 = performance.now(), held = 0, holdFrom = null, frozen = null;
 const now = () => (frozen !== null ? frozen : (performance.now() - clock0) / 1000 - held);
-function restart() { clock0 = performance.now(); held = 0; holdFrom = null; frozen = null; setUI('play'); }
-function skip() { if (!rig) return; frozen = null; clock0 = performance.now() - (plan.tEnd + 4.6) * 1000; held = 0; holdFrom = null; }
+function restart() { clock0 = performance.now(); held = 0; holdFrom = null; frozen = null; setUI('play'); resetMeter(); }
+function skip() { if (!rig) return; frozen = null; clock0 = performance.now() - (plan.tEnd + 3) * 1000; held = 0; holdFrom = null; }
 
 // ---------- карточка и этапы (HTML поверх 3D, текст чёткий) ----------
 const card = $('#card'), beat = $('#beat');
@@ -142,7 +149,7 @@ function buildCard() {
   const r = RESULT;
   card.className = 'jc ' + r.rarity + (r.test ? ' test' : '');
   document.body.style.setProperty('--c1', RC.c[0]); card.style.setProperty('--c1', RC.c[0]); card.style.setProperty('--c2', RC.c[1]); card.style.setProperty('--c3', RC.c[2] || RC.c[0]);
-  const crest = r.club && window.CRESTS && window.CRESTS[r.club];
+  const crest = r.club && CAT.crests[r.club];
   card.querySelector('.jc-r b').textContent = r.rating == null ? '??' : r.rating;
   card.querySelector('.jc-r small').textContent = r.pos || '—';
   card.querySelector('.jc-flag').style.background = FLAGS[r.nation] || '#444';
@@ -154,8 +161,8 @@ function buildCard() {
 const BEATS = [
   { t: T.NAT, k: 'nat', label: 'НАЦИЯ', html: () => `<i class="bflag" style="background:${FLAGS[RESULT.nation] || '#333'}"></i><b>${RESULT.nation || '—'}</b>` },
   { t: T.POS, k: 'pos', label: 'ПОЗИЦИЯ', html: () => `<b class="big">${RESULT.pos || '—'}</b>${RESULT.pos ? '' : '<small>нет в каталоге</small>'}` },
-  { t: T.CLUB, k: 'club', label: RESULT.hero ? 'ГЕРОЙ' : 'КЛУБ', html: () => {
-    const crest = RESULT.club && window.CRESTS && window.CRESTS[RESULT.club];
+  { t: T.CLUB, k: 'club', label: RESULT.hero ? 'КАРТОЧКА' : 'КЛУБ', html: () => {
+    const crest = RESULT.club && CAT.crests[RESULT.club];
     if (RESULT.hero) return '<b class="big">ГЕРОЙ</b>';
     return RESULT.club ? `${crest ? `<img class="bcrest" src="../../img/clubs/${crest}" alt="">` : ''}<b>${RESULT.club}</b>` : '<b class="big">—</b><small>тестовая карточка</small>';
   } },
@@ -199,7 +206,7 @@ function updateHTML(t) {
   card.style.setProperty('--charge', smooth((t - T.SIL) / (T.FLASH - T.SIL)).toFixed(3));
   const fl = Math.max(0, 1 - Math.abs(t - T.FLASH) / 0.22);
   $('#flash').style.opacity = (fl * fl).toFixed(3);
-  const end = rig && t > plan.tEnd + 1.6;
+  const end = rig && t > plan.tEnd + 1.3;
   setUI(end ? 'end' : 'play');
   $('#loading').hidden = !(holdFrom !== null);
 }
@@ -226,7 +233,7 @@ function placeCamera(t) {
   const d = fitDistance(L);
   // смещение проекции: центр игрока в L.cx по ширине и посередине между резервами по высоте
   camera.setViewOffset(L.w, L.h, (0.5 - L.cx) * L.w, ((L.bottom - L.top) / 2) * L.h, L.w, L.h);
-  const pz = rig ? rig.B.root.position.z - rig.rest.root.p.z : -3.4;
+  const pz = rig ? rig.B.root.position.z - rig.rest.root.p.z : -2.3;
   const walk = plan ? smoother((t - plan.t0) / (plan.tEnd - plan.t0)) : 0;
   const settle = plan ? smoother((t - plan.tEnd + 0.6) / 1.6) : 0;
   const yaw = THREE.MathUtils.degToRad(22 * (1 - settle) + 8 * settle);
@@ -239,8 +246,14 @@ function placeCamera(t) {
   const z = pz * 0.45;
   camera.position.set(Math.sin(yaw) * dist, camY, z + Math.cos(yaw) * dist);
   camera.lookAt(0, lookY, pz); // смотрим на самого игрока: он держится в своей точке кадра, а не уезжает к карточке
+  if (DEBUG_CAM) { // отладка: вид сбоку/спереди на одной дистанции, чтобы оценивать походку
+    const a = DEBUG_CAM === 'side' ? Math.PI / 2 : DEBUG_CAM === 'back' ? Math.PI : 0;
+    camera.clearViewOffset();
+    camera.position.set(Math.sin(a) * 6.5, lookY, pz + Math.cos(a) * 6.5); camera.lookAt(0, lookY, pz);
+  }
   camera.updateProjectionMatrix();
 }
+const DEBUG_CAM = Q.get('cam'); // ?cam=side|front|back — только для проверки движения
 
 // ---------- кадр ----------
 let last = performance.now(), fpsAvg = 60;
@@ -251,7 +264,23 @@ function frame(nowMs) {
   // 3D ещё грузится, а пора выходить игроку — придерживаем сцену на раскрытой карточке
   if (!rig && frozen === null && t > T.WALK) { held += t - T.WALK; t = T.WALK; holdFrom = t; } else holdFrom = null;
   render(t);
+  if (FPS_ON) fpsMeter(dtReal * 1000, t);
 }
+// ?fps=1 — замер плавности НА САМОМ УСТРОЙСТВЕ: реальные интервалы между кадрами за проход сцены.
+// Медленный кадр — дольше 25 мс (заметно при 60 Гц), рывок — дольше 50 мс.
+const FPS_ON = Q.get('fps') === '1';
+let fm = { n: 0, sum: 0, slow: 0, jank: 0, worst: 0, list: [], shownAt: 0 };
+function fpsMeter(ms, t) {
+  if (frozen !== null || t < T.SIL || ms > 1000) return;
+  fm.n++; fm.sum += ms; fm.list.push(ms); if (ms > 25) fm.slow++; if (ms > 50) fm.jank++; fm.worst = Math.max(fm.worst, ms);
+  if (performance.now() - fm.shownAt < 500) return;
+  fm.shownAt = performance.now();
+  const sorted = fm.list.slice().sort((a, b) => a - b), p95 = sorted[Math.floor(sorted.length * 0.95)] || 0;
+  const el = $('#fpsbox');
+  el.hidden = false;
+  el.textContent = `кадров ${fm.n} · средн. ${(1000 / (fm.sum / fm.n)).toFixed(0)} к/с · 95% ≤ ${p95.toFixed(0)} мс · медленных ${fm.slow} · рывков ${fm.jank} · худший ${fm.worst.toFixed(0)} мс · DPR ${DPR}`;
+}
+const resetMeter = () => { fm = { n: 0, sum: 0, slow: 0, jank: 0, worst: 0, list: [], shownAt: 0 }; };
 function render(t) {
   const charge = smooth((t - T.SIL) / (T.FLASH - T.SIL)), after = smooth((t - T.FLASH) / 0.6);
   hemi.intensity = 0.25 + 0.55 * after; key.intensity = 2.6 * smooth((t - T.WALK) / 1.2); fill.intensity = 0.6 * after;
@@ -262,7 +291,7 @@ function render(t) {
   pMat.opacity = 0.25 + 0.55 * charge; updateParticles(t);
   if (rig) {
     const info = pose(rig, plan, t);
-    const vis = smooth((t - T.WALK) / 0.8); // выходит из темноты, когда карточка уже ушла к краю
+    const vis = smooth((t - T.WALK - 0.1) / 0.7); // выходит из темноты, когда карточка уже ушла к краю
     rig.mats.forEach((m) => { m.opacity = vis; m.transparent = vis < 0.999; m.depthWrite = vis > 0.5; });
     const v = new THREE.Vector3();
     ['L', 'R'].forEach((s) => { rig.B['foot.' + s].getWorldPosition(v); blobs[s].position.set(v.x, 0.008, v.z + 0.04); blobs[s].material.opacity = vis * Math.max(0.2, 1 - (v.y - rig.ankleY) * 8); });
@@ -295,7 +324,7 @@ async function loadModel() {
   window.__loadMs = Math.round(performance.now() - loadT0);
   // портрет для карточки — снимок лица этой же 3D-модели (никаких выдуманных фото)
   portrait(r);
-  plan = planWalk(r, { t0: T.WALK, startZ: -3.4 * r.height / 1.9, endZ: 0 });
+  plan = planWalk(r, { t0: T.WALK, startZ: -2.3 * r.height / 1.9, endZ: 0 });
   r.ext = extents(r, plan);
   rig = r; window.__rig = r;
   $('#stat').textContent = `${MODEL} · загрузка ${window.__loadMs} мс`;

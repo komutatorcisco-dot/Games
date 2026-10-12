@@ -19,6 +19,7 @@ const clamp01 = (x) => Math.min(1, Math.max(0, x));
 export const smooth = (x) => { x = clamp01(x); return x * x * (3 - 2 * x); };
 export const smoother = (x) => { x = clamp01(x); return x * x * x * (x * (x * 6 - 15) + 10); };
 const ramp = (t, a, b) => smoother((t - a) / (b - a));
+const settleBump = (plan, t) => { const u = (t - (plan.tEnd - 0.05)) / 0.55; return u <= 0 || u >= 1 ? 0 : Math.sin(Math.PI * u) * (1 - u * 0.3); };
 const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
 
 const NAMES = ['root', 'pelvis', 'spine', 'chest', 'neck', 'head', 'clavicle.L', 'upper_arm.L', 'forearm.L', 'hand.L', 'clavicle.R', 'upper_arm.R', 'forearm.R', 'hand.R', 'thigh.L', 'shin.L', 'foot.L', 'thigh.R', 'shin.R', 'foot.R'];
@@ -54,7 +55,7 @@ export function createRig(model) {
 
 // ---------- план шагов ----------
 // startZ → endZ (к камере, +Z). Возвращает следы и кривую таза; время в секундах от t0.
-export function planWalk(rig, { t0 = 0, startZ = -3.2, endZ = 0, cadence = 0.56 } = {}) {
+export function planWalk(rig, { t0 = 0, startZ = -3.2, endZ = 0, cadence = 0.5 } = {}) {
   const H = rig.height / 1.9, D = endZ - startZ;
   // длины шагов в долях полного: разгон, полные, торможение
   const shape = [0.42, 0.78];
@@ -64,18 +65,24 @@ export function planWalk(rig, { t0 = 0, startZ = -3.2, endZ = 0, cadence = 0.56 
   const L = D / fr.reduce((a, b) => a + b); // точная длина полного шага, чтобы прийти ровно в endZ
   const steps = []; // { side, t, from, to, lift }
   const pos = { R: startZ, L: startZ };
+  // ширина постановки: в ходьбе стопы ставятся почти на одну линию (как у живого человека),
+  // в стойке после остановки — уверенно, чуть уже плеч. Широкая «на ширине бёдер» походка выглядит роботом.
+  const sx = { L: Math.sign(rig.footX.L), R: Math.sign(rig.footX.R) };
+  const px = { L: rig.footX.L, R: rig.footX.R };
+  const walkHalf = 0.072 * H, standHalf = 0.105 * H;
   let t = t0, side = 'R';
   fr.forEach((f, i) => {
     const dur = cadence * (0.72 + 0.28 * f); // короткие шаги чуть быстрее
     const other = side === 'R' ? 'L' : 'R';
     const target = pos[other] + f * L; // нога выносится на f·L вперёд от опорной
-    steps.push({ side, from: pos[side], to: target, lift: t + (i === 0 ? 0.04 : cadence * 0.16), t: t + dur, len: target - pos[side] });
-    pos[side] = target; t += dur; side = other;
+    const x = sx[side] * (i === fr.length - 1 ? standHalf : i === 0 ? 0.09 * H : walkHalf);
+    steps.push({ side, from: pos[side], to: target, fromX: px[side], x, lift: t + (i === 0 ? 0.04 : cadence * 0.16), t: t + dur, len: target - pos[side] });
+    pos[side] = target; px[side] = x; t += dur; side = other;
   });
   // приставной шаг: задняя нога встаёт рядом с передней
   const lastSide = side, other = lastSide === 'R' ? 'L' : 'R';
   const dur = cadence * 0.85;
-  steps.push({ side: lastSide, from: pos[lastSide], to: pos[other], lift: t + cadence * 0.12, t: t + dur, len: pos[other] - pos[lastSide], close: true });
+  steps.push({ side: lastSide, from: pos[lastSide], to: pos[other], fromX: px[lastSide], x: sx[lastSide] * standHalf, lift: t + cadence * 0.12, t: t + dur, len: pos[other] - pos[lastSide], close: true });
   pos[lastSide] = pos[other]; t += dur;
   const tEnd = t;
   // опорные точки таза: старт, середина между стопами в каждой постановке, финал над стопами
@@ -84,7 +91,7 @@ export function planWalk(rig, { t0 = 0, startZ = -3.2, endZ = 0, cadence = 0.56 
   steps.forEach((s) => { feet[s.side] = s.to; keys.push([s.t, (feet.R + feet.L) / 2 + (s.close ? 0 : 0.025 * H)]); });
   keys.push([tEnd + 0.45, pos.R]);
   const pelvisZ = monotone(keys);
-  const plan = { t0, tEnd, steps, pelvisZ, L, cadence, startZ, endZ: pos.R, H };
+  const plan = { t0, tEnd, steps, pelvisZ, L, cadence, startZ, endZ: pos.R, H, footX0: { ...rig.footX } };
   plan.pelvisY = pelvisCurve(rig, plan);
   return plan;
 }
@@ -130,19 +137,20 @@ function footState(plan, side, t) {
   // у каждого шага свой отрыв пятки (offP) и угол постановки на пятку (landP); у приставного — мягче.
   // Перенос идёт ровно от offP к landP, опора — от landP к нулю и к offP следующего шага: угол стопы непрерывен.
   const offP = (s) => (s.close ? deg(-12) : deg(-22)), landP = (s) => (s.close ? deg(6) : deg(14));
-  let z = plan.startZ, lift = 0, pitch = 0, swinging = false, lastLand = -1e9, lastStep = null, next = null;
+  let z = plan.startZ, x = plan.footX0[side], lift = 0, pitch = 0, swinging = false, lastLand = -1e9, lastStep = null, next = null;
   for (const s of plan.steps) {
     if (s.side !== side) continue;
-    if (t >= s.t) { z = s.to; lastLand = s.t; lastStep = s; continue; }
+    if (t >= s.t) { z = s.to; x = s.x; lastLand = s.t; lastStep = s; continue; }
     if (t >= s.lift) {
       // перенос: дуга, носок → пятка
       const u = (t - s.lift) / (s.t - s.lift), e = smoother(u);
       z = s.from + (s.to - s.from) * e;
+      x = s.fromX + (s.x - s.fromX) * e;
       const clear = (s.close ? 0.05 : 0.085) * H * Math.min(1, Math.abs(s.len) / (0.5 * plan.L) + 0.3);
       lift = clear * Math.pow(Math.sin(Math.PI * u), 1.15);
       pitch = offP(s) + (landP(s) - offP(s)) * smooth(u);
       swinging = true;
-      return { z, lift, pitch, swinging };
+      return { z, x, lift, pitch, swinging };
     }
     next = s; break;
   }
@@ -150,7 +158,7 @@ function footState(plan, side, t) {
   const land = lastStep ? landP(lastStep) * (1 - smooth((t - lastLand) / 0.13)) : 0;
   const off = next ? offP(next) * smooth((t - (next.lift - 0.17)) / 0.17) : 0;
   pitch = land + off;
-  return { z, lift, pitch, swinging };
+  return { z, x, lift, pitch, swinging };
 }
 
 // ---------- работа с костями ----------
@@ -201,11 +209,11 @@ export function pose(rig, plan, t) {
 
   const tc = plan.tEnd + 0.2; // празднование начинается сразу после приставного шага
   const walkW = ramp(t, plan.t0, plan.t0 + plan.cadence * 1.1) * (1 - ramp(t, plan.tEnd - plan.cadence * 1.3, plan.tEnd + 0.1));
-  const celIn = ramp(t, tc, tc + 0.85), celOut = ramp(t, tc + 2.0, tc + 3.1);
+  const celIn = ramp(t, tc, tc + 0.7), celOut = ramp(t, tc + 1.5, tc + 2.4);
   const celArms = celIn * (1 - celOut); // руки разведены, потом спокойно опускаются
   const pride = celIn * (1 - 0.55 * celOut); // расправленные плечи остаются немного
-  const idle = ramp(t, tc + 1.8, tc + 3.4);
-  const ti = t - (tc + 1.8);
+  const idle = ramp(t, tc + 1.3, tc + 2.6);
+  const ti = t - (tc + 1.3);
 
   // текущий шаг: фаза внутри шага (0 — постановка предыдущей стопы, 1 — следующей) и кто опора
   let p = 0, swingSide = 'R', k = 0, prevT = plan.t0;
@@ -227,17 +235,17 @@ export function pose(rig, plan, t) {
 
   // повороты таза и корпуса: таз крутится за выносимой ногой, грудь — в противоход
   // поворот вокруг +Y на +θ уводит сторону +X назад, поэтому выносимое бедро вперёд — знак минус; таз опускается со стороны выносимой ноги
-  const yawP = -sgn(swingSide) * deg(5.5) * Math.sin(Math.PI * p) * walkW;
-  const rollP = -sgn(swingSide) * deg(2.2) * Math.sin(Math.PI * p) * walkW + deg(1.6) * Math.sin(ti * 2 * Math.PI * 0.11) * idle;
+  const yawP = -sgn(swingSide) * deg(7) * Math.sin(Math.PI * p) * walkW;
+  const rollP = -sgn(swingSide) * deg(3) * Math.sin(Math.PI * p) * walkW + deg(1.6) * Math.sin(ti * 2 * Math.PI * 0.11) * idle;
   turn(rig, 'pelvis', Y, yawP);
   turn(rig, 'pelvis', Z, rollP);
-  turn(rig, 'spine', X, deg(3.5) * walkW - deg(4) * pride);
+  turn(rig, 'spine', X, deg(3) * walkW + deg(3) * settleBump(plan, t) - deg(1.5) * pride);
   turn(rig, 'spine', Z, -rollP * 0.6);
   turn(rig, 'chest', Y, -yawP * 1.5);
-  turn(rig, 'chest', X, -deg(7) * pride - deg(1.4) * breath);
+  turn(rig, 'chest', X, -deg(5) * pride - deg(1.4) * breath);
   // голова смотрит вперёд (гасит покачивания), в празднике — подбородок чуть вверх, в ожидании — оглядывается
   turn(rig, 'neck', Y, -yawP * 0.4);
-  turn(rig, 'head', X, deg(2) * walkW - deg(6) * celArms - deg(2) * idle);
+  turn(rig, 'head', X, -deg(1) * walkW - deg(7) * celArms - deg(2) * idle);
   turn(rig, 'head', Y, Math.sin(ti * 2 * Math.PI * 0.07) * deg(12) * idle);
 
   // ключицы: расправить плечи (назад и чуть вниз)
@@ -249,25 +257,28 @@ export function pose(rig, plan, t) {
     const f = fs[s];
     // точка опоры лодыжки: при подъёме пятки лодыжка поднимается вокруг носка, при постановке на пятку — вокруг пятки
     const pivot = f.pitch < 0 ? 0.13 * H * Math.sin(-f.pitch) : 0.05 * H * Math.sin(f.pitch);
-    const ankle = new THREE.Vector3(rig.footX[s], rig.ankleY + f.lift + pivot, f.z + (f.pitch < 0 ? -0.13 * H * (1 - Math.cos(f.pitch)) : 0));
+    const ankle = new THREE.Vector3(f.x, rig.ankleY + f.lift + pivot, f.z + (f.pitch < 0 ? -0.13 * H * (1 - Math.cos(f.pitch)) : 0));
     legIK(rig, s, ankle, fwd.clone().add(new THREE.Vector3(sgn(s) * 0.08, 0, 0)).normalize());
-    footWorld(rig, 'foot.' + s, 0, f.pitch);
+    footWorld(rig, 'foot.' + s, sgn(s) * deg(7), f.pitch); // носки чуть врозь
   });
 
   // ----- руки -----
-  const swingA = deg(19) * walkW;
+  const swingA = deg(24) * walkW;
   ['L', 'R'].forEach((s) => {
     const sd = s === 'L' ? 1 : -1;
-    const arm = (s === 'L' ? 1 : -1) * -Math.cos(Math.PI * phaseCum) * swingA; // противоход ногам: правая нога впереди — левая рука впереди
-    const walkUp = armDir(rig, sd, arm, deg(11));
-    const celUp = armDir(rig, sd, deg(-4), deg(40) + deg(1.5) * breath, 0.04); // «Why always me?»: в стороны и чуть назад
+    // противоход ногам (правая нога впереди — левая рука впереди), рука чуть запаздывает за ногой
+    const arm = (s === 'L' ? 1 : -1) * -Math.cos(Math.PI * (phaseCum - 0.12)) * swingA;
+    const walkUp = armDir(rig, sd, arm + deg(2) * walkW, deg(9));
+    // плечо идёт вместе с рукой: рука вперёд — плечо вперёд
+    turn(rig, 'clavicle.' + s, Y, -sd * rig.sideL * arm * 0.22);
+    const celUp = armDir(rig, sd, deg(-2), deg(46) + deg(1.5) * breath, 0.05); // «Why always me?»: в стороны и чуть назад
     const idleUp = armDir(rig, sd, deg(3) + deg(1) * breath, deg(10) + deg(1.5) * Math.sin(ti * 1.2 + sd));
     const up = walkUp.clone().multiplyScalar(1 - Math.max(celArms, idle)).add(celUp.clone().multiplyScalar(celArms)).add(idleUp.clone().multiplyScalar(idle * (1 - celArms))).normalize();
     aim(rig, 'upper_arm.' + s, up);
     // локоть: в ходьбе согнут вперёд сильнее при выносе руки, в празднике — раскрыт ладонями к зрителю
-    const bend = deg(16) + Math.max(0, arm) * 0.7;
+    const bend = deg(12) + Math.max(0, arm) * 0.6; // при махе назад рука почти прямая
     const walkFore = up.clone().applyAxisAngle(X, -bend);
-    const celFore = armDir(rig, sd, deg(18), deg(52), 0.12);
+    const celFore = armDir(rig, sd, deg(15), deg(58), 0.14);
     const idleFore = up.clone().applyAxisAngle(X, -deg(14));
     const fore = walkFore.multiplyScalar(1 - Math.max(celArms, idle)).add(celFore.multiplyScalar(celArms)).add(idleFore.multiplyScalar(idle * (1 - celArms))).normalize();
     aim(rig, 'forearm.' + s, fore);
@@ -279,17 +290,17 @@ export function pose(rig, plan, t) {
 function pelvisRaw(rig, plan, t) {
   const H = plan.H, tc = plan.tEnd + 0.2;
   const walkW = ramp(t, plan.t0, plan.t0 + plan.cadence * 1.1) * (1 - ramp(t, plan.tEnd - plan.cadence * 1.3, plan.tEnd + 0.1));
-  const celIn = ramp(t, tc, tc + 0.85), idle = ramp(t, tc + 1.8, tc + 3.4), ti = t - (tc + 1.8);
+  const celIn = ramp(t, tc, tc + 0.7), idle = ramp(t, tc + 1.3, tc + 2.6), ti = t - (tc + 1.3);
   let p = 0, swingSide = 'R', prevT = plan.t0;
   for (let k = 0; k < plan.steps.length; k++) { const s = plan.steps[k]; if (t < s.t) { p = clamp01((t - prevT) / (s.t - prevT)); swingSide = s.side; break; } prevT = s.t; }
   const stance = swingSide === 'R' ? 'L' : 'R';
   const sgn = (s) => (s === 'L' ? rig.sideL : -rig.sideL);
   const z = plan.pelvisZ(t);
   const bob = -0.016 * H * Math.cos(2 * Math.PI * p) * walkW;
-  const sway = sgn(stance) * 0.022 * H * Math.sin(Math.PI * p) * walkW
+  const sway = sgn(stance) * 0.03 * H * Math.sin(Math.PI * p) * walkW
     + Math.sin(ti * 2 * Math.PI * 0.11) * 0.022 * H * idle; // в ожидании — медленный перенос веса
   const breath = Math.sin(Math.max(0, t - tc) * 2 * Math.PI * 0.24) * (0.4 + 0.6 * idle);
-  let py = rig.pelvisY - 0.01 * H - 0.024 * H * walkW + bob + 0.008 * H * celIn * (1 - idle) - 0.01 * H * idle;
+  let py = rig.pelvisY - 0.01 * H - 0.024 * H * walkW - 0.014 * H * settleBump(plan, t) + bob + 0.008 * H * celIn * (1 - idle) - 0.01 * H * idle;
   // стопы в этот момент
   const fs = { L: footState(plan, 'L', t), R: footState(plan, 'R', t) };
   const lims = [];
@@ -299,7 +310,7 @@ function pelvisRaw(rig, plan, t) {
   ['L', 'R'].forEach((s) => {
     // лодыжка выше на подъёме пятки (опора на носок) и при постановке на пятку — нога «длиннее», таз проваливается меньше
     const pv = fs[s].pitch < 0 ? 0.13 * H * Math.sin(-fs[s].pitch) : 0.05 * H * Math.sin(fs[s].pitch);
-    const ay = rig.ankleY + fs[s].lift + pv, dz = fs[s].z - z, dx = rig.footX[s] - (sway + sgn(s) * hipW);
+    const ay = rig.ankleY + fs[s].lift + pv, dz = fs[s].z - z, dx = fs[s].x - (sway + sgn(s) * hipW);
     const maxV = Math.sqrt(Math.max(0.01, Math.pow((rig.thighLen + rig.shinLen) * 0.996, 2) - dz * dz - dx * dx));
     const lim = ay + maxV + hipDrop;
     lims.push(lim);
