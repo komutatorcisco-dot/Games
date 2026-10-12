@@ -496,11 +496,22 @@ const SBC = (() => {
       { label: 'Отмена', cls: 'ghost' },
     ]);
   }
-  function submit(ch) {
+  async function submit(ch) {
     if (!cur || cur.submitted || cur.id !== ch.id || closed(ch) || (ch.ends && ch.ends <= Date.now())) return;
     const keys = cur.sq.filter(Boolean);
     if (new Set(keys).size !== ch.n || !allOk(ch, keys.map(Cards.get)) || keys.some((k) => !Cards.spare(k) || Cards.get(k).sbcOnly)) return;
     cur.submitted = true;
+    if (typeof EconomyClient !== 'undefined' && EconomyClient.configured()) {
+      try {
+        const result = await EconomyClient.transact('/sbc', { challenge: ch.id, keys });
+        Modal.close(); cur = null;
+        view = ch.parent ? { mode: 'group', id: ch.parent.id } : { mode: 'list', tab: lastTab };
+        paint(enterFx);
+        const res = EconomyClient.renderCards(result);
+        if (res.length) PackOpen.reveal(res); else toast('ИПК выполнено!');
+      } catch (e) { if (cur) cur.submitted = false; toast(e.message); }
+      return;
+    }
     Cards.use(keys);
     S().done[ch.id] = doneN(ch.id) + 1; Store.save();
     const groupRes = claimGroup(ch.parent);

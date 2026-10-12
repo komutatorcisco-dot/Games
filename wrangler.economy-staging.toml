@@ -1,0 +1,13 @@
+name = "jackson-economy-staging"
+main = "server/economy/worker.mjs"
+compatibility_date = "2026-10-01"
+workers_dev = false
+[vars]
+ECONOMY_ENABLED = "false"
+ECONOMY_ENV = "staging"
+ECONOMY_TEST_UIDS = ""
+ECONOMY_ORIGIN = "http://localhost:8080"
+[[d1_databases]]
+binding = "DB"
+database_name = "jackson-economy-staging-20261011"
+database_id = "976c6fbd-83b6-4fbd-b159-f870fbf049d3"

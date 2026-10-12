@@ -1,0 +1,12 @@
+import fs from 'node:fs';import vm from 'node:vm';import {execFileSync} from 'node:child_process';import {DatabaseSync} from 'node:sqlite';
+const files=['js/players.js','js/media.js','js/data/faces2.js','js/data/fcstats.js','js/data/cards.js','js/data/fcpos.js','js/positions.js','js/cards.js'];
+function catalog(ref){const c={console,Ui:{get:()=>''},document:{addEventListener(){}},window:{matchMedia:()=>({matches:true})},setTimeout(){}};vm.createContext(c);for(const f of files){let s;try{s=ref?execFileSync('git',['show',ref+':'+f],{encoding:'utf8',stdio:['ignore','pipe','ignore'],maxBuffer:20e6}):fs.readFileSync(f,'utf8');}catch{continue;}vm.runInContext(s,c);}vm.runInContext('if(typeof FACES_EXTRA!=="undefined")Object.assign(FACES,FACES_EXTRA);if(Cards.reset)Cards.reset()',c);return JSON.parse(vm.runInContext('JSON.stringify(Cards.all())',c));}
+const current=catalog();const by=new Map(current.map(c=>[c.key,c]));const history={};const refs=execFileSync('git',['log','--format=%H','--',...files,'js/sbc.js'],{encoding:'utf8'}).trim().split('\n');let evaluated=0;for(const ref of refs){try{for(const c of catalog(ref)){if(!history[c.key])history[c.key]={card:c,commit:ref};}evaluated++;}catch{}}
+const db=new DatabaseSync(process.argv[2]||'private-economy/backup-20261011/restored.sqlite',{readOnly:true});const unknown=new Set();for(const r of db.prepare('select data from saves').iterate()){try{const s=JSON.parse(r.data);for(const k of Object.keys(s.cards?.own||{}))if(!by.has(k))unknown.add(k);}catch{}}
+const recovered=[...unknown].filter(k=>history[k]);const unresolved=[...unknown].filter(k=>!history[k]);
+fs.mkdirSync('server/economy/generated',{recursive:true});fs.writeFileSync('server/economy/generated/legacy-cards.json',JSON.stringify(Object.fromEntries(recovered.map(k=>[k,history[k]])),null,2)+'\n');
+fs.writeFileSync('private-economy/backup-20261011/catalog-history.json',JSON.stringify({evaluated,unknown:unknown.size,recovered:recovered.length,unresolved},null,2));
+console.log({current:current.length,evaluated,unknown:unknown.size,recovered:recovered.length,unresolved:unresolved.length});
+console.log('Purchase evidence aggregate',db.prepare('select item, count(*) as n, sum(stars) as stars from purchases group by item').all());
+console.log('Receipts',db.prepare('select count(*) as n from payment_receipts').get());
+fs.writeFileSync('private-economy/backup-20261011/current-catalog.json',JSON.stringify(current));

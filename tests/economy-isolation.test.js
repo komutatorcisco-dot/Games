@@ -1,0 +1,8 @@
+import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
+const source=fs.readFileSync('js/core.js','utf8');const slice=source.slice(source.indexOf('const Store ='),source.indexOf('const Coins ='));
+const writes=[],reads=[],net=[];const c={CONFIG:{economyStaging:true,api:'https://production'},TG:{initData:'test',isVersionAtLeast:()=>true,CloudStorage:{setItem(){throw Error('Telegram cloud leak');},getItems(){throw Error('Telegram cloud leak');}}},Board:{ready:()=>true,post:()=>{throw Error('legacy load leak');}},document:{addEventListener(){}},localStorage:{getItem(k){reads.push(k);return k==='oldjacksons.hub.v1'?'{"coins":999}':null;},setItem(k,v){writes.push(k);}},fetch:(...x)=>net.push(x),navigator:{sendBeacon:(...x)=>net.push(x)},setTimeout:()=>{throw Error('legacy timer leak');},Date};
+vm.createContext(c);vm.runInContext(slice,c);vm.runInContext('Store.load();globalThis.EconomyClient={sync:async()=>{Store.d.coins=55;Store.save();}}',c);
+await vm.runInContext('Cloud.pull()',c);await vm.runInContext('Cloud.push()',c);vm.runInContext('Cloud.pushSrv(true);Cloud.schedule();Store.save()',c);
+assert.deepEqual(reads,['oldjacksons.economy-staging.v1']);assert.ok(writes.length);assert.ok(writes.every(k=>k==='oldjacksons.economy-staging.v1'));assert.equal(net.length,0);
+const config=fs.readFileSync('js/config.js','utf8').replace('economyStaging: false','economyStaging: true').replace("economyApi: ''","economyApi: 'https://staging.test'");const cc=vm.createContext({});vm.runInContext(config,cc);assert.equal(vm.runInContext('CONFIG.api',cc),'https://staging.test');assert.equal(vm.runInContext('CONFIG.donateApi',cc),'');
+console.log('Staging local save, Telegram cloud and production API isolation passed');

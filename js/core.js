@@ -128,6 +128,7 @@ const Store = {
     };
   },
   load() {
+    if (typeof CONFIG !== 'undefined' && CONFIG.economyStaging) this.KEY = 'oldjacksons.economy-staging.v1';
     let raw = null;
     try { raw = JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { raw = null; }
     this.d = this.merge(raw);
@@ -157,12 +158,14 @@ const Store = {
 // Значение одного ключа CloudStorage — до 4096 символов, поэтому сохранение режется на куски s0, s1, … ; в sn — число кусков, в st — время.
 const Cloud = (() => {
   const CHUNK = 4000;
+  const staging = () => typeof CONFIG !== 'undefined' && CONFIG.economyStaging === true;
   let timer = null, srvTimer = null, busy = false, again = false, ready = false;
   const cs = () => {
+    if (staging()) return null;
     try { return TG && TG.CloudStorage && TG.isVersionAtLeast && TG.isVersionAtLeast('6.9') ? TG.CloudStorage : null; } catch (e) { return null; }
   };
   const call = (fn, ...args) => new Promise((ok) => { try { cs()[fn](...args, (err, res) => ok(err ? null : res)); } catch (e) { ok(null); } });
-  const srvOn = () => typeof Board !== 'undefined' && Board.ready && Board.ready();
+  const srvOn = () => !staging() && typeof Board !== 'undefined' && Board.ready && Board.ready();
   const tro = (d) => Math.min(11000, Math.max(0, Math.floor(Number(d && d.rw && d.rw.trophies) || 0)));
   const better = (a, b) => tro(a) > tro(b) || (tro(a) === tro(b) && (a.ts || 0) > (b.ts || 0));
 
@@ -193,6 +196,7 @@ const Cloud = (() => {
   }
   // облако Telegram — не чаще раза в 3 секунды, сервер — раз в 2 минуты (и при сворачивании)
   function schedule() {
+    if (staging()) return;
     if (!ready) return; // пока не сверились с копиями, ничего не перезаписываем
     if (cs()) { clearTimeout(timer); timer = setTimeout(() => { timer = null; push(); }, 3000); }
     if (srvOn() && !srvTimer) srvTimer = setTimeout(() => { srvTimer = null; pushSrv(); }, 120000);
@@ -215,6 +219,9 @@ const Cloud = (() => {
   }
   // При запуске: сравниваем копии и берём лучшую; потом отправляем её во все места
   async function pull() {
+    if (staging()) {
+      try { await EconomyClient.sync(); return true; } catch (_) { return false; }
+    }
     let got = false;
     try {
       const [a, b] = await Promise.all([readTg(), readSrv()]);
