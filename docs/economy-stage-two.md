@@ -26,7 +26,9 @@ real player's wallet. No new Worker or Telegram webhook has been deployed.
   the existing game. Seeded parity tests compare the two implementations directly.
 - Small opt-in adapters in the existing coin/Stars shop and SBC submit path. Existing
   `PackOpen.reveal` renders server results. Pending request IDs survive reload and a
-  lost response; revisions prevent an older response overwriting newer displayed state.
+  lost response; staging uses a separate local save and disables legacy server/Telegram
+  cloud saves. Legacy API traffic is redirected to the isolated Worker, never production.
+  Revisions prevent an older response overwriting newer displayed state.
 
 ## Correction to the stage-one audit
 

@@ -9,3 +9,10 @@ const CONFIG = {
   donateApi: '',
   donateUrl: '',
 };
+
+// A private staging build must never send legacy requests to the live Worker.
+if (CONFIG.economyStaging) {
+  const productionApi = CONFIG.api;
+  CONFIG.api = CONFIG.economyApi && CONFIG.economyApi !== productionApi ? CONFIG.economyApi : '';
+  CONFIG.donateApi = '';
+}
