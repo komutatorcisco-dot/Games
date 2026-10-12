@@ -1,0 +1,45 @@
+# Проверочный сервер (staging) для «Забытых легенд»: тот же server/worker.js, но в отдельном воркере
+# «jackson-games-staging» со своей базой D1. Рабочий сервер «jackson-games» этот workflow не трогает.
+# Разовая настройка в Cloudflare (Workers & Pages):
+#   1) D1 → Create database «jackson-games-staging».
+#   2) Workers → Create → имя «jackson-games-staging» (любой код, потом заменится).
+#   3) В воркере Settings → Bindings: D1 database, имя переменной DB → «jackson-games-staging».
+#   4) Settings → Variables: FL_ENABLED = 1; секрет BOT_TOKEN — тот же ключ бота, что у рабочего сервера.
+# Дальше код заливается сам при каждом пуше в ветку испытания (меняется только код, настройки остаются).
+# Игра ходит на staging, если открыть её со ссылкой ?stage=1.
+name: Обновить проверочный сервер
+
+on:
+  push:
+    branches: ['claude/forgotten-legends']
+    paths: ['server/worker.js', '.github/workflows/worker-staging.yml']
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Проверить сервер и тесты
+        run: |
+          node --check server/worker.js
+          for test in tests/*.test.js; do
+            case "$test" in *-browser.test.js) continue ;; esac
+            node "$test"
+          done
+      - name: Загрузить код в jackson-games-staging
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          ACC=$(echo "$CF_ACCOUNT_ID" | tr -d '[:space:]')
+          [ -n "$ACC" ] || { echo "::warning::Нет секретов Cloudflare — проверочный сервер не обновлён"; exit 0; }
+          out=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACC/workers/scripts/jackson-games-staging/content" \
+            -H "Authorization: Bearer $(echo "$CF_API_TOKEN" | tr -d '[:space:]')" \
+            -F 'metadata={"main_module":"worker.js"};type=application/json' \
+            -F 'worker.js=@server/worker.js;type=application/javascript+module')
+          echo "$out" | head -c 600; echo
+          echo "$out" | grep -Eq '"success": *true' || { echo "::warning::Воркер jackson-games-staging ещё не создан или не принял код — см. инструкцию в начале файла"; exit 0; }
+          echo "Готово: проверочный сервер обновлён"

@@ -1,0 +1,45 @@
+/* «Забытые легенды»: тот же шаблон карточки, что у остальных редкостей (размеры и шрифты не меняются).
+   Фиолетовый и синий фон, розовые световые акценты, золотые детали — по настроению карточек Heroes. */
+.cc.forgotten { --rc: #ff7ad9; --r1: #3a1d7a; --r2: #14204f; --au: #f6cf63;
+  box-shadow: inset 0 0 0 .12em var(--au), inset 0 0 0 .22em rgba(20,12,50,.85), 0 .25em .9em rgba(123,60,255,.35); }
+.cc.forgotten .cc-ph { background:
+  radial-gradient(55% 45% at 50% 30%, rgba(255,122,217,.55), transparent 70%),
+  radial-gradient(60% 50% at 85% 0%, rgba(111,184,255,.45), transparent 70%),
+  linear-gradient(165deg, #6a2fd6 0%, #34207f 45%, #13235e 100%); }
+/* световые лучи вместо полос */
+.cc.forgotten .cc-ph::before { background:
+  linear-gradient(105deg, transparent 18%, rgba(255,140,225,.22) 22%, transparent 30%),
+  linear-gradient(75deg, transparent 58%, rgba(140,200,255,.2) 63%, transparent 70%),
+  radial-gradient(1.2em 1.2em at 18% 72%, rgba(255,214,120,.35), transparent 70%); }
+.cc.forgotten .cc-ph::after { background: linear-gradient(115deg, transparent 30%, rgba(255,230,160,.28) 45%, transparent 56%); }
+.cc.forgotten .cc-r { color: var(--au); text-shadow: 0 .08em 0 rgba(40,10,60,.8), 0 0 .5em rgba(255,122,217,.45); }
+.cc.forgotten .cc-band { background: linear-gradient(160deg, #2b1563, #101a48); color: #fff; border-top: .1em solid var(--au); }
+.cc.forgotten .cc-band small { color: var(--au); opacity: 1; }
+/* голова и плечи: портрет сверху, торс уходит под плашку */
+.cc.forgotten .cc-face { width: 86%; bottom: 23%; filter: drop-shadow(0 .25em .5em rgba(10,0,30,.6)) drop-shadow(0 0 .6em rgba(255,122,217,.3)); }
+/* эмблема серии вместо клубной: без белого круга */
+.cc-cr.series { width: 1.8em; height: 1.8em; padding: 0; background: none; border-radius: 0; filter: drop-shadow(0 .08em .15em rgba(0,0,0,.5)); }
+.cc.forgotten.lock { box-shadow: inset 0 0 0 .1em rgba(246,207,99,.35); }
+.cc.forgotten.lock .cc-band { border-top: 0; }
+.spin-back.forgotten, .po-back.forgotten { background: linear-gradient(145deg, #7b3cff, #1b2266 55%, #ff7ad9); color: #f6cf63; }
+.gl-series { width: 1.4em; height: 1.4em; vertical-align: middle; }
+
+/* ---- испытание «Забытые легенды» ---- */
+.fl-ch .fl-art { display: grid; place-items: center; margin: 4px 0 10px; }
+.fl-tasks { list-style: none; margin: 12px 0 6px; padding: 0; display: grid; gap: 8px; text-align: left; }
+.fl-tasks li { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 12px; background: rgba(123,60,255,.12); box-shadow: inset 0 0 0 1px rgba(199,125,255,.22); }
+.fl-tasks li > i { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 900 13px Rubik, sans-serif; font-style: normal; background: rgba(255,255,255,.08); }
+.fl-tasks li.ok > i { background: #f6cf63; color: #2a1660; }
+.fl-tasks li span { display: grid; gap: 3px; }
+.fl-tasks li b { font: 800 14px/1.25 Rubik, sans-serif; }
+.fl-tasks li small { font-size: 12px; opacity: .7; }
+.fl-tasks li em { font: 800 14px Rubik, sans-serif; font-style: normal; color: #f6cf63; white-space: nowrap; }
+.fl-note { margin: 8px 0 0; padding: 8px 10px; border-radius: 10px; background: rgba(255,122,217,.12); font-size: 13px; }
+.fl-small { font-size: 12px; opacity: .7; }
+.fl-act { display: grid; gap: 8px; margin-top: 12px; }
+.fl-card { box-shadow: inset 0 0 0 1px rgba(246,207,99,.45), 0 0 24px rgba(123,60,255,.25); background: linear-gradient(160deg, rgba(106,47,214,.28), rgba(19,35,94,.35)); }
+/* ---- полноэкранный выход игрока ---- */
+.wo-wrap { position: fixed; inset: 0; z-index: 9000; background: #05040b; animation: woIn .25s ease-out; }
+.wo-wrap.out { opacity: 0; transition: opacity .25s; }
+.wo-frame { width: 100%; height: 100%; border: 0; display: block; }
+@keyframes woIn { from { opacity: 0 } to { opacity: 1 } }

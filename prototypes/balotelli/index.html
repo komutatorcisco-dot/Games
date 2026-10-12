@@ -30,6 +30,13 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .jc-face { position: absolute; inset: 0; opacity: 0; }
   .jc-bg { position: absolute; inset: 0; background: radial-gradient(120% 80% at 50% 10%, color-mix(in srgb, var(--c1) 55%, #fff 0%), transparent 60%), linear-gradient(160deg, var(--c2), #120d26 70%); opacity: .9; }
+  .jc.forgotten .jc-bg { background: radial-gradient(55% 45% at 50% 28%, rgba(255,122,217,.55), transparent 70%), radial-gradient(60% 50% at 85% 0%, rgba(111,184,255,.45), transparent 70%), linear-gradient(165deg, #6a2fd6, #34207f 45%, #13235e); }
+  .jc.forgotten .jc-in { box-shadow: inset 0 0 0 3px #f6cf63, 0 30px 70px rgba(0,0,0,.6); }
+  .jc.forgotten .jc-r { color: #f6cf63; text-shadow: 0 2px 0 rgba(40,10,60,.8); }
+  .jc.forgotten .jc-band { border-top: 2px solid #f6cf63; }
+  .jc.forgotten .jc-rar { color: #f6cf63; }
+  .beat b.ser { font-size: clamp(30px, 9vw, 56px); }
+  body.embed .meta { display: none; }
   .jc.legend .jc-bg { background: radial-gradient(110% 70% at 50% 8%, rgba(255,255,255,.35), transparent 60%), linear-gradient(135deg, #ff9ae2, #ffe27a 30%, #8ff0d8 55%, #9fdcff 75%, #d6b2ff); }
   .jc-holo { position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.45) 45%, transparent 60%); background-size: 250% 100%; animation: holo 3.2s ease-in-out infinite; mix-blend-mode: overlay; }
   @keyframes holo { 0% { background-position: 120% 0 } 100% { background-position: -120% 0 } }

@@ -96,7 +96,7 @@ const Squad = (() => {
       anim(slot, [{ transform: 'translate(-50%,-50%) translateY(-60px) rotateY(180deg) scale(1.3)', opacity: 0 }, { transform: 'translate(-50%,-50%) rotateY(-10deg) scale(1.08)', opacity: 1, offset: 0.7 }, { transform: 'translate(-50%,-50%)' }], { duration: 560, easing: 'cubic-bezier(.2,.9,.3,1)' });
     });
     function drawPage() {
-      const list = cand.filter(x => (x.c.name + ' ' + x.c.club).toLocaleLowerCase('ru').includes(query));
+      const list = cand.filter(x => (x.c.name + ' ' + x.c.club + ' ' + (x.c.series || '')).toLocaleLowerCase('ru').includes(query));
       const pages = Math.max(1, Math.ceil(list.length / 24));
       page = Math.min(page, pages - 1);
       $('.sq-grid', el).innerHTML = list.slice(page * 24, (page + 1) * 24).map(cell).join('') || '<p>Карточки не найдены.</p>';

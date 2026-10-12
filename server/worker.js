@@ -148,6 +148,9 @@ async function schema(db) {
     db.prepare('CREATE INDEX IF NOT EXISTS presence_ts ON presence (ts)'),
     db.prepare("CREATE TABLE IF NOT EXISTS draft_tours (attempt INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, roster TEXT NOT NULL, state TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', claimed INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, updated INTEGER NOT NULL, UNIQUE(uid, roster))"),
     db.prepare('CREATE INDEX IF NOT EXISTS draft_tours_uid ON draft_tours (uid, updated DESC)'),
+    // испытания серий («Забытые легенды»): отметки заданий и однократная выдача карточки
+    db.prepare('CREATE TABLE IF NOT EXISTS legend_marks (uid INTEGER NOT NULL, mark TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (uid, mark))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS legend_claims (uid INTEGER NOT NULL, card TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (uid, card))'),
   ]);
   if (!(await db.prepare("SELECT v FROM settings WHERE k = 'migration:trophy-cap-11000'").bind().first())) {
     await db.batch([
@@ -937,6 +940,15 @@ async function draftTour(env, user, body) {
     const state = typeof body.state === 'string' && body.state.length <= 12000 ? body.state : null;
     if (!state) return { ok: false, error: 'Сохранение турнира слишком большое' };
     let parsed = {}; try { parsed = JSON.parse(state); } catch (e) { return { ok: false, error: 'bad state' }; }
+    // результаты матчей только дописываются: старые не меняются, максимум 4 матча, завершённый турнир не меняется.
+    // По этим записям сервер считает задания испытаний, поэтому переписать прошлое нельзя.
+    // (Несколько новых за раз допускаем: если прошлое сохранение не дошло, турнир не должен застрять.)
+    let prev = {}; try { prev = JSON.parse(row.state); } catch (e) { /* пустое сохранение */ }
+    const was = Array.isArray(prev.res) ? prev.res : [], now_ = Array.isArray(parsed.res) ? parsed.res : [];
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    if (now_.length > 4 || now_.length < was.length || was.some((r, i) => !same(r, now_[i])) || (row.status === 'done' && now_.length !== was.length)) {
+      return { ok: false, error: 'Сохранение турнира не совпадает с сервером', state: prev, done: row.status === 'done', claimed: !!row.claimed };
+    }
     const done = parsed && parsed.over ? 'done' : 'active';
     await db.prepare("UPDATE draft_tours SET state = ?1, status = CASE WHEN status = 'done' THEN 'done' ELSE ?2 END, updated = ?3 WHERE attempt = ?4 AND uid = ?5").bind(state, done, now, attempt, uid).run();
     const updated = await db.prepare('SELECT state, status, claimed FROM draft_tours WHERE attempt = ? AND uid = ?').bind(attempt, uid).first();
@@ -944,6 +956,52 @@ async function draftTour(env, user, body) {
     return { ok: true, state: saved, done: updated.status === 'done', claimed: !!updated.claimed };
   }
   return { ok: false, error: 'unknown action' };
+}
+
+// ---------- «Забытые легенды»: испытание за карточку (выдача только сервером, один раз) ----------
+// Включается переменной FL_ENABLED=1 (сначала staging). Прогресс считается по серверным записям:
+// матчи и победы — из попыток турниров драфта (draft_tours, результаты только дописываются),
+// «7 итальянцев» — по составу, присланному при завершении драфта, и серверному списку итальянцев пула драфта.
+// Ограничение: сами матчи и подбор игроков драфта идут на устройстве — сервер их не переигрывает.
+const FL = { card: 'FL:mario-balotelli', matches: 10, wins: 5, italians: 7, start: Date.parse('2026-10-13T00:00:00Z') };
+// Итальянцы из пула драфта (js/xdraft/ui.js → pool). Сверяется тестом tests/forgotten-legends.test.js.
+const FL_ITALY = new Set(["Алберто Бриньоли", "Алберто Палеари", "Алекс Мерет", "Алессандро Бастони", "Алессандро Буонджорно", "Алессандро Вольиакко", "Алессандро Деиола", "Алессандро Неста", "Алессио Романьоли", "Андреа Камбьязо", "Андреа Карбони", "Андреа Кольпани", "Андреа Петаньа", "Андреа Пинамонти", "Андреа Пирло", "Андреа Фулиньати", "Анс Николусси Кавильиа", "Антонино Галло", "Антонио Каракчоло", "Армандо Иццо", "Брайан Кристанте", "Вилфриэд Ньонто", "Винченцо Грифо", "Владимиро Фальконе", "Габриэле Цаппа", "Гульельмо Викарио", "Давиде Адорни", "Давиде Дзаппакоста", "Давиде Калабрия", "Давиде Фраттези", "Данило Катальди", "Даниэле Ругани", "Даниэль Малдини", "Дестини Удоджи", "Джакомо Квальиата", "Джакомо Распадори", "Джанджакомо Маньани", "Джанлуиджи Буффон", "Джанлуиджи Доннарумма", "Джанлука Гаэтано", "Джанлука Капрари", "Джанлука Манчини", "Джанлука Скамакка", "Дженнаро Гаттузо", "Дженнаро Тутино", "Джованни Ди Лоренцо", "Джорджо Кьеллини", "Джусеппе Пеццелла", "Димитри Бисоли", "Доменико Берарди", "Иван Проведел", "Йакопо Петрикчоне", "Йакопо Сегре", "Йури Чисотти", "Кевин Ласаньа", "Кристиано Бираги", "Леонардо Бонуччи", "Леонардо Спинаццола", "Лоренцо Инсинье", "Лоренцо Коломбо", "Лоренцо Монтипо", "Лоренцо Пеллегрини", "Лоренцо Пирола", "Луис Фелипе", "Лука Маццителли", "Лука Пеллегрини", "Лука Раванелли", "Лука Раниэри", "Лука Цанимаккиа", "Мануэл Лаццари", "Мануэль Локателли", "Марко Брешианини", "Марко Варниэр", "Марко Д’Алессандро", "Марко Карнезекки", "Марко Спортьелло", "Матео Ретеги", "Маттео Бианкетти", "Маттео Габбия", "Маттео Канчеллиэри", "Маттео Ловато", "Маттео Пессина", "Маттео Политано", "Маттео Руджери", "Маттео Трамони", "Маттиа Бани", "Маттиа Вити", "Маттиа Дзаккальи", "Маттиа Перин", "Микеле Ди Грегорио", "Мирко Пильиачелли", "Мойзе Кин", "Никола Леали", "Николас Пиэрини", "Николо Барелла", "Николо Дзаньоло", "Николо Касале", "Николо Ровелла", "Пасквале Маццокки", "Патрик Кутроне", "Патрик Чурриа", "Пиэрлуиджи Голлини", "Пиэтро Иэммелло", "Пиэтро Чеккарони", "Пьетро Терраччано", "Раул Белланова", "Риккардо Калафьори", "Риккардо Орсолини", "Риккардо Соттил", "Роберто Пикколи", "Роландо Мандрагора", "Салваторе Молина", "Салваторе Эспосито", "Самуэле Биринделли", "Самуэле Мулаттиэри", "Самуэле Риччи", "Сандро Тонали", "Себастиано Луперто", "Себастьяно Эспозито", "Симоне Канестрелли", "Симоне Коломби", "Симоне Понтиссо", "Симоне Скуффет", "Стефано Морео", "Стефано Сабелли", "Стефано Турати", "Томмасо Ауджелло", "Томмасо Побега", "Фабиано Париси", "Фабрицио Бриньани", "Федерико Бернардески", "Федерико Бонаццоли", "Федерико Димарко", "Федерико Кьеза", "Федерико ди Франческо", "Филиппо Делли Карри", "Филиппо Индзаги", "Филиппо Раноккиа", "Франческо Барди", "Франческо Цампано", "Франческо ди Мариано", "Эдоардо Голданига", "Элиа Каприле", "Эмануэл Виньато", "Эмерсон Палмьери", "Энрико Делпрато"]);
+async function flStatus(db, uid, start) {
+  const rows = (await db.prepare('SELECT state FROM draft_tours WHERE uid = ? AND created >= ?').bind(uid, start).all()).results || [];
+  let matches = 0, wins = 0;
+  rows.forEach((r) => {
+    let st = {}; try { st = JSON.parse(r.state); } catch (e) { return; }
+    const res = Array.isArray(st.res) ? st.res.slice(0, 4) : [];
+    matches += res.length; wins += res.filter((x) => x && x.win === true).length;
+  });
+  const ita = await db.prepare("SELECT created FROM legend_marks WHERE uid = ? AND mark = 'fl:italians'").bind(uid).first();
+  const got = await db.prepare('SELECT created FROM legend_claims WHERE uid = ? AND card = ?').bind(uid, FL.card).first();
+  const tasks = { matches: Math.min(matches, FL.matches), wins: Math.min(wins, FL.wins), italians: ita ? 1 : 0 };
+  const done = tasks.matches >= FL.matches && tasks.wins >= FL.wins && tasks.italians === 1;
+  return { card: FL.card, need: { matches: FL.matches, wins: FL.wins, italians: FL.italians }, tasks, done, claimed: !!got };
+}
+async function legends(env, user, body) {
+  if (String(env.FL_ENABLED || '') !== '1') return { ok: false, disabled: true, error: 'Испытание ещё не включено' };
+  const db = env.DB, uid = user.id, now = Date.now();
+  await schema(db);
+  const start = Number(env.FL_START) || FL.start;
+  const act = String(body.act || 'status');
+  if (act === 'draft') {
+    // завершённый драфт: считаем только стартовые 11, запасные не присылаются
+    const players = Array.isArray(body.players) ? body.players.map((n) => clean(n, 60)).filter(Boolean) : [];
+    if (players.length !== 11 || new Set(players).size !== 11) return { ok: false, error: 'Нужен полный стартовый состав' };
+    const n = players.filter((x) => FL_ITALY.has(x)).length;
+    if (n >= FL.italians) await db.prepare("INSERT OR IGNORE INTO legend_marks (uid, mark, created) VALUES (?, 'fl:italians', ?)").bind(uid, now).run();
+    return { ok: true, italians: n, ...(await flStatus(db, uid, start)) };
+  }
+  if (act === 'claim') {
+    const st = await flStatus(db, uid, start);
+    if (st.claimed) return { ok: true, granted: false, already: true, ...st };
+    if (!st.done) return { ok: false, error: 'Задания ещё не выполнены', ...st };
+    const r = await db.prepare('INSERT OR IGNORE INTO legend_claims (uid, card, created) VALUES (?, ?, ?)').bind(uid, FL.card, now).run();
+    return { ok: true, granted: !!r.meta.changes, already: !r.meta.changes, ...st, claimed: true };
+  }
+  return { ok: true, ...(await flStatus(db, uid, start)) };
 }
 
 // ---------- онлайн: подбор случайного соперника для дуэли ----------
@@ -1057,7 +1115,7 @@ async function route(request, env) {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     return json(await onlinePresence(env, null, { act: 'counts' }));
   }
-  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load'].includes(url.pathname) && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
@@ -1071,6 +1129,7 @@ async function route(request, env) {
     if (url.pathname === '/mm') return json(await matchmake(env, user, body));
     if (url.pathname === '/presence') return json(await onlinePresence(env, user, body));
     if (url.pathname === '/tour') return json(await draftTour(env, user, body));
+    if (url.pathname === '/legend') return json(await legends(env, user, body));
     if (url.pathname === '/save') return json(await saveData(env, user, body));
     if (url.pathname === '/load') return json(await loadData(env, user));
     if (url.pathname === '/admin/stats') {

@@ -34,7 +34,7 @@ const Tilt = (() => {
     if (!cc || cc.closest('.spin3d')) return;
     const wrap = document.createElement('div'); wrap.className = 'spin3d';
     const inner = document.createElement('div'); inner.className = 'spin-in';
-    const back = document.createElement('div'); back.className = 'spin-back ' + (['bronze', 'silver', 'gold', 'legend', 'jack', 'future'].find((r) => cc.classList.contains(r)) || '');
+    const back = document.createElement('div'); back.className = 'spin-back ' + (['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten'].find((r) => cc.classList.contains(r)) || '');
     back.innerHTML = '<b>ДЖ</b>';
     cc.parentNode.insertBefore(wrap, cc); inner.appendChild(cc); inner.appendChild(back); wrap.appendChild(inner);
     let ry = 0, rx = 0, vy = 0, drag = null, raf = 0, settle = false;
@@ -296,7 +296,7 @@ const SBC = (() => {
     return `<nav class="fx-tabs">${TABS.map(([k, t]) => `<button class="${view.tab === k ? 'on' : ''}" data-sbt="${k}">${t}</button>`).join('')}</nav>
       <div class="fx-club"><span class="fx-cl-ico"></span><span><b>${n}</b> ${plural(n, 'карточка', 'карточки', 'карточек')} в клубе<small>Сданные игроки остаются в галерее</small></span>
         ${pend ? `<button class="fx-mini" data-act="rw-packs">Паки: ${pend}</button>` : `<button class="fx-mini" data-act="collection">Галерея</button>`}</div>
-      <div class="fx-list">${sorted.map(card).join('')}</div>`;
+      <div class="fx-list">${(view.tab === 'all' || view.tab === 'pl') && typeof Legends !== 'undefined' ? Legends.listCard() : ''}${sorted.map(card).join('')}</div>`;
   }
   function groupHTML(g) {
     const n = groupDone(g), got = closed(g);
@@ -415,7 +415,7 @@ const SBC = (() => {
     el.innerHTML = `<div class="sx-sheet" role="dialog"><div class="sx-grab"></div>
       <div class="sx-sh"><b>${has ? 'Заменить игрока' : 'Выбери игрока'}</b><button class="sx-x" data-sh="close" aria-label="Закрыть">✕</button></div>
       ${open.length || (goal && others) ? `<div class="sx-legend">${open.length ? '<span><i class="sx-hl"></i>помогает с условием</span>' : ''}${goal && others ? '<span><b>→ 80</b> рейтинг с ним</span>' : ''}</div>` : ''}
-      <div class="sx-filt">${[['all', 'Все'], ['dup', 'Повторы'], ['bronze', 'Бронза'], ['silver', 'Серебро'], ['gold', 'Золото+']].filter(([k]) => !only || k === 'all' || k === 'dup' || (k === 'gold' ? only.in.some((x) => GOLDUP.includes(x)) : only.in.includes(k))).map(([k, n]) => `<button class="${filt === k ? 'on' : ''}" data-sf="${k}">${n}</button>`).join('')}<button class="sx-sort" data-sh="sort">ОБЩ ${up ? '↑' : '↓'}</button></div>
+      <div class="sx-filt">${[['all', 'Все'], ['dup', 'Повторы'], ['bronze', 'Бронза'], ['silver', 'Серебро'], ['gold', 'Золото+'], ['forgotten', 'Забытые легенды']].filter(([k]) => !only || k === 'all' || k === 'dup' || (k === 'gold' ? only.in.some((x) => GOLDUP.includes(x)) : only.in.includes(k))).map(([k, n]) => `<button class="${filt === k ? 'on' : ''}" data-sf="${k}">${n}</button>`).join('')}<button class="sx-sort" data-sh="sort">ОБЩ ${up ? '↑' : '↓'}</button></div>
       <input class="card-search" type="search" placeholder="Имя или клуб" aria-label="Поиск карточек">
       <div class="sx-grid"></div><div class="card-pages"></div>
       ${has ? '<button class="fx-btn ghost sx-rm" data-sh="rm">Убрать из состава</button>' : ''}</div>`;

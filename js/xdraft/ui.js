@@ -330,6 +330,8 @@ const XDraft = (() => {
     a.result.newR = r > cur.r; a.result.newC = c > cur.c;
     b[a.sys] = { r: Math.max(cur.r, r), c: Math.max(cur.c, c) };
     save(); Sound.play('whistle'); render();
+    // испытание «Забытых легенд»: состав с 7+ итальянцами в стартовых 11 отправляется на сервер
+    if (typeof Legends !== 'undefined') Legends.onDraft(a.id, xi);
   }
   function renderResult() {
     const a = A(), xi = xiOf(a), bench = benchOf(a), F_ = XD.FORMATIONS[a.form], c = XD.chem(a.sys, a.form, xi), b = S().best[a.sys] || {};

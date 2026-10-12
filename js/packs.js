@@ -11,8 +11,8 @@ const PackOpen = (() => {
     { k: 'legend', name: 'ЛЕГЕНДАРНЫЙ', short: 'Легендарный', css: '#f2cb5c', w: 2.5, prize: [60, 120] },
     { k: 'jackson', name: 'ДЖЕКСОН!!', short: 'Джексон!!', css: '#ff4f66', w: 0.5, prize: [200, 300] },
   ];
-  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future'];
-  const RCOL = { bronze: '#e0a070', silver: '#dfe5ee', gold: '#ffcf3a', legend: '#d6a6ff', jack: '#ff4f66', future: '#68f5ef' };
+  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten'];
+  const RCOL = { bronze: '#e0a070', silver: '#dfe5ee', gold: '#ffcf3a', legend: '#d6a6ff', jack: '#ff4f66', future: '#68f5ef', forgotten: '#c77dff' };
   const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const anim = (el, k, o) => (el && el.animate && !reduce ? el.animate(k, o) : null);
   const wait = (ms) => new Promise((r) => setTimeout(r, reduce ? Math.min(ms, 60) : ms));
@@ -61,7 +61,7 @@ const PackOpen = (() => {
       face.loading = 'eager'; face.decoding = 'async';
       if (face.decode) await Promise.race([face.decode().catch(() => {}), wait(250)]);
     }
-    const flip = $('.po-flip', stage), special = top.c.rar === 'legend' || top.c.rar === 'jack' || top.c.rar === 'future';
+    const flip = $('.po-flip', stage), special = top.c.rar === 'legend' || top.c.rar === 'jack' || top.c.rar === 'future' || top.c.rar === 'forgotten';
     // подъём и прозрачность — у обёртки, поворот — у самой карточки: так 3D не сплющивается
     const dur = special ? 1500 : 1000;
     anim($('.po-walk', stage), [{ transform: 'translateY(60vh) scale(.4)', opacity: 0 }, { transform: 'translateY(-4vh) scale(1.08)', opacity: 1, offset: 0.75 }, { transform: 'none', opacity: 1 }], { duration: dur, easing: 'cubic-bezier(.2,.8,.2,1)' });

@@ -13,8 +13,9 @@ const Cards = (() => {
     legend: { n: 'ЛЕГЕНДА', dup: 40 },
     jack: { n: 'ДЖЕКСОН!!', dup: 100 },
     future: { n: 'БУДУЩИЕ ЗВЁЗДЫ', dup: 100 },
+    forgotten: { n: 'ЗАБЫТЫЕ ЛЕГЕНДЫ', dup: 100 },
   };
-  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future'];
+  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten'];
   const LEAGUES = ['АПЛ', 'Ла Лига', 'Серия А', 'Бундеслига', 'Лига 1'];
   const POS = { ГК: 'ВРТ' };
 
@@ -30,10 +31,14 @@ const Cards = (() => {
     const top = (list, k) => list.slice().sort((a, b) => b.r - a.r).slice(0, k);
     const jack = [...top(cur, 12), ...top(legs, 6)].map((c) => ({ ...c, key: 'J:' + c.name, r: Math.min(99, c.r + 4), rar: 'jack' }));
     const future = [{ key: 'FS:xavi-espart', name: 'Хави Эспарт', r: 91, pos: 'ЛЗ', club: 'Барселона', flag: '🇪🇸', nat: 'Испания', lg: 'Ла Лига', rar: 'future', sbcOnly: true, faceUrl: 'img/players/xavi-espart-future.webp', st: [93, 65, 86, 89, 90, 85] }];
-    ALL = [...cur, ...legs, ...jack, ...future];
+    // «Забытые легенды»: только за испытание. Клуба нет — вместо эмблемы клуба эмблема серии (crestUrl),
+    // поэтому серия не даёт химии «общий клуб». hero — как Heroes в FC: 3 химии на своей позиции, связь через сборную.
+    // Характеристики Балотелли — предложение под рейтинг 89 (в базе FC его нет), утверждаются вместе с карточкой.
+    const forgotten = [{ key: 'FL:mario-balotelli', name: 'Марио Балотелли', r: 89, pos: 'ФРВ', posFix: true, club: '', series: 'Забытые легенды', crestUrl: 'img/brand/forgotten-legends.svg', flag: '🇮🇹', nat: 'Италия', lg: '', rar: 'forgotten', sbcOnly: true, hero: true, challenge: 'fl:balotelli', walkout: 'balotelli', faceUrl: 'img/players/balotelli-forgotten.webp', st: [84, 90, 74, 83, 38, 88] }];
+    ALL = [...cur, ...legs, ...jack, ...future, ...forgotten];
     if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
       c.positions = PlayerPositions.get(c.name, c.pos);
-      c.pos = PlayerPositions.RU[c.positions[0]] || c.pos;
+      if (!c.posFix) c.pos = PlayerPositions.RU[c.positions[0]] || c.pos;
     });
     BY = Object.fromEntries(ALL.map((c) => [c.key, c]));
     return ALL;
@@ -118,10 +123,10 @@ const Cards = (() => {
   function html(c, { w = 150, locked = false, cls = '' } = {}) {
     if (!c) return '';
     if (locked) return `<div class="cc lock ${cls}" style="--w:${w}px" data-lock="${esc(c.key)}"><div class="cc-ph"></div><span class="cc-sil"></span><div class="cc-r">??</div><div class="cc-band"><b>???</b><small>${RAR[c.rar].n}</small></div></div>`;
-    const [k1, k2] = col(c.club), cr = CRESTS[c.club];
+    const [k1, k2] = col(c.club), cr = c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : '');
     return `<div class="cc ${c.rar} ${cls}" style="--w:${w}px;--k1:${k1};--k2:${k2}" data-card="${esc(c.key)}">
       <div class="cc-ph"></div>${c.faceUrl || c.face ? `<img class="cc-face" src="${esc(c.faceUrl || img(c.face))}" alt="" loading="lazy">` : '<span class="cc-sil"></span>'}
-      <div class="cc-r">${c.r}<small>${esc(c.pos)}</small></div>${cr ? `<img class="cc-cr" src="img/clubs/${cr}" alt="" loading="lazy">` : ''}
+      <div class="cc-r">${c.r}<small>${esc(c.pos)}</small></div>${cr ? `<img class="cc-cr${c.crestUrl ? ' series' : ''}" src="${esc(cr)}" alt="" loading="lazy">` : ''}
       <div class="cc-band"><b>${esc(surname(c.name))}</b><small>${c.flag ? c.flag + ' ' : ''}${RAR[c.rar].n}</small></div></div>`;
   }
 
@@ -171,11 +176,18 @@ const Cards = (() => {
   }
 
   // ---------- галерея как в EA FC: лиги → клубы → игроки; собрал клуб или лигу — награда ----------
-  const GROUPS = [...LEAGUES, 'Другие', 'Легенды', 'Джексон', 'Будущие звёзды'];
+  const GROUPS = [...LEAGUES, 'Другие', 'Легенды', 'Джексон', 'Будущие звёзды', 'Забытые легенды'];
   const GROUP_ICO = { 'АПЛ': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Ла Лига': '🇪🇸', 'Серия А': '🇮🇹', 'Бундеслига': '🇩🇪', 'Лига 1': '🇫🇷', 'Другие': Ui.get('globe'), 'Легенды': Ui.get('crown'), 'Джексон': Ui.get('flame') };
-  const groupOf = (c) => (c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
+  const groupOf = (c) => (c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : c.rar === 'forgotten' ? 'Забытые легенды' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
   GROUP_ICO['Будущие звёзды'] = Ui.get('star');
-  const groupCards = (g) => all().filter((c) => g === 'Будущие звёзды' ? c.rar === 'future' : groupOf(c) === g);
+  GROUP_ICO['Забытые легенды'] = '<img class="gl-series" src="img/brand/forgotten-legends.svg" alt="">';
+  // серии из испытаний: карточку нельзя купить, поэтому за «сбор» серии награды нет (экономика не меняется)
+  const NOPRIZE = new Set(['Забытые легенды']);
+  const SINGLE = new Set(['Джексон', 'Забытые легенды']); // без деления на клубы
+  // серия видна в галерее, когда сервер включил испытание или карточка уже получена
+  const shown = (g) => g !== 'Забытые легенды' || have(groupCards(g)) > 0 || (typeof Legends !== 'undefined' && Legends.enabled());
+  const hiddenCard = (c) => c.rar === 'forgotten' && !shown('Забытые легенды');
+  const groupCards = (g) => all().filter((c) => g === 'Будущие звёзды' ? c.rar === 'future' : g === 'Забытые легенды' ? c.rar === 'forgotten' : groupOf(c) === g);
   // награда за клуб — по числу карточек в нём; за лигу — легендарный пак и монеты
   const clubPrize = (n) => (n <= 1 ? { coins: 50 } : n <= 3 ? { coins: 150 } : n <= 7 ? { pack: 0, coins: 150 } : n <= 12 ? { pack: 1, coins: 250 } : n <= 16 ? { pack: 2, coins: 400 } : { pack: 3, coins: 600 });
   const groupPrize = (g) => (g === 'Джексон' ? { pack: 4, coins: 2000 } : g === 'Легенды' ? { pack: 4, coins: 1000 } : { pack: 4, coins: 500 });
@@ -185,7 +197,7 @@ const Cards = (() => {
   const claimed = () => { const s = S(); if (!Array.isArray(s.sets)) s.sets = []; return s.sets; };
   function sets(group) {
     const list = groupCards(group);
-    if (group === 'Джексон') return [{ club: '', cards: list }];
+    if (SINGLE.has(group)) return [{ club: '', cards: list }];
     const by = {};
     list.forEach((c) => { (by[c.club] = by[c.club] || []).push(c); });
     return Object.entries(by).map(([club, cards]) => ({ club, cards: cards.sort((a, b) => b.r - a.r) })).sort((a, b) => b.cards.length - a.cards.length || a.club.localeCompare(b.club));
@@ -193,6 +205,7 @@ const Cards = (() => {
   const have = (cards) => cards.filter((c) => owned(c.key)).length;
   const bar = (h, n, cls = '') => `<span class="gl-bar ${cls}"><i style="width:${n ? Math.round((h / n) * 100) : 0}%"></i></span>`;
   function claimBtn(id, done, prize) {
+    if (!prize) return '';
     if (claimed().includes(id)) return '<span class="gl-got">✓ Получено</span>';
     if (done) return `<button class="btn gold gl-claim" data-claim="${esc(id)}">Забрать</button>`;
     return prizeChip(prize);
@@ -203,6 +216,7 @@ const Cards = (() => {
     const out = [];
     for (const g of GROUPS) {
       const cards = groupCards(g);
+      if (NOPRIZE.has(g)) continue;
       if (have(cards) === cards.length && !claimed().includes('g:' + g)) out.push({ id: 'g:' + g, name: g, ico: GROUP_ICO[g], prize: groupPrize(g) });
       if (g !== 'Джексон') sets(g).forEach(({ club, cards: cc }) => { const id = `c:${g}:${club}`; if (have(cc) === cc.length && !claimed().includes(id)) out.push({ id, name: club, crest: CRESTS[club], prize: clubPrize(cc.length) }); });
     }
@@ -226,7 +240,7 @@ const Cards = (() => {
       return list.length ? `<div class="cl-grid">${list.map(cell).join('')}</div>` : '<p class="rw-note">Карточек пока нет — открывай паки.</p>';
     }
     if (q.length < 2) return '';
-    const list = all().filter((c) => norm(c.name).includes(q) || norm(c.club).includes(q)).sort((a, b) => (owned(b.key) ? 1 : 0) - (owned(a.key) ? 1 : 0) || b.r - a.r).slice(0, 48);
+    const list = all().filter((c) => !hiddenCard(c) && (norm(c.name).includes(q) || norm(c.club).includes(q) || norm(c.series || '').includes(q))).sort((a, b) => (owned(b.key) ? 1 : 0) - (owned(a.key) ? 1 : 0) || b.r - a.r).slice(0, 48);
     return list.length ? `<div class="cl-grid">${list.map(cell).join('')}</div>` : '<p class="rw-note">Никого не нашли</p>';
   }
   function tools() {
@@ -234,7 +248,7 @@ const Cards = (() => {
       <button class="gl-mine ${view.mine ? 'on' : ''}" data-glmine="1">Мои</button></div><div class="gl-res">${results()}</div>`;
   }
   function album() {
-    const total = all().length, got = count();
+    const total = all().filter((c) => !hiddenCard(c)).length, got = count();
     let out = `<div class="cl-head"><b>Галерея</b><small>${got} / ${total}</small></div>${bar(got, total, 'cl-bar')}`;
     if (!view.g) {
       out += tools();
@@ -243,14 +257,14 @@ const Cards = (() => {
       if (rd.length) out += `<h3 class="gl-h">${Ui.get('gift')} Можно забрать</h3><div class="gl-ready">${rd.map((r) => `<div class="gl-rd">${r.crest ? `<img src="img/clubs/${r.crest}" alt="">` : `<span class="gl-noc">${r.ico || Ui.get('ball')}</span>`}<b>${esc(r.name)}</b>${prizeTxt(r.prize) ? `<small>${prizeTxt(r.prize)}</small>` : ''}<button class="btn gold gl-claim" data-claim="${esc(r.id)}">Забрать</button></div>`).join('')}</div>`;
       if (al.length) out += `<h3 class="gl-h">Почти собраны</h3><div class="gl-almost">${al.map((a) => `<button class="gl-al" data-glg="${esc(a.g)}" data-glc="${esc(a.club)}">${CRESTS[a.club] ? `<img src="img/clubs/${CRESTS[a.club]}" alt="">` : `<span class="gl-noc">${Ui.get('ball')}</span>`}<span><b>${esc(a.club)}</b>${bar(a.h, a.n)}<small>ещё ${a.left} ${a.left === 1 ? 'карточка' : a.left < 5 ? 'карточки' : 'карточек'}</small></span></button>`).join('')}</div>`;
       out += `<h3 class="gl-h">Лиги</h3>`;
-      out += `<div class="gl-list">${GROUPS.map((g) => {
+      out += `<div class="gl-list">${GROUPS.filter(shown).map((g) => {
         const cards = groupCards(g), h = have(cards), id = 'g:' + g;
-        return `<button class="gl-row" data-gl="${esc(g)}"><span class="gl-ico">${GROUP_ICO[g]}</span><span class="gl-mid"><b>${g}</b>${bar(h, cards.length)}<small>${h} / ${cards.length}${g === 'Джексон' ? '' : ` · клубов ${sets(g).length}`}</small></span>${claimBtn(id, h === cards.length, groupPrize(g))}</button>`;
+        return `<button class="gl-row" data-gl="${esc(g)}"><span class="gl-ico">${GROUP_ICO[g]}</span><span class="gl-mid"><b>${g}</b>${bar(h, cards.length)}<small>${h} / ${cards.length}${SINGLE.has(g) ? '' : ` · клубов ${sets(g).length}`}</small></span>${claimBtn(id, h === cards.length, NOPRIZE.has(g) ? null : groupPrize(g))}</button>`;
       }).join('')}</div><p class="rw-note gl-foot">Собери всех игроков клуба — получишь пак. Собери всю лигу — пак «ДЖЕКСОН!!» и монеты.</p>`;
       return out;
     }
     const g = view.g, all_ = groupCards(g), hg = have(all_);
-    if (view.club === null && g !== 'Джексон') {
+    if (view.club === null && !SINGLE.has(g)) {
       out += `<div class="gl-top"><button class="gl-back" data-glback="1">← Лиги</button><span class="gl-ttl">${GROUP_ICO[g]} ${g}</span></div>
         <div class="gl-sum"><span>${hg} / ${all_.length}${bar(hg, all_.length)}</span><span class="gl-for">За всю лигу: ${prizeTxt(groupPrize(g))}</span>${claimBtn('g:' + g, hg === all_.length, groupPrize(g))}</div>
         <div class="gl-clubs">${sets(g).map(({ club, cards }) => {
@@ -261,18 +275,19 @@ const Cards = (() => {
         }).join('')}</div>`;
       return out;
     }
-    const set = g === 'Джексон' ? sets(g)[0] : sets(g).find((x) => x.club === view.club) || { club: '', cards: [] };
-    const h = have(set.cards), id = g === 'Джексон' ? 'g:Джексон' : `c:${g}:${set.club}`;
-    const prize = g === 'Джексон' ? groupPrize(g) : clubPrize(set.cards.length), cr = CRESTS[set.club];
+    const set = SINGLE.has(g) ? sets(g)[0] : sets(g).find((x) => x.club === view.club) || { club: '', cards: [] };
+    const h = have(set.cards), id = SINGLE.has(g) ? 'g:' + g : `c:${g}:${set.club}`;
+    const prize = NOPRIZE.has(g) ? null : SINGLE.has(g) ? groupPrize(g) : clubPrize(set.cards.length), cr = CRESTS[set.club];
     const fresh = S().fresh;
-    out += `<div class="gl-top"><button class="gl-back" data-glback="1">← ${g === 'Джексон' ? 'Лиги' : g}</button><span class="gl-ttl">${cr ? `<img src="img/clubs/${cr}" alt="">` : GROUP_ICO[g]} ${esc(set.club || g)}</span></div>
-      <div class="gl-sum"><span>${h} / ${set.cards.length}${bar(h, set.cards.length)}</span><span class="gl-for">Награда: ${prizeTxt(prize)}</span>${claimBtn(id, h === set.cards.length, prize)}</div>
+    out += `<div class="gl-top"><button class="gl-back" data-glback="1">← ${SINGLE.has(g) ? 'Лиги' : g}</button><span class="gl-ttl">${cr ? `<img src="img/clubs/${cr}" alt="">` : GROUP_ICO[g]} ${esc(set.club || g)}</span></div>
+      <div class="gl-sum"><span>${h} / ${set.cards.length}${bar(h, set.cards.length)}</span><span class="gl-for">${prize ? `Награда: ${prizeTxt(prize)}` : 'Карточки серии — только за испытания'}</span>${claimBtn(id, h === set.cards.length, prize)}</div>
       <div class="cl-grid">${set.cards.map((c) => `<div class="cl-cell">${owned(c.key) ? html(c, { w: 102 }) + (spare(c.key) > 1 ? `<i class="cl-n">×${spare(c.key)}</i>` : !spare(c.key) ? '<i class="cl-n out">сдан</i>' : '') + (fresh.includes(c.key) ? '<i class="cl-new">NEW</i>' : '') : html(c, { w: 102, locked: true })}</div>`).join('')}</div>`;
     return out;
   }
   function claim(id) {
     const cl = claimed(); if (cl.includes(id)) return;
     let cards, prize;
+    if (id.startsWith('g:') && NOPRIZE.has(id.slice(2))) return;
     if (id.startsWith('g:')) { const g = id.slice(2); cards = groupCards(g); prize = groupPrize(g); }
     else { const [, g, ...rest] = id.split(':'); const club = rest.join(':'); const set = sets(g).find((x) => x.club === club); if (!set) return; cards = set.cards; prize = clubPrize(cards.length); }
     if (have(cards) < cards.length) return;
@@ -286,6 +301,7 @@ const Cards = (() => {
     let n = 0;
     for (const g of GROUPS) {
       const cards = groupCards(g);
+      if (NOPRIZE.has(g)) continue;
       if (have(cards) === cards.length && !claimed().includes('g:' + g)) n++;
       if (g !== 'Джексон') sets(g).forEach(({ club, cards: cc }) => { if (have(cc) === cc.length && !claimed().includes(`c:${g}:${club}`)) n++; });
     }
@@ -297,14 +313,18 @@ const Cards = (() => {
     const names = c.pos === 'ВРТ' ? ['ПРЫ', 'РУК', 'ВЫБ', 'РЕА', 'СКР', 'ПОЗ'] : ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'];
     const stats = st ? `<div class="cd-st">${names.map((n, i) => `<span><b>${st[i + 1]}</b>${n}</span>`).join('')}</div>` : '';
     const s = S(); s.fresh = s.fresh.filter((k) => k !== key); Store.save();
-    Modal.open(`<div class="cd">${html(c, { w: 220 })}<h2>${esc(c.name)}</h2><p class="cd-m">${esc(c.club)}${c.rar === 'legend' || c.rar === 'jack' ? '' : ` · ${esc(c.lg || '')}`}</p>${stats}
-      ${c.positions ? `<p class="cd-m">Позиции: ${PlayerPositions.labels(c.positions)}</p>` : ''}${c.icon ? `<p class="cd-m">Кумир · ${esc(c.nat)}<br>Новая химия: 3/3 на своей позиции, +1 к каждой лиге и своей сборной.</p>` : ''}<p class="cd-own">В клубе: ×${spare(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
+    Modal.open(`<div class="cd">${html(c, { w: 220 })}<h2>${esc(c.name)}</h2><p class="cd-m">${c.series ? `${esc(c.series)} · ${esc(c.nat)}` : `${esc(c.club)}${c.rar === 'legend' || c.rar === 'jack' ? '' : ` · ${esc(c.lg || '')}`}`}</p>${stats}
+      ${c.positions ? `<p class="cd-m">Позиции: ${c.posFix ? esc(c.pos) : PlayerPositions.labels(c.positions)}</p>` : ''}${c.icon ? `<p class="cd-m">Кумир · ${esc(c.nat)}<br>Новая химия: 3/3 на своей позиции, +1 к каждой лиге и своей сборной.</p>` : ''}${c.hero ? `<p class="cd-m">Химия: 3/3 на своей позиции, связь — через сборную (${esc(c.nat)}). Эмблема серии не считается клубом.</p>` : ''}${c.walkout && typeof Walkout !== 'undefined' ? '<button class="btn ghost cd-wo" data-walkout="' + esc(c.key) + '">Посмотреть выход</button>' : ''}<p class="cd-own">В клубе: ×${spare(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
     if (typeof Tilt !== 'undefined') Tilt.spin($('#modal-card .cd > .cc'));
   }
   // купить недостающую карточку: как трансферный рынок
   const price = (c) => (c.sbcOnly || c.rar === 'jack' ? 0 : c.rar === 'legend' ? 6000 + Math.max(0, c.r - 90) * 600 : c.rar === 'gold' ? 900 + Math.max(0, c.r - 78) * 300 : c.rar === 'silver' ? 320 : 120);
   function buy(key) {
     const c = get(key); if (!c || owned(key)) return;
+    if (c.sbcOnly && c.challenge && typeof Legends !== 'undefined') {
+      Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>${esc(c.series)}</h2><p>Награда испытания. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'К испытанию', onClick: () => Legends.open(c.challenge) }, { label: 'Закрыть', cls: 'ghost' }]);
+      return;
+    }
     if (c.sbcOnly) {
       Modal.open(`<div class="cd">${html(c, { w: 180 })}<h2>${esc(c.name)} · ${c.r}</h2><p>Будущие звёзды · Барселона · левый защитник</p><p>Уникальная награда ИПК: выполни 10 составов. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'К испытанию', onClick: () => SBC.open('fs:espart') }, { label: 'Закрыть', cls: 'ghost' }]);
       return;
@@ -322,7 +342,7 @@ const Cards = (() => {
     const g = e.target.closest('[data-gl]'); if (g) { view = { g: g.dataset.gl, club: null }; Sound.play('tap'); jump = true; return true; }
     if (e.target.closest('[data-glmine]')) { view = { g: '', club: null, q: '', mine: !view.mine }; Sound.play('tap'); return true; }
     const c = e.target.closest('[data-glc]'); if (c) { view = { ...view, g: c.dataset.glg || view.g, club: c.dataset.glc, q: '', mine: false }; Sound.play('tap'); jump = true; return true; }
-    if (e.target.closest('[data-glback]')) { view = view.club !== null ? { g: view.g, club: null } : { g: '', club: null }; if (view.g === 'Джексон') view = { g: '', club: null }; Sound.play('tap'); jump = true; return true; }
+    if (e.target.closest('[data-glback]')) { view = view.club !== null ? { g: view.g, club: null } : { g: '', club: null }; if (SINGLE.has(view.g)) view = { g: '', club: null }; Sound.play('tap'); jump = true; return true; }
     const cl = e.target.closest('[data-claim]'); if (cl) { claim(cl.dataset.claim); return true; }
     const k = e.target.closest('.cl-cell [data-card]'); if (k) { details(k.dataset.card); return 'modal'; }
     const lk = e.target.closest('.cl-cell [data-lock]'); if (lk) { buy(lk.dataset.lock); return 'modal'; }

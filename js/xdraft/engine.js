@@ -74,7 +74,8 @@
     const BUCKETS = [0, 1, 1.6];
     const LOYALTY = 1;
     function link(a, b) {
-      if (a.icon || b.icon) {
+      // кумиры и «герои» серий (Забытые легенды) связаны через сборную; клуба у героя нет
+      if (a.icon || b.icon || a.hero || b.hero) {
         const strong = (a.icon && b.icon) || (a.nat && a.nat === b.nat);
         return { color: strong ? 'green' : 'orange', v: strong ? 2 : 1, shared: strong ? 2 : 1 };
       }
@@ -97,7 +98,7 @@
     }
     function explain(form, xi, i) {
       const c = calc(form, xi), x = c.per[i], p = xi[i]; if (!x) return '';
-      const lines = x.links.map((l) => { const o = xi[l.i === i ? l.j : l.i]; return { color: l.color, who: o.name, why: p.icon || o.icon ? (l.color === 'green' ? 'кумир + общая сборная или другой кумир' : 'связь с кумиром') : [p.club === o.club && 'клуб', p.lg === o.lg && 'лига', p.nat === o.nat && 'сборная'].filter(Boolean).join(' + ') || 'ничего общего' }; });
+      const lines = x.links.map((l) => { const o = xi[l.i === i ? l.j : l.i]; return { color: l.color, who: o.name, why: p.icon || o.icon || p.hero || o.hero ? (l.color === 'green' ? 'кумир + общая сборная или другой кумир' : 'связь с кумиром') : [p.club === o.club && 'клуб', p.lg === o.lg && 'лига', p.nat === o.nat && 'сборная'].filter(Boolean).join(' + ') || 'ничего общего' }; });
       const b = x.bucket, row = TABLE[x.fit];
       const nb = row.findIndex((v, k) => k > b && Math.min(10, v + LOYALTY) > x.chem);
       const next = x.chem >= 10 ? 'Максимум.' : nb > 0 ? `Нужно больше общих связей (средняя сила ≥ ${BUCKETS[nb - 1]}).` : `Поставь на ${RU[p.pos[0]]} , там можно до 10.`;
@@ -120,7 +121,8 @@
       xi.forEach((p, i) => {
         if (!p || !F_.slots[i] || !onPos(p, F_.slots[i].pos)) return;
         if (p.icon) icons++;
-        (p.icon ? ['nat'] : ['club', 'nat', 'lg']).forEach(k => {
+        // герой серии: только сборная — эмблема серии не клуб и не лига
+        (p.icon || p.hero ? ['nat'] : ['club', 'nat', 'lg']).forEach(k => {
           if (p[k]) c[k][p[k]] = (c[k][p[k]] || 0) + 1;
         });
       });
@@ -133,7 +135,7 @@
       const per = xi.map((p, i) => {
         if (!p) return null;
         if (!onPos(p, F_.slots[i].pos)) return { chem: 0, onPos: false };
-        if (p.icon) return { chem: 3, onPos: true, icon: true };
+        if (p.icon || p.hero) return { chem: 3, onPos: true, icon: true };
         const parts = { club: pts(c.club[p.club], TH.club), nat: pts(c.nat[p.nat], TH.nat), lg: pts(c.lg[p.lg], TH.lg) };
         return { chem: Math.min(3, parts.club + parts.nat + parts.lg), onPos: true, parts };
       });
@@ -144,6 +146,7 @@
       const r = calc(form, xi), x = r.per[i], p = xi[i]; if (!x) return '';
       if (!x.onPos) return { chem: 0, max: 3, off: true, next: `${p.name} не играет на ${RU[FORMATIONS[form].slots[i].pos]} (его позиции: ${p.pos.map((q) => RU[q]).join(', ')}). Переставь на свою — тогда он получит химию и будет считаться в порогах.` };
       if (p.icon) return { chem: 3, max: 3, rows: [], next: 'Кумир на своей позиции: 3/3 химии. Даёт +1 к счётчику каждой лиги и +1 своей сборной.' };
+      if (p.hero) return { chem: 3, max: 3, rows: [], next: 'Герой серии на своей позиции: 3/3 химии. Даёт +1 своей сборной; эмблема серии клубом не считается.' };
       const rows = ['club', 'nat', 'lg'].map((k) => {
         const n = r.counts[k][p[k]] || 0, th = TH[k], got = pts(n, th), nx = th.find((t) => n < t);
         return { k, name: NAME[k], value: p[k], n, got, need: nx ? nx - n : 0, th };

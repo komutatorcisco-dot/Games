@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Портрет для карточки</title>
+<script type="importmap">{ "imports": { "three": "../vendor/three.module.min.js" } }</script>
+<style>html,body{margin:0;background:#333}canvas{display:block}</style></head>
+<body>
+<!-- Рендер портрета «голова и плечи» для карточки из той же 3D-модели (прозрачный фон).
+     Открыть в браузере → window.__png() вернёт PNG data URL. Поза — спокойная стойка из motion.js. -->
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from '../vendor/meshopt_decoder.module.js';
+import { createRig, planWalk, pose } from '../motion.js';
+const W = 670, H = 790;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.setClearColor(0x000000, 0);
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xdfe6ff, 0x302438, 1.1));
+const key = new THREE.DirectionalLight(0xfff2e2, 2.6); key.position.set(1.2, 2.4, 3); scene.add(key);
+const fill = new THREE.DirectionalLight(0xbfc8ff, 0.9); fill.position.set(-2.5, 1.6, 2); scene.add(fill);
+const rimL = new THREE.DirectionalLight(0xc77dff, 2.2); rimL.position.set(-2.5, 2.5, -2.5); scene.add(rimL);
+const rimR = new THREE.DirectionalLight(0x6fb8ff, 2.0); rimR.position.set(2.5, 2.5, -2.5); scene.add(rimR);
+const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync(new URLSearchParams(location.search).get('model') || '../balotelli-mobile.glb');
+const model = gltf.scene; scene.add(model);
+model.traverse((o) => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.pose(); if (o.isMesh) o.frustumCulled = false; });
+model.updateMatrixWorld(true);
+model.position.y -= new THREE.Box3().setFromObject(model).min.y; model.updateMatrixWorld(true);
+const rig = createRig(model);
+const plan = planWalk(rig, { t0: 0, startZ: 0, endZ: 0.0001 });
+pose(rig, plan, plan.tEnd + 8); // спокойная стойка, руки опущены, плечи расправлены
+const head = rig.B.head.getWorldPosition(new THREE.Vector3());
+const cam = new THREE.PerspectiveCamera(20, W / H, 0.05, 20);
+const lookY = head.y - 0.06;
+cam.position.set(head.x + 0.05, lookY + 0.03, head.z + 2.05); cam.lookAt(head.x, lookY, head.z);
+renderer.render(scene, cam);
+window.__png = () => renderer.domElement.toDataURL('image/png');
+window.__ready = true;
+</script></body></html>
