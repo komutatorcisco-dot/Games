@@ -512,8 +512,18 @@ const XMatch = (() => {
   async function syncTour() {
     const T = S().tour;
     if (!T || !T.attempt || !Board.ready()) return { ok: true, local: true };
-    try { return await Board.post('/tour', { act: 'sync', attempt: T.attempt, state: JSON.stringify(T) }); }
+    let r;
+    try { r = await Board.post('/tour', { act: 'sync', attempt: T.attempt, state: JSON.stringify(T) }); }
     catch (e) { return { ok: false, error: 'Нет связи с сервером' }; }
+    // турнир уже продвинулся на другом устройстве (или здесь старое сохранение): правда — на сервере.
+    // Берём его состояние и продолжаем с него, иначе это устройство застрянет на отказе синхронизации.
+    if (r && !r.ok && r.state && Array.isArray(r.state.res)) {
+      S().tour = Object.assign({}, r.state, { attempt: T.attempt, paid: !!r.claimed || !!r.state.paid, starting: false, claiming: false });
+      Store.save();
+      toast('Турнир продолжен на другом устройстве — загружено сохранение с сервера');
+      return { ok: true, adopted: true };
+    }
+    return r || { ok: false, error: 'Пустой ответ сервера' };
   }
   function penalties() {
     const rA = M.home.rating, rB = M.away.rating, pA = Math.min(0.9, Math.max(0.6, 0.75 + (rA - rB) * 0.01)), pB = Math.min(0.9, Math.max(0.6, 0.75 + (rB - rA) * 0.01));
@@ -533,6 +543,7 @@ const XMatch = (() => {
       Store.save();
       const saved = await syncTour();
       if (!saved.ok) toast('Не удалось сохранить ход турнира — проверь интернет перед продолжением');
+      if (saved.adopted) return tourScreen(); // этот матч уже сыгран на другом устройстве — показываем сохранение сервера
       if (win && typeof confetti === 'function') confetti();
       Sound.play(win ? 'goal' : 'lose');
     }
@@ -557,11 +568,13 @@ const XMatch = (() => {
     if (T.over && wins === 4 && typeof confetti === 'function') confetti();
   }
   async function tourNext() {
-    const T = S().tour; if (!T || T.over || T.starting) return;
-    T.starting = true;
+    const T0 = S().tour; if (!T0 || T0.over || T0.starting) return;
+    T0.starting = true;
     const saved = await syncTour();
-    T.starting = false;
+    T0.starting = false;
     if (!saved.ok) return toast('Не удалось проверить сохранение турнира. Проверь интернет и попробуй ещё раз');
+    const T = S().tour; // после синхронизации могло прийти состояние с сервера
+    if (saved.adopted && T.over) return tourScreen();
     Store.save(); start(TOUR[T.round][0], T.round, T.clubs && T.clubs[T.round]);
   }
   async function tourPrize() {
@@ -572,6 +585,7 @@ const XMatch = (() => {
       try {
         const saved = await syncTour();
         if (!saved.ok) { T.claiming = false; return toast('Не удалось проверить итог турнира. Проверь интернет и попробуй ещё раз'); }
+        if (saved.adopted) { tourScreen(); if (!S().tour.over || S().tour.paid) return; return tourPrize(); }
         const claim = await Board.post('/tour', { act: 'claim', attempt: T.attempt });
         if (!claim || !claim.ok) { T.claiming = false; return toast((claim && claim.error) || 'Награду пока нельзя забрать'); }
         if (!claim.granted) { T.paid = true; T.claiming = false; Store.save(); tourScreen(); return toast('Награда за этот состав уже получена'); }

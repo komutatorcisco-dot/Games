@@ -93,6 +93,7 @@ assert.equal(JSON.stringify([...S.FL_ITALY].sort()), JSON.stringify(poolIta), 's
   // переписать прошлое нельзя
   const bad = await tour(7, { act: 'sync', attempt: a1, state: JSON.stringify({ res: [{ s: [9, 0], win: true }], over: true }) });
   assert.equal(bad.ok, false, 'rewriting results rejected');
+  assert.equal(bad.state.res.length, 4, 'rejection returns the server state so a stale device can continue from it');
   // повторное открытие результата не меняет счёт
   await tour(7, { act: 'start', players: roster('a'), state: '{}' });
   s = await L(ON, 7, { act: 'status' });
