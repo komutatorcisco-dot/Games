@@ -10,7 +10,7 @@ const Online = (() => {
   const code5 = () => Array.from({ length: 5 }, () => ABC[Math.floor(Math.random() * ABC.length)]).join('');
   const me = () => ({ nick: String(Store.d.user.nick || 'Игрок').slice(0, 16), emo: Store.d.user.emoji || '⚽' });
   const opts = () => Object.assign({ debug: 0 }, window.DUEL_PEER || {});
-  let lib = null, cur = null;
+  let cur = null;
   let activity = 'hub', presenceTimer = null, presenceBusy = false, onlineCounts = { total: null, modes: {} };
   let presenceError = false;
   let presenceAt = 0, presenceFailures = 0, retryAt = 0;
@@ -57,13 +57,9 @@ const Online = (() => {
     });
     paintPresence();
   }
+  // онлайн идёт через наш сервер (js/relay.js) — нужен только вход через Telegram
   function loadPeer() {
-    if (window.Peer) return Promise.resolve();
-    return lib || (lib = new Promise((ok, bad) => {
-      const s = document.createElement('script'); s.src = 'js/vendor/peerjs.min.js';
-      s.onload = () => ok(); s.onerror = () => { lib = null; bad(new Error('peerjs')); };
-      document.head.appendChild(s);
-    }));
+    return Relay.ready() ? Promise.resolve() : Promise.reject(new Error('Онлайн работает в Telegram через бота @JacksonGamesbot'));
   }
   const mm = (body) => Board.post('/mm', body).catch(() => ({ ok: false }));
 
@@ -72,7 +68,7 @@ const Online = (() => {
     if (!cur) return;
     const c = cur; cur = null;
     if (c.inviteCleanup) { c.inviteCleanup(); c.inviteCleanup = null; }
-    c.alive = false; c.timers.forEach(clearTimeout);
+    c.alive = false; c.timers.forEach(clearTimeout); clearInterval(c.clock);
     if (c.mm) mm({ act: 'cancel', game: c.o.game });
     try { c.conn && c.conn.close(); } catch (e) { /* уже закрыто */ }
     try { c.peer && c.peer.destroy(); } catch (e) { /* уже закрыто */ }
@@ -97,16 +93,23 @@ const Online = (() => {
 
     function menu() {
       if (cur !== c) return;
-      killPeer();
-      box.innerHTML = `<div class="on-wrap"><div class="on-ico">${Ui.get('bolt')}</div><h3>${esc(o.title)}</h3><p>${esc(o.lead || 'Играй против живого соперника в реальном времени.')}</p>
-        <button class="btn gold" data-on="rnd">${Ui.get('users')} Случайный соперник</button>
-        <button class="btn" data-on="host">${Ui.get('send')} Позвать друга</button>
-        <div class="on-join"><input id="on-code" maxlength="5" placeholder="КОД" autocomplete="off" autocapitalize="characters"><button class="btn" data-on="join">Войти</button></div>
+      killPeer(); clearInterval(c.clock);
+      const n = onlineCounts.modes && onlineCounts.modes[o.game], tot = onlineCounts.total;
+      box.innerHTML = `<div class="on-wrap on-lobby">
+        <div class="on-head"><div class="on-ico">${Ui.get('bolt')}</div><h3>${esc(o.title)}</h3><p>${esc(o.lead || 'Играй против живого соперника в реальном времени.')}</p>
+          <span class="on-live"><i></i>В сети: <b data-presence-total>${Number.isFinite(tot) ? tot : '—'}</b>${Number.isFinite(n) ? ` · в этом режиме: <b>${n}</b>` : ''}</span></div>
+        <button class="on-card gold" data-on="rnd"><span class="on-ci">${Ui.get('users')}</span><span><b>Случайный соперник</b><small>Найдём игрока онлайн за пару секунд</small></span><em>›</em></button>
+        <div class="on-card on-friend"><span class="on-ci">${Ui.get('send')}</span><span><b>С другом</b><small>Создай комнату и отправь код или войди по коду друга</small></span>
+          <div class="on-frow"><button class="btn" data-on="host">Создать комнату</button></div>
+          <div class="on-join"><input id="on-code" maxlength="5" placeholder="КОД" autocomplete="off" autocapitalize="characters" inputmode="text"><button class="btn" data-on="join">Войти</button></div></div>
         <button class="btn ghost" data-on="back">Назад</button></div>`;
       acts = { rnd: random, host, back: leave, join: () => { const v = ($('#on-code', box).value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (v.length === 5) join(v); else toast('В коде 5 символов'); } };
+      refreshPresence();
     }
     function wait(text, code) {
-      box.innerHTML = `<div class="on-wrap on-wait"><div class="du-radar"><i></i><i></i><i></i><span>${esc(me().emo)}</span></div><h3>${text}</h3>
+      clearInterval(c.clock); const t0 = Date.now();
+      c.clock = setInterval(() => { const el = cur === c && $('.on-clock', box); if (!el) return clearInterval(c.clock); const sec = Math.floor((Date.now() - t0) / 1000); el.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; }, 1000);
+      box.innerHTML = `<div class="on-wrap on-wait"><div class="du-radar"><i></i><i></i><i></i><span>${esc(me().emo)}</span></div><h3>${text}</h3><span class="on-clock">0:00</span>
         ${code ? `<div class="du-code">${code.split('').map((ch, k) => `<b style="--i:${k}">${ch}</b>`).join('')}</div>
         <button class="btn gold" data-on="invite">${Ui.get('send')} Отправить приглашение</button><button class="btn ghost" data-on="copy">Скопировать код</button>` : ''}
         ${code && o.onCode ? '<p>Вызов в чате клуба. Оставайся здесь до подключения соперника. Отмена закроет вызов.</p>' : ''}
@@ -116,7 +119,7 @@ const Online = (() => {
     function fail(msg) {
       if (cur !== c) return;
       mmStop(); killPeer();
-      box.innerHTML = `<div class="on-wrap"><div class="on-ico">${Ui.get('signal')}</div><h3>${esc(msg)}</h3><p>Попробуй ещё раз — в некоторых мобильных сетях соединение не с первого раза.</p>
+      box.innerHTML = `<div class="on-wrap"><div class="on-ico">${Ui.get('signal')}</div><h3>${esc(msg)}</h3><p>Проверь интернет и попробуй ещё раз.</p>
         <button class="btn gold" data-on="menu">Попробовать снова</button><button class="btn ghost" data-on="back">Назад</button></div>`;
       acts = { menu, back: leave };
     }
@@ -127,11 +130,11 @@ const Online = (() => {
     async function random() {
       if (!Board.ready()) { toast('Онлайн работает в Telegram через бота @JacksonGamesbot'); return; }
       wait('Ищем соперника…');
-      try { await loadPeer(); } catch (e) { return fail('Не получилось загрузить онлайн'); }
+      try { await loadPeer(); } catch (e) { return fail(e.message); }
       if (cur !== c) return;
       const code = code5(), t0 = Date.now();
       killPeer(); c.mm = true;
-      c.peer = new window.Peer(PRE + code, opts());
+      c.peer = new Relay.Peer(PRE + code, opts());
       c.peer.on('connection', (x) => { if (c.conn) { x.on('open', () => x.close()); return; } mmStop(); wire(x, true); });
       c.peer.on('error', (e) => { if (e.type === 'unavailable-id') { mmStop(); random(); } else if (!c.conn) fail('Не удалось выйти в онлайн'); });
       const poll = async () => {
@@ -152,11 +155,11 @@ const Online = (() => {
     }
     async function host() {
       wait('Создаём комнату…');
-      try { await loadPeer(); } catch (e) { return fail('Не получилось загрузить онлайн'); }
+      try { await loadPeer(); } catch (e) { return fail(e.message); }
       if (cur !== c) return;
       const code = code5();
       killPeer();
-      c.peer = new window.Peer(PRE + code, opts());
+      c.peer = new Relay.Peer(PRE + code, opts());
       c.peer.on('open', () => {
         wait('Ждём друга…', code);
         if (o.onCode) {
@@ -176,12 +179,12 @@ const Online = (() => {
     }
     async function join(code) {
       wait(`Подключаемся к ${code}…`);
-      try { await loadPeer(); } catch (e) { return fail('Не получилось загрузить онлайн'); }
+      try { await loadPeer(); } catch (e) { return fail(e.message); }
       if (cur !== c) return;
       killPeer();
-      c.peer = new window.Peer(opts());
+      c.peer = new Relay.Peer(opts());
       c.peer.on('open', () => wire(c.peer.connect(PRE + code, { reliable: true }), false));
-      c.peer.on('error', (e) => fail(e.type === 'peer-unavailable' ? 'Комната не найдена — проверь код' : 'Не удалось подключиться'));
+      c.peer.on('error', (e) => fail(e.type === 'peer-unavailable' ? 'Комната не найдена — проверь код' : e.type === 'room-full' ? 'В комнате уже двое' : 'Не удалось подключиться'));
       T(() => { if (!c.conn || !c.conn.open) fail('Не удалось подключиться'); }, 20000);
     }
     // рукопожатие: оба шлют hi {nick, emo, data}; хозяин отвечает go {seed}; дальше — сообщения режима
@@ -193,10 +196,17 @@ const Online = (() => {
       x.on('close', () => { if (c.conn !== x) return; c.conn = null; if (link) { if (link.onClose) link.onClose(); } else fail('Соединение закрыто'); });
       x.on('error', () => {});
       const ready = (seed) => {
-        box.removeEventListener('click', click, true);
+        box.removeEventListener('click', click, true); clearInterval(c.clock);
         link = { host: isHost, op, seed, send, onMsg: null, onClose: null, close: () => { if (cur === c) stop(); } };
-        Sound.play('whistle'); haptic('ok'); toast(`Играем с ${op.nick}!`);
-        o.onReady(link);
+        const buf = []; link.onMsg = (m) => buf.push(m); // сообщения за время заставки не теряем
+        Sound.play('whistle'); haptic('ok');
+        const m = me();
+        box.innerHTML = `<div class="on-wrap on-found"><small>Соперник найден</small><div class="on-vs"><span><i>${esc(m.emo)}</i><b>${esc(m.nick)}</b></span><em>VS</em><span><i>${esc(op.emo)}</i><b>${esc(op.nick)}</b></span></div></div>`;
+        setTimeout(() => {
+          if (cur !== c || !c.conn) return;
+          link.onMsg = null; o.onReady(link);
+          if (link.onMsg) buf.forEach((x) => link.onMsg(x));
+        }, 1300);
       };
       x.on('data', (m) => {
         if (!m || typeof m !== 'object') return;

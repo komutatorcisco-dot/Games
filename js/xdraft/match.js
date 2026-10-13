@@ -5,6 +5,8 @@
 
 const XMatch = (() => {
   let M = null, timer = null, tac = 2, botTac = 2, A3 = null, link = null, queue = [];
+  // онлайн: матч стартует, когда готовы оба (хозяин ждёт «ready» гостя не дольше 20 с)
+  let meReady = false, opReady = false, readyT = 0;
   const stop3d = () => { if (A3) { A3.stop(); A3 = null; } };
   // цвета формы: клуб, из которого больше всего игроков; если формы похожи — гости в белом
   function kitOf(xi, fallback) {
@@ -85,10 +87,12 @@ const XMatch = (() => {
   function startOnline(L) {
     const d = L.op.data || {};
     if (!d.xi || !d.form || !XD.FORMATIONS[d.form]) { toast('У соперника не собран состав'); L.close(); return C.back(); }
-    link = L; queue = [];
+    link = L; queue = []; meReady = opReady = false; clearTimeout(readyT);
     S().match = { seed: L.seed, level: 'normal', club: null, online: { host: L.host, nick: L.op.nick }, bot: { form: d.form, sys: d.sys, xi: d.xi.map((p) => p && p.name), obj: d.xi }, hist: [], done: false };
     tac = 2; botTac = 2; M = build(S().match);
     L.onMsg = (m) => {
+      if (m.t === 'ready' && L.host) { opReady = true; if (meReady) kick(); return; }
+      if (m.t === 'st' && !L.host && meReady && !timer && $('.xm-intro', BODY())) kick(); // хозяин начал — гость тоже
       if (m.t === 'tac' && L.host) botTac = Math.max(0, Math.min(4, m.v | 0));
       else if (m.t === 'st' && !L.host) queue.push({ h: Math.max(0, Math.min(4, m.h | 0)), g: Math.max(0, Math.min(4, m.g | 0)) });
     };
@@ -121,6 +125,16 @@ const XMatch = (() => {
       <p class="xm-note">Атака — больше моментов, но больше риска сзади</p>
       <button class="btn gold" data-xm="go">Начать матч</button></div>`;
   }
+  // «Начать матч»: офлайн — сразу; онлайн — ждём соперника (хозяин ведёт часы)
+  function go(btn) {
+    const m = S().match;
+    if (!m || !m.online || m.online.solo) { render(); run(); return; }
+    meReady = true;
+    btn.disabled = true; btn.textContent = `Ждём ${m.online.nick || 'соперника'}…`;
+    if (m.online.host) { if (opReady) kick(); else { clearTimeout(readyT); readyT = setTimeout(() => { if (meReady && $('.xm-intro', BODY())) kick(); }, 20000); } }
+    else { if (link) link.send({ t: 'ready' }); if (queue.length) kick(); }
+  }
+  function kick() { clearTimeout(readyT); if (!M || !$('.xm-intro', BODY())) return; Sound.play('whistle'); render(); run(); }
   // как смотреть матч: «Моменты» (3D, часы ждут, пока доиграется опасный момент) или «Комментарии» (текст), и скорость
   const UIS = () => Store.d.ui || (Store.d.ui = {});
   const view = () => 'comm';
@@ -646,7 +660,7 @@ const XMatch = (() => {
       if (bl) { const u = Arena3D.ballState(), k = bl.dataset.ball; if (!u.balls.includes(k)) { toast(`Открывается в турнире драфта: ${Arena3D.BALL_NEED[k] === 4 ? 'стань чемпионом' : `${Arena3D.BALL_NEED[k]} победы подряд`}`); return; } u.ball = k; Store.save(); Sound.play('tap'); return intro(); }
       const b = e.target.closest('[data-xm]'); if (!b) return;
       const k = b.dataset.xm;
-      if (k === 'go') { render(); run(); }
+      if (k === 'go') return go(b);
       if (k === 'again') choose();
       if (k === 'online') online();
       if (k === 'share') share();

@@ -157,16 +157,9 @@ const Duel = (() => {
     safe('rewards', () => Rewards.onEnd(entry.mode === 'live' && entry.res === 'win', 'ng:duel'));
   }
 
-  // PeerJS грузим только когда открыли живую игру
-  let peerLib = null;
+  // онлайн идёт через наш сервер (js/relay.js) — нужен только вход через Telegram
   function loadPeer() {
-    if (window.Peer) return Promise.resolve();
-    return peerLib || (peerLib = new Promise((ok, bad) => {
-      const s = document.createElement('script');
-      s.src = 'js/vendor/peerjs.min.js';
-      s.onload = () => ok(); s.onerror = () => { peerLib = null; bad(new Error('peerjs')); };
-      document.head.appendChild(s);
-    }));
+    return Relay.ready() ? Promise.resolve() : Promise.reject(new Error('Онлайн работает в Telegram через бота @JacksonGamesbot'));
   }
 
   // ---------- игра ----------
@@ -398,7 +391,7 @@ const Duel = (() => {
             <p>Создай комнату и отправь другу приглашение. Когда он откроет ссылку, вопросы появятся у вас одновременно.</p>
             <button class="btn gold du-go" data-du="host">Создать комнату</button>
             <div class="du-join"><input id="du-code" maxlength="5" placeholder="КОД" autocomplete="off" autocapitalize="characters"><button class="btn" data-du="join">Войти</button></div>
-            <p class="du-small">Если онлайн не соединяется (так бывает в некоторых мобильных сетях), сыграйте «Вызовом по ссылке».</p></div>`;
+            </div>`;
         acts = { host, join: () => { const c = ($('#du-code').value || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); if (c.length === 5) join(c); else toast('В коде 5 символов'); } };
       }
       function connecting(text, code) {
@@ -427,12 +420,12 @@ const Duel = (() => {
         api.sub('Случайный соперник');
         connecting('Ищем соперника…');
         acts = { menu: () => { mmStop(); menu(); } };
-        try { await loadPeer(); } catch (e) { return fail('Не получилось загрузить онлайн-режим'); }
+        try { await loadPeer(); } catch (e) { return fail(e.message); }
         if (!alive) return;
         const code = Array.from({ length: 5 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join('');
         stopPeer(); mmOn = true;
         const t0 = Date.now();
-        peer = new window.Peer(PEER_PREFIX + code, peerOpts());
+        peer = new Relay.Peer(PEER_PREFIX + code, peerOpts());
         peer.on('connection', (c) => { if (conn) { c.on('open', () => c.close()); return; } mmStop(); wire(c, true); });
         peer.on('error', (e) => { if (e.type === 'unavailable-id') { mmStop(); random(); } else if (!conn) { mmStop(); fail('Не удалось выйти в онлайн'); } });
         const poll = async () => {
@@ -453,11 +446,11 @@ const Duel = (() => {
         Online.setActivity('duel');
         connecting('Создаём комнату…');
         acts = { menu };
-        try { await loadPeer(); } catch (e) { return fail('Не получилось загрузить онлайн-режим'); }
+        try { await loadPeer(); } catch (e) { return fail(e.message); }
         if (!alive) return;
         const code = Array.from({ length: 5 }, () => CODE_ABC[Math.floor(Math.random() * CODE_ABC.length)]).join('');
         stopPeer();
-        peer = new window.Peer(PEER_PREFIX + code, peerOpts());
+        peer = new Relay.Peer(PEER_PREFIX + code, peerOpts());
         peer.on('open', () => {
           connecting('Ждём друга…', code);
           if (opts.onCode) {
@@ -478,10 +471,10 @@ const Duel = (() => {
         Online.setActivity('duel');
         connecting(`Подключаемся к комнате ${code}…`);
         acts = { menu };
-        try { await loadPeer(); } catch (e) { return fail('Не получилось загрузить онлайн-режим'); }
+        try { await loadPeer(); } catch (e) { return fail(e.message); }
         if (!alive) return;
         stopPeer();
-        peer = new window.Peer(peerOpts());
+        peer = new Relay.Peer(peerOpts());
         peer.on('open', () => wire(peer.connect(PEER_PREFIX + code, { reliable: true }), false));
         peer.on('error', (e) => fail(e.type === 'peer-unavailable' ? 'Комната не найдена. Проверь код. Возможно, друг уже закрыл игру' : 'Не удалось подключиться'));
         T(() => { if (!conn || !conn.open) fail('Не удалось подключиться'); }, 20000);

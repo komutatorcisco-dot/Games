@@ -144,6 +144,9 @@ async function schema(db) {
     // резервная копия сохранения игрока: храним самую «продвинутую» (больше трофеев; при равенстве — новее)
     db.prepare('CREATE TABLE IF NOT EXISTS saves (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, tro INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL)'),
     db.prepare("CREATE TABLE IF NOT EXISTS mmg (id INTEGER PRIMARY KEY, game TEXT NOT NULL DEFAULT 'duel', code TEXT NOT NULL, nick TEXT, emo TEXT, ts INTEGER NOT NULL, paired INTEGER)"),
+    db.prepare('CREATE TABLE IF NOT EXISTS rooms (room TEXT PRIMARY KEY, host INTEGER NOT NULL, guest INTEGER, created INTEGER NOT NULL, seen0 INTEGER NOT NULL, seen1 INTEGER, closed INTEGER)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS rmsg (id INTEGER PRIMARY KEY AUTOINCREMENT, room TEXT NOT NULL, side INTEGER NOT NULL, body TEXT NOT NULL, ts INTEGER NOT NULL)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS rmsg_room ON rmsg (room, id)'),
     db.prepare("CREATE TABLE IF NOT EXISTS presence (id INTEGER PRIMARY KEY, game TEXT NOT NULL DEFAULT 'hub', ts INTEGER NOT NULL)"),
     db.prepare('CREATE INDEX IF NOT EXISTS presence_ts ON presence (ts)'),
     db.prepare("CREATE TABLE IF NOT EXISTS draft_tours (attempt INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, roster TEXT NOT NULL, state TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active', claimed INTEGER NOT NULL DEFAULT 0, created INTEGER NOT NULL, updated INTEGER NOT NULL, UNIQUE(uid, roster))"),
@@ -1038,6 +1041,79 @@ async function matchmake(env, user, body) {
   return { ok: true, role: 'host', paired: false, waiting };
 }
 
+// ---------- онлайн: пересылка ходов через сервер (вместо прямого соединения телефонов) ----------
+// Комната на двоих: хозяин создаёт (open), гость входит (join). Сообщения пачками (send), получение — «долгий» опрос (poll):
+// запрос ждёт до ~8 с, пока не придут новые сообщения или не изменится состав комнаты. Соперник пропал — нет опросов 25 с.
+const ROOM_TTL = 2 * 3600e3, ROOM_GONE = 25000;
+const roomId = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40);
+async function relay(env, user, body) {
+  const db = env.DB, uid = Number(user.id), now = Date.now();
+  await schema(db);
+  const room = roomId(body.room), act = String(body.act || '');
+  if (room.length < 5) return { ok: false, error: 'bad room' };
+  if (Math.random() < 0.05) await db.batch([ // уборка старых комнат
+    db.prepare('DELETE FROM rmsg WHERE ts < ?').bind(now - ROOM_TTL),
+    db.prepare('DELETE FROM rooms WHERE created < ?').bind(now - ROOM_TTL),
+  ]);
+  let r = await db.prepare('SELECT * FROM rooms WHERE room = ?').bind(room).first();
+  if (act === 'open') {
+    // код занят живой комнатой другого игрока — пусть клиент возьмёт другой
+    if (r && !r.closed && r.host !== uid && now - Math.max(r.seen0, r.seen1 || 0) < ROOM_GONE) return { ok: false, error: 'taken' };
+    await db.batch([
+      db.prepare('DELETE FROM rmsg WHERE room = ?').bind(room),
+      db.prepare('INSERT INTO rooms (room, host, guest, created, seen0, seen1, closed) VALUES (?1, ?2, NULL, ?3, ?3, NULL, NULL) ON CONFLICT(room) DO UPDATE SET host = ?2, guest = NULL, created = ?3, seen0 = ?3, seen1 = NULL, closed = NULL').bind(room, uid, now),
+    ]);
+    return { ok: true, side: 0 };
+  }
+  if (!r || r.closed || now - r.created > ROOM_TTL) return { ok: false, error: 'not found' };
+  if (act === 'join') {
+    if (r.host === uid) return { ok: false, error: 'own room' };
+    if (now - r.seen0 > ROOM_GONE) return { ok: false, error: 'not found' };
+    if (r.guest && r.guest !== uid && now - (r.seen1 || 0) < ROOM_GONE) return { ok: false, error: 'full' };
+    const j = await db.prepare('UPDATE rooms SET guest = ?, seen1 = ? WHERE room = ? AND (guest IS NULL OR guest = ? OR seen1 < ?)').bind(uid, now, room, uid, now - ROOM_GONE).run();
+    if (!j.meta || j.meta.changes !== 1) return { ok: false, error: 'full' };
+    return { ok: true, side: 1 };
+  }
+  const side = r.host === uid ? 0 : r.guest === uid ? 1 : -1;
+  if (side < 0) return { ok: false, error: 'not in room' };
+  const seenCol = side ? 'seen1' : 'seen0';
+  if (act === 'leave') {
+    await db.prepare('UPDATE rooms SET closed = ? WHERE room = ?').bind(now, room).run();
+    return { ok: true };
+  }
+  if (act === 'send') {
+    const msgs = Array.isArray(body.msgs) ? body.msgs.slice(0, 40) : [];
+    const text = JSON.stringify(msgs);
+    if (!msgs.length) return { ok: true };
+    if (text.length > 60000) return { ok: false, error: 'too big' };
+    await db.batch([
+      db.prepare('INSERT INTO rmsg (room, side, body, ts) VALUES (?, ?, ?, ?)').bind(room, side, text, now),
+      db.prepare(`UPDATE rooms SET ${seenCol} = ? WHERE room = ?`).bind(now, room),
+    ]);
+    return { ok: true };
+  }
+  if (act === 'poll') {
+    const after = Math.max(0, Number(body.after) || 0), until = now + Math.min(8000, Math.max(0, Number(body.wait) || 0));
+    await db.prepare(`UPDATE rooms SET ${seenCol} = ? WHERE room = ? AND (${seenCol} IS NULL OR ${seenCol} < ?)`).bind(now, room, now - 4000).run();
+    const hadGuest = !!r.guest;
+    for (;;) {
+      const rows = (await db.prepare('SELECT id, body FROM rmsg WHERE room = ? AND side != ? AND id > ? ORDER BY id LIMIT 30').bind(room, side, after).all()).results || [];
+      const t = Date.now();
+      const otherSeen = side ? r.seen0 : r.seen1;
+      const gone = !!r.closed || (side === 1 || r.guest ? t - (otherSeen || 0) > ROOM_GONE : false);
+      if (rows.length || gone || (side === 0 && !hadGuest && r.guest) || t >= until) {
+        const msgs = []; let last = after;
+        rows.forEach((x) => { last = x.id; try { msgs.push(...JSON.parse(x.body)); } catch (e) { /* битая запись */ } });
+        return { ok: true, after: last, msgs, guest: !!r.guest, gone };
+      }
+      await new Promise((res) => setTimeout(res, 350));
+      r = await db.prepare('SELECT * FROM rooms WHERE room = ?').bind(room).first();
+      if (!r) return { ok: true, after, msgs: [], gone: true };
+    }
+  }
+  return { ok: false, error: 'bad act' };
+}
+
 // ---------- магазин за звёзды ----------
 // Цены и что выдаётся — одинаковые здесь и в js/shopstars.js
 async function recordPurchase(db, uid, item, n, payment) {
@@ -1119,7 +1195,7 @@ async function route(request, env) {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     return json(await onlinePresence(env, null, { act: 'counts' }));
   }
-  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend'].includes(url.pathname) && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
@@ -1134,6 +1210,7 @@ async function route(request, env) {
     if (url.pathname === '/presence') return json(await onlinePresence(env, user, body));
     if (url.pathname === '/tour') return json(await draftTour(env, user, body));
     if (url.pathname === '/legend') return json(await legends(env, user, body));
+    if (url.pathname === '/room') return json(await relay(env, user, body));
     if (url.pathname === '/save') return json(await saveData(env, user, body));
     if (url.pathname === '/load') return json(await loadData(env, user));
     if (url.pathname === '/admin/stats') {

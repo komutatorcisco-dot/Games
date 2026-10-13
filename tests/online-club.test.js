@@ -15,7 +15,7 @@ class Peer extends EventEmitter {
 }
 function client() {
   const box={innerHTML:'', listeners:new Set(), addEventListener(_,f){this.listeners.add(f)},removeEventListener(_,f){this.listeners.delete(f)}, click(action){for(const fn of [...this.listeners]) fn({stopPropagation(){},target:{closest:()=>({dataset:{on:action}})}});}};
-  const ctx={window:{Peer},Screens:{current:'xdraft'},Store:{d:{user:{nick:'Test'}}},Sound:{play(){}},haptic(){},toast(){},Ui:{get:()=>''},esc:String,Board:{post:async()=>({ok:true}),ready:()=>true},setTimeout:()=>1,clearTimeout(){},navigator:{},console};
+  const ctx={window:{},Relay:{Peer,ready:()=>true},setInterval:()=>1,clearInterval(){},Screens:{current:'xdraft'},Store:{d:{user:{nick:'Test'}}},Sound:{play(){}},haptic(){},toast(){},Ui:{get:()=>''},esc:String,Board:{post:async()=>({ok:true}),ready:()=>true},setTimeout:(f,ms)=>{if(ms<=1500)setImmediate(f);return 1;},clearTimeout(){},navigator:{},console};
   vm.createContext(ctx); vm.runInContext(fs.readFileSync('js/online.js','utf8')+'\nglobalThis.online=Online;',ctx);
   return {online:ctx.online,box};
 }
