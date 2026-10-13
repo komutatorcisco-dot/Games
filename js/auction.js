@@ -170,15 +170,14 @@ const Auction = (() => {
         <small>лучшая покупка: ${esc(best(i).n)} за ${best(i).p}</small></div>`;
     let reward = 0;
     if (vsBot && w === 0) { reward = Econ.quote(40); Profile.bump('auction', 25); }
-    if (!vsBot && w !== -1) Profile.bump('auction', 10);
     Store.d.auction = Store.d.auction || { wins: 0 };
-    if (w === 0 || (!vsBot && w !== -1)) Store.d.auction.wins++;
+    if (vsBot && w === 0) Store.d.auction.wins++;
     Store.save();
     const won = vsBot ? w === 0 : w !== -1; // против бота победа — только если выиграл ты
     Sound.play(won ? 'goal' : w === -1 ? 'tap' : 'lose');
     if (won) confetti();
     Modal.open(
-      resultHtml({ ico: 'auction', c1: '#ff5f6d', c2: '#7b2b8a', win: won, title: w === -1 ? 'Ничья!' : esc(names[w]) + ' собрал лучшую команду',
+      resultHtml({ ico: 'auction', c1: '#ff5f6d', c2: '#7b2b8a', win: won, local: !vsBot, title: w === -1 ? 'Ничья!' : esc(names[w]) + ' собрал лучшую команду',
         text: 'Сумма текущей формы пятёрки', extra: `<div class="ares-wrap">${row(0)}${row(1)}</div>`, reward }),
       [
         { label: 'Ещё аукцион', onClick: () => begin() },

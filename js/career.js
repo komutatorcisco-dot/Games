@@ -90,7 +90,7 @@ const Career = (() => {
       won ? (Sound.play('goal'), confetti()) : Sound.play('lose');
       renderHead();
       later(() => Modal.open(
-        resultHtml({ act: 'career-duel', ico: 'career-duel', win: !!who, title: who ? esc(who) + ' угадал!' : 'Никто не угадал',
+        resultHtml({ act: 'career-duel', ico: 'career-duel', local: true, win: !!who, title: who ? esc(who) + ' угадал!' : 'Никто не угадал',
           big: `${score[0]}:${score[1]}`, extra: card + `<div class="scoreboard"><span class="tag tag-danil">${esc(D.a.toUpperCase())}: ${score[0]}</span><span class="tag tag-sasha">${esc(D.b.toUpperCase())}: ${score[1]}</span></div>` }),
         [{ label: 'Следующий раунд →', onClick: next }, { label: 'Закончить', cls: 'ghost', onClick: () => App.home() }],
       ), 500);

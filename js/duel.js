@@ -151,7 +151,10 @@ const Duel = (() => {
     d.hist.unshift(Object.assign({ day: Day.key() }, entry));
     d.hist = d.hist.slice(0, 12);
     Store.save();
-    if (['win', 'lose', 'draw'].includes(entry.res)) safe('rewards', () => Rewards.onEnd(entry.res === 'win', 'ng:duel'));
+    // награды: победа — только в живой игре онлайн. Один телефон — без наград (иначе играют за обоих);
+    // вызов по ссылке — как обычная партия: счёт соперника лежит в самой ссылке, и подделать его легко.
+    if (entry.mode === 'hot' || !['win', 'lose', 'draw'].includes(entry.res)) return;
+    safe('rewards', () => Rewards.onEnd(entry.mode === 'live' && entry.res === 'win', 'ng:duel'));
   }
 
   // PeerJS грузим только когда открыли живую игру
@@ -291,8 +294,8 @@ const Duel = (() => {
           const res = score > ch.score ? 'win' : score < ch.score ? 'lose' : 'draw';
           const d = D(); d.played[ch.key] = { my: score, op: ch.score, res }; Store.save();
           remember({ mode: 'link', vs: ch.nick, my: score, op: ch.score, res });
-          if (res === 'win') { confetti(); Sound.play('goal'); haptic('ok'); Profile.bump('duel', 10); } else Sound.play('lose');
-          const reward = Econ.play(Math.round(score / 40) + (res === 'win' ? 20 : 0));
+          if (res === 'win') { confetti(); Sound.play('goal'); haptic('ok'); } else Sound.play('lose');
+          const reward = Econ.play(Math.round(score / 40)); // монеты — за свои ответы, не за победу над ссылкой
           b.innerHTML = `<div class="du-end ${res}">${board({ ...m, score }, { nick: ch.nick, emo: '🎯', score: ch.score })}
               <h2 class="du-res">${res === 'win' ? 'Победа!' : res === 'lose' ? 'Поражение' : 'Ничья!'}</h2>
               <p class="du-end-txt">${res === 'win' ? `Ты обыграл ${esc(ch.nick)}` : res === 'lose' ? `${esc(ch.nick)} оказался сильнее` : 'Равный бой'}: ${score} : ${ch.score}</p>

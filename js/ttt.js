@@ -223,7 +223,7 @@ const TTT = (() => {
     later(() => Modal.open(
       resultHtml({ act: mode === 'timed' ? 'b2b' : mode === 'duo' ? 'ttt-duo' : 'ttt', ico: mode === 'timed' ? 'ng-box2box' : mode === 'duo' ? 'ttt-duo' : 'ttt',
         c1: mode === 'timed' ? '#2fb35a' : '', c2: mode === 'timed' ? '#1b1340' : '',
-        win: result === 1 || (mode === 'duo' && result !== -1), title: esc(title), text: 'В пустых клетках показан один из правильных ответов', reward }),
+        win: result === 1 || (mode === 'duo' && result !== -1), local: mode === 'duo', title: esc(title), text: 'В пустых клетках показан один из правильных ответов', reward }),
       [{ label: 'Новая сетка', onClick: () => begin() }, { label: 'Посмотреть ответы', cls: 'ghost' }, { label: 'В меню', cls: 'ghost', onClick: () => App.home() }],
     ), 600);
   }

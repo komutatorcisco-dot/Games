@@ -300,8 +300,8 @@ const Pick = (() => {
       if (win >= 0) confetti();
       Sound.play('goal');
       Store.d.pick.games++; Store.save();
-      Profile.bump('pick', 8);
-      Modal.open(resultHtml({ act: 'pick-duo', ico: 'pick-duo', win: mode === 'bot' ? win === 0 : win >= 0, // против бота победа — только если выиграл ты title: win < 0 ? 'Ничья!' : `Побеждает ${esc(win ? B : A)}!`,
+      if (mode === 'bot' && win === 0) Profile.bump('pick', 8);
+      Modal.open(resultHtml({ act: 'pick-duo', ico: 'pick-duo', local: mode !== 'bot', win: mode === 'bot' ? win === 0 : win >= 0, // против бота победа — только если выиграл ты title: win < 0 ? 'Ничья!' : `Побеждает ${esc(win ? B : A)}!`,
         score: [sum[0], sum[1]], labels: [esc(A), esc(B)],
         text: `Эло состава по рейтингу игроков на пике карьеры. Шансы на победу: ${pA}% на ${100 - pA}%` }), [
         { label: 'Ещё раз', onClick: () => begin(club) },

@@ -496,10 +496,12 @@ function quoteHtml(kind) {
 
 // Единый экран итога для всех игр: иконка, большая цифра, заголовок, плашки, награда.
 // act — действие плитки на главной (оттуда берутся цвета иконки), ico — ключ иконки в Icons.
-function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '', title = '', text = '', stats = [], extra = '', reward = 0, record = false, score = null, labels = null }) {
+// local: игра вдвоём на одном телефоне — кто бы ни выиграл, трофеи, паки и задания не начисляются (иначе их фармят, играя за обоих)
+function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '', title = '', text = '', stats = [], extra = '', reward = 0, record = false, score = null, labels = null, local = false }) {
   if (typeof Board !== 'undefined') Board.submit(); // и отправляет опыт в рейтинг канала
   // награды: трофеи, паки за победы, задания (подпись покажем на табло)
-  const rw = safe('rewards', () => Rewards.onEnd(win, typeof Track !== 'undefined' ? Track.game() : '')) || '';
+  const rw = local ? '<div class="rw-earn"><span>Игра на одном телефоне — без трофеев</span></div>'
+    : safe('rewards', () => Rewards.onEnd(win, typeof Track !== 'undefined' ? Track.game() : '')) || '';
   if (typeof Track !== 'undefined') Track.end(win); // статистика: партию доиграли
   // итог любой игры — табло стадиона: счёт «верно : ошибки», число (серия, очки) или просто исход
   const led = score ? `<b>${score[0]}</b><i>:</i><b class="${labels ? '' : 'bad'}">${score[1]}</b>`
