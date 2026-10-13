@@ -752,5 +752,28 @@
 <script defer src="js/board.js?v=20261011-economy1"></script>
 <script defer src="js/track.js?v=20261010-online-fix2"></script>
 <script defer src="js/app.js?v=20261010-online-fix2"></script>
+<script>
+/* Автообновление: Telegram держит старую копию игры. При запуске (и при возврате в игру на главной) сверяем
+   версии файлов (?v=…) в свежем index.html с текущими; если вышло обновление — перезагружаем с обходом кэша.
+   Не чаще раза в минуту, чтобы не зациклиться, если CDN отдаёт разные версии. */
+(function () {
+  // версии подключённых скриптов и стилей (?v=…): из текущей страницы и из свежего index.html
+  var list = function (doc) { return Array.prototype.map.call(doc.querySelectorAll('script[src*="?v="],link[href*="?v="]'), function (e) { return e.getAttribute('src') || e.getAttribute('href'); }).sort().join('|'); };
+  var mine = function (html) { return list(new DOMParser().parseFromString(html, 'text/html')); };
+  var cur = list(document);
+  function check() {
+    try { if (Date.now() - Number(sessionStorage.getItem('upd') || 0) < 60000) return; } catch (e) { return; }
+    fetch(location.pathname + '?nocache=' + Date.now(), { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (html) {
+      var fresh = mine(html);
+      if (!fresh || fresh === cur) return;
+      try { sessionStorage.setItem('upd', String(Date.now())); } catch (e) { return; }
+      var q = location.search.replace(/([?&])u=\d+&?/, '$1').replace(/[?&]$/, '');
+      location.replace(location.pathname + q + (q ? '&' : '?') + 'u=' + Date.now() + location.hash); // параметры запуска и #данные Telegram сохраняются
+    }).catch(function () {});
+  }
+  check();
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && (typeof Screens === 'undefined' || Screens.current === 'hub')) check(); });
+})();
+</script>
 </body>
 </html>
