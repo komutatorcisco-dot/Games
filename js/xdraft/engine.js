@@ -24,6 +24,7 @@
       tAtt: [0.6, 0.8, 1, 1.22, 1.48], // своя угроза: Глубокая защита … Всё в атаку
       tExp: [0.62, 0.82, 1, 1.2, 1.45], // насколько вырастают моменты соперника (контратаки)
       chemSwing: 0.05, // нулевая химия = −5% к силе линий, полная = без потерь
+      ratingK: 0.045, // разница рейтингов составов: +1 рейтинга ≈ +4,5% к моментам (иначе рейтинг почти не решал)
     },
   };
   const TACTICS = ['Глубокая защита', 'Осторожно', 'Баланс', 'Атака', 'Всё в атаку'];
@@ -241,14 +242,14 @@
   function matchNew(home, away, seed) { return { seed, min: 0, score: [0, 0], ev: [], tacHist: [], stats: { ch: [0, 0], sh: [0, 0], on: [0, 0] }, home, away, over: false }; }
   function matchStep(M, tac) {
     if (M.over) return [];
-    const C = CFG.match, R = rng((M.seed + M.min * 7919) >>> 0), L = [M.home.lines, M.away.lines], out = [];
+    const C = CFG.match, R = rng((M.seed + M.min * 7919) >>> 0), L = [M.home.lines, M.away.lines], RT = [M.home.rating || 0, M.away.rating || 0], out = [];
     M.tacHist.push(tac.slice());
     const minute = M.min + C.stepMin;
     // flip — у гостя онлайн-матча «свои» в home, но моменты разыгрываются в том же порядке, что у хозяина: счёт совпадает
     for (const s of M.flip ? [1, 0] : [0, 1]) {
       const o = 1 - s, A = L[s], D = L[o];
       const share = (A.mid * A.mid) / (A.mid * A.mid + D.mid * D.mid);
-      const p = C.baseChance * share * 2 * Math.pow(A.att / D.def, 2) * C.tAtt[tac[s]] * C.tExp[tac[o]];
+      const p = C.baseChance * share * 2 * Math.pow(A.att / D.def, 2) * C.tAtt[tac[s]] * C.tExp[tac[o]] * Math.exp((C.ratingK || 0) * Math.max(-12, Math.min(12, RT[s] - RT[o])));
       if (R() < p) {
         M.stats.ch[s]++; M.stats.sh[s]++;
         const on = R() < C.onTarget;

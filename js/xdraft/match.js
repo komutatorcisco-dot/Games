@@ -37,13 +37,14 @@ const XMatch = (() => {
   // состав соперника: у онлайн-соперника приходят сами игроки (могут быть карточки не из базы драфта)
   const botXi = (m) => (m.bot.obj ? m.bot.obj : m.bot.xi.map(XDraft.P));
   // соперник — настоящий клуб: лучшие игроки клуба по позициям (кого нет — добираем из его лиги)
-  function clubTeam(club, pool) {
-    const own = pool.filter((p) => p.club === club), lg = (own[0] || {}).lg;
+  // cap — потолок рейтинга игроков (ротация в турнире: в 1/8 клуб выходит слабее, в финале — почти основой)
+  function clubTeam(club, pool, cap = 99) {
+    const own = pool.filter((p) => p.club === club && p.r <= cap), lg = (pool.find((p) => p.club === club) || {}).lg;
     let best = null;
     Object.keys(XD.FORMATIONS).forEach((form) => {
       const taken = new Set(), xi = XD.FORMATIONS[form].slots.map((sl) => {
         const fit = (list) => list.filter((p) => !taken.has(p.name) && p.pos.includes(sl.pos)).sort((a, b) => b.r - a.r)[0];
-        const p = fit(own) || fit(pool.filter((q) => q.lg === lg && q.r <= 84)) || fit(pool);
+        const p = fit(own) || fit(pool.filter((q) => q.lg === lg && q.r <= Math.min(84, cap))) || fit(pool.filter((q) => q.r <= cap)) || fit(pool);
         if (p) taken.add(p.name); return p;
       });
       const r = XD.teamRating(xi), n = xi.filter((p) => p && p.club === club).length;
@@ -96,7 +97,7 @@ const XMatch = (() => {
   }
   function start(level, tourRound, club) {
     const seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0;
-    const bt = club ? clubTeam(club, XDraft.pool()) : XD.botTeam(level, XDraft.pool(), C.sys(), XD.rng(seed ^ 0x5bd1));
+    const bt = club ? clubTeam(club, XDraft.pool(), tourRound !== undefined ? TOUR_CAP[tourRound] : 99) : XD.botTeam(level, XDraft.pool(), C.sys(), XD.rng(seed ^ 0x5bd1));
     S().match = { seed, level, club: club || null, bot: { form: bt.form, xi: bt.xi.map((p) => p && p.name) }, hist: [], done: false };
     if (tourRound !== undefined) S().match.tour = tourRound;
     Store.save();
@@ -118,17 +119,7 @@ const XMatch = (() => {
     BODY().innerHTML = `<div class="xm-intro">${tr}<div class="xm-vs"><span><b>${esc(Store.d.user.nick || 'Ты')}</b><small>${C.form()} · рейтинг ${M.home.rating} · химия ${M.home.chem}</small></span><i>VS</i>
       <span><b>${m.club ? `${crestImg(m.club, 's')} ` : ''}${esc(opp(m))}</b><small>${m.bot.form} · рейтинг ${b.rating} · химия ${b.chem}</small></span></div>
       <p class="xm-note">Атака — больше моментов, но больше риска сзади</p>
-      ${typeof Arena3D !== 'undefined' ? ballPicker() : ''}
       <button class="btn gold" data-xm="go">Начать матч</button></div>`;
-  }
-  // мяч матча: открытые — выбрать, закрытые — подсказка, как получить
-  const BALLCSS = { classic: ['#f5f5f2', '#15151a'], noir: ['#18181d', '#d8a51f'], ivory: ['#f5f5f2', '#d8a51f'], gold: ['#e6b62a', '#15151a'] };
-  function ballPicker() {
-    const u = Arena3D.ballState();
-    return `<div class="xm-balls"><small>Мяч</small><div>${Object.entries(Arena3D.BALLS).map(([k, b]) => {
-      const own = u.balls.includes(k), [c1, c2] = BALLCSS[k];
-      return `<button class="xm-ball3 ${u.ball === k ? 'on' : ''} ${own ? '' : 'lock'}" data-ball="${k}" style="--b1:${c1};--b2:${c2}" aria-label="${esc(b.name)}"><i></i><span>${own ? esc(b.name) : `${Ui.get('lock')} ${Arena3D.BALL_NEED[k] === 4 ? 'чемпион' : Arena3D.BALL_NEED[k] + ' победы'}`}</span></button>`;
-    }).join('')}</div></div>`;
   }
   // как смотреть матч: «Моменты» (3D, часы ждут, пока доиграется опасный момент) или «Комментарии» (текст), и скорость
   const UIS = () => Store.d.ui || (Store.d.ui = {});
@@ -519,12 +510,13 @@ const XMatch = (() => {
     if (navigator.share) navigator.share({ text, url }).catch(() => {}); else toast(text);
   }
   // ---------- турнир драфта: 4 матча, соперники сильнее с каждым раундом; ничья — пенальти ----------
+  const TOUR_CAP = [82, 84, 86, 88]; // сила соперника по раундам (подобрано симуляцией: состав 84 берёт титул ~9%, 87 — ~30%)
   const TOUR = [['easy', '1/8 финала'], ['normal', 'Четвертьфинал'], ['hard', 'Полуфинал'], ['hard', 'Финал']];
   // соперники по кругам — настоящие клубы, от середняков к топам
   const TOUR_CLUBS = [['Лидс', 'Эвертон', 'Фулхэм', 'Севилья', 'Вольфсбург', 'Торино', 'Брентфорд'], ['Тоттенхэм', 'Атлетико', 'Наполи', 'Боруссия Дортмунд', 'Астон Вилла', 'Ювентус'],
     ['Бавария', 'Ливерпуль', 'Интер', 'Арсенал', 'Челси'], ['Барселона', 'Реал Мадрид', 'Манчестер Сити', 'ПСЖ']];
   const tourClubs = () => { const have = new Set(XDraft.pool().map((p) => p.club)); return TOUR_CLUBS.map((l) => { const ok = l.filter((c) => have.has(c)); return ok[(Math.random() * ok.length) | 0] || l[0]; }); };
-  const PRIZE = [{ coins: 60 }, { pack: 0, coins: 40 }, { pack: 1, ball: 'noir' }, { pack: 2, ball: 'ivory' }, { pack: 3, coins: 300, ball: 'gold' }];
+  const PRIZE = [{ coins: 60 }, { pack: 0, coins: 40 }, { pack: 1 }, { pack: 2 }, { pack: 3, coins: 300 }]; // мячи убраны: 3D-матча нет, их негде было увидеть
   const TROPHY = [3, 8, 14, 22, 40];
   const prizeLine = (p) => [p.pack !== undefined ? ['Обычный', 'Сверхредкий', 'Эпический', 'Легендарный'][p.pack] + ' пак' : '', p.coins ? `${p.coins} монет` : '', p.ball ? `мяч «${Arena3D.BALLS[p.ball].name}»` : ''].filter(Boolean).join(' + ');
   const tourRoster = () => XDraft.xiOf().map((p) => p && p.name);

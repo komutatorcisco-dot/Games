@@ -344,8 +344,8 @@ const XDraft = (() => {
       ${pitchHTML(a, xi, c, { live: false })}
       <div class="xd-bench"><div class="xd-bh"><b>Скамейка и резерв</b></div><div class="xd-brow">${bench.map((p, i) => `<div class="xd-slot b">${mini(p, { idx: i, zone: 'bench', sys: a.sys })}</div>`).join('')}</div></div>
       <div class="xd-act col">${S().tour ? (S().tour.paid ? '<p class="xt-note">Турнир этим составом завершён. Для новой попытки собери новый драфт.</p>' : `<button class="btn gold" data-act2="tour-go">${S().tour.over ? 'Итоги турнира' : 'Продолжить турнир'}</button>`) : '<button class="btn gold" data-act2="tour">Турнир драфта · 4 матча</button>'}
-        <button class="btn xd-online" data-act2="online">Онлайн-матч с игроком</button><button class="btn ghost" data-act2="bot">Товарищеский матч</button><button class="btn ghost" data-act2="share">Поделиться составом</button><button class="btn ghost" data-act2="reset">Новый драфт</button></div>
-      <p class="xt-note">Турнир: 4 матча против ботов, каждый сильнее. Проиграл — вылетел. Награды: паки, монеты, трофеи и золотые мячи.</p>
+        <div class="xd-row2"><button class="btn ghost xd-more" data-act2="more" aria-label="Ещё: онлайн, товарищеский матч, поделиться">⋯ Ещё</button><button class="btn ghost" data-act2="reset">Новый драфт</button></div></div>
+      <p class="xt-note">Турнир: 4 матча против клубов, каждый сильнее. Проиграл — вылетел. Награды: паки, монеты и трофеи.</p>
 </div>`;
     Photos.hydrate($('#xd-body'));
   }
@@ -381,6 +381,13 @@ const XDraft = (() => {
         if (k === 'capt') return openPick('capt');
         if (k === 'finish') return finish();
         if (k === 'share') return share();
+        // второстепенное — в меню «Ещё», чтобы под составом не было стены кнопок
+        if (k === 'more') return Modal.open('<h2>Ещё</h2>', [
+          { label: 'Онлайн-матч с игроком', onClick: () => XMatch.online(XMatch.DRAFT) },
+          { label: 'Товарищеский матч', cls: 'ghost', onClick: () => XMatch.choose(XMatch.DRAFT) },
+          { label: 'Поделиться составом', cls: 'ghost', onClick: () => share() },
+          { label: 'Закрыть', cls: 'ghost' },
+        ]);
         if (k === 'bot') return XMatch.choose(XMatch.DRAFT);
         if (k === 'online') return XMatch.online(XMatch.DRAFT);
         if (k === 'tour') return XMatch.tourStart();
