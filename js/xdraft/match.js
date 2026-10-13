@@ -182,13 +182,14 @@ const XMatch = (() => {
     press: ['{a} отбирает мяч в центре', '{a} прессингует высоко', 'Перехват! {a} прочитал передачу', '{a} выигрывает борьбу наверху'],
     att: ['{a} обыгрывает {b}', '{a} уходит в обводку', '{a} тащит мяч вперёд'],
     clear: ['{a} выносит мяч из штрафной', '{a} выбивает подальше', '{a} забирает навес'],
+    offside: ['Офсайд! {a} убежал раньше передачи', 'Флажок поднят: {a} в офсайде', 'Офсайд у {a} — свободный в пользу соперника'],
     build: ['{a} начинает атаку', '{a} ищет пас вразрез на {b}', 'Опасно! {a} врывается в штрафную'],
   };
   // строка комментария от того, что сейчас видно на поле
   function say(sideK, kind, a, b) {
     const box = BODY(), fd = box && $('.xm-feed', box); if (!fd || !M) return;
     const arr = PH[kind], txt = arr[(Math.random() * arr.length) | 0].replace('{a}', esc(a || '')).replace('{b}', esc(b || ''));
-    fd.insertAdjacentHTML('afterbegin', `<div class="xm-ev cm ${sideK ? 'them' : 'us'}"><b>${M.min}'</b><span>${Ui.get(kind === 'att' ? 'bolt' : kind === 'press' ? 'shield' : 'send')}</span><em>${txt}</em></div>`);
+    fd.insertAdjacentHTML('afterbegin', `<div class="xm-ev cm ${sideK ? 'them' : 'us'}"><b>${M.min}'</b><span>${Ui.get(kind === 'att' ? 'bolt' : kind === 'press' ? 'shield' : kind === 'offside' ? 'flag' : 'send')}</span><em>${txt}</em></div>`);
     anim(fd.firstElementChild, [{ transform: 'translateY(-10px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 300, easing: 'ease-out' });
     while (fd.children.length > 6) fd.lastElementChild.remove();
   }
@@ -242,7 +243,7 @@ const XMatch = (() => {
         pl.push({ s, k, gk: q.pos === 'GK', d: cl(((100 - q.y) / 100 - 0.12) / 0.72, 0, 1), lat: 8 + q.x * 0.84, name: p ? sur(p.name) : '', x: 50, y: 50, force: null, n: R() * 6 });
       }));
       const L = [M.home.lines, M.away.lines], share = (L[0].mid ** 2) / (L[0].mid ** 2 + L[1].mid ** 2);
-      G = { pl, box, share, t: 0, ball: { x: 50, y: 50, h: 0, fl: null }, owner: -1, poss: 0, loose: 0, wait: 0.8, q: [], cb: null, push: -1, said: -9,
+      G = { st: { passes: 0, calls: 0, scriptOff: 0 }, claim: null, pl, box, share, t: 0, ball: { x: 50, y: 50, h: 0, fl: null }, owner: -1, poss: 0, loose: 0, wait: 0.8, q: [], cb: null, push: -1, said: -9,
         els: $$('.xm-p', box), bEl: $('.xm-ball', box), shEl: $('.xm-bsh', box), tag: $('.xm-tag', box) };
       pl.forEach((p) => { const t = target(p, true); p.x = t[0]; p.y = t[1]; });
       const kits = colors(); G.els.forEach((e, i) => { const k = kits[pl[i].s]; e.style.background = k[0]; e.style.borderColor = k[1]; });
@@ -262,6 +263,8 @@ const XMatch = (() => {
       G.owner = -1; G.poss = s; G.loose = s + 1; G.wait = 0.5;
     }
     // куда бежит игрок: линия обороны и вся команда сдвигаются за мячом, при владении — растягиваются
+    // линия офсайда для команды s (в её системе, атака вправо): второй с конца игрок соперника, не ближе середины поля
+    function offLine(s) { const xs = team(1 - s).map((q) => own(s, q.x, q.y)[0]).sort((a, b) => b - a); return Math.max(50, xs[1] === undefined ? 100 : xs[1]); }
     function target(p, init) {
       if (p.force) return p.force;
       const b = G.ball, att = G.poss === p.s, [bx, by] = own(p.s, b.fl ? b.fl.tx : b.x, b.fl ? b.fl.ty : b.y);
@@ -273,6 +276,9 @@ const XMatch = (() => {
         x = back + p.d * span;
         y = att ? p.lat + (by - 50) * 0.12 : 50 + (p.lat - 50) * 0.78 + (by - 50) * 0.25;
         if (!init) { x += Math.sin(G.t * 0.6 + p.n) * 1.4; y += Math.cos(G.t * 0.5 + p.n) * 1.6; }
+        // атакующие держатся в игре: не дальше линии офсайда (или мяча, если он ещё дальше).
+        // Иногда нападающий ошибается и стартует раньше (p.early) — если пас уйдёт ему сейчас, будет офсайд.
+        if (att && !init) x = p.early > 0 ? Math.max(x, Math.min(94, offLine(p.s) + 3.5)) : Math.min(x, Math.max(offLine(p.s) - 1.2, bx));
       }
       return own(p.s, cl(x, 2, 98), cl(y, 4, 96));
     }
@@ -280,9 +286,23 @@ const XMatch = (() => {
     const near = (s, pt, skip) => team(s).filter((p) => p !== skip && !p.gk).sort((a, b) => dist(a, pt) - dist(b, pt))[0];
     // полёт мяча: передача, удар, вынос
     function fly(tx, ty, dur, h, done) { const b = G.ball; b.fl = { fx: b.x, fy: b.y, tx, ty, t: 0, dur, h, done }; G.owner = -1; }
-    function give(p) { G.owner = G.pl.indexOf(p); G.poss = p.s; G.loose = 0; }
+    // мяч у игрока только если он рядом: иначе игрок сам добегает до мяча (без «телепорта» мяча к ногам)
+    function give(p) {
+      const b = G.ball;
+      if (!b.fl && dist(p, b) > 3.5) { G.claim = p; p.force = [b.x, b.y]; G.owner = -1; G.poss = p.s; G.loose = 0; return; }
+      if (G.claim === p) G.claim = null;
+      G.owner = G.pl.indexOf(p); G.poss = p.s; G.loose = 0;
+    }
     function pass(c, r, lead, then) {
       const [ox, oy] = own(r.s, r.x, r.y), [tx, ty] = own(r.s, cl(ox + (lead || 4), 3, 97), oy);
+      // офсайд считается в момент передачи: получатель дальше второго с конца соперника и дальше мяча
+      const offside = ox > Math.max(offLine(r.s), own(c.s, c.x, c.y)[0]) + 0.8;
+      G.st.passes++; if (offside) G.st[G.cb ? 'scriptOff' : 'calls']++;
+      if (!G.cb && offside) {
+        const o = 1 - r.s, d = Math.hypot((tx - c.x) * 1.75, ty - c.y);
+        talk(r.s, 'offside', r.name, null, true);
+        return fly(tx, ty, 0.25 + d / 70, d > 40 ? 6 : 1.5, () => { G.loose = o + 1; G.wait = 0.8; }); // свободный: мяч разыгрывает соперник с места
+      }
       r.force = [tx, ty];
       const d = Math.hypot((tx - c.x) * 1.75, ty - c.y);
       fly(tx, ty, 0.25 + d / 70, d > 40 ? 6 : 1.5, () => { r.force = null; give(r); if (then) then(); });
@@ -292,17 +312,20 @@ const XMatch = (() => {
       const c = G.pl[G.owner], s = c.s, o = 1 - s, [cx] = own(s, c.x, c.y), opp = near(o, c);
       const lossP = 0.2 * (s ? G.share : 1 - G.share) * 2 * (1 + (s ? botTac - tac : tac - botTac) * 0.05);
       G.wait = 0.55 + R() * 0.6;
-      if (c.gk) { const r = team(s).filter((p) => !p.gk).sort(() => R() - 0.5)[0]; return pass(c, r, 6); }
+      if (c.gk) { const near4 = team(s).filter((p) => !p.gk).sort((a, b) => dist(a, c) - dist(b, c)).slice(0, 4), r = near4[(R() * near4.length) | 0]; return pass(c, r, 4); }
       // в штрафную без момента не пускаем: защитник выбивает
-      if (cx > 76) { const d = near(o, c); give(d); talk(o, 'clear', d.name); const [, dy] = own(o, d.x, d.y); const [tx, ty] = own(o, 55 + R() * 15, cl(dy + (R() - 0.5) * 40, 10, 90)); G.owner = -1; return fly(tx, ty, 0.9, 9, () => { G.loose = 3; }); }
+      if (cx > 76) { const d = near(o, c); if (d && !G.tackle) G.tackle = { d, c, t: 0 }; G.wait = 0.3; return; }
       if (R() < lossP && opp && dist(opp, c) < 16) { give(opp); talk(o, 'press', opp.name); return; }
       if (R() < 0.25) { G.wait = 0.9; c.drib = 0.9; if (opp && R() < 0.4) talk(s, 'att', c.name, opp.name); return; }
-      const mates = team(s).filter((p) => p !== c && !p.gk).map((p) => { const [px] = own(s, p.x, p.y), d = dist(p, c); return { p, w: d < 7 || d > 48 ? 0 : 1 + Math.max(0, px - cx) * 0.08 + (R() * 0.8) }; }).filter((m) => m.w).sort((a, b) => b.w - a.w);
+      // партнёр рано ушёл за линию — пас вразрез ему; если он уже в офсайде, свисток (проверка в pass)
+      const runner = team(s).find((q) => q.early > 0 && q !== c && own(s, q.x, q.y)[0] > offLine(s) + 0.8 && dist(q, c) < 75);
+      if (runner && R() < 0.6) { if (R() < 0.5) talk(s, 'pass', c.name, runner.name); return pass(c, runner, 6); }
+      const mates = team(s).filter((p) => p !== c && !p.gk).map((p) => { const [px] = own(s, p.x, p.y), d = dist(p, c); return { p, w: d < 7 || d > 40 ? 0 : 1 + Math.max(0, px - cx) * 0.08 + (R() * 0.8) }; }).filter((m) => m.w).sort((a, b) => b.w - a.w);
       const r = (mates[0] || {}).p; if (!r) return;
       // перехват на линии передачи
       if (R() < lossP * 0.6) {
         const mid = { x: (c.x + r.x) / 2, y: (c.y + r.y) / 2 }, d = near(o, mid);
-        if (d) { d.force = [mid.x, mid.y]; return fly(mid.x, mid.y, 0.35, 1, () => { d.force = null; give(d); talk(o, 'press', d.name); }); }
+        if (d && dist(d, mid) < 12) { d.force = [mid.x, mid.y]; return fly(mid.x, mid.y, 0.35, 1, () => { d.force = null; give(d); talk(o, 'press', d.name); }); }
       }
       if (R() < 0.35) talk(s, 'pass', c.name, r.name);
       pass(c, r, 4);
@@ -337,7 +360,7 @@ const XMatch = (() => {
       return steps;
     }
     function after(t) { G.wait = t; G.endScript = true; }
-    function reset() { G.pl.forEach((p) => { p.force = null; }); G.push = -1; }
+    function reset() { G.pl.forEach((p) => { p.force = null; }); G.push = -1; G.tackle = null; G.claim = null; }
     function flash(s) { const pt = $('.xm-pitch', G.box); if (pt) anim(pt, [{ boxShadow: `inset 0 0 0 0 ${s ? '#ff5872' : '#ffcf3a'}` }, { boxShadow: `inset 0 0 0 4px ${s ? '#ff5872' : '#ffcf3a'}` }, { boxShadow: 'inset 0 0 0 0 transparent' }], { duration: 700 }); }
     function talk(s, kind, a, b, force) { if (!force && G.t - G.said < 2.4) return; G.said = G.t; say(s, kind, a, b); }
     function play(evs, cb) {
@@ -363,9 +386,26 @@ const XMatch = (() => {
         else if (!b.fl) { n.force = [b.x, b.y]; G.stuck = (G.stuck || 0) + dt; if (dist(n, b) < 2.5 || G.stuck > 3) { n.force = null; give(n); G.need = null; } }
         if (!G.need) G.stuck = 0;
       }
+      if (G.claim && !b.fl) { const p = G.claim; p.force = [b.x, b.y]; if (dist(p, b) < 2) { p.force = null; G.claim = null; give(p); } }
+      // отбор у штрафной: защитник догоняет владельца мяча и забирает мяч, затем выбивает партнёру
+      if (G.tackle) {
+        const T = G.tackle, c = G.pl[G.owner]; T.t += dt;
+        if (!c || c !== T.c || b.fl) { if (T.d) T.d.force = null; G.tackle = null; }
+        else {
+          T.d.force = [c.x, c.y];
+          if (dist(T.d, c) < 2.4 || T.t > 2.5) {
+            const d = T.d, o = d.s; d.force = null; G.tackle = null; give(d); talk(o, 'clear', d.name);
+            const [dx] = own(o, d.x, d.y);
+            const outs = team(o).filter((q) => q !== d && !q.gk).map((q) => ({ q, x: own(o, q.x, q.y)[0] })).filter((m) => m.x > dx + 8 && m.x < dx + 38).sort((a, z) => z.x - a.x);
+            const r = (outs[(R() * Math.min(3, outs.length)) | 0] || {}).q;
+            if (r) { G.wait = 0.25; pass(d, r, 3); } else G.wait = 0.4;
+          }
+        }
+      }
       // игроки
       const pr = G.owner >= 0 ? near(1 - G.pl[G.owner].s, G.pl[G.owner]) : null;
       G.pl.forEach((p, i) => {
+        if (p.early > 0) p.early -= dt; else if (!p.gk && p.d > 0.7 && G.poss === p.s && R() < dt * 0.1) p.early = 1.8; // редкий ранний рывок: если пас уйдёт сейчас — офсайд
         let [tx, ty] = target(p);
         if (p === pr && !p.force) { const c = G.pl[G.owner]; tx = c.x + (c.s ? -1 : 1) * 3; ty = c.y; }
         if (i === G.owner && p.drib > 0) { p.drib -= dt; const [x] = own(p.s, p.x, p.y); [tx, ty] = own(p.s, x + 8, own(p.s, p.x, p.y)[1]); }
@@ -373,7 +413,7 @@ const XMatch = (() => {
         if (d > 0.05) { const k = Math.min(1, v / d); p.x += (dx / 1.75) * k; p.y += dy * k; }
       });
       // решения
-      if (b.fl || G.hold > 0) return;
+      if (b.fl || G.hold > 0 || G.claim) return;
       G.wait -= dt; if (G.wait > 0) return;
       if (G.endScript && !G.q.length) { G.endScript = false; reset(); const cb = G.cb; G.cb = null; if (cb) cb(); return; }
       if (G.q.length) { if (G.need) return; return G.q.shift()(); }
@@ -401,7 +441,7 @@ const XMatch = (() => {
       if (G.cb) { G.q = []; G.cb = null; G.endScript = false; G.need = null; reset(); } // розыгрыш прервали уходом с экрана — счёт и ленту уже синхронизировал render()
       if (!raf) { prev = 0; raf = requestAnimationFrame(loop); }
     }
-    return { dbg: () => G && { owner: G.owner, q: G.q.length, cb: !!G.cb, need: !!G.need, wait: G.wait, hold: G.hold, fl: !!G.ball.fl, loose: G.loose, end: G.endScript, raf: !!raf }, init: (box) => { init(box); }, ensure, play, on: () => !!(G && raf && !RM), stop: () => { G = null; } };
+    return { dbg: () => G && { st: G.st, owner: G.owner, q: G.q.length, cb: !!G.cb, need: !!G.need, wait: G.wait, hold: G.hold, fl: !!G.ball.fl, loose: G.loose, end: G.endScript, raf: !!raf }, init: (box) => { init(box); }, ensure, play, on: () => !!(G && raf && !RM), stop: () => { G = null; } };
   })();
   // экран матча строится один раз; дальше двигаются только игроки, мяч, счёт и лента — отсюда плавность
   function buildView() {
