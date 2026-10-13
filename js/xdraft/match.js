@@ -163,7 +163,7 @@ const XMatch = (() => {
       if (!m.online) botTac = XD.botTactic(m.level, M, 1, botTac);
       evs = XD.matchStep(M, [tac, botTac]);
       m.hist.push([tac, botTac]);
-      if (m.online && !m.online.solo && link) link.send({ t: 'st', h: tac, g: botTac });
+      if (m.online && !m.online.solo && link) link.send({ t: 'st', h: tac, g: botTac }, true); // поток минут — пачкой раз в 2 с
     }
     Store.save(true);
     const fin = () => { clearInterval(timer); Sound.play('whistle'); Store.save(); setTimeout(end, 900); };

@@ -191,7 +191,7 @@ const Online = (() => {
     function wire(x, isHost) {
       c.conn = x;
       let link = null, op = null;
-      const send = (m) => { try { x.open && x.send(m); } catch (e) { /* соединение пропало */ } };
+      const send = (m, lazy) => { try { x.open && x.send(m, lazy); } catch (e) { /* соединение пропало */ } };
       x.on('open', () => { clearInvite(); send({ t: 'hi', ...me(), data: o.hello ? o.hello() : null }); });
       x.on('close', () => { if (c.conn !== x) return; c.conn = null; if (link) { if (link.onClose) link.onClose(); } else fail('Соединение закрыто'); });
       x.on('error', () => {});

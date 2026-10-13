@@ -3,7 +3,7 @@
 //   new Relay.Peer(id)  — хозяин комнаты: on('open'), on('connection', conn), on('error', {type}), on('disconnected'), destroy();
 //   new Relay.Peer()    — гость: peer.connect(id) → conn;
 //   conn: on('open' | 'data' | 'close' | 'error'), send(obj), close(), open.
-// Сообщения уходят пачками (не чаще раза в 0,7 с), приходят «долгим» опросом сервера /room.
+// Сообщения уходят пачками (не чаще раза в 0,6 с, поток минут матча — раз в 2 с), приходят «долгим» опросом сервера /room.
 'use strict';
 
 const Relay = (() => {
@@ -20,18 +20,23 @@ const Relay = (() => {
   // соединение с соперником внутри комнаты (одно на сторону)
   function Conn(room) {
     const c = emitter({ open: false, peer: room });
-    let after = 0, alive = true, queue = [], flushT = 0, lastFlush = 0, sending = false, fails = 0;
+    let after = 0, alive = true, queue = [], flushT = 0, lastFlush = 0, sending = false, fails = 0, lazy = true;
     const flush = async () => {
       flushT = 0;
       if (!alive || sending || !queue.length) return;
-      sending = true; const msgs = queue; queue = []; lastFlush = Date.now();
+      sending = true; const msgs = queue; queue = []; lastFlush = Date.now(); lazy = true;
       try { const r = await post({ act: 'send', room, msgs }); if (!r || !r.ok) throw new Error((r && r.error) || 'send'); }
       catch (e) { if (alive) { queue = msgs.concat(queue); } }
       sending = false;
       if (alive && queue.length) schedule();
     };
-    const schedule = () => { if (!flushT) flushT = setTimeout(flush, Math.max(60, 700 - (Date.now() - lastFlush))); };
-    c.send = (m) => { if (!alive) return; queue.push(m); schedule(); };
+    // лимит запросов к серверу: обычные сообщения — не чаще раза в 0,6 с, «ленивые» (поток минут матча) — пачкой раз в 2 с
+    const schedule = () => {
+      const due = Math.max(60, (lazy ? 2000 : 600) - (Date.now() - lastFlush));
+      if (flushT && !lazy) { clearTimeout(flushT); flushT = 0; }
+      if (!flushT) flushT = setTimeout(flush, due);
+    };
+    c.send = (m, isLazy) => { if (!alive) return; queue.push(m); if (!isLazy) lazy = false; schedule(); };
     c.close = () => {
       if (!alive) return;
       alive = false; c.open = false; clearTimeout(flushT);
