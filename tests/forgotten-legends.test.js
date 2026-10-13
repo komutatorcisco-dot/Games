@@ -67,14 +67,15 @@ const poolIta = XDraft.pool().filter((p) => p.nat === 'Италия').map((p) =>
 assert.equal(JSON.stringify([...S.FL_ITALY].sort()), JSON.stringify(poolIta), 'server Italian list matches the draft pool (regenerate if players change)');
 
 (async () => {
-  const ON = { DB: db, FL_ENABLED: '1', FL_START: '1000' }, OFF = { DB: db };
+  const ON = { DB: db, FL_ENABLED: '1', FL_START: '1000' }, OFF = { DB: db, FL_ENABLED: '0' };
   const L = (env, uid, body) => S.legends(env, { id: uid }, body);
   const tour = (uid, body) => S.draftTour({ DB: db }, { id: uid }, body);
   await S.schema(db);
-  assert.equal((await L(OFF, 1, { act: 'status' })).disabled, true, 'disabled without FL_ENABLED');
+  assert.equal((await L(OFF, 1, { act: 'status' })).disabled, true, 'disabled with FL_ENABLED=0');
+  assert.equal((await L({ DB: db, FL_START: '1000' }, 7, { act: 'status' })).ok, true, 'public by default (FL_ENABLED not set)');
   // включение только для проверяющих: список ID и режим «только админы»
-  assert.equal((await L({ DB: db, FL_TESTERS: '42, 43' }, 42, { act: 'status' })).ok, true, 'tester id enabled');
-  assert.equal((await L({ DB: db, FL_TESTERS: '42, 43' }, 44, { act: 'status' })).disabled, true, 'other players stay disabled');
+  assert.equal((await L({ DB: db, FL_ENABLED: '0', FL_TESTERS: '42, 43' }, 42, { act: 'status' })).ok, true, 'tester id enabled');
+  assert.equal((await L({ DB: db, FL_ENABLED: '0', FL_TESTERS: '42, 43' }, 44, { act: 'status' })).disabled, true, 'other players stay disabled');
   vm.runInContext('adminIds = async () => [99];', sctx);
   assert.equal((await L({ DB: db, FL_ENABLED: 'admins' }, 99, { act: 'status' })).ok, true, 'admin enabled in admins mode');
   assert.equal((await L({ DB: db, FL_ENABLED: 'admins' }, 98, { act: 'status' })).disabled, true, 'non-admin disabled in admins mode');

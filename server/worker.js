@@ -959,7 +959,7 @@ async function draftTour(env, user, body) {
 }
 
 // ---------- «Забытые легенды»: испытание за карточку (выдача только сервером, один раз) ----------
-// Включается переменной FL_ENABLED: «1» — всем, «admins» — только админам; FL_TESTERS — отдельные Telegram ID. Прогресс считается по серверным записям:
+// Открыто всем; FL_ENABLED=0 выключает, «admins» — только админам; FL_TESTERS — отдельные Telegram ID. Прогресс считается по серверным записям:
 // матчи и победы — из попыток турниров драфта (draft_tours, результаты только дописываются),
 // «7 итальянцев» — по составу, присланному при завершении драфта, и серверному списку итальянцев пула драфта.
 // Ограничение: сами матчи и подбор игроков драфта идут на устройстве — сервер их не переигрывает.
@@ -981,9 +981,10 @@ async function flStatus(db, uid, start) {
   return { card: FL.card, need: { matches: FL.matches, wins: FL.wins, italians: FL.italians }, tasks, done, claimed: !!got };
 }
 async function legends(env, user, body) {
-  // FL_ENABLED: «1» — всем; «admins» — только админам игры; FL_TESTERS — список Telegram ID через запятую (для проверки)
-  const mode = String(env.FL_ENABLED || ''), testers = String(env.FL_TESTERS || '').split(/[\s,]+/).filter(Boolean).map(Number);
-  const on = mode === '1' || testers.includes(Number(user.id)) || (mode === 'admins' && (await isAdminId(env, user.id)));
+  // Испытание открыто всем (запуск 13.10.2026). FL_ENABLED: не задана или «1» — всем; «0»/«off» — выключено (кроме FL_TESTERS);
+  // «admins» — только админам игры. FL_TESTERS — список Telegram ID через запятую, им открыто всегда.
+  const mode = String(env.FL_ENABLED ?? '').trim(), testers = String(env.FL_TESTERS || '').split(/[\s,]+/).filter(Boolean).map(Number);
+  const on = mode === '' || mode === '1' || testers.includes(Number(user.id)) || (mode === 'admins' && (await isAdminId(env, user.id)));
   if (!on) return { ok: false, disabled: true, error: 'Испытание ещё не включено' };
   const db = env.DB, uid = user.id, now = Date.now();
   await schema(db);
