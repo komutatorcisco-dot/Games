@@ -26,7 +26,9 @@ const Cards = (() => {
       const r = FC_STATS[p.name][0];
       return { key: p.name, name: p.name, r, pos: POS[p.pos] || p.pos, club: p.club, flag: p.flag, nat: p.nat, lg: p.lg, face: FACES[p.name], rar: r >= 78 ? 'gold' : r >= 73 ? 'silver' : 'bronze' };
     });
-    const legs = CARD_LEGENDS.map(([name, r, club, pos]) => ({ key: name, name, r, pos, club, flag: '', nat: CARD_LEGEND_NATIONS[name], icon: true, lg: 'Легенды', face: FACES[name], rar: 'legend' }));
+    // флаг сборной для легенд — тот же, что у действующих игроков этой страны
+    const FLAG = {}; PLAYERS.forEach((p) => { if (p.nat && p.flag && !FLAG[p.nat]) FLAG[p.nat] = p.flag; });
+    const legs = CARD_LEGENDS.map(([name, r, club, pos]) => ({ key: name, name, r, pos, club, flag: FLAG[CARD_LEGEND_NATIONS[name]] || '', nat: CARD_LEGEND_NATIONS[name], icon: true, lg: 'Легенды', face: FACES[name], rar: 'legend' }));
     // «Джексон»: особые версии лучших — 12 действующих и 6 легенд, рейтинг выше обычного
     const top = (list, k) => list.slice().sort((a, b) => b.r - a.r).slice(0, k);
     const jack = [...top(cur, 12), ...top(legs, 6)].map((c) => ({ ...c, key: 'J:' + c.name, r: Math.min(99, c.r + 4), rar: 'jack' }));
@@ -39,11 +41,20 @@ const Cards = (() => {
     if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
       c.positions = PlayerPositions.get(c.name, c.pos);
       if (!c.posFix) c.pos = PlayerPositions.RU[c.positions[0]] || c.pos;
+      if (c.icon && !c.st) c.st = legendStats(c.r, c.positions[0]);
     });
     BY = Object.fromEntries(ALL.map((c) => [c.key, c]));
     return ALL;
   }
   const get = (key) => { all(); return BY[key]; };
+  // У легенд нет статистики FC: шесть характеристик считаем от рейтинга по профилю позиции
+  // (раньше все шесть были равны рейтингу — «91 везде» в драфте и составе).
+  const PROFILE = {
+    ST: [-2, 1, -9, -3, -48, -5], LW: [1, -5, -6, 1, -50, -15], RW: [1, -5, -6, 1, -50, -15], LM: [0, -8, -4, -1, -40, -14], RM: [0, -8, -4, -1, -40, -14],
+    CAM: [-8, -4, 1, 1, -35, -18], CM: [-12, -10, 0, -4, -12, -6], CDM: [-16, -22, -6, -12, 1, -1], CB: [-18, -45, -20, -25, 1, -2],
+    LB: [-3, -30, -10, -10, -4, -10], RB: [-3, -30, -10, -10, -4, -10], GK: [0, -2, -8, 1, -35, -1],
+  };
+  function legendStats(r, pos) { return (PROFILE[pos] || PROFILE.CM).map((d) => Math.max(25, Math.min(99, r + d))); }
 
   const S = () => {
     const d = Store.d;

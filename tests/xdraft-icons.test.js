@@ -27,6 +27,6 @@ assert.equal(ctx.testAPI.XD.ChemClassic.link(icon,other).color,'orange','classic
 assert.equal(ctx.testAPI.XD.ChemClassic.link(icon,{...other,nat:icon.nat}).color,'green');
 assert.equal(ctx.testAPI.XD.ChemClassic.link(icon,icons[0]).color,'green');
 const html=ctx.testAPI.XDraft.mini(icon,{zone:'xi',idx:5,slotPos:'CM',sys:'new',ch:{chem:3}});
-assert.match(html,/fu legend/,'Icon artwork is preserved on the pitch');
+assert.match(html,/class="cc legend/,'Icon is drawn as the collection Legend card on the pitch');
 assert.equal((html.match(/class="on"/g)||[]).length,3,'rendered Icon displays three chemistry markers');
 console.log(`Draft Icons: ${icons.length} collectible Icons included with positions, nation chemistry and candidate eligibility`);

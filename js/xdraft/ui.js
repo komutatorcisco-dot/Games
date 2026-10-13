@@ -234,6 +234,9 @@ const XDraft = (() => {
         ? `<span class="fu-ch new" data-chem="${idx}">${[0, 1, 2].map((d) => `<i class="${d < ch.chem ? 'on' : ''}"></i>`).join('')}</span>`
         : `<span class="fu-ch cl c${ch.chem >= 7 ? 'g' : ch.chem >= 4 ? 'y' : 'r'}" data-chem="${idx}"><u>${XD.RU[slotPos]}</u>${ch.chem}</span>`;
     }
+    // карточка игрока драфта — та же, что в коллекции (редкость, лицо, клуб, флаг); позиция — слота, если игрок в нём стоит
+    const card = typeof Cards !== 'undefined' && Cards.get(p.name);
+    if (card) return `<button class="fu cardmode ${off ? 'off' : ''} ${big ? 'big' : ''}" data-z="${zone}" data-i="${idx}">${Cards.html({ ...card, r: p.r, pos: XD.RU[slotPos || p.pos[0]] }, { w: big ? 160 : 96 })}${cap ? '<i class="fu-c">C</i>' : ''}</button>${chem}`;
     return `<button class="fu ${p.icon ? 'legend' : rarOf(p.r)} ${off ? 'off' : ''} ${big ? 'big' : ''}" data-z="${zone}" data-i="${idx}">
       <span class="fu-l"><b>${p.r}</b><small>${XD.RU[slotPos || p.pos[0]]}</small><em>${p.flag}</em>${cr ? `<img src="img/clubs/${cr}" alt="">` : ''}</span>
       ${p.face ? `<img class="fu-f" src="${faceSrc(p.face)}" alt="${esc(p.name)}">` : '<span class="fu-sil"></span>'}
