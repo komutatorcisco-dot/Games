@@ -7,26 +7,48 @@
 'use strict';
 
 const Walkout = (() => {
-  let el = null, onDone = null;
+  let el = null, onDone = null, fallback = 0;
   const ROOT = '../../'; // страница выхода лежит в prototypes/balotelli/
+  // Кнопки — в самой игре поверх iframe: в Telegram на iPhone касания внутри iframe иногда не доходят.
+  // Сцене уходят только команды (skip/replay), назад приходит состояние (play/end).
+  function setUI(ui) { if (el) el.dataset.ui = ui; }
+  function send(cmd) { const f = el && $('.wo-frame', el); if (f && f.contentWindow) f.contentWindow.postMessage({ wo: cmd }, '*'); }
   function play(key, done) {
     const c = Cards.get(key); if (!c || !c.walkout || el) return;
     onDone = done || null;
-    const q = new URLSearchParams({ embed: '1', n: c.name, r: String(c.r), pos: c.pos, nat: c.nat || '', rar: c.rar, series: c.series || '', crest: c.crestUrl ? ROOT + c.crestUrl : '', face: c.faceUrl ? ROOT + c.faceUrl : '' });
+    const q = new URLSearchParams({ v: '20261013-fc1', embed: '1', n: c.name, r: String(c.r), pos: c.pos, nat: c.nat || '', rar: c.rar, series: c.series || '', crest: c.crestUrl ? ROOT + c.crestUrl : '', face: c.faceUrl ? ROOT + c.faceUrl : '' });
     el = document.createElement('div');
-    el.className = 'wo-wrap';
-    el.innerHTML = `<iframe class="wo-frame" title="Выход игрока" allow="autoplay" src="prototypes/${esc(c.walkout)}/index.html?${q}"></iframe>`;
-    document.body.appendChild(el);
+    el.className = 'wo-wrap'; el.dataset.ui = 'play';
+    el.innerHTML = `<iframe class="wo-frame" title="Выход игрока" allow="autoplay" src="prototypes/${esc(c.walkout)}/index.html?${q}"></iframe>
+      <button class="wo-x" data-wo="close" aria-label="Закрыть">✕</button>
+      <div class="wo-bar"><button class="wo-b" data-wo="skip">Пропустить</button><button class="wo-b" data-wo="replay">Повторить</button><button class="wo-b gold" data-wo="close">К карточке</button></div>`;
+    document.body.appendChild(el); Cover.on();
+    // если сцена не сообщила о конце (не загрузилась, старая версия) — всё равно дать выйти
+    clearTimeout(fallback); fallback = setTimeout(() => setUI('end'), 15000);
     if (typeof Music !== 'undefined' && Music.duck) Music.duck(true);
   }
   function close() {
     if (!el) return;
+    clearTimeout(fallback); Cover.off();
     el.classList.add('out'); const e = el; el = null;
     setTimeout(() => e.remove(), 250);
     if (typeof Music !== 'undefined' && Music.duck) Music.duck(false);
     const cb = onDone; onDone = null; if (cb) cb();
   }
-  addEventListener('message', (e) => { if (e.data && e.data.walkout === 'done' && el && e.source === $('.wo-frame', el).contentWindow) close(); });
+  function act(e) {
+    const b = e.target.closest('.wo-wrap [data-wo]'); if (!b || !el) return;
+    e.preventDefault();
+    const a = b.dataset.wo;
+    if (a === 'close') close();
+    else if (a === 'skip') { send('skip'); setUI('end'); }
+    else if (a === 'replay') { send('replay'); setUI('play'); clearTimeout(fallback); fallback = setTimeout(() => setUI('end'), 15000); }
+  }
+  document.addEventListener('click', act);
+  addEventListener('message', (e) => {
+    if (!el || !e.data || e.source !== $('.wo-frame', el).contentWindow) return;
+    if (e.data.walkout === 'done') close();
+    else if (e.data.walkout === 'state' && (e.data.ui === 'play' || e.data.ui === 'end')) { setUI(e.data.ui); if (e.data.ui === 'end') clearTimeout(fallback); }
+  });
   return { play, close, open: () => !!el };
 })();
 

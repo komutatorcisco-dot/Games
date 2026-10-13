@@ -34,7 +34,7 @@ const PackOpen = (() => {
       <main class="po-stage"></main>
       <footer class="po-foot"><p class="po-hint"></p><div class="po-sum"></div><button class="btn gold po-take" hidden>Забрать</button></footer>
       <button class="po-x" aria-label="Закрыть">✕</button>`;
-    document.body.appendChild(el);
+    document.body.appendChild(el); Cover.on();
     requestAnimationFrame(() => el.classList.add('in'));
     return el;
   }
@@ -110,7 +110,7 @@ const PackOpen = (() => {
   }
   const slam = (nm) => { nm.classList.remove('slam'); void nm.offsetWidth; nm.classList.add('slam'); };
   const tapOnce = (el) => new Promise((r) => { const f = (e) => { if (e.target.closest('.po-x')) return; el.removeEventListener('pointerup', f); r(); }; setTimeout(() => el.addEventListener('pointerup', f), 250); });
-  function close(el) { el.classList.add('out'); setTimeout(() => el.remove(), 320); }
+  function close(el) { if (el.classList.contains('out')) return; Cover.off(); el.classList.add('out'); setTimeout(() => el.remove(), 320); }
 
   // ---------- сам пак ----------
   // contents(level) → { coins, cards:[keys] }; commit(got) записывает награду и возвращает [{c,isNew,coins}]

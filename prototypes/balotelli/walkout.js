@@ -158,14 +158,23 @@ function buildCard() {
   card.querySelector('.jc-rar').textContent = RC.n + (r.test ? ' · ТЕСТ' : '');
   $('#src').textContent = 'Данные: ' + r.src;
 }
+// Этапы как в выходах FC: огромный развевающийся флаг → позиция металлическими буквами → эмблема клуба/серии на свету.
+const POS_FULL = { ВРТ: 'Вратарь', ЦЗ: 'Центральный защитник', ЛЗ: 'Левый защитник', ПЗ: 'Правый защитник', ЦОП: 'Опорный полузащитник', ЦП: 'Центральный полузащитник',
+  ЦАП: 'Атакующий полузащитник', ЛП: 'Левый полузащитник', ПП: 'Правый полузащитник', ЛВ: 'Левый вингер', ПВ: 'Правый вингер', НАП: 'Нападающий', ФРВ: 'Форвард' };
+const nameRow = (t) => `<div class="bname"><i></i><b>${t}</b><i></i></div>`;
+function flagCloth(bg) { // флаг из вертикальных полос: каждая качается со сдвигом фазы — получается волна ткани
+  const N = 24; let h = '';
+  for (let k = 0; k < N; k++) h += `<i style="--k:${k};background:${bg};background-size:${N * 100}% 100%;background-position:${(k / (N - 1)) * 100}% 0"></i>`;
+  return `<div class="bflag3">${h}</div>`;
+}
 const BEATS = [
-  { t: T.NAT, k: 'nat', label: 'НАЦИЯ', html: () => `<i class="bflag" style="background:${FLAGS[RESULT.nation] || '#333'}"></i><b>${RESULT.nation || '—'}</b>` },
-  { t: T.POS, k: 'pos', label: 'ПОЗИЦИЯ', html: () => `<b class="big">${RESULT.pos || '—'}</b>${RESULT.pos ? '' : '<small>нет в каталоге</small>'}` },
-  { t: T.CLUB, k: 'club', label: RESULT.series ? 'СЕРИЯ' : RESULT.hero ? 'КАРТОЧКА' : 'КЛУБ', html: () => {
-    if (RESULT.series) return `${RESULT.crest ? `<img class="bcrest" src="${RESULT.crest}" alt="">` : ''}<b class="ser">${RESULT.series}</b>`;
-    const crest = RESULT.club && CAT.crests[RESULT.club];
-    if (RESULT.hero) return '<b class="big">ГЕРОЙ</b>';
-    return RESULT.club ? `${crest ? `<img class="bcrest" src="../../img/clubs/${crest}" alt="">` : ''}<b>${RESULT.club}</b>` : '<b class="big">—</b><small>тестовая карточка</small>';
+  { t: T.NAT, k: 'nat', html: () => `<div class="bfx"></div>${flagCloth(FLAGS[RESULT.nation] || '#333')}${nameRow(RESULT.nation || '—')}` },
+  { t: T.POS, k: 'pos', html: () => `<div class="bfx"></div><b class="bpos" data-t="${RESULT.pos || '—'}">${RESULT.pos || '—'}</b>${nameRow(POS_FULL[RESULT.pos] || (RESULT.pos ? 'Позиция' : 'нет в каталоге'))}` },
+  { t: T.CLUB, k: 'club', html: () => {
+    const crest = RESULT.series ? RESULT.crest : RESULT.club && CAT.crests[RESULT.club] ? `../../img/clubs/${CAT.crests[RESULT.club]}` : '';
+    if (RESULT.hero && !RESULT.series) return `<div class="bfx"></div><b class="bpos" data-t="ГЕРОЙ">ГЕРОЙ</b>${nameRow('Карточка героя')}`;
+    const name = RESULT.series || RESULT.club || 'тестовая карточка';
+    return `<div class="bfx"></div><div class="bcrest3">${crest ? `<img src="${crest}" alt="">` : '<b class="bpos">—</b>'}</div>${nameRow(name)}`;
   } },
 ];
 let beatShown = -1;
@@ -185,13 +194,16 @@ function updateHTML(t) {
   const i = BEATS.findIndex((b, j) => t >= b.t && t < (BEATS[j + 1] ? BEATS[j + 1].t : T.FLASH - 0.1));
   if (i !== beatShown) {
     beatShown = i;
-    if (i >= 0) { beat.innerHTML = `<small class="blab">${BEATS[i].label}</small>${BEATS[i].html()}`; beat.className = 'beat ' + BEATS[i].k; }
+    if (i >= 0) { beat.innerHTML = BEATS[i].html(); beat.className = 'beat ' + BEATS[i].k; }
   }
   if (i >= 0) {
     const b0 = BEATS[i].t, b1 = BEATS[i + 1] ? BEATS[i + 1].t : T.FLASH - 0.1;
-    const op = Math.min(smooth((t - b0) / 0.3), 1 - smooth((t - (b1 - 0.22)) / 0.22));
+    const op = Math.min(smooth((t - b0) / 0.22), 1 - smooth((t - (b1 - 0.2)) / 0.2));
+    // влёт из глубины (1,3 → 1), затем медленный «наезд камеры»; уходит чуть вперёд
+    const sc = 1.3 - 0.3 * smoother((t - b0) / 0.38) + 0.05 * smooth((t - b0 - 0.38) / (b1 - b0)) + 0.12 * smooth((t - (b1 - 0.2)) / 0.2);
     beat.style.opacity = op.toFixed(3);
-    beat.style.transform = `translate(-50%, -50%) scale(${(0.86 + 0.14 * easeBack((t - b0) / 0.55)).toFixed(4)})`;
+    beat.style.transform = `translate(-50%, -50%) scale(${sc.toFixed(4)})`;
+    beat.style.setProperty('--p', smooth((t - b0) / (b1 - b0)).toFixed(3)); // ход этапа 0→1: блик и разворот эмблемы
   } else beat.style.opacity = '0';
   // силуэт → свечение → вспышка → лицо карточки → к краю
   const st = t < T.SIL ? 'off' : t < T.FLASH ? 'sil' : t < T.DOCK ? 'face' : 'dock';
@@ -202,7 +214,7 @@ function updateHTML(t) {
   card.style.setProperty('--w', w.toFixed(1) + 'px');
   card.style.left = x.toFixed(1) + 'px'; card.style.top = y.toFixed(1) + 'px';
   card.style.transform = `translate(-50%, -50%) rotate(${(Bd.r * k).toFixed(2)}deg) scale(${pop.toFixed(4)})`;
-  card.style.opacity = smooth((t - T.SIL) / 0.4).toFixed(3);
+  card.style.opacity = smooth((t - (T.FLASH - 0.12)) / 0.1).toFixed(3); // во время этапов плашки нет — только флаг, позиция, клуб
   card.querySelector('.jc-face').style.opacity = smooth((t - T.FLASH + 0.04) / 0.18).toFixed(3);
   card.style.setProperty('--charge', smooth((t - T.SIL) / (T.FLASH - T.SIL)).toFixed(3));
   const fl = Math.max(0, 1 - Math.abs(t - T.FLASH) / 0.22);
@@ -212,7 +224,7 @@ function updateHTML(t) {
   $('#loading').hidden = !(holdFrom !== null);
 }
 let uiState = '';
-function setUI(s) { if (s === uiState) return; uiState = s; document.body.dataset.ui = s; }
+function setUI(s) { if (s === uiState) return; uiState = s; document.body.dataset.ui = s; if (EMBED) parent.postMessage({ walkout: 'state', ui: s }, '*'); }
 
 // ---------- камера ----------
 // Кадр строится по реальным габаритам позы (рост с головой, размах рук при праздновании), поэтому
@@ -365,7 +377,12 @@ function portrait(r) {
 // ---------- кнопки ----------
 $('#skip').onclick = skip;
 $('#replay').onclick = restart;
-if (EMBED) { document.body.classList.add('embed'); $('#cont').textContent = 'К карточке'; }
+if (EMBED) {
+  document.body.classList.add('embed'); $('#cont').textContent = 'К карточке';
+  // в игре кнопки рисует сама игра поверх iframe (касания внутри iframe в Telegram на iPhone ненадёжны), сюда приходят команды
+  addEventListener('message', (e) => { if (e.source !== parent || !e.data) return; if (e.data.wo === 'skip') skip(); else if (e.data.wo === 'replay') restart(); });
+  parent.postMessage({ walkout: 'state', ui: uiState || 'play' }, '*');
+}
 $('#cont').onclick = EMBED ? () => parent.postMessage({ walkout: 'done' }, '*') : () => { $('#toast').textContent = 'В игре здесь — возврат к открытию паков. Награда уже выдана до начала сцены.'; $('#toast').classList.add('on'); setTimeout(() => $('#toast').classList.remove('on'), 2600); };
 
 buildCard();

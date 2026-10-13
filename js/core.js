@@ -391,6 +391,14 @@ const Screens = {
   },
 };
 
+// Полноэкранный слой (открытие пака, выход игрока) закрывает всё: экраны под ним прячем,
+// чтобы телефон не перерисовывал фон главной (стену карточек) под анимацией.
+const Cover = (() => {
+  let n = 0, t = 0;
+  const set = () => { clearTimeout(t); if (n > 0) t = setTimeout(() => document.body.classList.add('covered'), 320); else document.body.classList.remove('covered'); };
+  return { on() { n++; set(); }, off() { n = Math.max(0, n - 1); set(); } };
+})();
+
 // Встряхнуть элемент (потеря жизни и т.п.)
 function bump(el, cls = 'hit') {
   if (!el) return;
