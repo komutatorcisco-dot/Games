@@ -104,6 +104,7 @@ async function schema(db) {
     // Track manual broadcast update IDs: Telegram may retry a slow webhook request.
     db.prepare('CREATE TABLE IF NOT EXISTS tg_broadcast_updates (id INTEGER PRIMARY KEY, received INTEGER NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS event_batches (uid INTEGER NOT NULL, id TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (uid, id))'),
+    db.prepare('CREATE INDEX IF NOT EXISTS event_batches_ts ON event_batches (ts)'), // почасовая уборка без перебора таблицы
     db.prepare('CREATE TABLE IF NOT EXISTS names (game TEXT PRIMARY KEY, title TEXT)'),
     db.prepare('CREATE INDEX IF NOT EXISTS weekly_xp ON weekly (week, xp)'),
     // друзья: кто пришёл по чьей ссылке ?startapp=ref_<id> — связь в обе стороны
@@ -114,6 +115,7 @@ async function schema(db) {
     // трофеи и победы по играм (для таблиц), кубок драфта недели
     db.prepare('CREATE TABLE IF NOT EXISTS ustats (id INTEGER PRIMARY KEY, trophies INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE INDEX IF NOT EXISTS ustats_tro ON ustats (trophies DESC)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS ustats_top ON ustats (trophies DESC, updated ASC)'), // топ-50 без сортировки всей таблицы
     db.prepare('CREATE TABLE IF NOT EXISTS gwins (id INTEGER NOT NULL, game TEXT NOT NULL, wins INTEGER NOT NULL, PRIMARY KEY (id, game))'),
     db.prepare('CREATE INDEX IF NOT EXISTS gwins_game ON gwins (game, wins DESC)'),
     db.prepare('CREATE TABLE IF NOT EXISTS cup (week TEXT NOT NULL, id INTEGER NOT NULL, wins INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (week, id))'),
@@ -126,7 +128,9 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS cinfo (club INTEGER PRIMARY KEY, descr TEXT, mintro INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE TABLE IF NOT EXISTS cchat (id INTEGER PRIMARY KEY AUTOINCREMENT, club INTEGER NOT NULL, uid INTEGER NOT NULL, ts INTEGER NOT NULL, kind TEXT NOT NULL, text TEXT, meta TEXT)'),
     db.prepare('CREATE INDEX IF NOT EXISTS cchat_club ON cchat (club, id)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS cchat_uid ON cchat (uid, kind, id)'), // «не так быстро» в чате клуба
     db.prepare('CREATE TABLE IF NOT EXISTS croom (uid INTEGER PRIMARY KEY, club INTEGER NOT NULL, game TEXT NOT NULL, code TEXT NOT NULL, ts INTEGER NOT NULL)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS croom_club ON croom (club, ts)'), // вызовы клуба при каждом открытии экрана клуба
     db.prepare('CREATE INDEX IF NOT EXISTS purchases_id ON purchases (id)'),
     // победы за неделю на игрока — счётчик, чтобы клуб и лига не пересчитывали всю таблицу событий
     db.prepare('CREATE TABLE IF NOT EXISTS cwins (id INTEGER NOT NULL, week TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (week, id))'),
@@ -144,10 +148,15 @@ async function schema(db) {
     // резервная копия сохранения игрока: храним самую «продвинутую» (больше трофеев; при равенстве — новее)
     db.prepare('CREATE TABLE IF NOT EXISTS saves (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, tro INTEGER NOT NULL DEFAULT 0, data TEXT NOT NULL)'),
     db.prepare("CREATE TABLE IF NOT EXISTS mmg (id INTEGER PRIMARY KEY, game TEXT NOT NULL DEFAULT 'duel', code TEXT NOT NULL, nick TEXT, emo TEXT, ts INTEGER NOT NULL, paired INTEGER)"),
+    // очередь поиска: без индексов каждый запрос «найти соперника» перебирал всю очередь (квадратичный рост)
+    db.prepare('CREATE INDEX IF NOT EXISTS mmg_wait ON mmg (game, paired, ts)'),
+    db.prepare('DROP INDEX IF EXISTS mmg_ts'), // лишний индекс удваивал записи при каждом обновлении очереди
     db.prepare('CREATE TABLE IF NOT EXISTS rooms (room TEXT PRIMARY KEY, host INTEGER NOT NULL, guest INTEGER, created INTEGER NOT NULL, seen0 INTEGER NOT NULL, seen1 INTEGER, closed INTEGER)'),
     db.prepare('CREATE TABLE IF NOT EXISTS rmsg (id INTEGER PRIMARY KEY AUTOINCREMENT, room TEXT NOT NULL, side INTEGER NOT NULL, body TEXT NOT NULL, ts INTEGER NOT NULL)'),
-    db.prepare('CREATE INDEX IF NOT EXISTS rmsg_room ON rmsg (room, id)'),
-    db.prepare('CREATE INDEX IF NOT EXISTS rmsg_ts ON rmsg (ts)'),
+    // сообщения соперника: (room, side, id) — опрос читает только новые чужие строки, уборка — по префиксу room
+    db.prepare('CREATE INDEX IF NOT EXISTS rmsg_rsi ON rmsg (room, side, id)'),
+    db.prepare('DROP INDEX IF EXISTS rmsg_room'),
+    db.prepare('DROP INDEX IF EXISTS rmsg_ts'),
     db.prepare('CREATE INDEX IF NOT EXISTS rooms_created ON rooms (created)'),
     db.prepare("CREATE TABLE IF NOT EXISTS presence (id INTEGER PRIMARY KEY, game TEXT NOT NULL DEFAULT 'hub', ts INTEGER NOT NULL)"),
     db.prepare('CREATE INDEX IF NOT EXISTS presence_ts ON presence (ts)'),
@@ -260,18 +269,40 @@ async function top(env, user, scope, game = '') {
   };
   if (scope === 'week') {
     const wk = weekKey(now);
-    await board('week:' + wk, `SELECT u.id, u.nick, u.emoji, w.xp - w.start AS score FROM weekly w JOIN users u ON u.id = w.id
-      WHERE w.week = ? AND w.xp > w.start ORDER BY score DESC, u.updated ASC LIMIT ${TOP}`, 'SELECT xp - start AS s FROM weekly WHERE week = ? AND xp > start ORDER BY s DESC LIMIT 20000',
-      'SELECT xp - start AS s FROM weekly WHERE week = ? AND id = ?', [wk], [wk, id]);
+    // неделя: список очков всё равно читается целиком — берём из него и топ (id), а ники — по ключу для 50 игроков.
+    // Отдельный запрос топа с JOIN сортировал всю таблицу ещё раз (вдвое больше прочитанных строк).
+    const c = await boardCache(db, 'week:' + wk, async () => {
+      const all = (await db.prepare('SELECT id, xp - start AS s FROM weekly WHERE week = ? AND xp > start ORDER BY s DESC LIMIT 20000').bind(wk).all()).results;
+      const ids = all.slice(0, TOP + 20).map((r) => r.id); // запас на равные очки у границы
+      const users = ids.length ? (await db.prepare(`SELECT id, nick, emoji, updated FROM users WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all()).results : [];
+      const by = new Map(users.map((u) => [u.id, u]));
+      const top = all.slice(0, TOP + 20).filter((r) => by.has(r.id)).map((r) => ({ id: r.id, nick: by.get(r.id).nick, emoji: by.get(r.id).emoji, score: r.s, up: by.get(r.id).updated }))
+        .sort((x, y) => y.score - x.score || x.up - y.up).slice(0, TOP).map(({ up, ...r }) => r);
+      return { rows: top, scores: all.map((r) => r.s) };
+    });
+    rows = c.rows.map((r) => ({ ...r })); total = c.scores.length;
+    const mine = await db.prepare('SELECT xp - start AS s FROM weekly WHERE week = ? AND id = ?').bind(wk, id).first();
+    if (mine && mine.s > 0) {
+      let lo = 0, hi = c.scores.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (c.scores[mid] > mine.s) lo = mid + 1; else hi = mid; }
+      me = { place: lo + 1, score: mine.s };
+      rows.forEach((r) => { if (r.id === id) r.score = mine.s; });
+      rows.sort((x, y) => y.score - x.score);
+    }
   } else if (scope === 'day') {
     const day = dayKey(now);
-    rows = (await db.prepare(`SELECT u.id, u.nick, u.emoji, d.tries AS score FROM daily d JOIN users u ON u.id = d.id
-      WHERE d.day = ? AND d.won = 1 ORDER BY d.tries ASC, d.ts ASC LIMIT ${TOP}`).bind(day).all()).results;
-    total = (await db.prepare('SELECT COUNT(*) AS n FROM daily WHERE day = ? AND won = 1').bind(day).first()).n;
+    // как остальные таблицы: общий кеш на всех; место — по готовому списку (попытки, время) без подсчёта на каждый просмотр
+    const k = (tries, ts) => tries * 1e13 + ts;
+    const c = await boardCache(db, 'day:' + day, async () => ({
+      rows: (await db.prepare(`SELECT u.id, u.nick, u.emoji, d.tries AS score FROM daily d JOIN users u ON u.id = d.id
+        WHERE d.day = ? AND d.won = 1 ORDER BY d.tries ASC, d.ts ASC LIMIT ${TOP}`).bind(day).all()).results,
+      scores: (await db.prepare('SELECT tries, ts FROM daily WHERE day = ? AND won = 1 ORDER BY tries ASC, ts ASC LIMIT 20000').bind(day).all()).results.map((r) => k(r.tries, r.ts)),
+    }));
+    rows = c.rows.map((r) => ({ ...r })); total = c.scores.length;
     const mine = await db.prepare('SELECT tries, won, ts FROM daily WHERE day = ? AND id = ?').bind(day, id).first();
     if (mine && mine.won) {
-      const above = (await db.prepare('SELECT COUNT(*) AS n FROM daily WHERE day = ? AND won = 1 AND (tries < ? OR (tries = ? AND ts < ?))').bind(day, mine.tries, mine.tries, mine.ts).first()).n;
-      me = { place: above + 1, score: mine.tries };
+      const v = k(mine.tries, mine.ts); let lo = 0, hi = c.scores.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (c.scores[mid] < v) lo = mid + 1; else hi = mid; }
+      if (lo >= c.scores.length || c.scores[lo] !== v) total = Math.max(total, lo + 1); // сыграл после пересчёта кеша
+      me = { place: lo + 1, score: mine.tries };
     }
   } else if (scope === 'friends') {
     // ты и твои друзья: очки за эту неделю (у кого ещё нет очков — 0)
@@ -599,7 +630,8 @@ export default {
         env.DB.prepare('DELETE FROM presence WHERE ts < ?').bind(Date.now() - 86400000).run()
           .then(() => env.DB.prepare('DELETE FROM event_batches WHERE ts < ?').bind(Date.now() - 7 * 86400000).run()),
         // онлайн-комнаты: раз в час удаляем старые (по индексам, без перебора всей таблицы)
-        env.DB.prepare('DELETE FROM rmsg WHERE ts < ?').bind(Date.now() - ROOM_TTL).run()
+        env.DB.prepare('DELETE FROM mmg WHERE ts < ?').bind(Date.now() - 600000).run(), // очередь поиска: брошенные строки
+        env.DB.prepare('DELETE FROM rmsg WHERE room IN (SELECT room FROM rooms WHERE created < ?)').bind(Date.now() - ROOM_TTL).run()
           .then(() => env.DB.prepare('DELETE FROM rooms WHERE created < ?').bind(Date.now() - ROOM_TTL).run()),
       ];
       const results = await Promise.allSettled(jobs);
@@ -898,13 +930,23 @@ const resetPresenceCache = () => { presenceMem = null; }; // для тестов
 async function onlinePresence(env, user, body) {
   const db = env.DB, now = Date.now();
   await schema(db);
-  if (body.act === 'leave') { presenceMem = null; await db.prepare('DELETE FROM presence WHERE id = ?').bind(user.id).run(); }
+  // пересчёт «в сети» читает всех онлайн: делаем его раз в минуту, а вход/выход/смену режима учитываем в кэше на ±1
+  const adjust = (old, game) => {
+    if (!presenceMem) return;
+    const v = presenceMem.v, live = old && now - old.ts < 300000;
+    if (live) { if (old.game in v.modes) v.modes[old.game] = Math.max(0, v.modes[old.game] - 1); if (!game) v.total = Math.max(0, v.total - 1); } else if (game) v.total++;
+    if (game && game in v.modes) v.modes[game]++;
+  };
+  if (body.act === 'leave') {
+    const old = await db.prepare('SELECT game, ts FROM presence WHERE id = ?').bind(user.id).first();
+    if (old) { adjust(old, null); await db.prepare('DELETE FROM presence WHERE id = ?').bind(user.id).run(); }
+  }
   else if (body.act === 'heartbeat') {
     const game = ['duel', 'xdraft', 'trumps'].includes(body.game) ? body.game : 'hub';
     const old = await db.prepare('SELECT game, ts FROM presence WHERE id = ?').bind(user.id).first();
     // Enforce the write budget on the server too: old clients still send every 20s.
     if (!old || now - old.ts >= 110000 || (old.game !== game && now - old.ts >= 20000)) {
-      presenceMem = null; // кто-то пришёл или сменил режим — пересчитаем
+      if (!old || now - old.ts >= 300000 || old.game !== game) adjust(old, game);
       await db.prepare("INSERT INTO presence (id, game, ts) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET game = ?2, ts = ?3 WHERE presence.ts <= ?3 - 110000 OR (presence.game != ?2 AND presence.ts <= ?3 - 20000)").bind(user.id, game, now).run();
     }
   }
@@ -1022,7 +1064,8 @@ async function matchmake(env, user, body) {
   const db = env.DB, uid = user.id, now = Date.now();
   await schema(db);
   const game = ['duel', 'xdraft', 'trumps'].includes(body.game) ? body.game : 'duel';
-  await db.prepare('DELETE FROM mmg WHERE ts < ?').bind(now - 30000).run();
+  // устаревшие ожидающие этого режима — по индексу mmg_wait (читаются только они); остальное убирает почасовой cron
+  await db.prepare('DELETE FROM mmg WHERE game = ? AND paired IS NULL AND ts < ?').bind(game, now - 30000).run();
   if (body.act === 'cancel') { await db.prepare('DELETE FROM mmg WHERE id = ?').bind(uid).run(); return { ok: true }; }
   const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   if (code.length !== 5) return { ok: false, error: 'bad code' };
@@ -1030,7 +1073,7 @@ async function matchmake(env, user, body) {
   const me = await db.prepare('SELECT paired FROM mmg WHERE id = ?').bind(uid).first();
   if (me && me.paired) return { ok: true, role: 'host', paired: true };
   // кто-то ещё ждёт в этом режиме: подключаемся к тому, кто ждёт дольше
-  const other = await db.prepare('SELECT id, code, nick, emo FROM mmg WHERE id != ? AND game = ? AND paired IS NULL ORDER BY ts ASC LIMIT 1').bind(uid, game).first();
+  const other = await db.prepare('SELECT id, code, nick, emo FROM mmg WHERE game = ? AND paired IS NULL AND id != ? ORDER BY ts ASC LIMIT 1').bind(game, uid).first();
   if (other) {
     // Atomically claim the host: concurrent guests must not both join the same waiting player.
     const claimed = await db.prepare('UPDATE mmg SET paired = ? WHERE id = ? AND game = ? AND paired IS NULL AND ts > ?').bind(uid, other.id, game, now - 30000).run();
@@ -1040,9 +1083,9 @@ async function matchmake(env, user, body) {
       return { ok: true, role: 'join', code: other.code, nick: other.nick, emo: other.emo };
     }
   }
-  await db.prepare('INSERT INTO mmg (id, game, code, nick, emo, ts, paired) VALUES (?1, ?6, ?2, ?3, ?4, ?5, NULL) ON CONFLICT(id) DO UPDATE SET game = ?6, code = ?2, nick = ?3, emo = ?4, ts = ?5, paired = NULL WHERE ts < ?5 - 10000 OR code != ?2 OR game != ?6')
+  await db.prepare('INSERT INTO mmg (id, game, code, nick, emo, ts, paired) VALUES (?1, ?6, ?2, ?3, ?4, ?5, NULL) ON CONFLICT(id) DO UPDATE SET game = ?6, code = ?2, nick = ?3, emo = ?4, ts = ?5, paired = NULL WHERE ts < ?5 - 20000 OR code != ?2 OR game != ?6')
     .bind(uid, code, clean(body.nick, 16), clean(body.emo, 4), now, game).run();
-  const waiting = (await db.prepare('SELECT COUNT(*) AS n FROM mmg WHERE game = ? AND paired IS NULL').bind(game).first()).n;
+  const waiting = (await db.prepare('SELECT COUNT(*) AS n FROM (SELECT 1 FROM mmg WHERE game = ? AND paired IS NULL LIMIT 20)').bind(game).first()).n; // для подписи «ищут: N» хватит до 20
   return { ok: true, role: 'host', paired: false, waiting };
 }
 
@@ -1095,7 +1138,7 @@ async function relay(env, user, body) {
     await db.prepare(`UPDATE rooms SET ${seenCol} = ? WHERE room = ? AND (${seenCol} IS NULL OR ${seenCol} < ?)`).bind(now, room, now - 10000).run();
     const hadGuest = !!r.guest; let spin = 0;
     for (;;) {
-      const rows = (await db.prepare('SELECT id, body FROM rmsg WHERE room = ? AND side != ? AND id > ? ORDER BY id LIMIT 30').bind(room, side, after).all()).results || [];
+      const rows = side === 0 && !r.guest ? [] : (await db.prepare('SELECT id, body FROM rmsg WHERE room = ? AND side = ? AND id > ? ORDER BY id LIMIT 30').bind(room, 1 - side, after).all()).results || [];
       const t = Date.now();
       const otherSeen = side ? r.seen0 : r.seen1;
       const gone = !!r.closed || (side === 1 || r.guest ? t - (otherSeen || 0) > ROOM_GONE : false);
