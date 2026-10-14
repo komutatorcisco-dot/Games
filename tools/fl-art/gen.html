@@ -1,0 +1,205 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;900&family=Rubik+Mono+One&family=PT+Mono&family=Caveat:wght@700&family=Oswald:wght@700&family=Rubik:wght@900&family=Russo+One&display=swap" rel="stylesheet">
+<style>body{margin:0;background:#000}</style></head><body><script>
+const S = 900, INK = '#0d0820', PUR = '#5b2bd6', VIO = '#8a5cff', GOLD = '#f2c14e', CREAM = '#efe4cc', PINK = '#ff4fa3';
+let rnd = mulberry(7);
+function mulberry(a) { return () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const cv = (w = S, h = S) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+let IMG;
+// портрет вписан в квадрат: lum (0..1, 1 = светло) и alpha
+function sample(size, scale = 0.95, dy = 0.04) {
+  const c = cv(size, size), g = c.getContext('2d');
+  const h = size * scale, w = h * IMG.width / IMG.height;
+  g.drawImage(IMG, (size - w) / 2, size * dy + (size - h) / 2, w, h);
+  const d = g.getImageData(0, 0, size, size).data, L = new Float32Array(size * size), A = new Float32Array(size * size);
+  for (let i = 0; i < size * size; i++) { A[i] = d[i * 4 + 3] / 255; L[i] = (0.3 * d[i * 4] + 0.59 * d[i * 4 + 1] + 0.11 * d[i * 4 + 2]) / 255; }
+  return { c, L, A, size };
+}
+function paper(g, col, amt = 18) {
+  g.fillStyle = col; g.fillRect(0, 0, S, S);
+  const im = g.getImageData(0, 0, S, S), d = im.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (rnd() - 0.5) * amt; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  g.putImageData(im, 0, 0);
+}
+function grain(g, amt = 22, alpha = 1) {
+  const im = g.getImageData(0, 0, S, S), d = im.data;
+  for (let i = 0; i < d.length; i += 4) { const n = (rnd() - 0.5) * amt * alpha; d[i] += n; d[i + 1] += n; d[i + 2] += n; }
+  g.putImageData(im, 0, 0);
+}
+function halftone(g, smp, color, angle, step, ox = 0, oy = 0, k = 1) {
+  const { L, A, size } = smp, sc = S / size, a = angle * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+  g.fillStyle = color;
+  for (let v = -S; v < 2 * S; v += step) for (let u = -S; u < 2 * S; u += step) {
+    const x = u * ca - v * sa, y = u * sa + v * ca; if (x < 0 || y < 0 || x >= S || y >= S) continue;
+    const i = Math.floor(y / sc) * size + Math.floor(x / sc), ink = A[i] * (1 - L[i]) * k + (1 - A[i]) * 0;
+    if (ink < 0.04) continue;
+    g.beginPath(); g.arc(x + ox, y + oy, step * 0.62 * Math.sqrt(Math.min(1, ink)), 0, 7); g.fill();
+  }
+}
+const ART = {
+  // 1. Ризограф: две краски с промахом совмещения, бумага, огромная надпись
+  riso(g) {
+    paper(g, CREAM, 26);
+    g.globalCompositeOperation = 'multiply';
+    g.save(); g.translate(120, 860); g.rotate(-Math.PI / 2); g.font = '900 230px Rubik'; g.fillStyle = PINK; g.globalAlpha = .85; g.fillText('ЗАБЫТ', 0, 0); g.restore();
+    const s = sample(300, 0.9, 0.06);
+    g.globalAlpha = 1; halftone(g, s, '#5a2fd0', 15, 9, 0, 0, 1.25);
+    halftone(g, s, '#f0b530', 75, 11, 14, -10, 0.9);
+    g.globalCompositeOperation = 'source-over';
+    g.font = '400 22px "PT Mono"'; g.fillStyle = '#2a1466'; g.fillText('ЗАБЫТЫЕ ЛЕГЕНДЫ · № 01 · ТИРАЖ 89', 160, 868);
+    g.font = '900 44px Rubik'; g.fillStyle = '#2a1466'; g.fillText('ЛЕГЕНДЫ', 560, 80);
+  },
+  // 2. Гравюра: линии, толщина — от тона; рваный круглый оттиск и надпись по кругу
+  woodcut(g) {
+    g.fillStyle = '#1a0c3c'; g.fillRect(0, 0, S, S);
+    const s = sample(450, 0.86, 0.08), sc = S / 450;
+    g.save(); g.beginPath();
+    for (let a = 0; a <= 360; a += 3) { const r = 330 + (rnd() - .5) * 18; g.lineTo(450 + r * Math.cos(a * Math.PI / 180), 450 + r * Math.sin(a * Math.PI / 180)); }
+    g.closePath(); g.fillStyle = '#e8c35a'; g.fill(); g.clip();
+    g.strokeStyle = '#1a0c3c'; g.lineCap = 'round';
+    for (let y = 0; y < S; y += 7) {
+      g.beginPath(); let prev = 0;
+      for (let x = 0; x < S; x += 3) {
+        const i = Math.floor((y) / sc) * 450 + Math.floor(x / sc), dark = s.A[i] ? (1 - s.L[i]) * 1.15 : 0.28 + 0.1 * Math.sin(x / 40 + y / 60);
+        const w = Math.max(0.3, dark * 6.2), yy = y + Math.sin(x / 23 + y / 9) * 1.4;
+        g.lineWidth = w; g.lineTo(x, yy); g.stroke(); g.beginPath(); g.moveTo(x, yy);
+      }
+    }
+    g.restore();
+    g.font = '400 30px "Rubik Mono One"'; g.fillStyle = '#e8c35a';
+    const txt = 'ЗАБЫТЫЕ · ЛЕГЕНДЫ · ЗАБЫТЫЕ · ЛЕГЕНДЫ · ';
+    for (let i = 0; i < txt.length; i++) { const a = -Math.PI / 2 + i * (2 * Math.PI / txt.length); g.save(); g.translate(450 + 392 * Math.cos(a), 450 + 392 * Math.sin(a)); g.rotate(a + Math.PI / 2); g.fillText(txt[i], -10, 0); g.restore(); }
+  },
+  // 3. Глитч: полосы со сдвигом, расслоение цветов, развёртка, «запись» плёнки
+  glitch(g) {
+    g.fillStyle = '#05030c'; g.fillRect(0, 0, S, S);
+    const s = sample(900, 0.92, 0.06), tint = (col) => { const c = cv(), x = c.getContext('2d'); x.drawImage(s.c, 0, 0); x.globalCompositeOperation = 'source-atop'; x.fillStyle = col; x.fillRect(0, 0, S, S); return c; };
+    const base = cv(), b = base.getContext('2d'); b.filter = 'grayscale(1) contrast(1.3)'; b.drawImage(s.c, 0, 0); b.filter = 'none'; b.globalCompositeOperation = 'multiply'; b.fillStyle = '#9a6bff'; b.fillRect(0, 0, S, S); b.globalCompositeOperation = 'destination-in'; b.drawImage(s.c, 0, 0);
+    const goldC = tint('#f2c14e'), pinkC = tint('#ff3fa0');
+    g.globalCompositeOperation = 'screen'; g.globalAlpha = .55; g.drawImage(goldC, 16, 0); g.drawImage(pinkC, -14, 4); g.globalAlpha = 1;
+    let y = 0; while (y < S) { const h = 6 + rnd() * 60, sh = rnd() < .35 ? (rnd() - .5) * 120 : (rnd() - .5) * 8; g.drawImage(base, 0, y, S, h, sh, y, S, h); y += h; }
+    g.globalCompositeOperation = 'source-over';
+    for (let yy = 0; yy < S; yy += 4) { g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(0, yy, S, 2); }
+    for (let k = 0; k < 7; k++) { const yy = rnd() * S; g.fillStyle = `rgba(${rnd() < .5 ? '242,193,78' : '154,107,255'},.5)`; g.fillRect(0, yy, S, 2 + rnd() * 3); }
+    g.font = '400 30px "PT Mono"'; g.fillStyle = '#ff3b4f'; g.beginPath(); g.arc(70, 72, 11, 0, 7); g.fill(); g.fillStyle = '#f2f0ff'; g.fillText('ЗАБЫТО', 92, 82);
+    g.fillText('◀◀ 1990 / 2026', 560, 82); g.font = '400 26px "PT Mono"'; g.fillText('ЛЕГЕНДЫ ▸ ВОСПРОИЗВЕДЕНИЕ', 60, 850); g.fillText('00:89:00', 700, 850);
+  },
+  // 4. Топография: изолинии лица — «карта памяти»
+  topo(g) {
+    g.fillStyle = '#0c0718'; g.fillRect(0, 0, S, S);
+    const N = 220, s = sample(N, 0.9, 0.05), F = new Float32Array(N * N);
+    for (let i = 0; i < N * N; i++) F[i] = s.A[i] * (0.35 + 0.65 * s.L[i]);
+    for (let p = 0; p < 3; p++) { const T = F.slice(); for (let y = 1; y < N - 1; y++) for (let x = 1; x < N - 1; x++) { let a = 0; for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) a += T[(y + j) * N + x + i]; F[y * N + x] = a / 9; } }
+    const sc = S / (N - 1), lv = [.04, .1, .16, .22, .28, .34, .4, .46, .52, .58, .64, .7, .76];
+    lv.forEach((t, k) => {
+      g.beginPath(); g.strokeStyle = k === 6 ? GOLD : k % 2 ? 'rgba(242,193,78,.75)' : 'rgba(154,107,255,.8)'; g.lineWidth = k === 6 ? 3.2 : 1.4;
+      for (let y = 0; y < N - 1; y++) for (let x = 0; x < N - 1; x++) {
+        const a = F[y * N + x], b = F[y * N + x + 1], c = F[(y + 1) * N + x + 1], d = F[(y + 1) * N + x];
+        const idx = (a > t) | ((b > t) << 1) | ((c > t) << 2) | ((d > t) << 3); if (idx === 0 || idx === 15) continue;
+        const P = []; const ip = (x1, y1, v1, x2, y2, v2) => { const q = (t - v1) / (v2 - v1); return [(x1 + (x2 - x1) * q) * sc, (y1 + (y2 - y1) * q) * sc]; };
+        if ((a > t) !== (b > t)) P.push(ip(x, y, a, x + 1, y, b)); if ((b > t) !== (c > t)) P.push(ip(x + 1, y, b, x + 1, y + 1, c));
+        if ((c > t) !== (d > t)) P.push(ip(x + 1, y + 1, c, x, y + 1, d)); if ((d > t) !== (a > t)) P.push(ip(x, y + 1, d, x, y, a));
+        for (let i = 0; i + 1 < P.length; i += 2) { g.moveTo(P[i][0], P[i][1]); g.lineTo(P[i + 1][0], P[i + 1][1]); }
+      }
+      g.stroke();
+    });
+    g.strokeStyle = 'rgba(239,228,204,.12)'; g.lineWidth = 1; for (let k = 0; k <= S; k += 90) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, S); g.moveTo(0, k); g.lineTo(S, k); g.stroke(); }
+    g.font = '400 22px "PT Mono"'; g.fillStyle = CREAM; g.fillText('КАРТА ПАМЯТИ · ВЫСОТА 89', 40, 862); g.fillText('45°27′ N  9°11′ E', 640, 862);
+    g.font = '400 36px "Russo One"'; g.fillStyle = GOLD; g.fillText('ЗАБЫТЫЕ', 40, 74);
+  },
+  // 5. Витраж: ячейки Вороного, свинцовые перемычки, окно-шестигранник
+  glass(g) {
+    g.fillStyle = '#07040f'; g.fillRect(0, 0, S, S);
+    const N = 300, s = sample(N, 0.88, 0.07), pts = [];
+    while (pts.length < 900) { const x = rnd() * N, y = rnd() * N, i = Math.floor(y) * N + Math.floor(x); const face = s.A[i] > .5 && y < N * .55; if (face || (s.A[i] > .5 && rnd() < .5) || rnd() < .12) pts.push([x, y]); }
+    const id = new Int16Array(N * N);
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let b = 1e9, bi = 0; for (let k = 0; k < pts.length; k++) { const dx = pts[k][0] - x, dy = pts[k][1] - y, d = dx * dx + dy * dy; if (d < b) { b = d; bi = k; } } id[y * N + x] = bi; }
+    const sum = pts.map(() => [0, 0, 0]);
+    for (let i = 0; i < N * N; i++) { const k = id[i]; sum[k][0] += s.A[i] * s.L[i]; sum[k][1] += s.A[i]; sum[k][2]++; }
+    const ramp = ['#1b0d4a', '#3a1a8c', '#5b2bd6', '#8a5cff', '#c9a14a', '#f2c14e', '#fff0b8'];
+    const col = sum.map(([l, a, n]) => { const al = a / n; if (al < .3) return ['#26105e', '#2f1474', '#1d0c4a', '#3b1a86'][Math.floor(rnd() * 4)]; const v = Math.min(.999, Math.pow(l / Math.max(1, a), .8) * 1.35); return ramp[Math.floor(v * ramp.length)]; });
+    const c = cv(N, N), x = c.getContext('2d'), im = x.createImageData(N, N);
+    for (let i = 0; i < N * N; i++) { const hex = col[id[i]], r = parseInt(hex.slice(1, 3), 16), gg = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16); const edge = (i % N < N - 1 && id[i + 1] !== id[i]) || (i + N < N * N && id[i + N] !== id[i]); im.data.set(edge ? [12, 8, 20, 255] : [r, gg, b, 255], i * 4); }
+    x.putImageData(im, 0, 0);
+    g.save(); g.beginPath(); for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3; g.lineTo(450 + 400 * Math.cos(a), 450 + 400 * Math.sin(a)); } g.closePath(); g.clip();
+    g.imageSmoothingEnabled = false; g.drawImage(c, 0, 0, S, S); g.imageSmoothingEnabled = true;
+    const lg = g.createRadialGradient(330, 260, 20, 450, 450, 520); lg.addColorStop(0, 'rgba(255,240,200,.28)'); lg.addColorStop(1, 'rgba(0,0,0,.35)'); g.fillStyle = lg; g.fillRect(0, 0, S, S); grain(g, 18); g.restore();
+    g.lineWidth = 18; g.strokeStyle = '#120a22'; g.beginPath(); for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3; g.lineTo(450 + 400 * Math.cos(a), 450 + 400 * Math.sin(a)); } g.closePath(); g.stroke();
+    g.lineWidth = 3; g.strokeStyle = GOLD; g.stroke();
+  },
+  // 6. Коллаж: рваные полосы портрета, скотч, надпись от руки
+  collage(g) {
+    paper(g, '#e9ddc4', 30);
+    const s = sample(900, 0.9, 0.05), duo = cv(), d = duo.getContext('2d');
+    d.filter = 'grayscale(1) contrast(1.6) brightness(1.05)'; d.drawImage(s.c, 0, 0); d.filter = 'none'; d.globalCompositeOperation = 'multiply'; d.fillStyle = '#7a4dff'; d.fillRect(0, 0, S, S); d.globalCompositeOperation = 'destination-in'; d.drawImage(s.c, 0, 0);
+    g.fillStyle = '#2a1466'; g.save(); g.translate(450, 470); g.rotate(-0.06); g.fillRect(-330, -360, 660, 720); g.restore();
+    const cuts = [110, 250, 400, 560, 700, 830]; let x0 = 60;
+    cuts.forEach((x1, k) => {
+      g.save(); g.translate((k % 2 ? 10 : -6), (k % 2 ? -14 : 12)); g.rotate((rnd() - .5) * 0.05);
+      g.beginPath(); g.moveTo(x0, 0); for (let y = 0; y <= S; y += 18) g.lineTo(x0 + (rnd() - .5) * 10, y); for (let y = S; y >= 0; y -= 18) g.lineTo(x1 + (rnd() - .5) * 10, y); g.closePath(); g.clip();
+      g.fillStyle = '#efe4cc'; g.fillRect(0, 0, S, S); g.drawImage(duo, 0, 0); g.restore(); x0 = x1 + 14;
+    });
+    const tape = (x, y, a) => { g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = 'rgba(242,224,160,.72)'; g.fillRect(-70, -18, 140, 36); g.restore(); };
+    tape(160, 70, -.3); tape(760, 90, .25); tape(470, 830, -.05);
+    g.font = '700 120px Caveat'; g.fillStyle = '#d99a1f'; g.save(); g.translate(90, 820); g.rotate(-0.12); g.fillText('забытые', 0, 0); g.restore();
+    g.strokeStyle = '#d99a1f'; g.lineWidth = 6; g.lineCap = 'round'; g.beginPath(); const st = [[700, 600], [740, 720], [640, 645], [760, 645], [660, 720]]; st.forEach((p, i) => (i ? g.lineTo(p[0] + (rnd() - .5) * 8, p[1] + (rnd() - .5) * 8) : g.moveTo(...p))); g.closePath(); g.stroke();
+  },
+  // 7. Брутальная типографика: огромные буквы за край, сетка, крошечный растровый портрет
+  type(g) {
+    g.fillStyle = '#0a0614'; g.fillRect(0, 0, S, S);
+    g.strokeStyle = 'rgba(239,228,204,.14)'; g.lineWidth = 1; for (let k = 0; k <= S; k += 60) { g.beginPath(); g.moveTo(k, 0); g.lineTo(k, S); g.stroke(); }
+    g.font = '400 300px "Russo One"'; g.lineWidth = 3; g.strokeStyle = VIO;
+    g.strokeText('ЗА', -30, 270); g.strokeText('БЫ', -30, 560); g.fillStyle = GOLD; g.fillText('ТЫ', -30, 850);
+    g.save(); g.beginPath(); g.arc(640, 380, 170, 0, 7); g.clip(); g.fillStyle = '#efe4cc'; g.fillRect(0, 0, S, S);
+    const s = sample(170, 0.95, 0.05), c = cv(), x = c.getContext('2d'); halftone(x, s, '#1a0c3c', 45, 10, 0, 0, 1.3); g.drawImage(c, 470, 210, 340, 340); g.restore();
+    g.font = '400 120px "Rubik Mono One"'; g.fillStyle = PINK; g.fillText('89', 680, 860);
+    g.save(); g.translate(870, 640); g.rotate(-Math.PI / 2); g.font = '400 24px "PT Mono"'; g.fillStyle = CREAM; g.fillText('ЛЕГЕНДЫ — СЕРИЯ 01', 0, 0); g.restore();
+  },
+  // 8. Цианотипия: светлый отпечаток на синем, засветка плёнки, перфорация
+  cyan(g) {
+    const bgG = g.createLinearGradient(0, 0, S, S); bgG.addColorStop(0, '#1b2a8f'); bgG.addColorStop(1, '#2a1466'); g.fillStyle = bgG; g.fillRect(0, 0, S, S);
+    for (let k = 0; k < 900; k++) { g.fillStyle = `rgba(${rnd() < .5 ? '255,255,255' : '10,10,60'},${rnd() * .05})`; g.fillRect(rnd() * S, rnd() * S, 2 + rnd() * 90, 1 + rnd() * 3); }
+    const s = sample(900, 0.86, 0.08), c = cv(), x = c.getContext('2d');
+    x.filter = 'grayscale(1) invert(1) contrast(1.4) brightness(1.2)'; x.drawImage(s.c, 0, 0); x.filter = 'none'; x.globalCompositeOperation = 'multiply'; x.fillStyle = '#cfd6ff'; x.fillRect(0, 0, S, S); x.globalCompositeOperation = 'destination-in'; x.drawImage(s.c, 0, 0);
+    g.globalCompositeOperation = 'screen'; g.globalAlpha = .9; g.drawImage(c, 0, 0); g.globalAlpha = 1;
+    const lk = g.createRadialGradient(840, 120, 10, 840, 120, 420); lk.addColorStop(0, 'rgba(255,190,90,.85)'); lk.addColorStop(.4, 'rgba(255,79,163,.35)'); lk.addColorStop(1, 'rgba(255,79,163,0)'); g.fillStyle = lk; g.fillRect(0, 0, S, S);
+    g.globalCompositeOperation = 'source-over';
+    g.fillStyle = '#05030c'; g.fillRect(0, 0, S, 70); g.fillRect(0, S - 70, S, 70);
+    g.fillStyle = '#efe4cc'; for (let k = 20; k < S; k += 60) { g.fillRect(k, 20, 32, 28); g.fillRect(k, S - 48, 32, 28); }
+    g.font = '400 20px "PT Mono"'; g.fillStyle = '#f2c14e'; g.fillText('89A  ▸  ЗАБЫТЫЕ ЛЕГЕНДЫ  ▸  KODAK 400', 40, S - 82); grain(g, 26);
+  },
+  // 9. Текстовый портрет: лицо из букв «ЗАБЫТЫЕ ЛЕГЕНДЫ»
+  ascii(g) {
+    g.fillStyle = '#07040f'; g.fillRect(0, 0, S, S);
+    const cell = 15, N = S / cell, s = sample(N, 0.92, 0.06), txt = 'ЗАБЫТЫЕЛЕГЕНДЫ'; let k = 0;
+    g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = y * N + x, a = s.A[i], l = s.L[i], ch = txt[k++ % txt.length];
+      if (a > .4) { const v = .25 + .75 * l; g.font = `${Math.round(9 + 9 * v)}px "Rubik Mono One"`; g.fillStyle = `rgba(242,${150 + Math.round(70 * v)},${60 + Math.round(40 * v)},${.35 + .65 * v})`; }
+      else { g.font = '9px "Rubik Mono One"'; g.fillStyle = 'rgba(138,92,255,.22)'; }
+      g.fillText(ch, x * cell + cell / 2, y * cell + cell / 2);
+    }
+  },
+  // 10. Кинцуги: разбитый портрет, склеенный золотом
+  kintsugi(g) {
+    g.fillStyle = '#120a26'; g.fillRect(0, 0, S, S);
+    const s = sample(900, 0.9, 0.05), base = cv(), b = base.getContext('2d');
+    b.filter = 'grayscale(1) contrast(1.35) brightness(.95)'; b.drawImage(s.c, 0, 0); b.filter = 'none'; b.globalCompositeOperation = 'multiply'; b.fillStyle = '#8a5cff'; b.fillRect(0, 0, S, S); b.globalCompositeOperation = 'destination-in'; b.drawImage(s.c, 0, 0);
+    const crack = []; let x = 520, y = 0; while (y < S) { crack.push([x, y]); y += 40 + rnd() * 50; x += (rnd() - .5) * 110; } crack.push([x, S]);
+    const left = new Path2D(), right = new Path2D(); left.moveTo(0, 0); crack.forEach((p) => left.lineTo(...p)); left.lineTo(0, S); left.closePath();
+    right.moveTo(S, 0); crack.forEach((p) => right.lineTo(...p)); right.lineTo(S, S); right.closePath();
+    g.save(); g.clip(left); g.drawImage(base, -6, 0); g.restore(); g.save(); g.clip(right); g.drawImage(base, 8, 14); g.restore();
+    const seam = (pts, w) => { g.beginPath(); pts.forEach((p, i) => (i ? g.lineTo(...p) : g.moveTo(...p))); g.lineWidth = w; g.strokeStyle = GOLD; g.shadowColor = 'rgba(255,200,90,.9)'; g.shadowBlur = 18; g.stroke(); g.shadowBlur = 0; g.lineWidth = w / 3; g.strokeStyle = '#fff3c4'; g.stroke(); };
+    seam(crack.map(([a, c]) => [a + 1, c + 7]), 9);
+    for (let k = 0; k < 7; k++) { const p = crack[1 + Math.floor(rnd() * (crack.length - 2))]; let bx = p[0], by = p[1] + 7; const pts = [[bx, by]]; const dir = rnd() < .5 ? -1 : 1; for (let j = 0; j < 4; j++) { bx += dir * (30 + rnd() * 60); by += (rnd() - .3) * 60; pts.push([bx, by]); } seam(pts, 3 + rnd() * 3); }
+    grain(g, 20);
+    g.font = '400 22px "PT Mono"'; g.fillStyle = 'rgba(242,193,78,.9)'; g.fillText('金継ぎ · РАЗБИТО И СОБРАНО ЗОЛОТОМ', 40, 862);
+  },
+};
+window.render = async (src) => {
+  IMG = new Image(); IMG.src = src; await IMG.decode(); await document.fonts.load('900 40px Rubik', 'ЗАБЫТЫЕ ЛЕГЕНДЫ забытые 89'); await document.fonts.load('40px "Russo One"', 'ЗАБЫТЫЕ ЛЕГЕНДЫ забытые 89'); await document.fonts.load('40px "Rubik Mono One"', 'ЗАБЫТЫЕ ЛЕГЕНДЫ забытые 89'); await document.fonts.load('20px "PT Mono"', 'ЗАБЫТЫЕ ЛЕГЕНДЫ забытые 89'); await document.fonts.load('700 40px Caveat', 'ЗАБЫТЫЕ ЛЕГЕНДЫ забытые 89'); await document.fonts.ready;
+  const out = {};
+  for (const [k, f] of Object.entries(ART)) { rnd = mulberry(k.length * 97 + 13); const c = cv(), g = c.getContext('2d'); f(g); out[k] = c.toDataURL('image/png'); }
+  return out;
+};
+</script></body></html>
