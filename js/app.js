@@ -113,6 +113,7 @@ const App = (() => {
   }
 
   function renderProfile() {
+    if (typeof Social !== 'undefined') Social.render();
     rankUi('#prof-rank', '#prof-xp', '#prof-next');
     $('#prof-badge').textContent = Store.d.user.emoji || '⚽';
     // абонемент: с какого дня в игре, тур, опыт и место в таблице недели; ниже — настоящая статистика
@@ -582,6 +583,7 @@ const App = (() => {
     claimDaily();
     // облако Telegram: если там сохранение новее (зашёл с другого устройства) — подхватываем его
     const cloud = Cloud.pull().then((got) => {
+      if (typeof Social !== 'undefined') Social.sync();
       Board.submit();
       Track.hello();
       // клуб: красная точка, если ждёт сундук, приз лиги или запрос карточки, который можно выполнить

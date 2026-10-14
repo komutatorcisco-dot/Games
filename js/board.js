@@ -71,7 +71,7 @@ const Board = (() => {
         : scope === 'friends' ? 'Ты и друзья: те, кого ты позвал по своей ссылке, и тот, кто позвал тебя. Очки за эту неделю.'
           : 'Весь опыт за победы во всех играх.';
     const rows = data.rows.map((r, i) => `<div class="bd-row ${r.me ? 'me' : ''} ${i < 3 ? 'top' : ''}" style="--i:${Math.min(i, 15)}">
-        <b class="bd-place">${medal(i + 1)}</b><span class="bd-emo">${esc(r.emoji || '⚽')}</span><span class="bd-nick">${esc(r.nick)}</span><em>${unit(scope, r.score)}</em></div>`).join('');
+        <b class="bd-place">${medal(i + 1)}</b><span class="bd-emo">${esc(r.emoji || '⚽')}</span>${r.profile ? `<button class="bd-nick" data-profile="${esc(r.profile)}">${esc(r.nick)}</button>` : `<span class="bd-nick">${esc(r.nick)}</span>`}<em>${unit(scope, r.score)}</em></div>`).join('');
     const mine = data.me && !data.rows.some((r) => r.me)
       ? `<div class="bd-row me pinned"><b class="bd-place">${data.me.place}</b><span class="bd-emo">${esc(Store.d.user.emoji)}</span><span class="bd-nick">${esc(Store.d.user.nick || 'Ты')}</span><em>${unit(scope, data.me.score)}</em></div>` : '';
     const you = data.me ? `<div class="bd-you">Ты <b>${data.me.place}-й</b> из ${data.total}</div>`
