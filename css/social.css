@@ -1,6 +1,6 @@
 /* Controls surround existing cards; their artwork and aspect ratio are unchanged. */
 .cl-cell { position: relative;display:flex;flex-direction:column;align-items:center; }
-.social-heart { order:2;flex-shrink:0;margin:6px 0 0;width:44px;height:36px;border:1px solid #ffffff35;border-radius:14px;background:#151b2bea;color:#fff;font-size:20px; }
+.social-heart { order:2;flex-shrink:0;margin:5px 0 0;width:40px;height:30px;border:1px solid #ffffff35;border-radius:12px;background:#151b2bea;color:#fff;font-size:16px; }
 .social-heart.on { color:#ff668c;background:#401a32; }
 .social-slots { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:16px 0; }
 .social-slot { min-width:0;text-align:center; }
@@ -21,3 +21,10 @@
 .social-avatar { font-size:48px; }
 [data-profile] { cursor:pointer;color:inherit; }
 button.bd-nick { background:none;border:0;text-align:left;font:inherit; }
+/* Галерея рядом с боковым меню: три карточки и строка поиска всегда помещаются в ширину экрана */
+.gl-tools { grid-template-columns: minmax(0,1fr) auto auto; }
+.gl-fav { min-width: 46px; padding: 0 12px; font-size: 20px; line-height: 1; }
+.gl-fav:not(.on) { color: #ff8fb0; }
+.cl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); container-type: inline-size; }
+.cl-cell { min-width: 0; }
+.cl-cell .cc { --w: min(102px, calc((100cqw - 16px) / 3)) !important; }

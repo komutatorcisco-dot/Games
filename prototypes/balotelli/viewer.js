@@ -23,10 +23,12 @@ renderer.setClearColor(0x000000, 0);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(28, 1, 0.05, 50);
 scene.add(new THREE.HemisphereLight(0xb8b0ff, 0x1a0c22, 1.1));
-const key = new THREE.DirectionalLight(0xfff0dc, 2.6); key.position.set(1.8, 3.4, 3.6); scene.add(key);
-const fill = new THREE.DirectionalLight(0x9fb6ff, 0.9); fill.position.set(-3, 1.6, 2.2); scene.add(fill);
-const rimA = new THREE.DirectionalLight(0xff4f8a, 2.2); rimA.position.set(-2.4, 2.6, -3.2); scene.add(rimA);
-const rimB = new THREE.DirectionalLight(0x8a5cff, 2.0); rimB.position.set(2.6, 2.2, -3.2); scene.add(rimB);
+// свет «привязан» к камере: с какой стороны ни смотри, игрок освещён одинаково красиво
+const rigLights = new THREE.Group(); scene.add(rigLights);
+const key = new THREE.DirectionalLight(0xfff0dc, 2.6); key.position.set(1.8, 3.4, 3.6); rigLights.add(key); rigLights.add(key.target);
+const fill = new THREE.DirectionalLight(0x9fb6ff, 0.9); fill.position.set(-3, 1.6, 2.2); rigLights.add(fill); rigLights.add(fill.target);
+const rimA = new THREE.DirectionalLight(0xff4f8a, 2.2); rimA.position.set(-2.4, 2.6, -3.2); rigLights.add(rimA); rigLights.add(rimA.target);
+const rimB = new THREE.DirectionalLight(0x8a5cff, 2.0); rimB.position.set(2.6, 2.2, -3.2); rigLights.add(rimB); rigLights.add(rimB.target);
 
 // подиум: тёмный диск с золотым кантом и мягким пятном света
 const podium = new THREE.Group(); scene.add(podium);
@@ -41,11 +43,15 @@ const glowTex = (() => {
 const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), new THREE.MeshBasicMaterial({ map: glowTex, transparent: true, depthWrite: false }));
 glow.rotation.x = -Math.PI / 2; glow.position.y = 0.045; podium.add(glow);
 
-const turn = new THREE.Group(); scene.add(turn); // вращаем игрока вместе с подиумом
+// Игрок стоит на месте, вокруг него ходит камера. Модель вращать нельзя: стопы в позе ожидания
+// стоят на следах в координатах сцены (IK), и при повороте модели ноги перекрещиваются.
+const turn = new THREE.Group(); scene.add(turn);
 turn.add(podium);
 
 // ---------- управление ----------
 const view = { yaw: -0.35, vel: 0, pitch: 0.06, zoom: 1, idleAt: performance.now() };
+// место под шапкой и подсказкой игры (в пикселях): игрока кадрируем в оставшейся части экрана
+const inset = { top: Math.max(0, +Q.get('top') || 0), bottom: Math.max(0, +Q.get('bottom') || 0) };
 function drag(dx, dy) {
   view.yaw += dx * 0.011; view.vel = dx * 0.011;
   view.pitch = Math.min(0.35, Math.max(-0.12, view.pitch + dy * 0.003));
@@ -59,6 +65,7 @@ addEventListener('message', (e) => {
   else if (d.m3d === 'zoom') zoom(+d.k || 1);
   else if (d.m3d === 'reset') reset();
   else if (d.m3d === 'release') view.idleAt = performance.now();
+  else if (d.m3d === 'inset') { inset.top = Math.max(0, +d.top || 0); inset.bottom = Math.max(0, +d.bottom || 0); }
 });
 if (!EMBED) {
   const pts = new Map(); let pinch = 0;
@@ -107,14 +114,19 @@ function frame(now) {
   // инерция после броска и медленный поворот, если долго не трогали
   if (performance.now() - view.idleAt > 60) { view.yaw += view.vel; view.vel *= 0.93; }
   if (performance.now() - view.idleAt > 3500) view.yaw += 0.0035;
-  turn.rotation.y = view.yaw;
+  rigLights.rotation.y = -view.yaw;
   if (rig) pose(rig, plan, plan.tEnd + 4 + t);
   // кадр: целиком в рост, щипком — ближе к лицу
   const z = (view.zoom - 1) / 1.3; // 0 — в рост, 1 — по грудь
-  const fitH = H * (1.18 - 0.62 * z), lookY = H * (0.5 + 0.36 * z);
+  const area = Math.max(0.4, (h - inset.top - inset.bottom) / h); // доля высоты, свободная от шапки и подсказки
+  const fitH = H * (1.18 - 0.62 * z) / area;
   const vfov = THREE.MathUtils.degToRad(camera.fov), fitByW = (H * 0.62) / camera.aspect;
-  const dist = Math.max(fitH, fitByW * (1 - 0.5 * z)) / 2 / Math.tan(vfov / 2);
-  camera.position.set(0, lookY + Math.sin(view.pitch) * dist, Math.cos(view.pitch) * dist);
+  const frameH = Math.max(fitH, fitByW * (1 - 0.5 * z));
+  // центр свободной части смещён от центра экрана на (top − bottom)/2 — сдвигаем точку взгляда на столько же
+  const lookY = H * (0.5 + 0.36 * z) + frameH * ((inset.top - inset.bottom) / 2 / h);
+  const dist = frameH / 2 / Math.tan(vfov / 2);
+  const a = -view.yaw, r = Math.cos(view.pitch) * dist;
+  camera.position.set(Math.sin(a) * r, lookY + Math.sin(view.pitch) * dist, Math.cos(a) * r);
   camera.lookAt(0, lookY, 0);
   renderer.render(scene, camera);
 }

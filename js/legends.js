@@ -58,11 +58,18 @@ const Model3D = (() => {
   let el = null, back = null;
   const pts = new Map(); let pinch = 0;
   const send = (m) => { const f = el && $('.m3d-frame', el); if (f && f.contentWindow) f.contentWindow.postMessage(m, '*'); };
+  // сколько места сверху занимают кнопки Telegram и наша шапка, снизу — подсказка: игрок встаёт между ними
+  function sendInset() {
+    if (!el) return;
+    const top = $('.m3d-top', el).getBoundingClientRect().bottom + 8, hint = $('.m3d-hint', el).getBoundingClientRect();
+    send({ m3d: 'inset', top: Math.round(top), bottom: Math.round(innerHeight - hint.top + 4) });
+  }
+  addEventListener('resize', () => sendInset());
   function open(key, done) {
     const c = Cards.get(key); if (!c || !c.model3d || el) return;
     back = done || null;
     el = document.createElement('div'); el.className = 'm3d-wrap';
-    el.innerHTML = `<iframe class="m3d-frame" title="3D-модель: ${esc(c.name)}" src="prototypes/${esc(c.model3d)}/viewer.html?embed=1&v=20261014-m3d1"></iframe>
+    el.innerHTML = `<iframe class="m3d-frame" title="3D-модель: ${esc(c.name)}" src="prototypes/${esc(c.model3d)}/viewer.html?embed=1&v=20261014-m3d2"></iframe>
       <div class="m3d-touch" aria-hidden="true"></div>
       <div class="m3d-top"><b>${esc(c.name)}</b><small>${c.r} · ${esc(c.pos)}</small></div>
       <button class="m3d-x" data-m3d="close" aria-label="Закрыть">✕</button>
@@ -91,7 +98,7 @@ const Model3D = (() => {
   document.addEventListener('click', (e) => { if (el && e.target.closest('.m3d-wrap [data-m3d="close"]')) { e.preventDefault(); close(); } });
   addEventListener('message', (e) => {
     if (!el || !e.data || e.source !== $('.m3d-frame', el).contentWindow) return;
-    if (e.data.m3d === 'ready' || e.data.m3d === 'error') el.dataset.state = e.data.m3d;
+    if (e.data.m3d === 'ready' || e.data.m3d === 'error') { el.dataset.state = e.data.m3d; sendInset(); }
   });
   return { open, close, isOpen: () => !!el };
 })();

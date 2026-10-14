@@ -264,7 +264,7 @@ const Cards = (() => {
   }
   function tools() {
     return `<div class="gl-tools"><label class="gl-q">${Ui.get('search')}<input id="gl-q" type="search" placeholder="Найти игрока или клуб" value="${esc(view.q || '')}" autocomplete="off"></label>
-      <button class="gl-mine ${view.mine ? 'on' : ''}" data-glmine="1">Мои</button><button class="gl-mine ${view.favorites ? 'on' : ''}" data-glfavorites="1">❤️ Избранное</button></div><div class="gl-res">${results()}</div>`;
+      <button class="gl-mine ${view.mine ? 'on' : ''}" data-glmine="1">Мои</button><button class="gl-mine gl-fav ${view.favorites ? 'on' : ''}" data-glfavorites="1" aria-label="Избранное" title="Избранное">♥</button></div><div class="gl-res">${results()}</div>`;
   }
   function album() {
     const total = all().filter((c) => !hiddenCard(c)).length, got = count();
