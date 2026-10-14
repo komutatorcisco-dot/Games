@@ -36,7 +36,7 @@ const Cards = (() => {
     // «Забытые легенды»: только за испытание. Клуба нет — вместо эмблемы клуба эмблема серии (crestUrl),
     // поэтому серия не даёт химии «общий клуб». hero — как Heroes в FC: 3 химии на своей позиции, связь через сборную.
     // Характеристики Балотелли — предложение под рейтинг 89 (в базе FC его нет), утверждаются вместе с карточкой.
-    const forgotten = [{ key: 'FL:mario-balotelli', name: 'Марио Балотелли', r: 89, pos: 'ФРВ', posFix: true, club: '', series: 'Забытые легенды', crestUrl: 'img/brand/forgotten-legends.svg', flag: '🇮🇹', nat: 'Италия', lg: '', rar: 'forgotten', sbcOnly: true, hero: true, challenge: 'fl:balotelli', walkout: 'balotelli', faceUrl: 'img/players/balotelli-forgotten.webp', st: [84, 90, 74, 83, 38, 88] }];
+    const forgotten = [{ key: 'FL:mario-balotelli', name: 'Марио Балотелли', r: 89, pos: 'ФРВ', posFix: true, club: '', series: 'Забытые легенды', crestUrl: 'img/brand/fl-badge.svg', flag: '🇮🇹', nat: 'Италия', lg: '', rar: 'forgotten', sbcOnly: true, hero: true, challenge: 'fl:balotelli', walkout: 'balotelli', faceUrl: 'img/players/balotelli-forgotten.webp', st: [84, 90, 74, 83, 38, 88] }];
     ALL = [...cur, ...legs, ...jack, ...future, ...forgotten];
     if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
       c.positions = PlayerPositions.get(c.name, c.pos);
@@ -198,7 +198,7 @@ const Cards = (() => {
   const GROUP_ICO = { 'АПЛ': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Ла Лига': '🇪🇸', 'Серия А': '🇮🇹', 'Бундеслига': '🇩🇪', 'Лига 1': '🇫🇷', 'Другие': Ui.get('globe'), 'Легенды': Ui.get('crown'), 'Джексон': Ui.get('flame') };
   const groupOf = (c) => (c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : c.rar === 'forgotten' ? 'Забытые легенды' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
   GROUP_ICO['Будущие звёзды'] = Ui.get('star');
-  GROUP_ICO['Забытые легенды'] = '<img class="gl-series" src="img/brand/forgotten-legends.svg" alt="">';
+  GROUP_ICO['Забытые легенды'] = '<img class="gl-series" src="img/brand/fl-badge.svg" alt="">';
   // серии из испытаний: карточку нельзя купить, поэтому за «сбор» серии награды нет (экономика не меняется)
   const NOPRIZE = new Set(['Забытые легенды']);
   const SINGLE = new Set(['Джексон', 'Забытые легенды']); // без деления на клубы

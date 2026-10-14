@@ -14,7 +14,7 @@ assert.ok(c, 'card exists');
 assert.equal(c.name, 'Марио Балотелли'); assert.equal(c.r, 89); assert.equal(c.pos, 'ФРВ'); assert.equal(c.nat, 'Италия'); assert.equal(c.rar, 'forgotten');
 assert.ok(c.positions.includes('ST'), 'ФРВ maps to striker position');
 assert.equal(c.club, '', 'series emblem is not a club');
-assert.equal(c.crestUrl, 'img/brand/forgotten-legends.svg');
+assert.equal(c.crestUrl, 'img/brand/fl-badge.svg');
 assert.ok(fs.existsSync(c.crestUrl) && fs.existsSync(c.faceUrl), 'emblem and portrait files exist');
 assert.equal(Cards.draw('forgotten'), null, 'not in random draws');
 for (let lv = 0; lv < 5; lv++) for (let i = 0; i < 40; i++) assert.ok(!Cards.packCards(lv).includes(KEY), 'never in packs');

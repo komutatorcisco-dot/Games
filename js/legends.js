@@ -158,7 +158,7 @@ const Legends = (() => {
     const c = Cards.get(ch.card), t = (st && st.tasks) || { matches: 0, wins: 0, italians: 0 }, got = st && st.claimed;
     const n = (t.matches >= 10 ? 1 : 0) + (t.wins >= 5 ? 1 : 0) + (t.italians ? 1 : 0);
     return `<div class="fx-card grp c-pl fl-card ${got ? 'done' : ''}" data-legend="${ID}" role="button" tabindex="0">
-      <div class="fx-h"><span class="fx-ico"><img class="gl-series" src="img/brand/forgotten-legends.svg" alt=""></span><b>${esc(ch.title)}</b></div>
+      <div class="fx-h"><span class="fx-ico"><img class="gl-series" src="img/brand/fl-badge.svg" alt=""></span><b>${esc(ch.title)}</b></div>
       <div class="fx-m"><div class="fx-l"><p>${esc(ch.desc)}</p><div class="fx-prog"><span class="fx-seg"><i class="${t.matches >= 10 ? 'on' : ''}"></i><i class="${t.wins >= 5 ? 'on' : ''}"></i><i class="${t.italians ? 'on' : ''}"></i></span><small>${n} из 3 заданий</small></div>
         <div class="fx-rw"><small>Награда</small><b>${esc(c.name)} · ${esc(Cards.RAR[c.rar].n)}</b></div></div>
         <div class="fx-art"><span class="fx-cardart">${Cards.html(c, { w: 104 })}</span>${got ? '<i class="fx-gok">✓</i>' : ''}</div></div>
