@@ -11,7 +11,7 @@ vm.runInContext('globalThis.T = { Cards, XDraft, XD: window.XD };', ctx);
 const { Cards, XDraft, XD } = ctx.T;
 const KEY = 'FL:mario-balotelli', c = Cards.get(KEY);
 assert.ok(c, 'card exists');
-assert.equal(c.name, 'Марио Балотелли'); assert.equal(c.r, 89); assert.equal(c.pos, 'ФРВ'); assert.equal(c.nat, 'Италия'); assert.equal(c.rar, 'forgotten');
+assert.equal(c.name, 'Марио Балотелли'); assert.equal(c.r, 95); assert.equal(c.pos, 'ФРВ'); assert.equal(c.nat, 'Италия'); assert.equal(c.rar, 'forgotten');
 assert.ok(c.positions.includes('ST'), 'ФРВ maps to striker position');
 assert.equal(c.club, '', 'series emblem is not a club');
 assert.equal(c.crestUrl, 'img/brand/fl-badge.svg');

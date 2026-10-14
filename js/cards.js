@@ -35,8 +35,8 @@ const Cards = (() => {
     const future = [{ key: 'FS:xavi-espart', name: 'Хави Эспарт', r: 91, pos: 'ЛЗ', club: 'Барселона', flag: '🇪🇸', nat: 'Испания', lg: 'Ла Лига', rar: 'future', sbcOnly: true, faceUrl: 'img/players/xavi-espart-future.webp', st: [93, 65, 86, 89, 90, 85] }];
     // «Забытые легенды»: только за испытание. Клуба нет — вместо эмблемы клуба эмблема серии (crestUrl),
     // поэтому серия не даёт химии «общий клуб». hero — как Heroes в FC: 3 химии на своей позиции, связь через сборную.
-    // Характеристики Балотелли — предложение под рейтинг 89 (в базе FC его нет), утверждаются вместе с карточкой.
-    const forgotten = [{ key: 'FL:mario-balotelli', name: 'Марио Балотелли', r: 89, pos: 'ФРВ', posFix: true, club: '', series: 'Забытые легенды', crestUrl: 'img/brand/fl-badge.svg', flag: '🇮🇹', nat: 'Италия', lg: '', rar: 'forgotten', sbcOnly: true, hero: true, challenge: 'fl:balotelli', walkout: 'balotelli', faceUrl: 'img/players/balotelli-forgotten.webp', st: [84, 90, 74, 83, 38, 88] }];
+    // Характеристики Балотелли — предложение под рейтинг 95 (в базе FC его нет), утверждаются вместе с карточкой.
+    const forgotten = [{ key: 'FL:mario-balotelli', name: 'Марио Балотелли', r: 95, pos: 'ФРВ', posFix: true, club: '', series: 'Забытые легенды', crestUrl: 'img/brand/fl-badge.svg', flag: '🇮🇹', nat: 'Италия', lg: '', rar: 'forgotten', sbcOnly: true, hero: true, challenge: 'fl:balotelli', walkout: 'balotelli', faceUrl: 'img/players/balotelli-face.webp', st: [90, 96, 80, 89, 42, 94] }];
     ALL = [...cur, ...legs, ...jack, ...future, ...forgotten];
     if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
       c.positions = PlayerPositions.get(c.name, c.pos);
