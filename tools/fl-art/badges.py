@@ -1,65 +1,75 @@
-import math, os, re
-OUT=os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','..','img','brand','fl-badges')
-def hx(r, cx=276, cy=256):
+import math, os, sys
+OUT=sys.argv[1] if len(sys.argv)>1 else os.path.dirname(os.path.abspath(__file__))
+def hx(r, cx=270, cy=256):
     return ' '.join(f'{cx+r*math.cos(math.radians(-90+60*i)):.1f},{cy+r*math.sin(math.radians(-90+60*i)):.1f}' for i in range(6))
 DEFS='''<defs>
-<linearGradient id="gl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4c6"/><stop offset=".35" stop-color="#f6c94f"/><stop offset=".7" stop-color="#e08a2a"/><stop offset="1" stop-color="#ffd27a"/></linearGradient>
-<linearGradient id="fr" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a8"/><stop offset=".5" stop-color="#d79a2c"/><stop offset="1" stop-color="#f6c94f"/></linearGradient>
-<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a1a8c"/><stop offset=".6" stop-color="#1d0e4a"/><stop offset="1" stop-color="#120830"/></linearGradient>
-<linearGradient id="tr" x1="1" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#ffe08a"/><stop offset=".6" stop-color="#e08a2a"/><stop offset="1" stop-color="#e08a2a" stop-opacity="0"/></linearGradient>
-<linearGradient id="tl" gradientUnits="userSpaceOnUse" x1="260" y1="0" x2="30" y2="0"><stop offset="0" stop-color="#ffe08a"/><stop offset=".6" stop-color="#e08a2a"/><stop offset="1" stop-color="#e08a2a" stop-opacity=".15"/></linearGradient>
-<clipPath id="in"><polygon points="''' + hx(176) + '''"/></clipPath>
+<linearGradient id="brass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3d58a"/><stop offset=".45" stop-color="#b8862f"/><stop offset=".55" stop-color="#8a5f1c"/><stop offset="1" stop-color="#e2b65a"/></linearGradient>
+<radialGradient id="deep" cx=".62" cy=".3" r=".85"><stop offset="0" stop-color="#1f5560"/><stop offset=".55" stop-color="#0d2c35"/><stop offset="1" stop-color="#050f14"/></radialGradient>
+<linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fc4ff"/><stop offset=".35" stop-color="#3f6fd0"/><stop offset=".75" stop-color="#1b3478"/><stop offset="1" stop-color="#4a7be0"/></linearGradient>
+<linearGradient id="copper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc59a"/><stop offset=".5" stop-color="#e0703a"/><stop offset="1" stop-color="#9c3d18"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0c0"/><stop offset=".45" stop-color="#e3b14d"/><stop offset=".8" stop-color="#9a6a1f"/><stop offset="1" stop-color="#d9a648"/></linearGradient>
+<linearGradient id="leather" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9b98a"/><stop offset=".5" stop-color="#b06a35"/><stop offset="1" stop-color="#5e3016"/></linearGradient>
+<linearGradient id="streak" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7fe0ff" stop-opacity="0"/><stop offset=".5" stop-color="#7fe0ff" stop-opacity=".22"/><stop offset="1" stop-color="#7fe0ff" stop-opacity="0"/></linearGradient>
+<filter id="bevel" x="-10%" y="-10%" width="120%" height="120%">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="b"/>
+ <feSpecularLighting in="b" surfaceScale="4" specularConstant="1" specularExponent="18" lighting-color="#fff6e0" result="s"><feDistantLight azimuth="225" elevation="40"/></feSpecularLighting>
+ <feComposite in="s" in2="SourceAlpha" operator="in" result="s2"/>
+ <feComposite in="SourceGraphic" in2="s2" operator="arithmetic" k2="1" k3=".75"/>
+</filter>
+<filter id="lift" x="-30%" y="-30%" width="160%" height="160%">
+ <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="b"/>
+ <feSpecularLighting in="b" surfaceScale="3" specularConstant=".9" specularExponent="24" lighting-color="#ffffff" result="s"><feDistantLight azimuth="235" elevation="50"/></feSpecularLighting>
+ <feComposite in="s" in2="SourceAlpha" operator="in" result="s2"/>
+ <feComposite in="SourceGraphic" in2="s2" operator="arithmetic" k2="1" k3=".6" result="lit"/>
+ <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="sh0"/><feOffset dx="6" dy="10" result="sh1"/>
+ <feFlood flood-color="#000" flood-opacity=".6"/><feComposite in2="sh1" operator="in" result="sh"/>
+ <feMerge><feMergeNode in="sh"/><feMergeNode in="lit"/></feMerge>
+</filter>
+<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
+<clipPath id="in"><polygon points="''' + hx(170) + '''"/></clipPath>
 </defs>'''
-def badge(glyph, back=''):
-    s=f'<polygon points="{hx(196)}" fill="url(#fr)"/><polygon points="{hx(186)}" fill="#0c0620"/><polygon points="{hx(176)}" fill="url(#bg)"/>'
-    s+=f'<g clip-path="url(#in)">{back}<rect x="60" y="330" width="440" height="16" fill="#ff4f8a" opacity=".85"/><rect x="60" y="352" width="440" height="6" fill="#ff4f8a" opacity=".5"/>'
-    s+=''.join(f'<line x1="{120+i*70}" y1="40" x2="{40+i*70}" y2="480" stroke="#8a5cff" stroke-opacity=".18" stroke-width="10"/>' for i in range(7))+'</g>'
-    s+=f'<polygon points="{hx(176)}" fill="none" stroke="#f6c94f" stroke-opacity=".5" stroke-width="3"/>'
-    return s+glyph
-def out(d, w=18): return f'<path d="{d}" fill="#0c0620" stroke="#0c0620" stroke-width="{w}" stroke-linejoin="round" stroke-linecap="round"/>'
-def save(n, body): open(os.path.join(OUT,n+'.svg'),'w').write(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">{DEFS}{body}</svg>')
-def star(cx,cy,R,r): return ' '.join(f'{cx+(R if i%2==0 else r)*math.cos(math.radians(-90+36*i)):.1f},{cy+(R if i%2==0 else r)*math.sin(math.radians(-90+36*i)):.1f}' for i in range(10))
+def frame(back=''):
+    s=f'<polygon points="{hx(198)}" fill="url(#brass)" filter="url(#bevel)"/>'
+    s+=f'<polygon points="{hx(186)}" fill="#07141a"/>'
+    s+=f'<polygon points="{hx(178)}" fill="url(#copper)" filter="url(#bevel)"/>'
+    s+=f'<polygon points="{hx(170)}" fill="url(#deep)"/>'
+    s+=f'<g clip-path="url(#in)">'
+    s+=''.join(f'<rect x="-40" y="{y}" width="640" height="{h}" fill="url(#streak)" transform="rotate(-62 270 256)"/>' for y,h in [(150,6),(210,22),(300,4),(340,12)])
+    s+=back
+    s+=f'<polygon points="{hx(170)}" fill="#fff" filter="url(#grain)"/>'
+    s+=f'<polygon points="{hx(170)}" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="18" style="filter:blur(6px)"/>'
+    s+='</g>'
+    return s
+def save(n, body):
+    open(os.path.join(OUT,n+'.svg'),'w').write(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">{DEFS}{body}</svg>')
+def star(cx,cy,R,r,rot=-90): return ' '.join(f'{cx+(R if i%2==0 else r)*math.cos(math.radians(rot+36*i)):.1f},{cy+(R if i%2==0 else r)*math.sin(math.radians(rot+36*i)):.1f}' for i in range(10))
 
-# 1 Крыло вырывается из рамки
-wing='M352 214 C300 150 170 132 28 178 C92 190 128 200 150 214 C92 218 58 236 30 262 C96 256 140 260 168 270 C120 284 92 302 70 328 C150 310 232 308 314 304 C362 292 378 250 352 214 Z'
-feath=''.join(f'<path d="{d}" fill="none" stroke="#a8561a" stroke-width="5" stroke-linecap="round" opacity=".7"/>' for d in ['M150 214 C210 210 270 214 330 226','M168 270 C220 262 280 262 336 268','M70 328 C120 312 200 304 300 300'])
-save('1-wing', badge(out(wing,22)+f'<path d="{wing}" fill="url(#gl)"/>'+feath+'<path d="M200 170 C250 168 300 180 340 205" stroke="#fff6d6" stroke-width="6" fill="none" stroke-linecap="round" opacity=".8"/>'))
-# 2 Комета-звезда
-trail='M300 196 L30 150 L44 186 L300 232 Z M300 236 L18 236 L34 262 L300 276 Z M300 280 L44 330 L64 352 L300 312 Z'
-st=star(322,256,86,36)
-save('2-comet', badge(out(trail,14)+f'<path d="{trail}" fill="url(#tr)"/>'+f'<polygon points="{st}" fill="#0c0620" stroke="#0c0620" stroke-width="22" stroke-linejoin="round"/><polygon points="{st}" fill="url(#gl)"/><polygon points="{star(322,256,40,17)}" fill="#fff6d6" opacity=".55"/>'))
-# 3 Мяч со шлейфом
-def pent(cx,cy,r,rot): return ' '.join(f'{cx+r*math.cos(math.radians(rot+72*i)):.1f},{cy+r*math.sin(math.radians(rot+72*i)):.1f}' for i in range(5))
-lines=''.join(f'<path d="M{250-k*4} {y} L{40+k*30} {y}" stroke="url(#tl)" stroke-width="{w}" stroke-linecap="round"/>' for k,(y,w) in enumerate([(200,16),(240,22),(282,18),(318,12)]))
-ballg=f'<circle cx="324" cy="258" r="88" fill="#0c0620"/><circle cx="324" cy="258" r="76" fill="url(#gl)"/><polygon points="{pent(324,258,26,-90)}" fill="#2a1466"/>'
-for i in range(5):
-    a=math.radians(-90+36+i*72); ballg+=f'<polygon points="{pent(324+62*math.cos(a),258+62*math.sin(a),20,math.degrees(a)+180)}" fill="#2a1466"/>'
-ballg+='<path d="M282 216 C300 196 330 190 350 196" stroke="#fff6d6" stroke-width="8" fill="none" stroke-linecap="round" opacity=".7"/>'
-save('3-ball', badge(re.sub(r'stroke-width="(\d+)"', lambda m: 'stroke-width="%d"' % (int(m.group(1))+14), lines.replace('url(#tl)','#0c0620'))+lines+ballg))
-# 4 Лавровая ветвь: дуга из правого низа, вырывается влево-вверх
-def bez(t,p0,p1,p2):
-    return ((1-t)**2*p0[0]+2*(1-t)*t*p1[0]+t*t*p2[0], (1-t)**2*p0[1]+2*(1-t)*t*p1[1]+t*t*p2[1])
-P0,P1,P2=(372,368),(300,150),(36,128)
-stem=f'M{P0[0]} {P0[1]} Q{P1[0]} {P1[1]} {P2[0]} {P2[1]}'
-dark=''; gold=''
-N=7
-for k in range(N):
-    t=0.08+k*0.86/(N-1)
-    x,y=bez(t,P0,P1,P2); x2,y2=bez(t+0.01,P0,P1,P2)
-    ang=math.degrees(math.atan2(y2-y,x2-x)); sz=1.0-0.35*t
-    for sgn in (-1,1):
-        a2=ang+sgn*42
-        rx,ry=46*sz,17*sz
-        cx=x+math.cos(math.radians(a2))*rx; cy=y+math.sin(math.radians(a2))*rx
-        leaf=f'cx="{cx:.0f}" cy="{cy:.0f}" rx="{rx:.0f}" ry="{ry:.0f}" transform="rotate({a2:.0f} {cx:.0f} {cy:.0f})"'
-        dark+=f'<ellipse {leaf} fill="#0c0620" stroke="#0c0620" stroke-width="14"/>'
-        gold+=f'<ellipse {leaf} fill="url(#gl)"/>'
-tip=bez(1,P0,P1,P2)
-save('4-laurel', badge(f'<path d="{stem}" stroke="#0c0620" stroke-width="24" fill="none" stroke-linecap="round"/>'+dark+f'<path d="{stem}" stroke="#d79a2c" stroke-width="10" fill="none" stroke-linecap="round"/>'+gold))
-# 5 Корона с искрой, слегка наклонена и выходит за рамку
-crown='M120 330 L96 190 L176 250 L230 140 L284 250 L364 190 L340 330 Z'
-save('5-crown', badge(f'<g transform="rotate(-14 230 250) translate(-20 0)">{out(crown,24)}<path d="{crown}" fill="url(#gl)"/><rect x="118" y="300" width="224" height="30" fill="#e08a2a" stroke="#0c0620" stroke-width="8"/>'
-  + ''.join(f'<circle cx="{x}" cy="{y}" r="16" fill="url(#gl)" stroke="#0c0620" stroke-width="7"/>' for x,y in [(96,184),(230,132),(364,184)])
-  + '<polygon points="230,210 244,240 230,270 216,240" fill="#ff4f8a" stroke="#0c0620" stroke-width="6"/></g>'
-  + f'<polygon points="{star(420,150,30,10)}" fill="#fff6d6"/>'))
+# 1. Бутса вырывается влево (как на референсе)
+upper='M58 292 C36 288 30 266 52 254 C96 230 156 222 204 206 C236 198 256 190 276 184 C310 192 340 190 372 176 C390 200 398 240 392 280 L390 292 Z'
+sole='M48 290 L392 288 L392 306 C300 318 140 318 62 312 C44 310 38 298 48 290 Z'
+studs=''.join(f'<rect x="{x}" y="310" width="20" height="14" rx="3" fill="url(#copper)"/>' for x in (92,150,250,330))
+laces=''.join(f'<path d="M{x} {y} l34 -6" stroke="#dce9ff" stroke-width="6" stroke-linecap="round" opacity=".85"/>' for x,y in [(190,214),(214,206),(238,198)])
+swoosh='<path d="M120 270 C200 262 290 250 380 212 L384 236 C300 268 200 282 120 270 Z" fill="url(#copper)"/>'
+boot=f'<g filter="url(#lift)"><path d="{upper}" fill="url(#steel)"/><path d="{sole}" fill="url(#copper)"/>{swoosh}{laces}{studs}<path d="M282 190 C316 198 344 196 370 184" stroke="#d6e6ff" stroke-width="5" opacity=".6" fill="none"/></g>'
+save('A-boot', frame()+boot)
+
+# 2. Старый кожаный мяч со шнуровкой, вылетает влево со шлейфом
+trail=''.join(f'<path d="M300 {y-h} L{x} {y} L300 {y+h} Z" fill="url(#copper)" opacity="{o}"/>' for y,x,h,o in [(212,60,10,.75),(256,20,16,1),(300,64,10,.75)])
+ball='<g filter="url(#lift)"><circle cx="316" cy="256" r="92" fill="url(#leather)"/>'
+# классический мяч из панелей: кривые швы
+ball+='<g stroke="#4a2410" stroke-width="5" fill="none" opacity=".8"><path d="M316 164 C290 210 290 300 316 348"/><path d="M316 164 C342 210 342 300 316 348"/><path d="M226 236 C262 222 370 222 406 236"/><path d="M226 278 C262 292 370 292 406 278"/></g>'
+ball+=''.join(f'<path d="M{308} {220+k*12} l16 0" stroke="#f3dcc0" stroke-width="5" stroke-linecap="round"/>' for k in range(4))
+ball+='<ellipse cx="282" cy="210" rx="30" ry="16" fill="#fff" opacity=".18" transform="rotate(-30 282 210)"/></g>'
+save('B-ball', frame()+f'<g filter="url(#lift)">{trail}</g>'+ball)
+
+# 3. Звезда с трещиной, залитой золотом (кинцуги: «забытые, но не сломанные»)
+st=star(280,262,128,54,-90+8)
+crack='M210 150 L246 206 L232 236 L276 270 L262 304 L300 350'
+save('C-star', frame()+f'<g filter="url(#lift)"><polygon points="{st}" fill="url(#steel)"/><path d="{crack}" stroke="#0a1a3a" stroke-width="12" fill="none" stroke-linejoin="round"/><path d="{crack}" stroke="url(#gold)" stroke-width="6" fill="none" stroke-linejoin="round"/></g>')
+
+# 4. Монограмма «ЗЛ» с засечками, гравировка
+mono=('<text x="270" y="318" text-anchor="middle" font-family="Playfair Display, Georgia, serif" font-weight="900" font-size="190" letter-spacing="-6" fill="url(#gold)" filter="url(#lift)">ЗЛ</text>'
+      '<path d="M150 344 L390 344" stroke="url(#copper)" stroke-width="5" filter="url(#lift)"/>'
+      '<path d="M150 182 L390 182" stroke="url(#copper)" stroke-width="5" filter="url(#lift)"/>')
+save('D-mono', frame()+mono)
 print('ok')
