@@ -10,6 +10,15 @@ const fmt = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 const dbs = await (await fetch(`https://api.cloudflare.com/client/v4/accounts/${acc}/d1/database`, { headers: H })).json();
 if (!dbs.success) console.log('Список баз недоступен (права токена?):', JSON.stringify(dbs.errors));
 else dbs.result.forEach((d) => console.log(`База: ${d.name} · таблиц: ${d.num_tables ?? '?'} · размер: ${d.file_size ? Math.round(d.file_size / 1024) + ' КБ' : '?'}`));
+// индексы в настоящей базе (только чтение sqlite_master) — проверка миграции после выкладки
+if (dbs.success) for (const d of dbs.result) {
+  const r = await (await fetch(`https://api.cloudflare.com/client/v4/accounts/${acc}/d1/database/${d.uuid}/query`, { method: 'POST', headers: H,
+    body: JSON.stringify({ sql: "SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%' ORDER BY tbl_name, name" }) })).json();
+  if (!r.success) { console.log('Индексы недоступны (права токена?):', JSON.stringify(r.errors).slice(0, 200)); continue; }
+  const list = r.result[0].results.map((x) => x.name);
+  const want = ['rmsg_rsi', 'mmg_wait', 'ustats_top', 'event_batches_ts', 'cchat_uid', 'croom_club', 'rooms_created'], gone = ['rmsg_room', 'rmsg_ts', 'mmg_ts'];
+  console.log(`Индексы ${d.name}: нужные ${want.map((n) => (list.includes(n) ? '✓' : '✗') + n).join(' ')} · удалённые ${gone.map((n) => (list.includes(n) ? '✗ ещё есть ' : '✓ нет ') + n).join(', ')}`);
+}
 
 const hourly = await gql(`query($acc: String!, $s: Date!, $e: Date!) { viewer { accounts(filter: { accountTag: $acc }) {
   d1AnalyticsAdaptiveGroups(limit: 2000, filter: { date_geq: $s, date_leq: $e }, orderBy: [datetimeHour_ASC]) {

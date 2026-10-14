@@ -237,7 +237,7 @@ async function saveScore(env, user, body) {
 }
 
 // кеш таблиц: в памяти воркера и в settings (между копиями воркера), живёт 90 секунд
-const BOARD_TTL = 90e3, boardMem = {};
+const BOARD_TTL = 300e3, boardMem = {}; // рейтинги пересчитываются раз в 5 минут (своё место — по готовому списку очков)
 async function boardCache(db, key, build) {
   const now = Date.now(), m = boardMem[key];
   if (m && now - m.ts < BOARD_TTL) return m;
@@ -456,10 +456,15 @@ async function report(env, user, body) {
 }
 
 // Статистика для админа: игроки, активность по дням, игры за 7 дней, ошибки
-let statsMem = null; // статистика админки: не чаще раза в 5 минут
+let statsMem = null; // статистика админки: не чаще раза в 5 минут на всех (кеш в памяти и в settings для других копий воркера)
 async function stats(env) {
-  if (statsMem && Date.now() - statsMem.ts < 5 * 6e4) return statsMem.v;
-  const v = await statsRaw(env); statsMem = { ts: Date.now(), v }; return v;
+  const now = Date.now();
+  if (statsMem && now - statsMem.ts < 5 * 6e4) return statsMem.v;
+  await schema(env.DB);
+  try { const c = JSON.parse((await getSetting(env.DB, 'stats:cache')) || 'null'); if (c && now - c.ts < 5 * 6e4) { statsMem = c; return c.v; } } catch (e) { /* пересчитаем */ }
+  const v = await statsRaw(env); statsMem = { ts: now, v };
+  await setSetting(env.DB, 'stats:cache', JSON.stringify(statsMem));
+  return v;
 }
 async function statsRaw(env) {
   const db = env.DB, now = Date.now();
@@ -478,9 +483,11 @@ async function statsRaw(env) {
   const wau = (await one('SELECT COUNT(DISTINCT id) AS n FROM visits WHERE day >= ?', days[0])).n || 0;
   const games = await all(`SELECT game, (SELECT title FROM names n WHERE n.game = e.game) AS title,
       SUM(CASE WHEN kind = 'open' THEN n END) AS opens, SUM(CASE WHEN kind = 'end' THEN n END) AS ends, SUM(CASE WHEN kind = 'win' THEN n END) AS wins,
-      (SELECT COUNT(DISTINCT u.id) FROM evu u WHERE u.game = e.game AND u.day >= ?1) AS players,
       CAST(SUM(CASE WHEN kind = 'end' THEN ms END) / MAX(1, SUM(CASE WHEN kind = 'end' THEN n END)) AS INTEGER) AS avgms
     FROM evd e WHERE day >= ?1 GROUP BY game ORDER BY opens DESC LIMIT 40`, days[0]);
+  // игроки по играм — одним проходом по визитам за 7 дней (подзапрос на каждую игру перечитывал их ~40 раз: ~345 тыс. строк)
+  const pl = new Map((await all('SELECT game, COUNT(DISTINCT id) AS n FROM evu WHERE day >= ? GROUP BY game', days[0])).map((r) => [r.game, r.n]));
+  games.forEach((g) => { g.players = pl.get(g.game) || 0; });
   const topXp = await all('SELECT nick, emoji, xp FROM users ORDER BY xp DESC LIMIT 5');
   const reports = await all('SELECT ts, nick, text, info FROM reports ORDER BY ts DESC LIMIT 15');
   const platforms = await all('SELECT platform, COUNT(*) AS n FROM seen GROUP BY platform ORDER BY n DESC LIMIT 6');
@@ -631,8 +638,7 @@ export default {
           .then(() => env.DB.prepare('DELETE FROM event_batches WHERE ts < ?').bind(Date.now() - 7 * 86400000).run()),
         // онлайн-комнаты: раз в час удаляем старые (по индексам, без перебора всей таблицы)
         env.DB.prepare('DELETE FROM mmg WHERE ts < ?').bind(Date.now() - 600000).run(), // очередь поиска: брошенные строки
-        env.DB.prepare('DELETE FROM rmsg WHERE room IN (SELECT room FROM rooms WHERE created < ?)').bind(Date.now() - ROOM_TTL).run()
-          .then(() => env.DB.prepare('DELETE FROM rooms WHERE created < ?').bind(Date.now() - ROOM_TTL).run()),
+        cleanRelay(env.DB),
       ];
       const results = await Promise.allSettled(jobs);
       const failed = [];
@@ -1070,8 +1076,9 @@ async function matchmake(env, user, body) {
   const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   if (code.length !== 5) return { ok: false, error: 'bad code' };
   // меня уже нашли — второй игрок подключается по моему коду, просто ждём
-  const me = await db.prepare('SELECT paired FROM mmg WHERE id = ?').bind(uid).first();
-  if (me && me.paired) return { ok: true, role: 'host', paired: true };
+  const me = await db.prepare('SELECT paired, ts FROM mmg WHERE id = ?').bind(uid).first();
+  // свежая отметка «соперник найден» — ждём его; старая (>30 с, соперник не пришёл) — ищем заново, строку перезапишет INSERT ниже
+  if (me && me.paired && now - me.ts < 30000) return { ok: true, role: 'host', paired: true };
   // кто-то ещё ждёт в этом режиме: подключаемся к тому, кто ждёт дольше
   const other = await db.prepare('SELECT id, code, nick, emo FROM mmg WHERE game = ? AND paired IS NULL AND id != ? ORDER BY ts ASC LIMIT 1').bind(game, uid).first();
   if (other) {
@@ -1094,6 +1101,18 @@ async function matchmake(env, user, body) {
 // запрос ждёт до ~8 с, пока не придут новые сообщения или не изменится состав комнаты. Соперник пропал — нет опросов 25 с.
 const ROOM_TTL = 2 * 3600e3, ROOM_GONE = 25000; // опрос держит запрос до 8 с, проверяя новые сообщения раз в 0,9 с
 const roomId = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 40);
+// Уборка онлайна раз в час без перебора таблиц. Сообщения — по «водяному знаку»: запоминаем MAX(id) каждый час;
+// всё, что не новее знака двухчасовой давности, старше любой живой комнаты (комната живёт ROOM_TTL) — удаляем диапазоном
+// по первичному ключу. Так уходят и «осиротевшие» сообщения без строки в rooms. Комнаты — по индексу rooms_created.
+async function cleanRelay(db, now = Date.now()) {
+  let marks = []; try { marks = JSON.parse((await getSetting(db, 'rmsg:marks')) || '[]'); } catch (e) { marks = []; }
+  const top = await db.prepare('SELECT MAX(id) AS id FROM rmsg').first();
+  const old = marks.filter((m) => m.t <= now - ROOM_TTL).pop();
+  if (old) await db.prepare('DELETE FROM rmsg WHERE id <= ?').bind(old.id).run();
+  marks = marks.filter((m) => m.t > now - ROOM_TTL).concat(top && top.id ? [{ t: now, id: top.id }] : []).slice(-6);
+  await setSetting(db, 'rmsg:marks', JSON.stringify(marks));
+  await db.prepare('DELETE FROM rooms WHERE created < ?').bind(now - ROOM_TTL).run();
+}
 async function relay(env, user, body) {
   const db = env.DB, uid = Number(user.id), now = Date.now();
   await schema(db);
