@@ -1,7 +1,7 @@
 const { chromium } = require('playwright'); const fs = require('fs');
 (async () => {
   const dir = process.argv[2], files0 = fs.readdirSync(dir).filter((f) => f.endsWith('.svg')).sort();
-  const names = { '01-black-gold': '1. Чёрное золото', '02-enamel': '2. Эмаль', '03-neon': '3. Неон', '04-vintage': '4. Винтаж', '05-holo': '5. Голограмма', '05a-holo-gold': '5a. Золото', '05b-holo-violet': '5b. Фиолет', '05c-holo-ice': '5c. Лёд', '05d-holo-emerald': '5d. Изумруд', '05e-holo-ruby': '5e. Рубин', '05f-holo-black': '5f. Чёрный', '06-bauhaus': '6. Баухаус', '07-glass': '7. Стекло', '08-split': '8. Сплит', '09-patch': '9. Нашивка', '10-deco': '10. Ар-деко' };
+  const names = { '01-black-gold': '1. Чёрное золото', '02-enamel': '2. Эмаль', '03-neon': '3. Неон', '04-vintage': '4. Винтаж', '05-holo': '5. Голограмма', '05a-holo-gold': '5a. Золото', '05b-holo-violet': '5b. Фиолет', '05c-holo-ice': '5c. Лёд', '05d-holo-emerald': '5d. Изумруд', '05e-holo-ruby': '5e. Рубин', '05f-holo-black': '5f. Чёрный', '06-bauhaus': '6. Баухаус', '07-glass': '7. Стекло', '08-split': '8. Сплит', '09-patch': '9. Нашивка', '10-deco': '10. Ар-деко', '11-legend-ruby': 'Рубин', '11a-legend-ruby-gold': 'Рубин, золотая рамка', '11b-legend-ruby-dark': 'Рубин темнее' };
   const only = process.argv[3] ? new RegExp(process.argv[3]) : null;
   const files = only ? files0.filter((f) => only.test(f)) : files0;
   const out = process.argv[4] || '_sheet.png';

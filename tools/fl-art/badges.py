@@ -125,6 +125,33 @@ for name, (hc, sc, star_c) in HOLO.items():
      + ''.join(glyph('sparkle', sz, '#ffffff', cx=x, cy=y) for x, y, sz in [(150,140,40),(370,150,30),(380,340,44),(138,350,26)])
      + glyph('star', 60, 'url(#hl)', cy=262))
 
+# 11. Рубиновая голограмма с силуэтом легенды (силуэт нарисован по референсу пользователя)
+SIL = "M318 140 Q324 156 326 170 Q327 176 323 180 Q330 192 340 204 Q336 210 327 212 Q331 218 330 221 Q326 224 325 227 Q330 232 327 237 Q324 246 320 252 Q312 260 302 262 Q300 274 304 286 Q340 292 370 306 Q392 320 402 372 L414 470 L104 470 L114 372 Q116 322 146 302 Q184 284 226 280 Q222 276 214 284 Q206 268 218 256 Q200 262 186 272 Q186 246 206 228 Q190 232 178 240 Q180 210 202 190 Q190 190 182 194 Q190 160 214 140 Q228 116 256 108 Q282 98 312 102 Q334 106 350 114 Q340 118 334 122 Q342 128 344 138 Q332 134 318 140 Z"
+RIM = "M214 140 Q228 116 256 108 Q282 98 312 102 Q334 106 350 114 Q340 118 334 122 Q342 128 344 138 Q332 134 318 140 Q324 156 326 170 Q327 176 323 180 Q330 192 340 204 Q336 210 327 212 Q331 218 330 221 Q326 224 325 227 Q330 232 327 237 Q324 246 320 252"
+LOCKS = "M232 130 Q262 116 300 114 M222 160 Q240 140 270 132 M214 196 Q226 170 250 158"
+def legend(name, hc, sc, sil_c, rim):
+    stops = ''.join(f'<stop offset="{i/5:.2f}" stop-color="{c}"/>' for i, c in enumerate(hc))
+    k, tx, ty = 1, 0, 14
+    sil = f'<g transform="translate({tx} {ty}) scale({k})"><clipPath id="sc"><path d="{SIL}"/></clipPath><path d="{SIL}" fill="{sil_c}"/><path d="{RIM}" fill="none" stroke="{rim}" stroke-width="3.5" stroke-linecap="round"/><path d="{LOCKS}" fill="none" stroke="{rim}" stroke-width="2.5" stroke-linecap="round" opacity=".55"/></g>'
+    ring = lambda op: f'<ellipse cx="256" cy="252" rx="150" ry="36" transform="rotate(-14 256 252)" fill="none" stroke="url(#sv)" stroke-width="9" opacity="{op}"/>'
+    save(name,
+     f'<linearGradient id="hl" x1="0" y1="0" x2="1" y2="1">{stops}</linearGradient>'
+     f'<linearGradient id="sv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{sc[0]}"/><stop offset=".5" stop-color="{sc[1]}"/><stop offset="1" stop-color="{sc[2]}"/></linearGradient>'
+     '<linearGradient id="sh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+     '<pattern id="ln" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="10" height="2" fill="#fff" opacity=".22"/></pattern>'
+     '<clipPath id="top"><rect x="0" y="0" width="512" height="246"/></clipPath><clipPath id="bot"><rect x="0" y="246" width="512" height="266"/></clipPath>',
+     f'<polygon points="{hx(224)}" fill="url(#sv)"/><polygon points="{hx(206)}" fill="url(#hl)"/>'
+     f'<g clip-path="url(#h)"><rect width="512" height="512" fill="url(#ln)"/>'
+     + ''.join(f'<circle cx="{C}" cy="{C}" r="{r}" fill="none" stroke="#fff" stroke-width="1.5" opacity=".35"/>' for r in (150, 170, 190))
+     + '<rect x="-100" y="150" width="700" height="60" fill="url(#sh)" transform="rotate(-35 256 256)"/>'
+     + f'<g clip-path="url(#top)">{ring(.9)}</g>' + sil + f'<g clip-path="url(#bot)">{ring(1)}</g>'
+     + '<rect x="-100" y="250" width="700" height="20" fill="url(#sh)" transform="rotate(-35 256 256)" opacity=".6"/></g>'
+     f'<polygon points="{hx(194)}" fill="none" stroke="#ffffff" stroke-width="2" opacity=".8"/>'
+     + ''.join(glyph('sparkle', sz, '#ffffff', cx=x, cy=y) for x, y, sz in [(130,170,36),(392,140,28),(396,330,40)]))
+legend('11-legend-ruby', HOLO['05e-holo-ruby'][0], HOLO['05e-holo-ruby'][1], '#3a0612', '#ffe0a0')
+legend('11a-legend-ruby-gold', HOLO['05e-holo-ruby'][0], ['#fff6d6','#b8862f','#f3d58a'], '#3a0612', '#ffd27a')
+legend('11b-legend-ruby-dark', ['#ff6b8b','#c2183f','#ff9a76','#8f0f30','#ff8aa3','#d81b50'], ['#fff0f3','#a8475b','#f6c9d3'], '#1a0208', '#ffd0da')
+
 # 6. Баухаус
 save('06-bauhaus', '',
  f'<polygon points="{hx(224)}" fill="#111"/><polygon points="{hx(210)}" fill="#f2ead8"/>'
