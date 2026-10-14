@@ -1,0 +1,27 @@
+# Расход Cloudflare D1 (Rows Read / Rows Written) по часам и самые дорогие запросы. Только чтение статистики.
+# Запуск вручную: Actions → «Расход D1» → Run workflow. Можно указать дни истории и окно для топа запросов.
+name: Расход D1
+
+on:
+  workflow_dispatch:
+    inputs:
+      days: { description: 'Сколько дней истории', default: '3' }
+      top_hours: { description: 'Окно для топа запросов, часов', default: '6' }
+  push:
+    branches: ['claude/telegram-channel-games-kj1xly']
+    paths: ['tools/d1-usage.mjs', '.github/workflows/d1-usage.yml']
+
+jobs:
+  usage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - name: Статистика D1
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          DAYS: ${{ github.event.inputs.days || '3' }}
+          TOP_HOURS: ${{ github.event.inputs.top_hours || '6' }}
+        run: node tools/d1-usage.mjs
