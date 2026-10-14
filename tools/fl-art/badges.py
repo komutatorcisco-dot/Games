@@ -1,75 +1,102 @@
-import math, os, sys
-OUT=sys.argv[1] if len(sys.argv)>1 else os.path.dirname(os.path.abspath(__file__))
-def hx(r, cx=270, cy=256):
-    return ' '.join(f'{cx+r*math.cos(math.radians(-90+60*i)):.1f},{cy+r*math.sin(math.radians(-90+60*i)):.1f}' for i in range(6))
-DEFS='''<defs>
-<linearGradient id="brass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3d58a"/><stop offset=".45" stop-color="#b8862f"/><stop offset=".55" stop-color="#8a5f1c"/><stop offset="1" stop-color="#e2b65a"/></linearGradient>
-<radialGradient id="deep" cx=".62" cy=".3" r=".85"><stop offset="0" stop-color="#1f5560"/><stop offset=".55" stop-color="#0d2c35"/><stop offset="1" stop-color="#050f14"/></radialGradient>
-<linearGradient id="steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fc4ff"/><stop offset=".35" stop-color="#3f6fd0"/><stop offset=".75" stop-color="#1b3478"/><stop offset="1" stop-color="#4a7be0"/></linearGradient>
-<linearGradient id="copper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffc59a"/><stop offset=".5" stop-color="#e0703a"/><stop offset="1" stop-color="#9c3d18"/></linearGradient>
-<linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0c0"/><stop offset=".45" stop-color="#e3b14d"/><stop offset=".8" stop-color="#9a6a1f"/><stop offset="1" stop-color="#d9a648"/></linearGradient>
-<linearGradient id="leather" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e9b98a"/><stop offset=".5" stop-color="#b06a35"/><stop offset="1" stop-color="#5e3016"/></linearGradient>
-<linearGradient id="streak" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7fe0ff" stop-opacity="0"/><stop offset=".5" stop-color="#7fe0ff" stop-opacity=".22"/><stop offset="1" stop-color="#7fe0ff" stop-opacity="0"/></linearGradient>
-<filter id="bevel" x="-10%" y="-10%" width="120%" height="120%">
- <feGaussianBlur in="SourceAlpha" stdDeviation="3" result="b"/>
- <feSpecularLighting in="b" surfaceScale="4" specularConstant="1" specularExponent="18" lighting-color="#fff6e0" result="s"><feDistantLight azimuth="225" elevation="40"/></feSpecularLighting>
- <feComposite in="s" in2="SourceAlpha" operator="in" result="s2"/>
- <feComposite in="SourceGraphic" in2="s2" operator="arithmetic" k2="1" k3=".75"/>
-</filter>
-<filter id="lift" x="-30%" y="-30%" width="160%" height="160%">
- <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="b"/>
- <feSpecularLighting in="b" surfaceScale="3" specularConstant=".9" specularExponent="24" lighting-color="#ffffff" result="s"><feDistantLight azimuth="235" elevation="50"/></feSpecularLighting>
- <feComposite in="s" in2="SourceAlpha" operator="in" result="s2"/>
- <feComposite in="SourceGraphic" in2="s2" operator="arithmetic" k2="1" k3=".6" result="lit"/>
- <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="sh0"/><feOffset dx="6" dy="10" result="sh1"/>
- <feFlood flood-color="#000" flood-opacity=".6"/><feComposite in2="sh1" operator="in" result="sh"/>
- <feMerge><feMergeNode in="sh"/><feMergeNode in="lit"/></feMerge>
-</filter>
-<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>
-<clipPath id="in"><polygon points="''' + hx(170) + '''"/></clipPath>
-</defs>'''
-def frame(back=''):
-    s=f'<polygon points="{hx(198)}" fill="url(#brass)" filter="url(#bevel)"/>'
-    s+=f'<polygon points="{hx(186)}" fill="#07141a"/>'
-    s+=f'<polygon points="{hx(178)}" fill="url(#copper)" filter="url(#bevel)"/>'
-    s+=f'<polygon points="{hx(170)}" fill="url(#deep)"/>'
-    s+=f'<g clip-path="url(#in)">'
-    s+=''.join(f'<rect x="-40" y="{y}" width="640" height="{h}" fill="url(#streak)" transform="rotate(-62 270 256)"/>' for y,h in [(150,6),(210,22),(300,4),(340,12)])
-    s+=back
-    s+=f'<polygon points="{hx(170)}" fill="#fff" filter="url(#grain)"/>'
-    s+=f'<polygon points="{hx(170)}" fill="none" stroke="#000" stroke-opacity=".55" stroke-width="18" style="filter:blur(6px)"/>'
-    s+='</g>'
-    return s
-def save(n, body):
-    open(os.path.join(OUT,n+'.svg'),'w').write(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">{DEFS}{body}</svg>')
-def star(cx,cy,R,r,rot=-90): return ' '.join(f'{cx+(R if i%2==0 else r)*math.cos(math.radians(rot+36*i)):.1f},{cy+(R if i%2==0 else r)*math.sin(math.radians(rot+36*i)):.1f}' for i in range(10))
+# 10 значков серии «Забытые легенды»: один тип (шестиугольник + знак), разные стили.
+# Запуск: python3 tools/fl-art/badges.py img/brand/fl-badges <путь к node_modules/@phosphor-icons/core/assets> (npm i @phosphor-icons/core@2.1.1)
+# Знаки — из набора Phosphor Icons (MIT), чтобы линии были ровные.
+import math, os, re, sys
+OUT = sys.argv[1]; ICONS = sys.argv[2]
+C = 256
+def hx(r, cx=C, cy=C, rot=-90):
+    return ' '.join(f'{cx+r*math.cos(math.radians(rot+60*i)):.2f},{cy+r*math.sin(math.radians(rot+60*i)):.2f}' for i in range(6))
+def icon(name, weight='fill'):
+    fn = f'{name}-{weight}.svg' if weight != 'regular' else f'{name}.svg'
+    s = open(os.path.join(ICONS, weight, fn)).read()
+    return re.search(r'<svg[^>]*>(.*)</svg>', s, re.S).group(1)
+def glyph(name, size, fill, weight='fill', cx=C, cy=C, extra=''):
+    k = size / 256
+    return f'<g transform="translate({cx-size/2:.1f} {cy-size/2:.1f}) scale({k:.4f})" fill="{fill}" {extra}>{icon(name, weight)}</g>'
+def save(n, defs, body, bg=None):
+    open(os.path.join(OUT, n + '.svg'), 'w').write(f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><defs>{defs}<clipPath id="h"><polygon points="{hx(200)}"/></clipPath></defs>{body}</svg>')
 
-# 1. Бутса вырывается влево (как на референсе)
-upper='M58 292 C36 288 30 266 52 254 C96 230 156 222 204 206 C236 198 256 190 276 184 C310 192 340 190 372 176 C390 200 398 240 392 280 L390 292 Z'
-sole='M48 290 L392 288 L392 306 C300 318 140 318 62 312 C44 310 38 298 48 290 Z'
-studs=''.join(f'<rect x="{x}" y="310" width="20" height="14" rx="3" fill="url(#copper)"/>' for x in (92,150,250,330))
-laces=''.join(f'<path d="M{x} {y} l34 -6" stroke="#dce9ff" stroke-width="6" stroke-linecap="round" opacity=".85"/>' for x,y in [(190,214),(214,206),(238,198)])
-swoosh='<path d="M120 270 C200 262 290 250 380 212 L384 236 C300 268 200 282 120 270 Z" fill="url(#copper)"/>'
-boot=f'<g filter="url(#lift)"><path d="{upper}" fill="url(#steel)"/><path d="{sole}" fill="url(#copper)"/>{swoosh}{laces}{studs}<path d="M282 190 C316 198 344 196 370 184" stroke="#d6e6ff" stroke-width="5" opacity=".6" fill="none"/></g>'
-save('A-boot', frame()+boot)
+# 1. Чёрное золото: матовый чёрный, тонкая двойная золотая линия
+save('01-black-gold',
+ '<linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7e3a3"/><stop offset=".5" stop-color="#c99a3e"/><stop offset="1" stop-color="#8f6420"/></linearGradient>'
+ '<radialGradient id="b" cx=".5" cy=".3" r=".8"><stop offset="0" stop-color="#2a2a2e"/><stop offset="1" stop-color="#0b0b0d"/></radialGradient>',
+ f'<polygon points="{hx(222)}" fill="url(#g)"/><polygon points="{hx(214)}" fill="url(#b)"/>'
+ f'<polygon points="{hx(196)}" fill="none" stroke="url(#g)" stroke-width="3"/>'
+ + glyph('shooting-star', 230, 'url(#g)'))
 
-# 2. Старый кожаный мяч со шнуровкой, вылетает влево со шлейфом
-trail=''.join(f'<path d="M300 {y-h} L{x} {y} L300 {y+h} Z" fill="url(#copper)" opacity="{o}"/>' for y,x,h,o in [(212,60,10,.75),(256,20,16,1),(300,64,10,.75)])
-ball='<g filter="url(#lift)"><circle cx="316" cy="256" r="92" fill="url(#leather)"/>'
-# классический мяч из панелей: кривые швы
-ball+='<g stroke="#4a2410" stroke-width="5" fill="none" opacity=".8"><path d="M316 164 C290 210 290 300 316 348"/><path d="M316 164 C342 210 342 300 316 348"/><path d="M226 236 C262 222 370 222 406 236"/><path d="M226 278 C262 292 370 292 406 278"/></g>'
-ball+=''.join(f'<path d="M{308} {220+k*12} l16 0" stroke="#f3dcc0" stroke-width="5" stroke-linecap="round"/>' for k in range(4))
-ball+='<ellipse cx="282" cy="210" rx="30" ry="16" fill="#fff" opacity=".18" transform="rotate(-30 282 210)"/></g>'
-save('B-ball', frame()+f'<g filter="url(#lift)">{trail}</g>'+ball)
+# 2. Эмалевый значок: серебряный кант, эмаль двух цветов, белый знак
+save('02-enamel',
+ '<linearGradient id="s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#a9b0bb"/><stop offset="1" stop-color="#e7eaee"/></linearGradient>',
+ f'<polygon points="{hx(224)}" fill="url(#s)"/><polygon points="{hx(200)}" fill="#1a2a6c"/>'
+ f'<g clip-path="url(#h)"><rect x="0" y="300" width="512" height="212" fill="#c8102e"/><rect x="0" y="292" width="512" height="10" fill="url(#s)"/></g>'
+ f'<polygon points="{hx(200)}" fill="none" stroke="#0c1440" stroke-opacity=".35" stroke-width="6"/>'
+ + glyph('crown-simple', 200, '#0c1440', cy=212+4, cx=C+4) + glyph('crown-simple', 200, '#ffffff', cy=212)
+ + '<rect x="196" y="350" width="120" height="10" rx="5" fill="#fff"/><rect x="226" y="372" width="60" height="10" rx="5" fill="#fff" opacity=".7"/>')
 
-# 3. Звезда с трещиной, залитой золотом (кинцуги: «забытые, но не сломанные»)
-st=star(280,262,128,54,-90+8)
-crack='M210 150 L246 206 L232 236 L276 270 L262 304 L300 350'
-save('C-star', frame()+f'<g filter="url(#lift)"><polygon points="{st}" fill="url(#steel)"/><path d="{crack}" stroke="#0a1a3a" stroke-width="12" fill="none" stroke-linejoin="round"/><path d="{crack}" stroke="url(#gold)" stroke-width="6" fill="none" stroke-linejoin="round"/></g>')
+# 3. Неон: тёмный фон, светящийся контур и знак
+glow = '<filter id="n" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9" result="a"/><feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/><feMerge><feMergeNode in="a"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+save('03-neon', glow,
+ f'<polygon points="{hx(222)}" fill="#0a0716"/>'
+ f'<polygon points="{hx(196)}" fill="none" stroke="#ff3ea5" stroke-width="7" stroke-linejoin="round" filter="url(#n)"/>'
+ + glyph('soccer-ball', 210, '#5ef2ff', 'regular', extra='filter="url(#n)"'))
 
-# 4. Монограмма «ЗЛ» с засечками, гравировка
-mono=('<text x="270" y="318" text-anchor="middle" font-family="Playfair Display, Georgia, serif" font-weight="900" font-size="190" letter-spacing="-6" fill="url(#gold)" filter="url(#lift)">ЗЛ</text>'
-      '<path d="M150 344 L390 344" stroke="url(#copper)" stroke-width="5" filter="url(#lift)"/>'
-      '<path d="M150 182 L390 182" stroke="url(#copper)" stroke-width="5" filter="url(#lift)"/>')
-save('D-mono', frame()+mono)
+# 4. Винтажная печать: бумага, красные чернила, растровые точки
+save('04-vintage',
+ '<pattern id="dots" width="12" height="12" patternUnits="userSpaceOnUse" patternTransform="rotate(30)"><circle cx="6" cy="6" r="2.4" fill="#b3261e" opacity=".28"/></pattern>'
+ '<filter id="p"><feTurbulence type="fractalNoise" baseFrequency=".8" numOctaves="3" seed="7"/><feColorMatrix values="0 0 0 0 .3  0 0 0 0 .2  0 0 0 0 .1  0 0 0 .12 0"/><feComposite in2="SourceGraphic" operator="in"/></filter>',
+ f'<polygon points="{hx(224)}" fill="#efe3c8"/><polygon points="{hx(224)}" fill="#fff" filter="url(#p)"/>'
+ f'<polygon points="{hx(208)}" fill="none" stroke="#b3261e" stroke-width="10"/><polygon points="{hx(190)}" fill="none" stroke="#b3261e" stroke-width="3"/>'
+ f'<polygon points="{hx(176)}" fill="url(#dots)"/>'
+ + glyph('hourglass-simple', 200, '#b3261e', cy=C))
+
+# 5. Голографическая фольга
+save('05-holo',
+ '<linearGradient id="hl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9ad5"/><stop offset=".2" stop-color="#ffe29a"/><stop offset=".4" stop-color="#9affc8"/><stop offset=".6" stop-color="#8ad8ff"/><stop offset=".8" stop-color="#c49aff"/><stop offset="1" stop-color="#ff9ad5"/></linearGradient>'
+ '<linearGradient id="sv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#9ca3b0"/><stop offset="1" stop-color="#eef0f4"/></linearGradient>'
+ '<linearGradient id="sh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>',
+ f'<polygon points="{hx(224)}" fill="url(#sv)"/><polygon points="{hx(206)}" fill="url(#hl)"/>'
+ f'<g clip-path="url(#h)"><rect x="-100" y="150" width="700" height="60" fill="url(#sh)" transform="rotate(-35 256 256)"/></g>'
+ + glyph('star', 220, '#1d1a3a'))
+
+# 6. Баухаус: цветные геометрические блоки
+save('06-bauhaus', '',
+ f'<polygon points="{hx(224)}" fill="#111"/><polygon points="{hx(210)}" fill="#f2ead8"/>'
+ f'<g clip-path="url(#h)"><rect x="0" y="0" width="256" height="256" fill="#e63b2e"/><circle cx="352" cy="352" r="150" fill="#1f4bb5"/><rect x="256" y="40" width="200" height="40" fill="#f5c400"/></g>'
+ + glyph('star-four', 200, '#111'))
+
+# 7. Матовое стекло на цветном фоне
+save('07-glass',
+ '<filter id="bl" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="34"/></filter>'
+ '<linearGradient id="gw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity=".15"/></linearGradient>',
+ f'<polygon points="{hx(222)}" fill="#1b1033"/>'
+ f'<g clip-path="url(#h)"><g filter="url(#bl)"><circle cx="150" cy="170" r="120" fill="#ff5a8a"/><circle cx="370" cy="330" r="130" fill="#6b4dff"/><circle cx="330" cy="140" r="80" fill="#ffb347"/></g></g>'
+ f'<polygon points="{hx(200)}" fill="none" stroke="url(#gw)" stroke-width="5"/>'
+ + glyph('flame', 210, '#ffffff', extra='fill-opacity=".92"'))
+
+# 8. Диагональный сплит: цвета меняются местами по линии
+split = 'M0 512 L512 0 L512 512 Z'
+save('08-split',
+ f'<clipPath id="lo"><path d="{split}"/></clipPath><clipPath id="up"><path d="M0 0 L512 0 L0 512 Z"/></clipPath>',
+ f'<polygon points="{hx(224)}" fill="#f2b84b"/>'
+ f'<g clip-path="url(#h)"><rect width="512" height="512" fill="#2b1466"/><path d="{split}" fill="#f2b84b"/></g>'
+ f'<g clip-path="url(#up)">{glyph("lightning", 230, "#f2b84b")}</g><g clip-path="url(#lo)">{glyph("lightning", 230, "#2b1466")}</g>'
+ f'<polygon points="{hx(200)}" fill="none" stroke="#2b1466" stroke-width="6"/>')
+
+# 9. Вышитая нашивка: ткань, строчка по краю
+save('09-patch',
+ '<pattern id="tw" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#14365a"/><rect width="4" height="8" fill="#183e66"/></pattern>'
+ '<filter id="em" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="4" stdDeviation="2" flood-opacity=".5"/></filter>',
+ f'<polygon points="{hx(226)}" fill="#e9c46a" filter="url(#em)"/><polygon points="{hx(212)}" fill="none" stroke="#9c7a2a" stroke-width="3" stroke-dasharray="10 7"/>'
+ f'<polygon points="{hx(198)}" fill="url(#tw)"/><polygon points="{hx(186)}" fill="none" stroke="#e9c46a" stroke-width="3" stroke-dasharray="12 8" opacity=".8"/>'
+ + glyph('trophy', 200, '#e9c46a', extra='filter="url(#em)"'))
+
+# 10. Ар-деко: тёмно-синий, золотые лучи, корона
+rays = ''.join(f'<line x1="256" y1="256" x2="{256+400*math.cos(math.radians(a)):.1f}" y2="{256+400*math.sin(math.radians(a)):.1f}" stroke="#d9b45a" stroke-width="{3 if i%2 else 1.5}" opacity="{.5 if i%2 else .3}"/>' for i,a in enumerate(range(0,360,10)))
+save('10-deco',
+ '<linearGradient id="dg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6e2a6"/><stop offset=".5" stop-color="#d1a548"/><stop offset="1" stop-color="#a77a26"/></linearGradient>',
+ f'<polygon points="{hx(224)}" fill="url(#dg)"/><polygon points="{hx(216)}" fill="#0c1a33"/>'
+ f'<g clip-path="url(#h)">{rays}<circle cx="256" cy="256" r="118" fill="#0c1a33"/></g>'
+ f'<polygon points="{hx(200)}" fill="none" stroke="url(#dg)" stroke-width="2"/>'
+ f'<circle cx="256" cy="256" r="118" fill="none" stroke="url(#dg)" stroke-width="4"/><circle cx="256" cy="256" r="106" fill="none" stroke="url(#dg)" stroke-width="1.5"/>'
+ + glyph('crown', 150, 'url(#dg)'))
 print('ok')
