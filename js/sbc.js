@@ -184,11 +184,12 @@ const SBC = (() => {
   const fitsOnly = (ch, c) => { const o = ch.req.find((r) => r.t === 'only'); return !o || o.in.includes(c.rar); };
 
   // ---------- автосбор: самые «дешёвые» карточки, сначала повторы ----------
-  const avail = () => Cards.all().filter((c) => !c.sbcOnly && Cards.spare(c.key) > 0);
+  const expendable = k => typeof Social !== 'undefined' ? Social.available(k) : Cards.spare(k);
+  const avail = () => Cards.all().filter((c) => !c.sbcOnly && expendable(c.key) > 0);
   const clubCount = () => avail().reduce((s, c) => s + Cards.spare(c.key), 0);
   // P — свой набор карточек (для расчёта экономики): { cards, spare(key) }
   function autofill(ch, keep = [], P = null) {
-    const spare = P ? P.spare : Cards.spare;
+    const spare = P ? P.spare : expendable;
     // «цена» карточки по редкости: 84-е золото в паках встречается так же редко, как легенда, — тратим его неохотно
     const cost = (c) => {
       const base = c.rar === 'bronze' ? c.r - 62 : c.rar === 'silver' ? c.r - 60 : c.rar === 'gold' ? 18 + 3 * Math.pow(1.55, c.r - 78) : c.rar === 'legend' ? 110 + 3 * Math.pow(1.35, c.r - 80) : 400 + c.r;
@@ -197,7 +198,7 @@ const SBC = (() => {
     const exact = (sq) => { const rs = sq.map((c) => c.r), n = rs.length, sum = rs.reduce((a, b) => a + b, 0), avg = sum / n; return (sum + rs.reduce((s, r) => s + Math.max(0, r - avg), 0)) / n; };
     const only = ch.req.find((r) => r.t === 'only');
     let rest = (P ? P.cards : avail()).filter((c) => !only || only.in.includes(c.rar)).sort((a, b) => cost(a) - cost(b));
-    const sq = keep.filter(Boolean).map((k) => Cards.get(k)).filter((c) => c && (!only || only.in.includes(c.rar)));
+    const sq = keep.filter(Boolean).map((k) => Cards.get(k)).filter((c) => c && spare(c.key) > 0 && (!only || only.in.includes(c.rar)));
     rest = rest.filter((c) => !sq.some((x) => x.key === c.key));
     const take = (c) => { if (!c || sq.length >= ch.n) return false; sq.push(c); rest.splice(rest.indexOf(c), 1); return true; };
     for (const r of ch.req) {
@@ -485,6 +486,7 @@ const SBC = (() => {
   // ---------- отправка ----------
   function send() {
     const ch = find(view.id), sq = cur.sq.map((k) => k && Cards.get(k));
+    if (cur.sq.some(k => k && expendable(k) < 1)) return toast('Последняя избранная копия защищена. Сначала сними сердечко в галерее.');
     if (!allOk(ch, sq) || closed(ch)) return;
     const special = sq.filter((c) => c && (c.rar === 'legend' || c.rar === 'jack')).length;
     const last = sq.filter((c) => c && Cards.spare(c.key) === 1).length;
@@ -496,12 +498,22 @@ const SBC = (() => {
       { label: 'Отмена', cls: 'ghost' },
     ]);
   }
-  function submit(ch) {
+  let submitting = false;
+  async function submit(ch) {
+    if (submitting) return;
+    submitting = true;
+    try {
+      if (typeof Social !== 'undefined' && !await Social.beforeSpend()) return;
+      submitChecked(ch);
+    } finally { submitting = false; }
+  }
+  function submitChecked(ch) {
     if (!cur || cur.submitted || cur.id !== ch.id || closed(ch) || (ch.ends && ch.ends <= Date.now())) return;
     const keys = cur.sq.filter(Boolean);
+    if (keys.some(k => expendable(k) < 1)) return toast('Состав содержит защищённую или уже сданную карточку. Выбери замену.');
     if (new Set(keys).size !== ch.n || !allOk(ch, keys.map(Cards.get)) || keys.some((k) => !Cards.spare(k) || Cards.get(k).sbcOnly)) return;
+    if (!Cards.use(keys)) return;
     cur.submitted = true;
-    Cards.use(keys);
     S().done[ch.id] = doneN(ch.id) + 1; Store.save();
     const groupRes = claimGroup(ch.parent);
     // Выдаём до анимации: закрытие приложения не должно терять награду.

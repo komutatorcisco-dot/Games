@@ -19,6 +19,93 @@ const ORIGIN = 'https://komutatorcisco-dot.github.io';
 const CHANNEL = '@oldjacksons'; // канал «Старики Джексоны»: играть могут только подписчики
 const TOP = 50;
 
+// Independent social preferences; public showcase stays closed until ownership is authoritative.
+const socialReady = new WeakMap();
+async function socialSchema(db) {
+  if (!socialReady.has(db)) socialReady.set(db, db.prepare(`CREATE TABLE IF NOT EXISTS social_profiles (
+    uid INTEGER PRIMARY KEY, handle TEXT NOT NULL UNIQUE, revision INTEGER NOT NULL DEFAULT 0,
+    data TEXT NOT NULL DEFAULT '{"favorites":{},"showcase":[null,null,null],"public":false}')`).run().catch(e => { socialReady.delete(db); throw e; }));
+  return socialReady.get(db);
+}
+const socialOn = env => env.SOCIAL_ENABLED !== '0';
+const socialHandleCache = new WeakMap();
+const socialKey = k => typeof k === 'string' && k.length > 0 && k.length <= 120 && !['__proto__', 'constructor', 'prototype'].includes(k) && !/[\x00-\x1f]/.test(k);
+function socialEdit(data, op) {
+  const d = JSON.parse(JSON.stringify(data));
+  if (!op || typeof op !== 'object') throw Error('bad operation');
+  if (op.type === 'favorite' && socialKey(op.key) && typeof op.value === 'boolean') {
+    if (op.value) d.favorites[op.key] = true; else delete d.favorites[op.key];
+    if (Object.keys(d.favorites).length > 5000) throw Error('too many favorites');
+  } else if (op.type === 'showcase' && Array.isArray(op.keys) && op.keys.length === 3 && op.keys.every(k => k === null || socialKey(k)) && new Set(op.keys.filter(Boolean)).size === op.keys.filter(Boolean).length) {
+    // Private preferences only, NOT proof that these cards are owned.
+    d.showcase = op.keys.slice();
+  } else if (op.type === 'privacy' && typeof op.value === 'boolean') d.public = op.value;
+  else throw Error('bad operation');
+  return d;
+}
+async function socialHandles(env, ids) {
+  if (!socialOn(env) || !ids.length) return {};
+  await socialSchema(env.DB);
+  const keys = [...new Set(ids)].filter(Number.isSafeInteger);
+  if (!keys.length) return {};
+  let cache = socialHandleCache.get(env.DB);
+  if (!cache) { cache = new Map(); socialHandleCache.set(env.DB, cache); }
+  const now = Date.now(), missing = keys.filter(k => !cache.has(k) || cache.get(k).until <= now);
+  // Immutable handles only. Never cache profile privacy or card ownership.
+  for (let i = 0; i < missing.length; i += 90) {
+    const batch = missing.slice(i, i + 90);
+    const rows = (await env.DB.prepare(`SELECT uid, handle FROM social_profiles WHERE uid IN (${batch.map(() => '?').join(',')})`).bind(...batch).all()).results;
+    const found = new Map(rows.map(r => [r.uid, r.handle]));
+    for (const k of batch) cache.set(k, { handle: found.get(k) || null, until: now + 60000 });
+  }
+  const result = Object.fromEntries(keys.filter(k => cache.get(k)?.handle).map(k => [k, cache.get(k).handle]));
+  while (cache.size > 512) cache.delete(cache.keys().next().value);
+  return result;
+}
+async function social(env, user, body) {
+  if (!socialOn(env)) return { ok: false, disabled: true };
+  const db = env.DB; await schema(db); await socialSchema(db);
+  if (body.act === 'profile') {
+    if (!/^[a-f0-9]{32}$/.test(body.handle || '')) return { ok: false, error: 'unavailable' };
+    const row = await db.prepare('SELECT uid, data FROM social_profiles WHERE handle = ?').bind(body.handle).first();
+    if (!row) return { ok: false, error: 'unavailable' };
+    if (!JSON.parse(row.data).public) return { ok: true, private: true };
+    const u = await db.prepare('SELECT nick, emoji, xp FROM users WHERE id = ?').bind(row.uid).first();
+    const t = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(row.uid).first();
+    const d = await db.prepare('SELECT COUNT(*) AS n FROM daily WHERE id = ? AND won = 1').bind(row.uid).first();
+    const xp = Math.max(0, Number(u && u.xp) || 0);
+    const thresholds = [0, 60, 180, 400, 800, 1400, 2400, 4000];
+    // Existing profile statistics are server-stored but retain legacy client-result trust limitations.
+    // No saves/cards.own lookup: all public cards stay hidden until canonical ownership is integrated.
+    return { ok: true, private: false, nick: String(u && u.nick || 'Игрок').slice(0, 32), emoji: String(u && u.emoji || '⚽').slice(0, 16),
+      level: thresholds.filter(n => xp >= n).length, trophies: Math.max(0, Math.min(11000, Number(t && t.trophies) || 0)),
+      achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase: [], showcaseEnabled: false };
+  }
+  if (!['self', 'edit'].includes(body.act)) return { ok: false, error: 'bad operation' };
+  let row = await db.prepare('SELECT handle, revision, data FROM social_profiles WHERE uid = ?').bind(user.id).first();
+  if (!row) {
+    const handle = crypto.randomUUID().replace(/-/g, '');
+    await db.prepare('INSERT OR IGNORE INTO social_profiles(uid, handle) VALUES (?, ?)').bind(user.id, handle).run();
+    row = await db.prepare('SELECT handle, revision, data FROM social_profiles WHERE uid = ?').bind(user.id).first();
+  }
+  let conflict = false;
+  if (body.act === 'edit') {
+    if (!Number.isSafeInteger(body.revision) || body.revision < 0) return { ok: false, error: 'bad revision' };
+    let data; try {
+      const ops = body.ops === undefined ? [body.op] : body.ops;
+      if (!Array.isArray(ops) || !ops.length || ops.length > 100) throw Error('bad batch');
+      data = ops.reduce(socialEdit, JSON.parse(row.data));
+    } catch (_) { return { ok: false, error: 'bad operation' }; }
+    conflict = row.revision !== body.revision;
+    if (!conflict && JSON.stringify(data) !== row.data) {
+      const result = await db.prepare('UPDATE social_profiles SET data = ?, revision = revision + 1 WHERE uid = ? AND revision = ?').bind(JSON.stringify(data), user.id, body.revision).run();
+      conflict = result.meta.changes !== 1;
+      row = await db.prepare('SELECT handle, revision, data FROM social_profiles WHERE uid = ?').bind(user.id).first();
+    }
+  }
+  return { ok: !conflict, conflict, handle: row.handle, revision: row.revision, ...JSON.parse(row.data), showcaseEnabled: false };
+}
+
 const tg = (env, method, body) => fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
 }).then((r) => r.json());
@@ -336,7 +423,8 @@ async function top(env, user, scope, game = '') {
     await board('all', `SELECT id, nick, emoji, xp AS score FROM users WHERE xp > 0 ORDER BY xp DESC, updated ASC LIMIT ${TOP}`,
       'SELECT xp AS s FROM users WHERE xp > 0 ORDER BY xp DESC LIMIT 20000', 'SELECT xp AS s FROM users WHERE id = ?', [], [id]);
   }
-  return { rows: rows.map((r) => ({ nick: r.nick, emoji: r.emoji, score: r.score, me: r.id === id })), me, total, weekEnd: weekEnd(now) };
+  const profiles = scope === 'clubs' ? {} : await socialHandles(env, rows.map(r => r.id));
+  return { rows: rows.map((r) => ({ nick: r.nick, emoji: r.emoji, score: r.score, me: r.id === id, ...(profiles[r.id] ? { profile: profiles[r.id] } : {}) })), me, total, weekEnd: weekEnd(now) };
 }
 
 // ---------- статистика, ошибки, админ ----------
@@ -752,7 +840,7 @@ async function clubPlaces(db, wk, final) {
   await setSetting(db, key, JSON.stringify({ ts: now, final: !!final, list }));
   return list;
 }
-async function clubInfo(db, uid, ackGifts = false) {
+async function clubInfo(db, uid, ackGifts = false, socialEnv = {}) {
   const m = await db.prepare('SELECT club FROM cmembers WHERE id = ?').bind(uid).first();
   if (!m) return { club: null };
   const c = await db.prepare('SELECT id, code, name, emoji, owner FROM clubs WHERE id = ?').bind(m.club).first();
@@ -778,12 +866,13 @@ async function clubInfo(db, uid, ackGifts = false) {
   const place = cur.findIndex((x) => x[0] === c.id) + 1, pi = prev.findIndex((x) => x[0] === c.id);
   const role = (x) => (x.id === c.owner ? 3 : Math.min(2, x.role));
   const me = members.find((x) => x.id === uid);
+  const profiles = await socialHandles(socialEnv, members.map(x => x.id).concat(chat.map(h => h.uid)));
   return { club: { code: c.code, name: c.name, emoji: c.emoji || '⚽', descr: info.descr || '', mintro: info.mintro || 0, week: wk, prevWeek: weekKey(now - 7 * 864e5), wins, goal: clubGoal(members.length), max: CLUB_MAX,
     myRole: me ? role(me) : 0, me: uid, trophies: members.reduce((a, x) => a + x.trophies, 0),
     league: { place, clubs: Math.max(cur.length, place), prevPlace: pi >= 0 && prev[pi][1] > 0 ? pi + 1 : 0 },
     nextReq: myReq ? Math.max(0, myReq.ts + REQ_EVERY - now) : 0,
-    members: members.map((x) => ({ uid: x.id, nick: x.nick || 'Игрок', emoji: x.emoji || '⚽', trophies: x.trophies, wins: x.wins, role: role(x), don: x.don, seen: x.seen || 0, me: x.id === uid })),
-    chat: chat.map((h) => ({ id: h.id, uid: h.uid, ts: h.ts, kind: h.kind, text: h.text || '', meta: h.meta ? JSON.parse(h.meta) : null, nick: h.nick || 'Игрок', emoji: h.emoji || '⚽', me: h.uid === uid })),
+    members: members.map((x) => ({ profile: profiles[x.id], uid: x.id, nick: x.nick || 'Игрок', emoji: x.emoji || '⚽', trophies: x.trophies, wins: x.wins, role: role(x), don: x.don, seen: x.seen || 0, me: x.id === uid })),
+    chat: chat.map((h) => ({ id: h.id, uid: h.uid, ts: h.ts, kind: h.kind, text: h.text || '', meta: h.meta ? JSON.parse(h.meta) : null, profile: profiles[h.uid], nick: h.nick || 'Игрок', emoji: h.emoji || '⚽', me: h.uid === uid })),
     reqs: reqs.map((r) => ({ id: r.id, uid: r.uid, card: r.card, rar: r.rar, need: r.need, got: r.got, ts: r.ts, me: r.uid === uid })),
     battles, gifts: gifts.map((g) => ({ id: g.id, card: g.card, from: g.frm || 'Соклубник' })) } };
 }
@@ -857,7 +946,8 @@ async function club(env, user, body) {
     const reqs = (await db.prepare('SELECT id, uid, card, rar, need, got, ts FROM creq WHERE club = ? AND ts > ? AND got < need').bind(m.club, now - 24 * 3600e3).all()).results;
     const battles = (await db.prepare('SELECT game, code, uid FROM croom WHERE club = ? AND ts > ?').bind(m.club, now - 45000).all()).results;
     const gifts = (await db.prepare('SELECT id, card, frm FROM cgift WHERE uid = ? AND done = 0 LIMIT 40').bind(uid).all()).results;
-    return { ok: true, poll: true, battles, gifts: gifts.map(g => ({ id:g.id, card:g.card, from:g.frm })), chat: chat.map((h) => ({ id: h.id, uid: h.uid, ts: h.ts, kind: h.kind, text: h.text || '', meta: h.meta ? JSON.parse(h.meta) : null, nick: h.nick || 'Игрок', emoji: h.emoji || '⚽', me: h.uid === uid })),
+    const profiles = await socialHandles(env, chat.map(h => h.uid));
+    return { ok: true, poll: true, battles, gifts: gifts.map(g => ({ id:g.id, card:g.card, from:g.frm })), chat: chat.map((h) => ({ id: h.id, uid: h.uid, ts: h.ts, kind: h.kind, text: h.text || '', meta: h.meta ? JSON.parse(h.meta) : null, profile: profiles[h.uid], nick: h.nick || 'Игрок', emoji: h.emoji || '⚽', me: h.uid === uid })),
       reqs: reqs.map((r) => ({ id: r.id, uid: r.uid, card: r.card, rar: r.rar, need: r.need, got: r.got, ts: r.ts, me: r.uid === uid })) };
   } else if (body.act !== 'get') {
     const m = await mine(); if (!m) return err('Ты не в клубе');
@@ -927,7 +1017,7 @@ async function club(env, user, body) {
       await say(m.club, 'sys', 'Настройки клуба обновлены');
     } else return err('unknown');
   }
-  return { ok: true, ...(await clubInfo(db, uid, body.giftProtocol === 1)) };
+  return { ok: true, ...(await clubInfo(db, uid, body.giftProtocol === 1, env)) };
 }
 
 // ---------- активность онлайн и число игроков по режимам ----------
@@ -1139,6 +1229,7 @@ async function relay(env, user, body) {
   }
   const side = r.host === uid ? 0 : r.guest === uid ? 1 : -1;
   if (side < 0) return { ok: false, error: 'not in room' };
+  if (act === 'profile') { const profiles = await socialHandles(env, [side ? r.host : r.guest]); return { ok: true, profile: profiles[side ? r.host : r.guest] || null }; }
   const seenCol = side ? 'seen1' : 'seen0';
   if (act === 'leave') {
     await db.prepare('UPDATE rooms SET closed = ? WHERE room = ?').bind(now, room).run();
@@ -1257,7 +1348,7 @@ async function route(request, env) {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     return json(await onlinePresence(env, null, { act: 'counts' }));
   }
-  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room'].includes(url.pathname) && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room', '/social'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
@@ -1273,6 +1364,7 @@ async function route(request, env) {
     if (url.pathname === '/tour') return json(await draftTour(env, user, body));
     if (url.pathname === '/legend') return json(await legends(env, user, body));
     if (url.pathname === '/room') return json(await relay(env, user, body));
+    if (url.pathname === '/social') return json(await social(env, user, body));
     if (url.pathname === '/save') return json(await saveData(env, user, body));
     if (url.pathname === '/load') return json(await loadData(env, user));
     if (url.pathname === '/admin/stats') {

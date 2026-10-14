@@ -119,7 +119,7 @@ const Clubs = (() => {
       const reqOf = (h) => c.reqs.find((r) => h.meta && (h.meta.requestId ? r.id === h.meta.requestId : r.uid === h.uid && r.card === h.meta.card && Math.abs(r.ts - h.ts) < 5000));
       const msg = (h) => {
         if (h.kind === 'sys') return `<div class="kb-sys">${esc(h.text)}</div>`;
-        const who = `<span class="kb-who">${esc(h.emoji)} ${esc(h.nick)} <small>${ago(h.ts)}</small></span>`;
+        const who = `<span class="kb-who" ${h.profile ? `data-profile="${esc(h.profile)}" role="button" tabindex="0"` : ''}>${esc(h.emoji)} ${esc(h.nick)} <small>${ago(h.ts)}</small></span>`;
         if (h.kind === 'req') {
           const r = reqOf(h), card = Cards.get(h.meta.card); if (!card) return '';
           const need = r ? r.need : NEED[h.meta.rar] || 1, got = r ? r.got : 0, sp = Cards.spare(card.key);
@@ -155,7 +155,7 @@ const Clubs = (() => {
       const mine = c.myRole;
       b.innerHTML = `<div class="kb-sum"><span><b>${c.wins}</b><small>побед за неделю</small></span><span><b>${c.members.reduce((a, m) => a + m.don, 0)}</b><small>карточек подарено</small></span><span><b>${c.league.place || '—'}</b><small>место в лиге</small></span></div>
         <div class="kb-list">${c.members.map((m, i) => `<button class="kb-m ${m.me ? 'me' : ''}" data-mem="${m.uid}"><b class="kb-n">${i + 1}</b><span class="kb-me">${esc(m.emoji)}</span>
-          <span class="kb-mi"><em>${esc(m.nick)}</em><small class="r${m.role}">${ROLE[m.role]}</small><small class="kb-seen">${m.me ? 'это ты' : seenTxt(m.seen)}</small></span>
+          <span class="kb-mi"><em ${m.profile ? `data-profile="${esc(m.profile)}" role="button" tabindex="0"` : ''}>${esc(m.nick)}</em><small class="r${m.role}">${ROLE[m.role]}</small><small class="kb-seen">${m.me ? 'это ты' : seenTxt(m.seen)}</small></span>
           <span class="kb-ms"><b>${m.trophies} ${Ui.get('trophy')}</b><small>${m.wins} побед · ${m.don} подарено</small></span></button>`).join('')}</div>
         <button class="btn gold kb-wide" data-cl="invite">${Ui.get('send')} Позвать в клуб</button>
         <p class="kb-note">${mine >= 1 ? 'Нажми на игрока, чтобы повысить, понизить или исключить.' : 'Капитаны и выше могут исключать игроков, вице-президенты — повышать.'}</p>

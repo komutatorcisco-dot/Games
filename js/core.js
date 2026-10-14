@@ -171,7 +171,7 @@ const Cloud = (() => {
     if (busy) { again = true; return; }
     busy = true;
     try {
-      const str = JSON.stringify(Store.d), n = Math.ceil(str.length / CHUNK);
+      const str = JSON.stringify(Store.d, (k, v) => k === 'social' ? undefined : v), n = Math.ceil(str.length / CHUNK);
       await Promise.all(Array.from({ length: n }, (_, i) => call('setItem', 's' + i, str.slice(i * CHUNK, (i + 1) * CHUNK))));
       await call('setItem', 'sn', String(n));
       await call('setItem', 'st', String(Store.d.ts || 0));
@@ -182,10 +182,10 @@ const Cloud = (() => {
   let srvLast = '';
   function pushSrv(beacon) {
     if (!srvOn()) return;
-    const data = JSON.stringify(Store.d, (k, v) => (k === 'ts' || k === 'ui' ? undefined : v)); // без отметок времени и настроек экрана
+    const data = JSON.stringify(Store.d, (k, v) => (k === 'ts' || k === 'ui' || k === 'social' ? undefined : v)); // social uses a separate versioned endpoint
     if (data === srvLast) return; // не изменилось — не пишем в базу
     srvLast = data;
-    const body = JSON.stringify({ initData: TG.initData, data: JSON.stringify(Store.d) });
+    const body = JSON.stringify({ initData: TG.initData, data: JSON.stringify(Store.d, (k, v) => k === 'social' ? undefined : v) });
     try {
       if (beacon && navigator.sendBeacon && navigator.sendBeacon((CONFIG.api || CONFIG.donateApi) + '/save', body)) return;
       fetch((CONFIG.api || CONFIG.donateApi) + '/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body, keepalive: body.length < 60000 }).catch(() => {});
@@ -222,7 +222,8 @@ const Cloud = (() => {
       [a, b].forEach((x) => { if (x && typeof x === 'object' && better(x, best || Store.d)) best = x; });
       if (best) {
         const ts = best.ts;
-        Store.d = Store.merge(best); Store.d.ts = ts;
+        const social = Store.d.social;
+        Store.d = Store.merge(best); Store.d.ts = ts; Store.d.social = social;
         try { localStorage.setItem(Store.KEY, JSON.stringify(Store.d)); } catch (e) { /* без локальной копии */ }
         got = true;
       }

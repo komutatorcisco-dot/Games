@@ -1,0 +1,26 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><base href="/"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jackson — социальные функции, локальный прототип</title>
+<link rel="stylesheet" href="../css/style.css"><link rel="stylesheet" href="../css/future.css"><link rel="stylesheet" href="../css/forgotten.css"><link rel="stylesheet" href="../css/social.css">
+<style>body{margin:0;background:#0f141f;color:#fff;font-family:system-ui,sans-serif}main{max-width:430px;margin:auto;padding:16px}h1{font-size:26px}.preview-tag{font-size:12px;letter-spacing:.1em;color:#ffcf3a}.preview-header{display:flex;align-items:center;gap:12px;margin-top:14px}.preview-header i{font-size:38px;font-style:normal}.preview-header p{margin:0;color:#a6afc1}.gallery{margin-top:24px}.gl-tools{flex-wrap:wrap}.gl-q{width:100%}#modal{position:fixed;inset:0;background:#000b;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}#modal[hidden]{display:none}#modal-card{max-width:400px;width:100%;max-height:90vh;overflow:auto;background:#1b2436;border-radius:22px;padding:18px}#modal-actions{display:flex;gap:10px;margin-top:12px}#preview-toast{position:fixed;bottom:15px;left:15px;right:15px;background:#31425c;border-radius:12px;padding:10px;z-index:200}#preview-toast:empty{display:none}.cl-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.cl-cell .cc{--w:min(102px,27vw)!important}</style>
+</head><body><main><span class="preview-tag">ПРОТОТИП · ТЕСТОВАЯ КОЛЛЕКЦИЯ</span><header class="preview-header"><i>⚽</i><div><h1>Старик Джексон</h1><p>Звезда · 5 950 трофеев</p></div></header><section id="social-profile"></section><section class="gallery" id="preview-gallery"></section></main><div id="modal" hidden><div id="modal-card"></div></div><div id="preview-toast" role="status"></div>
+<script>
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+const Store={d:{},save(){}}; const Ui={get:()=>''}, Sound={play(){}}, Board={ready:()=>false};
+const Release={weekKey:()=> '2026-10-12'}, Day={key:()=> '2026-10-14'};
+const toast=s=>document.getElementById('preview-toast').textContent=s;
+document.addEventListener('load',e=>{if(e.target.matches?.('.cc-face'))e.target.classList.add('ok')},true);
+const Modal={open(html,actions=[]){$('#modal').hidden=false;$('#modal-card').innerHTML=html+'<div id="modal-actions"></div>';actions.forEach(a=>{const b=document.createElement('button');b.className='btn '+(a.cls||'');b.textContent=a.label;b.onclick=()=>{if(a.onClick)a.onClick();else Modal.close()};$('#modal-actions').append(b)})},close(){$('#modal').hidden=true}};
+</script>
+<script src="../js/players.js"></script><script src="../js/media.js"></script><script src="../js/data/fcstats.js"></script><script src="../js/data/fcpos.js"></script><script src="../js/positions.js"></script><script src="../js/data/cards.js"></script><script src="../js/cards.js"></script><script src="../js/social.js"></script>
+<script>
+const demo=Cards.all().filter(c=>!c.sbcOnly).slice(0,18); const special=['FS:xavi-espart','FL:mario-balotelli'].map(Cards.get).filter(Boolean);
+Store.d.cards={own:Object.fromEntries([...demo,...special].map(c=>[c.key,2])),used:{},fresh:[]};
+const featured=[special[1]||demo[0],special[0]||demo[1],demo[2]];
+Store.d.social={favorites:Object.fromEntries(featured.map(c=>[c.key,true])),showcase:featured.map(c=>c.key),pending:[],public:false};
+// Use real local face assets for the demo, including the model-rendered Balotelli portrait.
+for(const c of special)if(c.faceUrl)c.faceUrl='../'+c.faceUrl;
+Social.render(); Cards.onClick({target:{closest:s=>s==='[data-glmine]'?{}:null}});
+function gallery(){$('#preview-gallery').innerHTML=Cards.album()};gallery();
+$('#preview-gallery').addEventListener('click',e=>{if(Cards.onClick(e))gallery()});
+$('#preview-gallery').addEventListener('input',e=>Cards.onInput(e));
+</script></body></html>

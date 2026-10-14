@@ -1,0 +1,23 @@
+/* Controls surround existing cards; their artwork and aspect ratio are unchanged. */
+.cl-cell { position: relative;display:flex;flex-direction:column;align-items:center; }
+.social-heart { order:2;flex-shrink:0;margin:6px 0 0;width:44px;height:36px;border:1px solid #ffffff35;border-radius:14px;background:#151b2bea;color:#fff;font-size:20px; }
+.social-heart.on { color:#ff668c;background:#401a32; }
+.social-slots { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:16px 0; }
+.social-slot { min-width:0;text-align:center; }
+.social-slot>button { display:flex;align-items:center;justify-content:center;width:100%;min-height:132px;padding:0;border:1px solid #ffffff20;border-radius:14px;background:#151c2b;overflow:hidden; }
+.social-slot .cc { --w:min(94px,25vw)!important;flex-shrink:0; }
+.social-empty { font-size:36px;color:#7e899e; }
+.social-order { display:flex;justify-content:center;gap:12px;margin-top:6px; }
+.social-order button,.social-pages button { min-height:36px;min-width:36px;border-radius:10px;background:#283247;color:white;border:0; }
+.social-note { font-size:13px;line-height:1.5;color:var(--muted,#a5afbf); }
+.social-privacy { display:flex;align-items:center;gap:10px;min-height:44px; }
+#social-profile { margin:16px 0;padding:16px;border:1px solid #ffffff20;border-radius:20px;background:#1b2436; }
+.social-picker { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;max-height:52vh;overflow:auto;margin:12px 0; }
+.social-picker>button { padding:0;border:0;background:none;display:flex;justify-content:center; }
+.social-picker .cc { --w:min(84px,23vw)!important; }
+.social-search { width:100%;box-sizing:border-box;padding:12px;border-radius:10px;background:#121b2a;color:white;border:1px solid #ffffff30; }
+.social-pages { display:flex;align-items:center;justify-content:space-between;gap:8px; }
+.social-public { text-align:center; }
+.social-avatar { font-size:48px; }
+[data-profile] { cursor:pointer;color:inherit; }
+button.bd-nick { background:none;border:0;text-align:left;font:inherit; }
