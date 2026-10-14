@@ -19,13 +19,16 @@ const ORIGIN = 'https://komutatorcisco-dot.github.io';
 const CHANNEL = '@oldjacksons'; // канал «Старики Джексоны»: играть могут только подписчики
 const TOP = 50;
 
-// Independent social preferences; public showcase stays closed until ownership is authoritative.
+// Social preferences. The public showcase never trusts the showcase request itself: cards are checked
+// against the server-stored save (and server grant records for special cards) whenever either changes.
 const socialReady = new WeakMap();
 async function socialSchema(db) {
   if (!socialReady.has(db)) socialReady.set(db, db.prepare(`CREATE TABLE IF NOT EXISTS social_profiles (
     uid INTEGER PRIMARY KEY, handle TEXT NOT NULL UNIQUE, revision INTEGER NOT NULL DEFAULT 0,
     data TEXT NOT NULL DEFAULT '{"favorites":{},"showcase":[null,null,null],"public":false}')`).run()
     .then(() => db.prepare('CREATE INDEX IF NOT EXISTS daily_won_id ON daily (id) WHERE won = 1').run())
+    // витрина, которую видят другие: только карточки, найденные сервером в сохранении игрока
+    .then(() => db.prepare('CREATE TABLE IF NOT EXISTS social_shown (uid INTEGER PRIMARY KEY, keys TEXT NOT NULL, ts INTEGER NOT NULL)').run())
     .catch(e => { socialReady.delete(db); throw e; }));
   return socialReady.get(db);
 }
@@ -44,6 +47,43 @@ function socialEdit(data, op) {
   } else if (op.type === 'privacy' && typeof op.value === 'boolean') d.public = op.value;
   else throw Error('bad operation');
   return d;
+}
+// Свободные копии в сохранении на сервере: own − used (как Cards.spare на клиенте).
+function saveSpare(save, key) {
+  const c = save && save.cards;
+  if (!c || typeof c.own !== 'object' || !c.own || !Object.prototype.hasOwnProperty.call(c.own, key)) return 0;
+  const used = c.used && typeof c.used === 'object' && Object.prototype.hasOwnProperty.call(c.used, key) ? Number(c.used[key]) || 0 : 0;
+  return Math.max(0, Math.floor(Number(c.own[key]) || 0) - Math.floor(used));
+}
+// Особые карточки выдаёт только сервер — без его записи о выдаче карточку не показываем, что бы ни было в сохранении.
+const SERVER_GRANTED = /^FL:/;
+async function verifyShowcase(db, uid, showcase, save) {
+  const keys = [0, 1, 2].map((i) => { const k = Array.isArray(showcase) ? showcase[i] : null; return socialKey(k) && saveSpare(save, k) >= 1 ? k : null; });
+  for (let i = 0; i < 3; i++) {
+    if (!keys[i] || !SERVER_GRANTED.test(keys[i])) continue;
+    const g = await db.prepare('SELECT 1 AS ok FROM legend_claims WHERE uid = ? AND card = ?').bind(uid, keys[i]).first();
+    if (!g) keys[i] = null;
+  }
+  const json = JSON.stringify(keys);
+  // пишем только если витрина изменилась
+  await db.prepare('INSERT INTO social_shown (uid, keys, ts) VALUES (?1, ?2, ?3) ON CONFLICT(uid) DO UPDATE SET keys = ?2, ts = ?3 WHERE keys != ?2').bind(uid, json, Date.now()).run();
+  return keys;
+}
+async function shownFor(db, uid) {
+  const r = await db.prepare('SELECT keys FROM social_shown WHERE uid = ?').bind(uid).first();
+  try { const k = r ? JSON.parse(r.keys) : null; return Array.isArray(k) ? k.slice(0, 3) : [null, null, null]; } catch (e) { return [null, null, null]; }
+}
+// новое сохранение: если у игрока есть витрина — перепроверяем её (сданная в ИПК карточка исчезает)
+async function reverifyOnSave(env, uid, save) {
+  if (!socialOn(env)) return;
+  try {
+    await socialSchema(env.DB);
+    const p = await env.DB.prepare('SELECT data FROM social_profiles WHERE uid = ?').bind(uid).first();
+    if (!p) return;
+    const sc = JSON.parse(p.data).showcase;
+    if (Array.isArray(sc) && sc.some(Boolean)) await verifyShowcase(env.DB, uid, sc, save);
+    else await env.DB.prepare('DELETE FROM social_shown WHERE uid = ?').bind(uid).run();
+  } catch (e) { /* витрина никогда не мешает сохранению */ }
 }
 async function socialHandles(env, ids) {
   if (!socialOn(env) || !ids.length) return {};
@@ -79,10 +119,10 @@ async function social(env, user, body) {
     const xp = Math.max(0, Number(u && u.xp) || 0);
     const thresholds = [0, 60, 180, 400, 800, 1400, 2400, 4000];
     // Existing profile statistics are server-stored but retain legacy client-result trust limitations.
-    // No saves/cards.own lookup: all public cards stay hidden until canonical ownership is integrated.
+    // Витрина — только проверенная сервером (social_shown), а не то, что игрок выбрал.
     return { ok: true, private: false, nick: String(u && u.nick || 'Игрок').slice(0, 32), emoji: String(u && u.emoji || '⚽').slice(0, 16),
       level: thresholds.filter(n => xp >= n).length, trophies: Math.max(0, Math.min(11000, Number(t && t.trophies) || 0)),
-      achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase: [], showcaseEnabled: false };
+      achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase: await shownFor(db, row.uid), showcaseEnabled: true };
   }
   if (!['self', 'edit'].includes(body.act)) return { ok: false, error: 'bad operation' };
   let row = await db.prepare('SELECT handle, revision, data FROM social_profiles WHERE uid = ?').bind(user.id).first();
@@ -104,9 +144,14 @@ async function social(env, user, body) {
       const result = await db.prepare('UPDATE social_profiles SET data = ?, revision = revision + 1 WHERE uid = ? AND revision = ?').bind(JSON.stringify(data), user.id, body.revision).run();
       conflict = result.meta.changes !== 1;
       row = await db.prepare('SELECT handle, revision, data FROM social_profiles WHERE uid = ?').bind(user.id).first();
+      if (!conflict && (body.ops === undefined ? [body.op] : body.ops).some((o) => o && o.type === 'showcase')) {
+        const sv = await db.prepare('SELECT data FROM saves WHERE id = ?').bind(user.id).first();
+        let save = null; try { save = sv ? JSON.parse(sv.data) : null; } catch (e) { save = null; }
+        await verifyShowcase(db, user.id, JSON.parse(row.data).showcase, save);
+      }
     }
   }
-  return { ok: !conflict, conflict, handle: row.handle, revision: row.revision, ...JSON.parse(row.data), showcaseEnabled: false };
+  return { ok: !conflict, conflict, handle: row.handle, revision: row.revision, ...JSON.parse(row.data), shown: await shownFor(db, user.id), showcaseEnabled: true };
 }
 
 const tg = (env, method, body) => fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
@@ -488,6 +533,7 @@ async function saveData(env, user, body) {
   const old = await db.prepare('SELECT ts, tro FROM saves WHERE id = ?').bind(user.id).first();
   if (old && (tro < old.tro || (tro === old.tro && ts < old.ts))) return { ok: true, kept: true, ts: old.ts, tro: old.tro };
   await db.prepare('INSERT INTO saves (id, ts, tro, data) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(id) DO UPDATE SET ts = ?2, tro = ?3, data = ?4').bind(user.id, ts, tro, safeData).run();
+  await reverifyOnSave(env, user.id, d);
   return { ok: true, ts, tro };
 }
 async function loadData(env, user) {

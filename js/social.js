@@ -45,7 +45,7 @@ const Social = (() => {
           if (!next.ok) return false;
           state().pending.splice(0, ops.length); r = next;
         }
-        const s = state(); s.favorites = { ...r.favorites }; s.showcase = r.showcase.slice(); s.public = r.public;
+        const s = state(); s.favorites = { ...r.favorites }; s.showcase = r.showcase.slice(); s.public = r.public; s.shown = Array.isArray(r.shown) ? r.shown.slice(0, 3) : [null, null, null];
         s.pending.forEach(op => apply(s, op)); Store.save(true); render(); lastRead = Date.now();
         if (s.pending.length) { clearTimeout(syncTimer); syncTimer = setTimeout(() => sync(), 1000); }
         return !s.pending.length;
@@ -67,12 +67,20 @@ const Social = (() => {
       return `<div class="social-slot">${editable ? `<button data-social-slot="${i}" aria-label="Выбрать карточку ${i + 1}">` : `<button ${c ? `data-social-card="${esc(c.key)}"` : 'disabled'} aria-label="${c ? esc(c.name) : 'Пустое место'}">`}${c ? Cards.html(c, { w: 94 }) : '<span class="social-empty">＋</span>'}</button>${editable ? `<div class="social-order"><button data-social-move="${i}" aria-label="Переместить карточку вправо">→</button><button data-social-clear="${i}" aria-label="Убрать карточку">×</button></div>` : ''}</div>`;
     }).join('')}</div>`;
   }
+  // что видят другие: сервер показывает только карточки, найденные в сохранении игрока
+  function publicNote() {
+    const s = state();
+    if (!s.public) return 'Профиль закрыт — витрину видишь только ты.';
+    const shown = Array.isArray(s.shown) ? s.shown : [];
+    const waiting = active().filter(k => k && !shown.includes(k)).length;
+    return waiting ? 'Новые карточки появятся у других после сохранения прогресса.' : 'Витрину видят другие игроки.';
+  }
   function render() {
     const host = document.getElementById('social-profile'); if (!host) return;
-    const signature = JSON.stringify([active(), !!state().public, enabled, !!state().pending.length]);
+    const signature = JSON.stringify([active(), !!state().public, enabled, !!state().pending.length, state().shown || null]);
     if (host.dataset.socialRender === signature && host.children.length) return;
     host.dataset.socialRender = signature;
-    host.innerHTML = `<h3>Моя витрина</h3><p class="social-note">Выбери три карточки из своего клуба</p>${slots(active(), true)}<label class="social-privacy"><input type="checkbox" data-social-privacy ${state().public ? 'checked' : ''}> Публичный профиль</label><p class="social-note">${enabled ? (state().pending.length ? 'Изменения ожидают синхронизации' : 'Настройки сохранены') : 'Изменения сохранены на этом устройстве'}. Витрина пока видна только тебе.</p>`;
+    host.innerHTML = `<h3>Моя витрина</h3><p class="social-note">Выбери три карточки из своего клуба</p>${slots(active(), true)}<label class="social-privacy"><input type="checkbox" data-social-privacy ${state().public ? 'checked' : ''}> Публичный профиль</label><p class="social-note">${enabled ? (state().pending.length ? 'Изменения ожидают синхронизации' : 'Настройки сохранены') : 'Изменения сохранены на этом устройстве'}. ${publicNote()}</p>`;
   }
   function choose(index, query = '', page = 0) {
     const picked = active();

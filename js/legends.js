@@ -52,6 +52,50 @@ const Walkout = (() => {
   return { play, close, open: () => !!el };
 })();
 
+// 3D-модель игрока: страница prototypes/<model>/viewer.html во фрейме. Касания ловит сама игра (слой поверх фрейма)
+// и пересылает повороты и щипок сообщениями: в Telegram на iPhone касания внутри фрейма иногда не доходят.
+const Model3D = (() => {
+  let el = null, back = null;
+  const pts = new Map(); let pinch = 0;
+  const send = (m) => { const f = el && $('.m3d-frame', el); if (f && f.contentWindow) f.contentWindow.postMessage(m, '*'); };
+  function open(key, done) {
+    const c = Cards.get(key); if (!c || !c.model3d || el) return;
+    back = done || null;
+    el = document.createElement('div'); el.className = 'm3d-wrap';
+    el.innerHTML = `<iframe class="m3d-frame" title="3D-модель: ${esc(c.name)}" src="prototypes/${esc(c.model3d)}/viewer.html?embed=1&v=20261014-m3d1"></iframe>
+      <div class="m3d-touch" aria-hidden="true"></div>
+      <div class="m3d-top"><b>${esc(c.name)}</b><small>${c.r} · ${esc(c.pos)}</small></div>
+      <button class="m3d-x" data-m3d="close" aria-label="Закрыть">✕</button>
+      <p class="m3d-hint">Крути пальцем · двумя — приблизить · двойное касание — сброс</p>`;
+    document.body.appendChild(el); Cover.on();
+    const t = $('.m3d-touch', el);
+    t.addEventListener('pointerdown', (e) => { t.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x: e.clientX, y: e.clientY }); el.classList.add('used'); });
+    t.addEventListener('pointermove', (e) => {
+      const p = pts.get(e.pointerId); if (!p) return;
+      if (pts.size === 1) send({ m3d: 'drag', dx: e.clientX - p.x, dy: e.clientY - p.y });
+      p.x = e.clientX; p.y = e.clientY;
+      if (pts.size === 2) { const [a, b] = [...pts.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch) send({ m3d: 'zoom', k: d / pinch }); pinch = d; }
+    });
+    const up = (e) => { pts.delete(e.pointerId); pinch = 0; send({ m3d: 'release' }); };
+    t.addEventListener('pointerup', up); t.addEventListener('pointercancel', up);
+    t.addEventListener('dblclick', () => send({ m3d: 'reset' }));
+    t.addEventListener('wheel', (e) => { e.preventDefault(); send({ m3d: 'zoom', k: e.deltaY < 0 ? 1.08 : 1 / 1.08 }); }, { passive: false });
+  }
+  function close() {
+    if (!el) return;
+    Cover.off(); pts.clear(); pinch = 0;
+    el.classList.add('out'); const e = el; el = null;
+    setTimeout(() => e.remove(), 250); // фрейм удаляется — WebGL и модель освобождаются вместе с ним
+    const cb = back; back = null; if (cb) cb();
+  }
+  document.addEventListener('click', (e) => { if (el && e.target.closest('.m3d-wrap [data-m3d="close"]')) { e.preventDefault(); close(); } });
+  addEventListener('message', (e) => {
+    if (!el || !e.data || e.source !== $('.m3d-frame', el).contentWindow) return;
+    if (e.data.m3d === 'ready' || e.data.m3d === 'error') el.dataset.state = e.data.m3d;
+  });
+  return { open, close, isOpen: () => !!el };
+})();
+
 const Legends = (() => {
   const CH = {
     'fl:balotelli': {
@@ -170,6 +214,7 @@ const Legends = (() => {
   document.addEventListener('click', (e) => {
     const lg = e.target.closest('[data-legend]'); if (lg) { Sound.play('tap'); return open(lg.dataset.legend); }
     const wo = e.target.closest('[data-walkout]'); if (wo) { Modal.close(); return Walkout.play(wo.dataset.walkout, () => Cards.details(wo.dataset.walkout)); }
+    const m3 = e.target.closest('[data-model3d]'); if (m3) { Modal.close(); const k3 = m3.dataset.model3d; return Model3D.open(k3, () => { if (Cards.owned(k3)) Cards.details(k3); }); }
     const a = e.target.closest('#modal-card [data-fl]'); if (!a) return;
     const ch = CH[openId || ID];
     if (a.dataset.fl === 'claim') return claim(openId || ID);

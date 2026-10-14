@@ -2,8 +2,8 @@
 // Sources and edition selection: docs/player-position-sources.md.
 'use strict';
 const PlayerPositions = (() => {
-  const RU = { GK:'ВРТ', CB:'ЦЗ', LB:'ЛЗ', RB:'ПЗ', CDM:'ЦОП', CM:'ЦП', CAM:'ЦАП', LM:'ЛП', RM:'ПП', LW:'ЛВ', RW:'ПВ', ST:'НАП' };
-  const FROM = { ...Object.fromEntries(Object.entries(RU).map(([k,v]) => [v,k])), ГК:'GK', ФРВ:'ST', ЗАЩ:'CB' };
+  const RU = { GK:'ВРТ', CB:'ЦЗ', LB:'ЛЗ', RB:'ПЗ', CDM:'ЦОП', CM:'ЦП', CAM:'ЦАП', LM:'ЛП', RM:'ПП', LW:'ЛВ', RW:'ПВ', ST:'ФРВ' };
+  const FROM = { ...Object.fromEntries(Object.entries(RU).map(([k,v]) => [v,k])), ГК:'GK', НАП:'ST', ЗАЩ:'CB' };
   const LEGENDS = {
     'Гарет Бэйл':'RW RM LM ST LW', 'Рауль':'ST CAM', 'Гонсало Игуаин':'ST CF', 'Тони Кроос':'CM CDM CAM', 'Гути':'CM CAM',
     'Серхио Рамос':'CB', 'Марсело':'LB', 'Роберто Карлос':'LB LM', 'Пепе':'CB', 'Рафаэль Варан':'CB', 'Икер Касильяс':'GK',

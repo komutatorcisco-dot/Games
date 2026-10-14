@@ -4,7 +4,7 @@
 'use strict';
 
 const Squad = (() => {
-  const POSMAP = { НАП: ['ST'], ПЗ: ['CM'], ЗАЩ: ['CB'], ВРТ: ['GK'], ЛЗ: ['LB'] };
+  const POSMAP = { ФРВ: ['ST'], НАП: ['ST'], ПЗ: ['CM'], ЗАЩ: ['CB'], ВРТ: ['GK'], ЛЗ: ['LB'] };
   const RM = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const anim = (el, k, o) => (el && el.animate && !RM ? el.animate(k, o) : null);
   const S = () => {

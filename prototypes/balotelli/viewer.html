@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>3D: игрок</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: radial-gradient(120% 80% at 50% 38%, #3a1a6e 0%, #1b0d3a 48%, #08040f 100%); -webkit-user-select: none; user-select: none; }
+  #c { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  /* пока модель грузится — мягкое кольцо по центру */
+  .ld { position: fixed; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px; border-radius: 50%; border: 3px solid rgba(255,255,255,.15); border-top-color: #f6c94f; animation: sp 0.9s linear infinite; }
+  body[data-state] .ld { display: none; }
+  .err { display: none; position: fixed; inset: 0; place-items: center; color: #fff; font: 600 16px system-ui, sans-serif; text-align: center; padding: 24px; }
+  body[data-state="error"] .err { display: grid; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+</style>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div class="ld"></div>
+<div class="err">Не удалось загрузить 3D-модель.<br>Проверь подключение и попробуй ещё раз.</div>
+<script type="module" src="viewer.js?v=20261014-m3d1"></script>
+</body>
+</html>
