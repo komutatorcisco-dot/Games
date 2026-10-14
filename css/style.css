@@ -2840,13 +2840,13 @@ html, body { touch-action: manipulation; }
 .cc-ph::after { content: ""; position: absolute; inset: 0; background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.22) 45%, transparent 55%); }
 .cc.legend .cc-ph::after { background: linear-gradient(115deg, rgba(255,106,213,.25), rgba(255,207,58,.2), rgba(62,230,193,.2), rgba(111,211,255,.25), rgba(185,140,255,.25)); }
 .cc-face { position: absolute; bottom: 24%; left: 50%; transform: translateX(-50%); width: 88%; filter: drop-shadow(0 .3em .5em rgba(0,0,0,.45)); }
-.cc-r { position: absolute; left: .55em; top: .45em; font: 900 1.7em/0.95 "Rubik", sans-serif; text-shadow: 0 .1em 0 rgba(0,0,0,.4); }
-.cc-r small { display: block; font: 700 .36em "Oswald", sans-serif; letter-spacing: .12em; }
+.cc-r { position: absolute; left: .55em; top: .4em; display: flex; flex-direction: column; align-items: center; font: 700 1.95em/0.9 "Oswald", sans-serif; text-shadow: 0 .08em 0 rgba(0,0,0,.4); }
+.cc-r small { display: block; margin-top: .2em; font: 700 .34em/1 "Oswald", sans-serif; letter-spacing: .1em; margin-right: -.1em; }
 .cc-cr { position: absolute; right: .5em; top: .5em; width: 1.5em; height: 1.5em; padding: .15em; border-radius: 50%; background: #fff; object-fit: contain; }
 .cc-band { position: absolute; left: 0; right: 0; bottom: 0; height: 26%; display: grid; place-content: center; text-align: center; padding: 0 .3em; background: linear-gradient(160deg, var(--r1), var(--r2)); color: #120c38; }
 .cc.legend .cc-band { background: linear-gradient(100deg, #ff9ae2, #ffe27a, #8ff0d8, #9fdcff, #d6b2ff); }
 .cc.bronze .cc-band, .cc.jack .cc-band { color: #fff; }
-.cc-band b { font: 900 .95em/1 "Rubik", sans-serif; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: calc(var(--w) - 1em); }
+.cc-band b { font: 700 1.05em/1 "Oswald", sans-serif; letter-spacing: .03em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: calc(var(--w) - 1em); }
 .cc-band small { margin-top: .2em; font: 700 .5em "Oswald", sans-serif; letter-spacing: .16em; opacity: .85; white-space: nowrap; }
 .cc.lock { box-shadow: inset 0 0 0 .1em rgba(255,255,255,.14); }
 .cc.lock .cc-ph { background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); }

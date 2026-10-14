@@ -24,7 +24,9 @@ const socialReady = new WeakMap();
 async function socialSchema(db) {
   if (!socialReady.has(db)) socialReady.set(db, db.prepare(`CREATE TABLE IF NOT EXISTS social_profiles (
     uid INTEGER PRIMARY KEY, handle TEXT NOT NULL UNIQUE, revision INTEGER NOT NULL DEFAULT 0,
-    data TEXT NOT NULL DEFAULT '{"favorites":{},"showcase":[null,null,null],"public":false}')`).run().catch(e => { socialReady.delete(db); throw e; }));
+    data TEXT NOT NULL DEFAULT '{"favorites":{},"showcase":[null,null,null],"public":false}')`).run()
+    .then(() => db.prepare('CREATE INDEX IF NOT EXISTS daily_won_id ON daily (id) WHERE won = 1').run())
+    .catch(e => { socialReady.delete(db); throw e; }));
   return socialReady.get(db);
 }
 const socialOn = env => env.SOCIAL_ENABLED !== '0';
@@ -72,7 +74,8 @@ async function social(env, user, body) {
     if (!JSON.parse(row.data).public) return { ok: true, private: true };
     const u = await db.prepare('SELECT nick, emoji, xp FROM users WHERE id = ?').bind(row.uid).first();
     const t = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(row.uid).first();
-    const d = await db.prepare('SELECT COUNT(*) AS n FROM daily WHERE id = ? AND won = 1').bind(row.uid).first();
+    // «Игрок дня»: частичный индекс только по победам — без перебора всей таблицы daily на каждый просмотр профиля
+    const d = await db.prepare('SELECT 1 AS n FROM daily WHERE id = ? AND won = 1 LIMIT 1').bind(row.uid).first();
     const xp = Math.max(0, Number(u && u.xp) || 0);
     const thresholds = [0, 60, 180, 400, 800, 1400, 2400, 4000];
     // Existing profile statistics are server-stored but retain legacy client-result trust limitations.

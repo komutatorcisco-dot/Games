@@ -35,13 +35,13 @@ const {chromium}=require('playwright');
       return {delta:after-before,repeated:total()-after,weekend:Rewards.weekend()};
     });
     assert.equal(paid.delta,24);assert.equal(paid.repeated,0);assert.equal(paid.weekend,false);
-    const sbc=await page.evaluate(()=>{
+    const sbc=await page.evaluate(async()=>{
       Store.d.cards={own:Object.fromEntries(Cards.all().filter(c=>!c.sbcOnly).map(c=>[c.key,3])),used:{},fresh:[]};
       const ch=SBC.defs().find(c=>c.id.startsWith('up:g:'));
       SBC.open(ch.id);const keys=SBC.autofill(ch);SBC.qaFill(keys);
       const before=keys.map(k=>Cards.spare(k));
-      SBC.submit(ch);const used={...Store.d.cards.used};const own={...Store.d.cards.own};
-      SBC.submit(ch);
+      await SBC.submit(ch);const used={...Store.d.cards.used};const own={...Store.d.cards.own};
+      await SBC.submit(ch);
       return {n:ch.n,r:ch.req.find(r=>r.t==='rating').v,limit:ch.limit,valid:SBC.allOk(ch,keys.map(Cards.get)),consumed:keys.every(k=>used[k]===1),same:JSON.stringify(own)===JSON.stringify(Store.d.cards.own),done:Store.d.sbc.done[ch.id]};
     });
     assert.deepEqual(sbc,{n:11,r:85,limit:1,valid:true,consumed:true,same:true,done:1});
