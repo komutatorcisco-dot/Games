@@ -201,7 +201,7 @@ const Online = (() => {
         const buf = []; link.onMsg = (m) => buf.push(m); // сообщения за время заставки не теряем
         Sound.play('whistle'); haptic('ok');
         const m = me();
-        box.innerHTML = `<div class="on-wrap on-found"><small>Соперник найден</small><div class="on-vs"><span><i>${esc(m.emo)}</i><b>${esc(m.nick)}</b></span><em>VS</em><span><i>${esc(op.emo)}</i><b>${esc(op.nick)}</b></span></div></div>`;
+        box.innerHTML = `<div class="on-wrap on-found"><small>Соперник найден</small><div class="on-vs"><span><i>${esc(m.emo)}</i><b>${esc(m.nick)}</b></span><em>VS</em><span><i>${esc(op.emo)}</i><button class="btn ghost" data-social-room="${esc(x.peer)}">${esc(op.nick)}</button></span></div></div>`;
         setTimeout(() => {
           if (cur !== c || !c.conn) return;
           link.onMsg = null; o.onReady(link);

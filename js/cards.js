@@ -67,7 +67,14 @@ const Cards = (() => {
   const owned = (key) => S().own[key] || 0;
   // own — сколько всего выпало (галерея помнит навсегда), used — сколько сдано в ИПК; свободные копии — разница
   const spare = (key) => Math.max(0, owned(key) - (S().used[key] || 0));
-  function use(keys) { const u = S().used; keys.forEach((k) => { if (spare(k) > 0) u[k] = (u[k] || 0) + 1; }); Store.save(); }
+  const expendable = key => typeof Social !== 'undefined' ? Social.available(key) : spare(key);
+  function use(keys) {
+    const counts = new Map(); keys.forEach(k => counts.set(k, (counts.get(k) || 0) + 1));
+    if ([...counts].some(([k, n]) => !get(k) || n > expendable(k))) return false;
+    const u = S().used; counts.forEach((n, k) => { u[k] = (u[k] || 0) + n; }); Store.save();
+    if (typeof Social !== 'undefined') Social.render();
+    return true;
+  }
   const count = () => Object.keys(S().own).filter((k) => BY && BY[k] || get(k)).length;
 
   // ---------- что выпадает ----------
@@ -242,12 +249,13 @@ const Cards = (() => {
     });
     return out.sort((a, b) => a.left - b.left || b.h / b.n - a.h / a.n).slice(0, 8);
   }
-  const cell = (c) => `<div class="cl-cell">${owned(c.key) ? html(c, { w: 102 }) + (spare(c.key) > 1 ? `<i class="cl-n">×${spare(c.key)}</i>` : !spare(c.key) ? '<i class="cl-n out">сдан</i>' : '') + (S().fresh.includes(c.key) ? '<i class="cl-new">NEW</i>' : '') : html(c, { w: 102, locked: true }) + (view.q ? `<small class="cl-nm">${esc(c.name)} · ${c.r}</small>` : '')}</div>`;
+  const heart = c => typeof Social !== 'undefined' && spare(c.key) > 0 ? `<button class="social-heart ${Social.favorite(c.key) ? 'on' : ''}" data-social-fav="${esc(c.key)}" aria-pressed="${Social.favorite(c.key)}" aria-label="Избранное: ${esc(c.name)}">♥</button>` : '';
+  const cell = (c) => `<div class="cl-cell">${heart(c)}${owned(c.key) ? html(c, { w: 102 }) + (spare(c.key) > 1 ? `<i class="cl-n">×${spare(c.key)}</i>` : !spare(c.key) ? '<i class="cl-n out">сдан</i>' : '') + (S().fresh.includes(c.key) ? '<i class="cl-new">NEW</i>' : '') : html(c, { w: 102, locked: true }) + (view.q ? `<small class="cl-nm">${esc(c.name)} · ${c.r}</small>` : '')}</div>`;
   const norm = (x) => x.toLowerCase().replace(/ё/g, 'е');
   function results() {
     const q = norm((view.q || '').trim());
-    if (view.mine) {
-      const list = all().filter((c) => owned(c.key)).sort((a, b) => b.r - a.r);
+    if (view.mine || view.favorites) {
+      const list = all().filter((c) => view.favorites ? spare(c.key) > 0 && typeof Social !== 'undefined' && Social.favorite(c.key) : owned(c.key)).sort((a, b) => b.r - a.r);
       return list.length ? `<div class="cl-grid">${list.map(cell).join('')}</div>` : '<p class="rw-note">Карточек пока нет — открывай паки.</p>';
     }
     if (q.length < 2) return '';
@@ -256,14 +264,14 @@ const Cards = (() => {
   }
   function tools() {
     return `<div class="gl-tools"><label class="gl-q">${Ui.get('search')}<input id="gl-q" type="search" placeholder="Найти игрока или клуб" value="${esc(view.q || '')}" autocomplete="off"></label>
-      <button class="gl-mine ${view.mine ? 'on' : ''}" data-glmine="1">Мои</button></div><div class="gl-res">${results()}</div>`;
+      <button class="gl-mine ${view.mine ? 'on' : ''}" data-glmine="1">Мои</button><button class="gl-mine ${view.favorites ? 'on' : ''}" data-glfavorites="1">❤️ Избранное</button></div><div class="gl-res">${results()}</div>`;
   }
   function album() {
     const total = all().filter((c) => !hiddenCard(c)).length, got = count();
     let out = `<div class="cl-head"><b>Галерея</b><small>${got} / ${total}</small></div>${bar(got, total, 'cl-bar')}`;
     if (!view.g) {
       out += tools();
-      if (view.mine || (view.q || '').trim().length >= 2) return out;
+      if (view.mine || view.favorites || (view.q || '').trim().length >= 2) return out;
       const rd = ready(), al = almost();
       if (rd.length) out += `<h3 class="gl-h">${Ui.get('gift')} Можно забрать</h3><div class="gl-ready">${rd.map((r) => `<div class="gl-rd">${r.crest ? `<img src="img/clubs/${r.crest}" alt="">` : `<span class="gl-noc">${r.ico || Ui.get('ball')}</span>`}<b>${esc(r.name)}</b>${prizeTxt(r.prize) ? `<small>${prizeTxt(r.prize)}</small>` : ''}<button class="btn gold gl-claim" data-claim="${esc(r.id)}">Забрать</button></div>`).join('')}</div>`;
       if (al.length) out += `<h3 class="gl-h">Почти собраны</h3><div class="gl-almost">${al.map((a) => `<button class="gl-al" data-glg="${esc(a.g)}" data-glc="${esc(a.club)}">${CRESTS[a.club] ? `<img src="img/clubs/${CRESTS[a.club]}" alt="">` : `<span class="gl-noc">${Ui.get('ball')}</span>`}<span><b>${esc(a.club)}</b>${bar(a.h, a.n)}<small>ещё ${a.left} ${a.left === 1 ? 'карточка' : a.left < 5 ? 'карточки' : 'карточек'}</small></span></button>`).join('')}</div>`;
@@ -350,6 +358,7 @@ const Cards = (() => {
     ]);
   }
   function onClick(e) {
+    if (e.target.closest('[data-glfavorites]')) { view = { g: '', club: null, favorites: !view.favorites }; return true; }
     const g = e.target.closest('[data-gl]'); if (g) { view = { g: g.dataset.gl, club: null }; Sound.play('tap'); jump = true; return true; }
     if (e.target.closest('[data-glmine]')) { view = { g: '', club: null, q: '', mine: !view.mine }; Sound.play('tap'); return true; }
     const c = e.target.closest('[data-glc]'); if (c) { view = { ...view, g: c.dataset.glg || view.g, club: c.dataset.glc, q: '', mine: false }; Sound.play('tap'); jump = true; return true; }
