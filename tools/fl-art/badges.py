@@ -19,6 +19,7 @@ def verts(r, f): return ''.join(f(*pt(r, -90+60*i)) for i in range(6))
 def stars(n, y, size, fill, gap, cx=C):
     return ''.join(glyph('star', size, fill, cx=cx+(i-(n-1)/2)*gap, cy=y) for i in range(n))
 def text(t, x, y, size, fill, extra=''):
+    return ''
     return f'<text x="{x}" y="{y}" text-anchor="middle" {FONT} font-size="{size}" letter-spacing="{size*.12:.1f}" fill="{fill}" {extra}>{t}</text>'
 def ribbon(y, w, h, fill, edge, label, tcol, size):
     x0, x1, n = C - w/2, C + w/2, 18
@@ -50,9 +51,9 @@ save('01-black-gold', G + hexgrid +
  f'<polygon points="{hx(222)}" fill="url(#g)"/><polygon points="{hx(214)}" fill="url(#b)"/><polygon points="{hx(214)}" fill="url(#hg)"/>'
  f'<polygon points="{hx(196)}" fill="none" stroke="url(#g)" stroke-width="3"/><polygon points="{hx(188)}" fill="none" stroke="url(#g)" stroke-width="1" opacity=".6"/>'
  + verts(196, lambda x, y: f'<circle cx="{x:.1f}" cy="{y:.1f}" r="7" fill="url(#g)" stroke="#0b0b0d" stroke-width="3"/>')
- + '<circle cx="256" cy="224" r="120" fill="url(#gl)"/>'
- + glyph('shooting-star', 200, 'url(#g)', cy=222)
- + '<path d="M150 318 L362 318" stroke="url(#g)" stroke-width="2"/>'
+ + '<circle cx="256" cy="244" r="120" fill="url(#gl)"/>'
+ + glyph('shooting-star', 200, 'url(#g)', cy=240)
+
  + text('ЛЕГЕНДЫ', C, 352, 26, 'url(#g)') + stars(3, 384, 18, 'url(#g)', 26))
 
 # 2. Эмаль
@@ -68,7 +69,7 @@ save('02-enamel', SV + '<linearGradient id="glare" x1="0" y1="0" x2="1" y2="1"><
  + verts(212, lambda x, y: f'<circle cx="{x:.1f}" cy="{y:.1f}" r="6" fill="#e7eaee" stroke="#7d8591" stroke-width="2"/>')
  + glyph('crown-simple', 170, '#0c1440', cy=206+4, cx=C+4) + glyph('crown-simple', 170, '#ffffff', cy=206)
  + stars(5, 120, 16, '#ffffff', 26)
- + text('ЛЕГЕНДЫ', C, 352, 30, '#ffffff') + '<rect x="206" y="372" width="100" height="6" rx="3" fill="#fff" opacity=".7"/>')
+ + text('ЛЕГЕНДЫ', C, 352, 30, '#ffffff'))
 
 # 3. Неон
 glow = '<filter id="n" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="9" result="a"/><feGaussianBlur in="SourceGraphic" stdDeviation="3" result="b"/><feMerge><feMergeNode in="a"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
@@ -98,20 +99,31 @@ save('04-vintage',
  + '<path d="M170 168 L342 168 M170 336 L342 336" stroke="#b3261e" stroke-width="2"/>'
  + text('С 2026', C, 404, 15, '#b3261e') + '</g>')
 
-# 5. Голограмма
-save('05-holo',
- '<linearGradient id="hl" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9ad5"/><stop offset=".2" stop-color="#ffe29a"/><stop offset=".4" stop-color="#9affc8"/><stop offset=".6" stop-color="#8ad8ff"/><stop offset=".8" stop-color="#c49aff"/><stop offset="1" stop-color="#ff9ad5"/></linearGradient>'
- '<linearGradient id="sv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#9ca3b0"/><stop offset="1" stop-color="#eef0f4"/></linearGradient>'
- '<linearGradient id="sh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
- '<pattern id="ln" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="10" height="2" fill="#fff" opacity=".22"/></pattern>',
- f'<polygon points="{hx(224)}" fill="url(#sv)"/><polygon points="{hx(206)}" fill="url(#hl)"/>'
- f'<g clip-path="url(#h)"><rect width="512" height="512" fill="url(#ln)"/>'
- + ''.join(f'<circle cx="{C}" cy="{C}" r="{r}" fill="none" stroke="#fff" stroke-width="1.5" opacity=".35"/>' for r in (150, 170, 190))
- + '<rect x="-100" y="150" width="700" height="60" fill="url(#sh)" transform="rotate(-35 256 256)"/><rect x="-100" y="250" width="700" height="20" fill="url(#sh)" transform="rotate(-35 256 256)"/></g>'
- f'<polygon points="{hx(194)}" fill="none" stroke="#ffffff" stroke-width="2" opacity=".8"/>'
- + glyph('star', 190, '#1d1a3a')
- + ''.join(glyph('sparkle', s, '#ffffff', cx=x, cy=y) for x, y, s in [(150,140,40),(370,150,30),(380,340,44),(138,350,26)])
- + glyph('star', 60, 'url(#hl)', cy=262))
+# 5. Голограмма — несколько расцветок
+HOLO = {
+ '05-holo': (['#ff9ad5','#ffe29a','#9affc8','#8ad8ff','#c49aff','#ff9ad5'], ['#ffffff','#9ca3b0','#eef0f4'], '#1d1a3a'),
+ '05a-holo-gold': (['#fff1b8','#f6c94f','#ffe6a0','#e0a33a','#fff4cc','#f2bd4f'], ['#fff6d6','#b8862f','#f3d58a'], '#3a2306'),
+ '05b-holo-violet': (['#ff7ac8','#b07aff','#7a8cff','#c27aff','#ff8fd0','#9a6bff'], ['#f0e6ff','#7b62b8','#d9ccff'], '#ffffff'),
+ '05c-holo-ice': (['#e6fbff','#9be7ff','#c9d8ff','#7fd3ff','#eaf6ff','#a8e9ff'], ['#ffffff','#8fa6c0','#e6eef7'], '#0d2a4a'),
+ '05d-holo-emerald': (['#b8ffd9','#3ddc97','#9af0ff','#22b07d','#d4ffe9','#5be3b0'], ['#e8fff3','#4f8f74','#c9f2de'], '#06291c'),
+ '05e-holo-ruby': (['#ffb3c1','#ff4d6d','#ffc38a','#d81b50','#ffd1dc','#ff6b8b'], ['#fff0f3','#a8475b','#f6c9d3'], '#3a0612'),
+ '05f-holo-black': (['#3a3a48','#1c1c26','#5a4a7a','#20283a','#4a3a5a','#2a2a36'], ['#f7e3a3','#8f6420','#e9c46a'], '#f6c94f'),
+}
+for name, (hc, sc, star_c) in HOLO.items():
+    stops = ''.join(f'<stop offset="{i/5:.2f}" stop-color="{c}"/>' for i, c in enumerate(hc))
+    save(name,
+     f'<linearGradient id="hl" x1="0" y1="0" x2="1" y2="1">{stops}</linearGradient>'
+     f'<linearGradient id="sv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{sc[0]}"/><stop offset=".5" stop-color="{sc[1]}"/><stop offset="1" stop-color="{sc[2]}"/></linearGradient>'
+     '<linearGradient id="sh" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>'
+     '<pattern id="ln" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)"><rect width="10" height="2" fill="#fff" opacity=".22"/></pattern>',
+     f'<polygon points="{hx(224)}" fill="url(#sv)"/><polygon points="{hx(206)}" fill="url(#hl)"/>'
+     f'<g clip-path="url(#h)"><rect width="512" height="512" fill="url(#ln)"/>'
+     + ''.join(f'<circle cx="{C}" cy="{C}" r="{r}" fill="none" stroke="#fff" stroke-width="1.5" opacity=".35"/>' for r in (150, 170, 190))
+     + '<rect x="-100" y="150" width="700" height="60" fill="url(#sh)" transform="rotate(-35 256 256)"/><rect x="-100" y="250" width="700" height="20" fill="url(#sh)" transform="rotate(-35 256 256)"/></g>'
+     f'<polygon points="{hx(194)}" fill="none" stroke="#ffffff" stroke-width="2" opacity=".8"/>'
+     + glyph('star', 190, star_c)
+     + ''.join(glyph('sparkle', sz, '#ffffff', cx=x, cy=y) for x, y, sz in [(150,140,40),(370,150,30),(380,340,44),(138,350,26)])
+     + glyph('star', 60, 'url(#hl)', cy=262))
 
 # 6. Баухаус
 save('06-bauhaus', '',
@@ -164,7 +176,7 @@ save('09-patch',
  + laurel(C, 226, 112, 120, 215, 7, '#e9c46a', 1) + laurel(C, 226, 112, 60, -35, 7, '#e9c46a', -1)
  + glyph('trophy', 150, '#e9c46a', cy=216)
  + stars(3, 116, 18, '#e9c46a', 28)
- + ribbon(318, 210, 40, '#c8102e', '#8f0b20', 'ЛЕГЕНДЫ', '#fff4d6', 24)
+
  + '</g>')
 
 # 10. Ар-деко
@@ -179,7 +191,7 @@ save('10-deco',
  + verts(200, lambda x, y: f'<rect x="{x-9:.1f}" y="{y-9:.1f}" width="18" height="18" fill="#0c1a33" stroke="url(#dg)" stroke-width="2" transform="rotate(45 {x:.1f} {y:.1f})"/><circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="#d9b45a"/>')
  + dotring
  + f'<circle cx="256" cy="256" r="118" fill="none" stroke="url(#dg)" stroke-width="4"/><circle cx="256" cy="256" r="106" fill="none" stroke="url(#dg)" stroke-width="1.5"/>'
- + glyph('crown', 120, 'url(#dg)', cy=236)
- + '<path d="M196 292 L316 292" stroke="url(#dg)" stroke-width="2"/>' + text('ЛЕГЕНДЫ', C, 320, 18, 'url(#dg)')
- + glyph('diamond', 18, '#d9b45a', cx=C, cy=168))
+ + glyph('crown', 130, 'url(#dg)', cy=254)
+ + text('ЛЕГЕНДЫ', C, 320, 18, 'url(#dg)')
+ + glyph('diamond', 18, '#d9b45a', cx=C, cy=168) + glyph('diamond', 18, '#d9b45a', cx=C, cy=344))
 print('ok')
