@@ -3686,7 +3686,6 @@ body.gated { overflow: hidden; }
 .po[data-phase="grid"] .po-rays, .po[data-phase="done"] .po-rays { opacity: .34; animation: none; }
 .po-k, .po-name, .po-hint { text-shadow: 0 2px 10px rgba(0,0,0,.7); }
 @keyframes poSpin { to { transform: rotate(360deg); } }
-.po-floor { position: absolute; left: -10%; right: -10%; bottom: 0; height: 32%; background: radial-gradient(60% 70% at 50% 0%, color-mix(in srgb, var(--rc) 22%, transparent), transparent 70%); }
 .po-flash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 46%, #fff, color-mix(in srgb, var(--rc) 70%, transparent) 40%, transparent 75%); opacity: 0; pointer-events: none; z-index: 5; }
 .po-flash.go { animation: poFlash .45s ease-out; } .po-flash.go2 { animation: poFlash .8s ease-out; }
 @keyframes poFlash { 0% { opacity: .95; } 100% { opacity: 0; } }

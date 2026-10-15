@@ -32,7 +32,7 @@ const PackOpen = (() => {
   function layer(cls = '') {
     const el = document.createElement('div');
     el.className = 'po ' + cls;
-    el.innerHTML = `<div class="po-bg"><i class="po-rays"></i><i class="po-floor"></i></div><div class="po-flash"></div>
+    el.innerHTML = `<div class="po-bg"><i class="po-rays"></i></div><div class="po-flash"></div>
       <header class="po-top"><small class="po-k"></small><b class="po-name"></b><span class="po-steps"></span></header>
       <main class="po-stage"></main>
       <footer class="po-foot"><p class="po-hint"></p><div class="po-sum"></div><button class="btn gold po-take" hidden>Забрать</button></footer>
