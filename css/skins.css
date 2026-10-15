@@ -6,7 +6,7 @@
 .sk-c b { font: 900 14px "Rubik", sans-serif; } .sk-c small { display: flex; align-items: center; gap: 3px; font: 700 11px var(--font-body); color: rgba(255,255,255,.65); } .sk-c small .ui-ic { width: 12px; height: 12px; }
 .sk-c.on { box-shadow: inset 0 0 0 2.5px #ffcf3a; } .sk-c.on small { color: #ffcf3a; } .sk-c.lock img { filter: grayscale(.6) brightness(.6); }
 .sk-big { width: 100%; max-height: 46vh; object-fit: cover; object-position: 50% 100%; border-radius: 12px; margin-bottom: 8px; }
-#profile .pf-tiles { grid-template-columns: repeat(2, 1fr) !important; }
+#profile .pf-tiles { grid-template-columns: repeat(3, 1fr) !important; }
 body[data-skin] .tab.on span svg, body[data-skin] .tab.on svg { color: inherit !important; }
 /* «!» на кнопках всегда круглый красный — во всех скинах */
 body[data-skin] .h2-sb.hot::after { border-radius: 50% !important; background: linear-gradient(180deg,#ff6b7d,#e3243f) !important; color: #fff !important; }

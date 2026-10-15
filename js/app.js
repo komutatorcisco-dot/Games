@@ -356,10 +356,10 @@ const App = (() => {
     }
   }
 
-  function launchOnlineGame(game) {
+  function launchOnlineGame(game, auto = false) {
     if (!Board.ready()) { toast('Открой игру через бота @JacksonGamesbot, чтобы играть онлайн'); return; }
     if (game === 'duel') { Track.open('ng:duel', 'Футбольная дуэль'); NG.open('duel', { mode: 'rnd' }); return; }
-    if (game === 'trumps') { Track.open('ng:trumps', 'Козыри'); NG.open('trumps', { online: true }); return; }
+    if (game === 'trumps') { Track.open('ng:trumps', 'Козыри'); NG.open('trumps', { online: true, auto: auto ? 'rnd' : undefined }); return; }
     if (game === 'xdraft') {
       Track.open('act:xdraft', 'Драфт');
       Promise.resolve(actions.xdraft()).then(() => {
@@ -472,6 +472,7 @@ const App = (() => {
     wheel: () => Wheel.open(),
     skins: () => Shop.open('skins'),
     myclub: () => Clubs.open(),
+    refs: () => Refs.open(),
     // онлайн с живым соперником: выбор режима
     online: () => Home.pick('online'),
     starshop: () => Shop.open('packs'),
@@ -519,6 +520,7 @@ const App = (() => {
   function init() {
     Store.load();
     safe('Online presence', () => Online.startPresence());
+    safe('Online seekers', () => Online.watch((g) => launchOnlineGame(g, true))); // плашка «Игрок ищет соперника»
     safe('Skins', () => Skins.apply());
     // каждый модуль подключаем отдельно: ошибка в одном не должна ломать весь экран
     [['Pass', () => Pass.bind()], ['Guess', () => Guess.bind()], ['Career', () => Career.bind()], ['Club', () => Club.bind()], ['Transfer', () => Transfer.bind()],

@@ -84,7 +84,7 @@ body.pp-open .tabbar { visibility: hidden; }
 #profile #social-profile.pc { display: block; }
 .social-ver { display:block;margin-top:4px;font:700 10px/1.2 var(--font-body);color:#9aa4b8; } .social-ver.ok { color:#3ee66b; } .pp-vnote { margin-top:-6px;font-size:12px; }
 /* профиль: 4 плитки 2×2 и раскрывающиеся группы «Настройки» / «Помощь» вместо длинного списка */
-#profile .pf-tiles { grid-template-columns: repeat(2, 1fr); }
+#profile .pf-tiles { grid-template-columns: repeat(3, 1fr); }
 .pf-more { display: grid; gap: 8px; } .pf-more > summary { list-style: none; cursor: pointer; } .pf-more > summary::-webkit-details-marker { display: none; }
 .pf-more .pf-arr { display: inline-block; transition: transform .2s; font-size: 20px; line-height: 1; } .pf-more[open] .pf-arr { transform: rotate(90deg); }
 .pf-more > .settings { padding-left: 10px; }

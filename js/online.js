@@ -143,11 +143,11 @@ const Online = (() => {
         if (cur !== c || !c.mm || c.conn) return;
         if (r.ok && r.role === 'join') { c.mm = false; toast(`Соперник найден: ${String(r.nick || 'Игрок').slice(0, 16)}`); return join(r.code); }
         const h = $('.on-wait h3', box); if (h) h.textContent = r.ok && r.waiting > 1 ? `Ищем соперника… ищут: ${r.waiting}` : 'Ищем соперника…';
-        if (Date.now() - t0 > 60000) {
+        if (Date.now() - t0 > 120000) {
           mmStop(); killPeer();
           box.innerHTML = `<div class="on-wrap"><div class="on-ico">${Ui.get('users')}</div><h3>Пока никого нет онлайн</h3><p>Позови друга — отправь ему код комнаты.</p>
-            <button class="btn gold" data-on="rnd">Искать ещё</button><button class="btn" data-on="host">${Ui.get('send')} Позвать друга</button><button class="btn ghost" data-on="menu">Назад</button></div>`;
-          acts = { rnd: random, host, menu }; return;
+            <button class="btn gold" data-on="rnd">Искать ещё</button>${o.bot ? '<button class="btn" data-on="bot">Сыграть с ботом</button>' : ''}<button class="btn" data-on="host">${Ui.get('send')} Позвать друга</button><button class="btn ghost" data-on="menu">Назад</button></div>`;
+          acts = { rnd: random, host, menu, bot: () => { stop(); o.bot && o.bot(); } }; return;
         }
         T(poll, 3000);
       };
@@ -218,7 +218,7 @@ const Online = (() => {
       });
     }
 
-    if (o.join) join(o.join); else if (o.host) host(); else menu();
+    if (o.join) join(o.join); else if (o.host) host(); else if (o.auto === 'rnd') random(); else menu();
   }
 
   // ссылка-приглашение o_xd_CODE / o_tr_CODE
@@ -229,5 +229,31 @@ const Online = (() => {
     if (game === 'trumps') { NG.open('trumps', { online: m[2] }); return true; }
     return false;
   }
-  return { open, stop, deep, startPresence, setActivity, refreshPresence, paintPresence, counts: () => onlineCounts, leaveScreen: id => { if (cur && cur.screen !== id) stop(); if (id === 'hub') setActivity('hub'); } };
+  // Плашка «Игрок ищет соперника»: пока ты в меню, раз в 20 с спрашиваем сервер, ищет ли кто-то матч прямо сейчас.
+  // Нажал «Играть» — сразу встаёшь в поиск этого режима и попадаешь к нему. Отказался — этот режим молчит 3 минуты.
+  const SEEK_TITLE = { duel: 'Футбольная дуэль', trumps: 'Козыри', xdraft: 'Драфт' };
+  let seekTimer = null, seekMuted = {}, seekBar = null;
+  function seekHide() { if (seekBar) { seekBar.remove(); seekBar = null; } }
+  async function seekTick(onPlay) {
+    const idle = ['hub', 'profile', 'shop', 'rewards', 'board'].includes(Screens.current) && !document.hidden && !cur && !Modal.isOpen;
+    if (!Board.ready() || !idle) return seekHide();
+    const r = await mm({ act: 'peek' });
+    if (!r || !r.ok) return;
+    const now = Date.now(), game = ['duel', 'trumps', 'xdraft'].find((g) => r.waiting && r.waiting[g] > 0 && !(seekMuted[g] > now));
+    if (!game) return seekHide();
+    if (seekBar && seekBar.dataset.game === game) return;
+    seekHide();
+    seekBar = document.createElement('div'); seekBar.className = 'seek-bar'; seekBar.dataset.game = game;
+    seekBar.innerHTML = `<span class="seek-dot"></span><span><b>Игрок ищет соперника</b><small>${SEEK_TITLE[game]} · онлайн</small></span><button class="btn gold" data-seek="go">Играть</button><button class="seek-x" data-seek="x" aria-label="Скрыть">✕</button>`;
+    seekBar.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-seek]'); if (!b) return;
+      seekMuted[game] = Date.now() + (b.dataset.seek === 'x' ? 180000 : 30000); seekHide();
+      if (b.dataset.seek === 'go') { Sound.play('tap'); onPlay(game); }
+    });
+    document.body.appendChild(seekBar);
+    haptic('pop');
+  }
+  function watch(onPlay) { if (seekTimer) return; seekTimer = setInterval(() => seekTick(onPlay), 20000); setTimeout(() => seekTick(onPlay), 6000); }
+
+  return { open, stop, deep, startPresence, watch, seekHide, setActivity, refreshPresence, paintPresence, counts: () => onlineCounts, leaveScreen: id => { if (cur && cur.screen !== id) stop(); if (id === 'hub') setActivity('hub'); if (!['hub', 'profile', 'shop', 'rewards', 'board'].includes(id)) seekHide(); } };
 })();

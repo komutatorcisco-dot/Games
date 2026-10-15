@@ -326,6 +326,10 @@ async function schema(db) {
     // испытания серий («Забытые легенды»): отметки заданий и однократная выдача карточки
     db.prepare('CREATE TABLE IF NOT EXISTS legend_marks (uid INTEGER NOT NULL, mark TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (uid, mark))'),
     db.prepare('CREATE TABLE IF NOT EXISTS legend_claims (uid INTEGER NOT NULL, card TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY (uid, card))'),
+    // приглашения: у новичка один пригласивший; награду за друга выдаёт сервер один раз (claimed), ступени — один раз (ref_miles)
+    db.prepare('CREATE TABLE IF NOT EXISTS refs (invitee INTEGER PRIMARY KEY, inviter INTEGER NOT NULL, ts INTEGER NOT NULL, claimed INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS refs_inviter ON refs (inviter, ts)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS ref_miles (id INTEGER NOT NULL, mile INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (id, mile))'),
   ]);
   if (!(await db.prepare("SELECT v FROM settings WHERE k = 'migration:trophy-cap-11000'").bind().first())) {
     await db.batch([
@@ -520,6 +524,9 @@ async function hello(env, user, body) {
   const nick = clean(body.nick, 16) || clean(user.username || user.first_name, 16) || 'Игрок';
   // писать в личку можно, если игрок разрешил это при входе или нажал «Да» на вопросе в приложении
   const writable = user.allows_write_to_pm || body.writeOk === true ? 1 : 0;
+  const ref = /^ref_(\d{3,15})$/.exec(user.start_param || '');
+  // новичок ли: приглашение засчитывается, только если человек открыл игры впервые (читаем только при ссылке друга)
+  const isNew = ref ? !(await db.prepare('SELECT 1 FROM seen WHERE id = ?').bind(user.id).first()) : false;
   const platform = clean(body.platform, 20);
   await db.batch([
     db.prepare(`INSERT INTO seen (id, nick, first, last, days, opens, writable, platform, lastday) VALUES (?1, ?2, ?3, ?3, 1, 1, ?4, ?5, ?6)
@@ -527,8 +534,11 @@ async function hello(env, user, body) {
       days = days + (CASE WHEN lastday = ?6 THEN 0 ELSE 1 END), lastday = ?6`).bind(user.id, nick, now, writable, platform, today),
     db.prepare('INSERT OR IGNORE INTO visits (day, id) VALUES (?, ?)').bind(today, user.id),
   ]);
-  // пришёл по ссылке друга — записываем дружбу в обе стороны
-  const ref = /^ref_(\d{3,15})$/.exec(user.start_param || '');
+  // пришёл по ссылке друга — записываем дружбу в обе стороны; новичку — подарок, другу — приглашённый в списке
+  let refGift = false;
+  if (ref && isNew && Number(ref[1]) !== user.id && (await db.prepare('SELECT 1 FROM seen WHERE id = ?').bind(Number(ref[1])).first())) {
+    refGift = ((await db.prepare('INSERT OR IGNORE INTO refs (invitee, inviter, ts) VALUES (?, ?, ?)').bind(user.id, Number(ref[1]), now).run()).meta?.changes || 0) === 1;
+  }
   if (ref && Number(ref[1]) !== user.id) await db.batch([
     db.prepare('INSERT OR IGNORE INTO friends (a, b, ts) VALUES (?, ?, ?)').bind(user.id, Number(ref[1]), now),
     db.prepare('INSERT OR IGNORE INTO friends (a, b, ts) VALUES (?, ?, ?)').bind(Number(ref[1]), user.id, now),
@@ -541,7 +551,36 @@ async function hello(env, user, body) {
   const prev = weekKey(now - 7 * 864e5), cupWin = Number(await getSetting(db, 'cupwin:' + prev)) === user.id ? prev : null;
   const sv = await db.prepare('SELECT ts, tro FROM saves WHERE id = ?').bind(user.id).first();
   const ut = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(user.id).first();
-  return { admin: await isAdminId(env, user.id), pass, shop, cupWin, save: sv ? { ts: sv.ts, tro: Math.min(11000, sv.tro) } : null, tro: ut ? Math.min(11000, ut.trophies) : 0 };
+  return { admin: await isAdminId(env, user.id), refGift, pass, shop, cupWin, save: sv ? { ts: sv.ts, tro: Math.min(11000, sv.tro) } : null, tro: ut ? Math.min(11000, ut.trophies) : 0 };
+}
+
+// ---------- пригласи друга ----------
+// Друг засчитывается, когда наберёт REF_TRO трофеев (по таблице трофеев сервера). Награды задаёт сервер, выдаёт один раз:
+// за каждого друга (refs.claimed) и за ступени 3 и 10 друзей (ref_miles). Клиент только показывает и открывает награду.
+const REF_TRO = 100, REF_MAX = 30;
+const REF_REWARD = { coins: 500, pack: 1 }, REF_MILES = { 3: { pack: 2 }, 10: { pack: 3 } };
+async function referrals(env, user, body) {
+  const db = env.DB, uid = user.id, now = Date.now();
+  await schema(db);
+  if (body.act === 'claim') {
+    const friend = Number(body.id) || 0;
+    const r = await db.prepare(`UPDATE refs SET claimed = ? WHERE invitee = ? AND inviter = ? AND claimed = 0
+      AND invitee IN (SELECT id FROM ustats WHERE trophies >= ?)`).bind(now, friend, uid, REF_TRO).run();
+    return (r.meta?.changes || 0) === 1 ? { ok: true, reward: REF_REWARD } : { ok: false, error: 'not ready' };
+  }
+  if (body.act === 'mile') {
+    const n = Number(body.n);
+    if (!REF_MILES[n]) return { ok: false, error: 'bad mile' };
+    const got = (await db.prepare('SELECT COUNT(*) AS n FROM refs WHERE inviter = ? AND claimed > 0').bind(uid).first()).n;
+    if (got < n) return { ok: false, error: 'not ready' };
+    const r = await db.prepare('INSERT OR IGNORE INTO ref_miles (id, mile, ts) VALUES (?, ?, ?)').bind(uid, n, now).run();
+    return (r.meta?.changes || 0) === 1 ? { ok: true, reward: REF_MILES[n] } : { ok: false, error: 'claimed' };
+  }
+  const rows = (await db.prepare(`SELECT r.invitee AS id, r.claimed, s.nick, COALESCE(u.trophies, 0) AS tro FROM refs r
+    LEFT JOIN seen s ON s.id = r.invitee LEFT JOIN ustats u ON u.id = r.invitee WHERE r.inviter = ? ORDER BY r.ts DESC LIMIT ?`).bind(uid, REF_MAX).all()).results || [];
+  const miles = ((await db.prepare('SELECT mile FROM ref_miles WHERE id = ?').bind(uid).all()).results || []).map((r) => r.mile);
+  return { ok: true, need: REF_TRO, reward: REF_REWARD, miles: Object.entries(REF_MILES).map(([n, rw]) => ({ n: Number(n), reward: rw, claimed: miles.includes(Number(n)) })),
+    friends: rows.map((r) => ({ id: r.id, nick: r.nick || 'Игрок', tro: Math.min(11000, r.tro), ready: r.tro >= REF_TRO, claimed: !!r.claimed })) };
 }
 
 // ---------- резервное сохранение ----------
@@ -1240,6 +1279,11 @@ async function matchmake(env, user, body) {
   // устаревшие ожидающие этого режима — по индексу mmg_wait (читаются только они); остальное убирает почасовой cron
   await db.prepare('DELETE FROM mmg WHERE game = ? AND paired IS NULL AND ts < ?').bind(game, now - 30000).run();
   if (body.act === 'cancel') { await db.prepare('DELETE FROM mmg WHERE id = ?').bind(uid).run(); return { ok: true }; }
+  // кто сейчас ищет соперника (для плашки «Игрок ищет соперника» у тех, кто в меню): только свежие, без себя
+  if (body.act === 'peek') {
+    const rows = (await db.prepare('SELECT game, COUNT(*) AS n FROM mmg WHERE paired IS NULL AND ts > ? AND id != ? GROUP BY game').bind(now - 25000, uid).all()).results || [];
+    return { ok: true, waiting: Object.fromEntries(rows.map((r) => [r.game, r.n])) };
+  }
   const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
   if (code.length !== 5) return { ok: false, error: 'bad code' };
   // меня уже нашли — второй игрок подключается по моему коду, просто ждём
@@ -1433,7 +1477,7 @@ async function route(request, env) {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     return json(await onlinePresence(env, null, { act: 'counts' }));
   }
-  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room', '/social'].includes(url.pathname) && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room', '/social', '/ref'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
@@ -1445,6 +1489,7 @@ async function route(request, env) {
     if (url.pathname === '/report') return json(await report(env, user, body));
     if (url.pathname === '/club') return json(await club(env, user, body));
     if (url.pathname === '/mm') return json(await matchmake(env, user, body));
+    if (url.pathname === '/ref') return json(await referrals(env, user, body));
     if (url.pathname === '/presence') return json(await onlinePresence(env, user, body));
     if (url.pathname === '/tour') return json(await draftTour(env, user, body));
     if (url.pathname === '/legend') return json(await legends(env, user, body));
