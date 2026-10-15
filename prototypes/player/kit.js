@@ -25,6 +25,8 @@ export function kitFromQuery(Q) {
     fm: (Q.get('fm') || '').split(',').map(Number).filter((n) => isFinite(n)),
     // готовая текстура лица (tools/rig/face.py): фото уже «натянуто» по точкам лица на лицо модели;
     // ff — её кадр в долях роста: x слева, x справа, высота низа, высота верха
+    crest: faceUrl(Q.get('crest') || ''), // эмблема клуба на груди (img/clubs/…)
+    stripes: /^[0-9a-f]{6}$/i.test(Q.get('stripes') || '') ? '#' + Q.get('stripes') : '', // три полоски по плечам
     ff: (Q.get('ff') || '').split(',').map(Number).filter((n) => isFinite(n) && Math.abs(n) <= 1.2) };
 }
 
@@ -76,6 +78,11 @@ export async function applyKit(model, kit) {
       if (ch && kit.skin) { const a = new THREE.Color(kit.skin), b = new THREE.Color(ch); tint.set(a.r / Math.max(b.r, 0.02), a.g / Math.max(b.g, 0.02), a.b / Math.max(b.b, 0.02)); } }
   }
   const FM = kit.fm.length === 3 ? kit.fm : FACE_MODEL;
+  let crestTex = null, crestAsp = 1;
+  if (kit.crest) {
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.crossOrigin = 'anonymous'; i.src = kit.crest; }).catch(() => null);
+    if (img) { crestTex = new THREE.Texture(img); crestTex.colorSpace = THREE.SRGBColorSpace; crestTex.anisotropy = 4; crestTex.needsUpdate = true; crestAsp = img.height / img.width; }
+  }
   let minY = Infinity, maxY = -Infinity;
   model.traverse((o) => { if (o.isMesh && o.geometry) { o.geometry.computeBoundingBox(); minY = Math.min(minY, o.geometry.boundingBox.min.y); maxY = Math.max(maxY, o.geometry.boundingBox.max.y); } });
   const Hm = maxY - minY;
@@ -89,7 +96,7 @@ export async function applyKit(model, kit) {
         kShirt: { value: lin(kit.shirt) }, kShorts: { value: lin(kit.shorts) }, kSocks: { value: lin(kit.socks) },
         kSkin: { value: lin(kit.skin || '#000000') }, kUseSkin: { value: kit.skin ? 1 : 0 },
         kPrint: { value: print }, kY0: { value: minY }, kH: { value: Hm },
-        kFace: { value: faceTex || print }, kUseFace: { value: faceTex ? 1 : 0 }, kTint: { value: tint },
+        kFace: { value: faceTex || print }, kUseFace: { value: faceTex ? 1 : 0 }, kTint: { value: tint }, kCrest: { value: crestTex || print }, kUseCrest: { value: crestTex ? crestAsp : 0 }, kStripes: { value: lin(kit.stripes || '#000000') }, kUseStripes: { value: kit.stripes ? 1 : 0 },
         kFM: { value: new THREE.Vector3(...FM) }, kFF: { value: new THREE.Vector4(...(framed ? kit.ff : [0, 0, 0, 0])) }, kFP: { value: new THREE.Vector4(...(kit.fp.length === 4 ? kit.fp : [0, 1, 1, 0.5])) },
       });
       sh.vertexShader = sh.vertexShader
@@ -99,7 +106,7 @@ export async function applyKit(model, kit) {
         .replace('#include <common>', `#include <common>
 varying vec3 vRest; varying vec3 vRestN;
 float kSkinMask = 0.0;
-uniform vec3 kShirt, kShorts, kSocks, kSkin; uniform float kUseSkin, kY0, kH, kUseFace; uniform sampler2D kPrint, kFace; uniform vec3 kFM, kTint; uniform vec4 kFP, kFF;`)
+uniform vec3 kShirt, kShorts, kSocks, kSkin; uniform float kUseSkin, kY0, kH, kUseFace; uniform sampler2D kPrint, kFace; uniform vec3 kFM, kTint, kStripes; uniform vec4 kFP, kFF; uniform sampler2D kCrest; uniform float kUseCrest, kUseStripes;`)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.78, kSkinMask);')
         .replace('#include <map_fragment>', `#include <map_fragment>
 {
@@ -123,6 +130,22 @@ uniform vec3 kShirt, kShorts, kSocks, kSkin; uniform float kUseSkin, kY0, kH, kU
       vec2 uv = vec2(0.5 + xr / 0.06, ((h - 0.665) / 0.06) * 0.62 + 0.18);
       if (uv.y > 0.18 && uv.y < 0.8) { vec4 p = texture2D(kPrint, uv); col = mix(col, p.rgb * max(shade, 0.55), p.a); }
     }
+  }
+  // три полоски по верху плеч и рукавов: вдоль линии плеча, измеренной на модели (верх по высоте и центр по глубине)
+  if (kUseStripes > 0.5 && h > ${Z.waist.toFixed(3)}) {
+    float ax = abs(vRest.x / kH);
+    float top = ax < 0.10 ? mix(0.843, 0.825, (ax - 0.06) / 0.04) : ax < 0.14 ? mix(0.825, 0.804, (ax - 0.10) / 0.04) : ax < 0.16 ? mix(0.804, 0.770, (ax - 0.14) / 0.02) : mix(0.770, 0.726, (ax - 0.16) / 0.02);
+    float c = vRest.z / kH + 0.028;
+    float st = 0.0;
+    for (int i = -1; i <= 1; i++) st = max(st, smoothstep(0.0042, 0.0030, abs(c - float(i) * 0.0105)));
+    st *= step(0.058, ax) * step(ax, 0.192) * smoothstep(top - 0.03, top - 0.018, h);
+    col = mix(col, kStripes * max(shade, 0.45), st);
+  }
+  // эмблема клуба на груди слева (у игрока), над сердцем
+  if (kUseCrest > 0.0 && h > ${Z.waist.toFixed(3)} && vRestN.z > 0.2) {
+    float hw = 0.0165;
+    vec2 cuv = vec2((vRest.x / kH - 0.043) / (2.0 * hw) + 0.5, (h - 0.738) / (2.0 * hw * kUseCrest) + 0.5);
+    if (cuv.x > 0.0 && cuv.x < 1.0 && cuv.y > 0.0 && cuv.y < 1.0) { vec4 e = texture2D(kCrest, cuv); col = mix(col, e.rgb * max(shade, 0.6), e.a); }
   }
   diffuseColor.rgb = mix(c, col, cloth);
   // кожа: тёплый тон средней насыщенности (не ткань, не волосы, не бутсы)
@@ -156,7 +179,7 @@ uniform vec3 kShirt, kShorts, kSocks, kSkin; uniform float kUseSkin, kY0, kH, kU
   }
 }`);
     };
-    m.customProgramCacheKey = () => 'kit:' + kit.shirt + kit.shorts + kit.socks + kit.skin + (faceTex ? (framed ? 'F' : 'f') : '');
+    m.customProgramCacheKey = () => 'kit:' + kit.shirt + kit.shorts + kit.socks + kit.skin + (faceTex ? (framed ? 'F' : 'f') : '') + (crestTex ? 'C' : '') + (kit.stripes ? 'S' : '');
     m.needsUpdate = true;
   });
 }

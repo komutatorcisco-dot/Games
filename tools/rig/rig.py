@@ -8,6 +8,11 @@ bpy.context.view_layer.objects.active=ob; ob.select_set(True)
 ob.rotation_mode='XYZ'
 ob.matrix_world = Matrix.Rotation(-math.pi/2,4,'Z') @ ob.matrix_world
 bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
+# плавные нормали: склеить швы развёртки (UV остаются по углам) и сгладить — без граней на лице
+bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT'); bpy.ops.mesh.remove_doubles(threshold=1e-5); bpy.ops.object.mode_set(mode='OBJECT')
+try: bpy.ops.mesh.customdata_custom_splitnormals_clear()
+except Exception as e: print('no custom normals', e)
+bpy.ops.object.shade_smooth()
 me=ob.data
 co=np.empty(len(me.vertices)*3); me.vertices.foreach_get('co',co); co=co.reshape(-1,3)
 H0=co[:,2].max()-co[:,2].min(); s=1.85/H0
