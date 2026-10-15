@@ -271,7 +271,9 @@
       <div class="topbar-title">Профиль</div>
       <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
     </header>
-    <div class="pc">
+    <div class="pc pp pp-own">
+      <div class="pp-hero-host" id="pp-hero"></div>
+      <div class="pp-side">
       <div class="pc-who">
         <span class="pc-ava prof-badge frame-host" id="prof-badge"></span>
         <div class="pc-nm"><b id="prof-nick"></b><span class="pc-rk" id="prof-rank"></span>
@@ -283,8 +285,10 @@
         <div><span data-ui="medal"></span><b id="tk-place">—</b><small>место за неделю</small></div>
       </div>
       <div class="pc-meta"><span>В игре с <b id="tk-since">—</b></span><span>Тур <b id="tk-tour">1</b></span><span>Опыт <b id="tk-xp">0</b></span></div>
+      </div>
     </div>
     <div class="pc-stats" id="pf-fstats"></div>
+    <section id="social-profile" class="pc" aria-label="Витрина карточек"></section>
     <div class="stats pf-stats" id="prof-stats" hidden></div>
     <div class="pf-tiles">
       <button data-act="achievements"><span data-ui="trophy"></span><b>Трофеи</b><small id="pf-ach"></small></button>
@@ -349,7 +353,6 @@
       <div class="topbar-title"><span>Трофеи</span><small id="ach-sub"></small></div>
       <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
     </header>
-    <section id="social-profile" aria-label="Витрина карточек"></section>
     <div class="achs" id="prof-achs"></div>
   </section>
 
@@ -697,8 +700,8 @@
 <script defer src="js/positions.js?v=20261014-frv1"></script>
 <script defer src="js/data/cards.js?v=20261014-frv1"></script>
 <script defer src="js/cards.js?v=20261015-pg1"></script>
-<link rel="stylesheet" href="css/social.css?v=20261015-pg1">
-<script defer src="js/social.js?v=20261015-pub1"></script>
+<link rel="stylesheet" href="css/social.css?v=20261015-pp2">
+<script defer src="js/social.js?v=20261015-pp2"></script>
 <script defer src="js/packs.js?v=20261013-fut1"></script>
 <script defer src="js/rewards.js?v=20261011-economy1"></script>
 <script defer src="js/sbc.js?v=20261014-social1"></script>
@@ -755,7 +758,7 @@
 <script defer src="js/release.js?v=20261014a"></script>
 <script defer src="js/board.js?v=20261014-social1"></script>
 <script defer src="js/track.js?v=20261015-adm1"></script>
-<script defer src="js/app.js?v=20261014-social1"></script>
+<script defer src="js/app.js?v=20261015-pp1"></script>
 <script>
 /* Автообновление: Telegram держит старую копию игры. При запуске (и при возврате в игру на главной) сверяем
    версии файлов (?v=…) в свежем index.html с текущими; если вышло обновление — перезагружаем с обходом кэша.

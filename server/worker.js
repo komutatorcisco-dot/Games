@@ -126,13 +126,20 @@ async function social(env, user, body) {
     const t = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(row.uid).first();
     // «Игрок дня»: частичный индекс только по победам — без перебора всей таблицы daily на каждый просмотр профиля
     const d = await db.prepare('SELECT 1 AS n FROM daily WHERE id = ? AND won = 1 LIMIT 1').bind(row.uid).first();
+    // для профиля: клуб, победы в играх, дни в игре, турниры драфта — всё по первичным ключам и индексам, без перебора таблиц
+    const cl = await db.prepare('SELECT c.name, c.emoji FROM cmembers m JOIN clubs c ON c.id = m.club WHERE m.id = ?').bind(row.uid).first();
+    const gw = await db.prepare('SELECT COALESCE(SUM(wins), 0) AS n FROM gwins WHERE id = ?').bind(row.uid).first();
+    const sn = await db.prepare('SELECT days FROM seen WHERE id = ?').bind(row.uid).first();
+    const dt = await db.prepare('SELECT COUNT(*) AS n FROM draft_tours WHERE uid = ?').bind(row.uid).first();
     const xp = Math.max(0, Number(u && u.xp) || 0);
     const thresholds = [0, 60, 180, 400, 800, 1400, 2400, 4000];
     // Existing profile statistics are server-stored but retain legacy client-result trust limitations.
     // Витрина — только проверенная сервером (social_shown), а не то, что игрок выбрал.
     return { ok: true, private: false, nick: String(u && u.nick || 'Игрок').slice(0, 32), emoji: String(u && u.emoji || '⚽').slice(0, 16),
       level: thresholds.filter(n => xp >= n).length, trophies: Math.max(0, Math.min(11000, Number(t && t.trophies) || 0)),
-      achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase: await shownFor(db, row.uid), showcaseEnabled: true };
+      achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase: await shownFor(db, row.uid), showcaseEnabled: true,
+      club: cl ? { name: String(cl.name || '').slice(0, 32), emoji: String(cl.emoji || '⚽').slice(0, 16) } : null,
+      wins: Math.max(0, Number(gw && gw.n) || 0), days: Math.max(0, Number(sn && sn.days) || 0), drafts: Math.max(0, Number(dt && dt.n) || 0) };
   }
   if (!['self', 'edit'].includes(body.act)) return { ok: false, error: 'bad operation' };
   let row = await db.prepare('SELECT handle, revision, data FROM social_profiles WHERE uid = ?').bind(user.id).first();

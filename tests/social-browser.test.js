@@ -43,9 +43,10 @@ const {chromium}=require('playwright');
   assert.equal(await page.evaluate(()=>Social.active()[0]),null);
   // Public profile renderer tested using an explicit fixture, not a production ownership claim.
   await page.evaluate(async()=>{Board.post=async()=>({ok:true,nick:'<script>unsafe</script>',emoji:'⚽',level:3,trophies:200,achievements:['Игрок дня'],showcase:[],showcaseEnabled:false});await Social.open('a'.repeat(32))});
-  assert.equal(await page.locator('.social-public h2').textContent(),'<script>unsafe</script>');
-  assert.equal(await page.locator('#modal-card script').count(),0);
-  assert.equal(await page.locator('.social-public .cc').count(),0);
+  assert.equal(await page.locator('.pp-layer .pp-nm b').textContent(),'<script>unsafe</script>','nick is escaped in the full-screen profile');
+  assert.equal(await page.locator('.pp-layer script').count(),0);
+  assert.equal(await page.locator('.pp-layer .cc').count(),0,'empty showcase shows no cards');
+  assert.ok(await page.locator('.pp-layer .pc-st').count()>=2,'stats tiles reuse skin classes');
   await page.screenshot({path:'tests/social-mobile-public.png',fullPage:false});
   for(const width of [360,390,430]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow at '+width)}
   assert.deepEqual(errors,[]);console.log('PASS mobile social: favorites, filter, reorder, replace, remove, bounded picker, inactive ownership, escaped public profile, widths 360/390/430');

@@ -114,6 +114,8 @@ const App = (() => {
 
   function renderProfile() {
     if (typeof Social !== 'undefined') Social.render();
+    // слева крупно любимый футболист — первая карточка витрины (как в чужом профиле)
+    if (typeof Social !== 'undefined' && Social.hero) $('#pp-hero').innerHTML = Social.hero(Social.active().find(Boolean), Store.d.user.emoji);
     rankUi('#prof-rank', '#prof-xp', '#prof-next');
     $('#prof-badge').textContent = Store.d.user.emoji || '⚽';
     // абонемент: с какого дня в игре, тур, опыт и место в таблице недели; ниже — настоящая статистика
@@ -566,7 +568,7 @@ const App = (() => {
       try { if (TG && TG.BackButton) id === 'hub' ? TG.BackButton.hide() : TG.BackButton.show(); } catch (e) { /* не в Telegram */ }
     };
     try {
-      if (TG && TG.BackButton) TG.BackButton.onClick(() => (Screens.current === 'pass-game' ? Pass.openLevels() : home()));
+      if (TG && TG.BackButton) TG.BackButton.onClick(() => (typeof Social !== 'undefined' && Social.layerOpen && Social.layerOpen() ? Social.closeLayer() : Screens.current === 'pass-game' ? Pass.openLevels() : home()));
     } catch (e) { /* не в Telegram */ }
     // Ссылка вида ...#pass открывает игру сразу
     let h = location.hash.replace('#', '');
