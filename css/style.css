@@ -4727,4 +4727,23 @@ body.dg-on { overscroll-behavior: none; }
 .fpk.pimg .fpk-s, .fpk.pimg .fpk-k { display: none; } /* объём уже нарисован на картинке — торец и задник старой модели не нужны */
 .fpk.pimg.p0 { --a: #cfd6de; --b: #5f6b7a; --c: #f4f7fa; } .fpk.pimg.p4 { --a: #3a3a3a; --b: #111; --c: #f2cb5c; }
 .fpk.pimg .po-cap { left: 8%; right: 8%; top: 3%; height: 8%; border-radius: 4px; background: linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.05)); border-bottom: 2px dashed rgba(0,0,0,.45); }
+/* рисованные иконки: шапка, профиль, онлайн-режимы, статистика */
+.mh-chip .art { display: block; width: 26px; height: 26px; margin: -2px 0; } .mh-chip .art .ji { filter: drop-shadow(0 2px 0 rgba(0,0,0,.45)); }
+.h2-tro .ji { width: 32px; height: 32px; margin: -4px 0; filter: drop-shadow(0 2px 0 rgba(0,0,0,.45)); }
+.pc-big span.art { display: block; width: 46px; height: 46px; } .pc-big span.art .ji { filter: drop-shadow(0 3px 2px rgba(0,0,0,.4)); }
+.pc-st i.art { width: 46px; height: 46px; } .pc-st i.art .ji { filter: drop-shadow(0 3px 2px rgba(0,0,0,.4)); }
+.pf-statd .pc-stats { margin: 4px 0 8px; } .pf-pk2 { height: 44px; place-items: center; } .pf-pk2 .fpk.rs { --pw: 32px; --ph: 44px; }
+.online-game-ico.art { width: 54px; height: 54px; background: none; box-shadow: none; } .online-game-ico.art .ji { filter: drop-shadow(0 3px 2px rgba(0,0,0,.4)); }
+/* живые иконки: лёгкое объёмное покачивание (только transform — без перерисовки), нажатие с проседанием */
+@keyframes jiSway { 0%, 100% { transform: perspective(240px) rotateY(-12deg) rotateZ(-2deg) translateY(0); } 50% { transform: perspective(240px) rotateY(12deg) rotateZ(2deg) translateY(-3px); } }
+@keyframes jiPop { 0% { transform: scale(.55) rotate(-10deg); opacity: 0; } 60% { transform: scale(1.12) rotate(3deg); opacity: 1; } 100% { transform: none; } }
+.h2-sbi.art .ji, .h2-sbi.dly .ji, #profile .pf-tiles .art .ji, .online-game-ico.art .ji, .kb-chi.art .ji, .pc-big span.art .ji { animation: jiSway 4.2s ease-in-out infinite; will-change: transform; }
+.h2-sb:nth-child(2) .ji, #profile .pf-tiles button:nth-child(2) .ji, .online-game-card:nth-child(2) .ji, .pc-big > div:nth-child(2) .ji { animation-delay: -1.4s; }
+.h2-sb:nth-child(3) .ji, #profile .pf-tiles button:nth-child(3) .ji, .online-game-card:nth-child(3) .ji { animation-delay: -2.8s; }
+#profile .pf-tiles button:nth-child(4) .ji { animation-delay: -3.6s; }
+.sr-b.on .sr-i.art .ji, .kb-tabs button.on .ji { animation: jiPop .45s cubic-bezier(.3,1.4,.5,1) both; }
+.pf-statd[open] .pc-st { animation: jiPop .4s cubic-bezier(.3,1.4,.5,1) both; } .pf-statd[open] .pc-st:nth-child(2) { animation-delay: .04s; } .pf-statd[open] .pc-st:nth-child(3) { animation-delay: .08s; } .pf-statd[open] .pc-st:nth-child(4) { animation-delay: .12s; } .pf-statd[open] .pc-st:nth-child(5) { animation-delay: .16s; } .pf-statd[open] .pc-st:nth-child(6) { animation-delay: .2s; }
+.sr-b, .kb-tabs button, #profile .pf-tiles button, .online-game-card, .mh-chip { transition: transform .12s ease; }
+.sr-b:active, .kb-tabs button:active, #profile .pf-tiles button:active, .online-game-card:active, .mh-chip:active { transform: translateY(3px) scale(.96); }
+@media (prefers-reduced-motion: reduce) { .ji, .pc-st { animation: none !important; } }
 @media (max-width: 350px) { .h2-sbi.art .ji, .h2-sbi.dly .ji { width: 44px; height: 44px; } .sr-i.art .ji { width: 40px; height: 40px; } }

@@ -53,7 +53,7 @@ const Home = (() => {
     const cards = Release.feature('cards'), pend = (Rewards.S().pending || 0), packReady = cards && typeof Wheel !== 'undefined' && Wheel.ready();
     box.innerHTML = `
       <button class="h2-road" data-act="road">
-        <span class="h2-tro">${Ui.get('trophy')}<b>${t}</b></span>
+        <span class="h2-tro">${Art.img('cup1', '', 96)}<b>${t}</b></span>
         <span class="h2-bar"><i style="width:${pct}%"></i><small>${nx ? `${t} / ${nx.need}` : 'Всё открыто'}</small></span>
         <span class="h2-ni" title="${nx ? esc(nx.title) : ''}">${nxIco}${nx ? `<em>${Ui.get('lock')}</em>` : ''}</span>
       </button>
@@ -137,7 +137,7 @@ const Home = (() => {
     };
     const el = document.createElement('div');
     el.className = 'sx-sheet-wrap h2-sheet';
-    const onlineGames = [['duel', 'Футбольная дуэль', 'Вопросы на скорость', '⚡'], ['xdraft', 'Драфт', 'Матч собранными составами', '🏆'], ['trumps', 'Козыри', 'Сравнивай карточки', '🃏']];
+    const onlineGames = [['duel', 'Футбольная дуэль', 'Вопросы на скорость', 'online'], ['xdraft', 'Драфт', 'Матч собранными составами', 'cup2'], ['trumps', 'Козыри', 'Сравнивай карточки', 'qcards']];
     el.innerHTML = `<div class="sx-sheet"><div class="sx-grab"></div><div class="sx-sh"><b>Выбери игру</b><button class="sx-x" data-sh="close" aria-label="Закрыть">✕</button></div>
       <div class="games-mode-switch" role="tablist" aria-label="Режим игры"><button data-picker-mode="offline" role="tab">Офлайн</button><button data-picker-mode="online" role="tab">Онлайн <span class="gms-live" data-presence-total>—</span></button></div>
       <div class="h2-pl" data-picker-panel="offline"><div class="h2-pg">${solo.filter(g => g.key !== 'ng:duel').map(cell).join('')}</div>
@@ -145,7 +145,7 @@ const Home = (() => {
       <p class="h2-pn">У тебя ${t} ${Ui.get('trophy')}. Побеждай — откроются новые игры.</p></div>
       <div class="h2-pl" data-picker-panel="online" hidden><div class="online-presence"><span class="online-pulse"></span><span>Сейчас в сети</span><b data-presence-total>—</b><button data-online-refresh aria-label="Обновить число игроков">↻</button></div>
       <p class="h2-pn" data-presence-status>Обновляем число игроков…</p>
-      <div class="online-game-list">${onlineGames.map(([id,title,sub,ico]) => `<button class="online-game-card" data-online-game="${id}" style="--oc1:#8866ef;--oc2:#315aa3"><span class="online-game-ico">${ico}</span><span><b>${title}</b><small>${sub}</small><small><i data-presence-game="${id}">—</i> в режиме сейчас</small></span><em>Играть →</em></button>`).join('')}</div>
+      <div class="online-game-list">${onlineGames.map(([id,title,sub,ico]) => `<button class="online-game-card" data-online-game="${id}" style="--oc1:#8866ef;--oc2:#315aa3"><span class="online-game-ico art">${Art.img(ico, '', 96)}</span><span><b>${title}</b><small>${sub}</small><small><i data-presence-game="${id}">—</i> в режиме сейчас</small></span><em>Играть →</em></button>`).join('')}</div>
       <p class="h2-pn">Выбери игру, затем найди соперника или пригласи друга. Аукцион вдвоём пока доступен на одном телефоне во вкладке «Офлайн».</p></div></div>`;
     document.body.appendChild(el);
     const switchMode = (next) => {

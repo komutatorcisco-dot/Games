@@ -9,24 +9,42 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;800&family=Rubik:ital,wght@0,500;0,700;0,800;0,900;1,900&family=Oswald:wght@500;700&family=Russo+One&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015-art3">
+<link rel="stylesheet" href="css/style.css?v=20261015-art4">
 <link rel="stylesheet" href="css/skins.css?v=20261014a">
 <style>
-#boot{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;background:radial-gradient(90% 50% at 50% 35%,#1d2433,#0b0e14 70%);color:#fff;font-family:Rubik,"Golos Text",system-ui,sans-serif;transition:opacity .45s ease,transform .45s ease}
-#boot.out{opacity:0;transform:scale(1.04);pointer-events:none}
-#boot .bt-in{display:grid;justify-items:center;gap:14px;width:min(78vw,320px);text-align:center}
-#boot .bt-hex{width:96px;height:106px;display:grid;place-items:center;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%);background:linear-gradient(180deg,#ffe68a,#f0a812);color:#2b1a00;font:italic 900 40px Rubik,system-ui,sans-serif;letter-spacing:-.03em;animation:btPulse 1.6s ease-in-out infinite}
-@keyframes btPulse{50%{transform:translateY(-6px) scale(1.04)}}
-#boot h1{margin:6px 0 0;font:900 28px/1 Rubik,system-ui,sans-serif;letter-spacing:.02em}
-#boot .bt-sub{margin:-6px 0 8px;font:700 13px "Golos Text",system-ui,sans-serif;color:rgba(255,255,255,.55)}
-#boot .bt-bar{position:relative;width:100%;height:14px;border-radius:99px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);overflow:hidden}
-#boot .bt-bar i{position:absolute;inset:0 auto 0 0;width:0;border-radius:99px;background:linear-gradient(90deg,#ffcf3a,#ff9d00)}
-#boot .bt-bar i::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.55) 50%,transparent 70%);background-size:200% 100%;animation:btShine 1.2s linear infinite}
-@keyframes btShine{from{background-position:200% 0}to{background-position:-200% 0}}
-#boot .bt-row{display:flex;justify-content:space-between;width:100%;font:800 12px "Golos Text",system-ui,sans-serif;color:rgba(255,255,255,.6)}
-#boot .bt-row b{color:#ffcf3a}
-#boot .bt-tip{min-height:36px;margin-top:10px;font:600 13px/1.4 "Golos Text",system-ui,sans-serif;color:rgba(255,255,255,.75);transition:opacity .3s}
-@media (prefers-reduced-motion:reduce){#boot .bt-hex,#boot .bt-bar i::after{animation:none}}
+#boot{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;overflow:hidden;background:radial-gradient(80% 55% at 50% 34%,#2a2f52 0%,#141729 55%,#07080f 100%);color:#fff;font-family:Rubik,"Golos Text",system-ui,sans-serif;transition:opacity .45s ease,transform .45s ease}
+#boot.out{opacity:0;transform:scale(1.06);pointer-events:none}
+#boot .bt-rays{position:absolute;left:50%;top:34%;width:150vmax;height:150vmax;margin:-75vmax 0 0 -75vmax;background:repeating-conic-gradient(from 0deg,rgba(255,207,58,.13) 0 7deg,transparent 7deg 18deg);-webkit-mask:radial-gradient(closest-side,#000 8%,transparent 62%);mask:radial-gradient(closest-side,#000 8%,transparent 62%);animation:btSpin 28s linear infinite}
+@keyframes btSpin{to{transform:rotate(360deg)}}
+#boot .bt-in{position:relative;display:grid;justify-items:center;gap:14px;width:min(80vw,320px);text-align:center}
+#boot .bt-stage{position:relative;width:220px;height:170px;display:grid;place-items:center;perspective:600px}
+#boot .bt-logo{position:relative;width:112px;height:124px;transform-style:preserve-3d;animation:btFloat 3.2s ease-in-out infinite}
+#boot .bt-edge,#boot .bt-hex{position:absolute;inset:0;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
+#boot .bt-edge{inset:-5px;background:#1a0f00;transform:translateY(10px)}
+#boot .bt-edge::before,#boot .bt-edge::after{content:"";position:absolute;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}#boot .bt-edge::before{inset:5px;background:#c27400}#boot .bt-edge::after{inset:0;transform:translateY(-10px);background:#1a0f00}
+#boot .bt-hex{display:grid;place-items:center;background:linear-gradient(180deg,#fff1a8 0%,#ffd23f 38%,#f0a812 100%);color:#2b1a00;font:italic 900 46px Rubik,system-ui,sans-serif;letter-spacing:-.03em;overflow:hidden}
+#boot .bt-hex::before{content:"";position:absolute;inset:6px 10px auto;height:34%;clip-path:polygon(50% 0,100% 40%,100% 100%,0 100%,0 40%);background:linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,0))}
+#boot .bt-hex::after{content:"";position:absolute;inset:-30%;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.85) 50%,transparent 58%);animation:btGloss 2.4s ease-in-out infinite}
+#boot .bt-hex span{position:relative;z-index:1;text-shadow:0 2px 0 rgba(255,255,255,.45)}
+@keyframes btGloss{0%,45%{transform:translateX(-70%)}100%{transform:translateX(70%)}}
+@keyframes btFloat{0%,100%{transform:translateY(0) rotateY(-14deg) rotateX(6deg)}50%{transform:translateY(-8px) rotateY(14deg) rotateX(-4deg)}}
+#boot .bt-fl{position:absolute;display:block;filter:drop-shadow(0 6px 6px rgba(0,0,0,.45));animation:btBob 3s ease-in-out infinite}
+#boot .f1{width:52px;height:52px;left:4px;top:18px;--r:-14deg}
+#boot .f2{width:58px;height:auto;right:0;top:4px;--r:12deg;animation-delay:-1s}
+#boot .f3{width:50px;height:50px;left:22px;bottom:0;--r:8deg;animation-delay:-2s}
+#boot .f4{width:46px;height:46px;right:16px;bottom:4px;--r:-8deg;animation-delay:-1.6s}
+@keyframes btBob{0%,100%{transform:translateY(0) rotate(var(--r)) scale(1)}50%{transform:translateY(-10px) rotate(calc(var(--r) * -1)) scale(1.05)}}
+#boot h1{margin:2px 0 0;font:900 32px/1 Rubik,system-ui,sans-serif;letter-spacing:.02em;-webkit-text-stroke:5px #0b0d1a;paint-order:stroke fill;text-shadow:0 4px 0 #0b0d1a}
+#boot .bt-sub{margin:-4px 0 10px;font:800 13px "Golos Text",system-ui,sans-serif;color:#ffcf3a;letter-spacing:.06em;text-transform:uppercase}
+#boot .bt-bar{position:relative;width:100%;height:22px;border-radius:99px;background:#0b0d1a;box-shadow:0 0 0 3px #0b0d1a,inset 0 3px 4px rgba(0,0,0,.6),0 4px 0 3px #0b0d1a;overflow:hidden}
+#boot .bt-bar i{position:absolute;inset:3px auto 3px 3px;width:0;max-width:calc(100% - 6px);border-radius:99px;background:linear-gradient(180deg,#ffe98a 0%,#ffc21a 45%,#f08c00 100%);box-shadow:inset 0 -3px 0 rgba(150,70,0,.35)}
+#boot .bt-bar i::before{content:"";position:absolute;left:6px;right:6px;top:2px;height:5px;border-radius:99px;background:rgba(255,255,255,.6)}
+#boot .bt-bar i::after{content:"";position:absolute;inset:0;border-radius:99px;background:repeating-linear-gradient(120deg,rgba(255,255,255,.18) 0 8px,transparent 8px 16px);animation:btStripe .8s linear infinite}
+@keyframes btStripe{to{background-position:18px 0}}
+#boot .bt-row{display:flex;justify-content:space-between;width:100%;margin-top:4px;font:800 12px "Golos Text",system-ui,sans-serif;color:rgba(255,255,255,.7)}
+#boot .bt-row b{color:#ffcf3a;font:900 14px Rubik,system-ui,sans-serif}
+#boot .bt-tip{min-height:40px;margin-top:8px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font:600 13px/1.4 "Golos Text",system-ui,sans-serif;color:rgba(255,255,255,.85);transition:opacity .3s}
+@media (prefers-reduced-motion:reduce){#boot .bt-rays,#boot .bt-logo,#boot .bt-fl,#boot .bt-hex::after,#boot .bt-bar i::after{animation:none}}
 </style>
 <script>window.__errs=[];addEventListener("error",function(e){if(window.Oops||!e.message||(!e.filename&&/^Script error/i.test(e.message)))return;__errs.push((e.filename||"").split("/").pop().split("?")[0]+":"+e.lineno+": "+(e.message||"?"))});</script>
 <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -36,7 +54,8 @@
 </head>
 <body data-scr="hub" data-panel="home">
 <div id="boot" role="progressbar" aria-label="Загрузка">
-  <div class="bt-in"><div class="bt-hex">ДЖ</div><h1>Джексоны</h1><p class="bt-sub">Футбольные мини-игры</p>
+  <i class="bt-rays"></i>
+  <div class="bt-in"><div class="bt-stage"><img class="bt-fl f1" src="img/icons/coin-96.webp" alt=""><img class="bt-fl f2" src="img/icons/pk-gold-160.webp" alt=""><img class="bt-fl f3" src="img/icons/cup1-96.webp" alt=""><img class="bt-fl f4" src="img/icons/qcards-96.webp" alt=""><div class="bt-logo"><div class="bt-edge"></div><div class="bt-hex"><span>ДЖ</span></div></div></div><h1>Джексоны</h1><p class="bt-sub">Футбольные мини-игры</p>
     <div class="bt-bar"><i></i></div><div class="bt-row"><span class="bt-lbl">Загружаем игры…</span><b class="bt-pct">0%</b></div><p class="bt-tip"></p></div>
 </div>
 <script>
@@ -90,7 +109,7 @@
       <div class="mh">
         <button class="mh-me" data-act="profile" aria-label="Профиль"><span class="mh-ava">⚽</span><span class="mh-who"><b class="mh-nick">Игрок</b><small class="mh-tro">🏆 0</small></span></button>
         <button class="hh-packs" id="hub-packs" data-act="rw-packs" hidden><i class="rw-pk"></i><b>0</b></button>
-        <button class="mh-chip mh-club" data-act="myclub" aria-label="Клуб"><span data-ui="users"></span><b>Клуб</b></button>
+        <button class="mh-chip mh-club" data-act="myclub" aria-label="Клуб"><span class="art" data-art="members"></span><b>Клуб</b></button>
         <button class="coins mh-chip" data-act="coins-info" aria-label="Монеты"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></button>
       </div>
       <div hidden><span class="hh-streak" id="hub-streak">🔥 0</span><span class="me-ava" id="hub-ava">⚽</span></div>
@@ -139,9 +158,9 @@
         <div class="online-presence"><span class="online-pulse"></span><span>Сейчас в сети</span><b id="online-total">—</b><button data-online-refresh aria-label="Обновить число игроков">↻</button></div>
         <p class="online-note" id="online-note">Активные игроки и те, кто сейчас играет в каждый режим.</p>
         <div class="online-game-list">
-          <button class="online-game-card" data-online-game="duel" style="--oc1:#ff8a5c;--oc2:#c2348d"><span class="online-game-ico">⚡</span><span><b>Футбольная дуэль</b><small><i data-presence-game="duel">—</i> играют сейчас</small></span><em>Играть →</em></button>
-          <button class="online-game-card" data-online-game="xdraft" style="--oc1:#34c46a;--oc2:#2f6fe4"><span class="online-game-ico">🏆</span><span><b>Драфт</b><small><i data-presence-game="xdraft">—</i> играют сейчас</small></span><em>Играть →</em></button>
-          <button class="online-game-card" data-online-game="trumps" style="--oc1:#a98bff;--oc2:#5541b9"><span class="online-game-ico">🃏</span><span><b>Козыри</b><small><i data-presence-game="trumps">—</i> играют сейчас</small></span><em>Играть →</em></button>
+          <button class="online-game-card" data-online-game="duel" style="--oc1:#ff8a5c;--oc2:#c2348d"><span class="online-game-ico art" data-art="online"></span><span><b>Футбольная дуэль</b><small><i data-presence-game="duel">—</i> играют сейчас</small></span><em>Играть →</em></button>
+          <button class="online-game-card" data-online-game="xdraft" style="--oc1:#34c46a;--oc2:#2f6fe4"><span class="online-game-ico art" data-art="cup2"></span><span><b>Драфт</b><small><i data-presence-game="xdraft">—</i> играют сейчас</small></span><em>Играть →</em></button>
+          <button class="online-game-card" data-online-game="trumps" style="--oc1:#a98bff;--oc2:#5541b9"><span class="online-game-ico art" data-art="qcards"></span><span><b>Козыри</b><small><i data-presence-game="trumps">—</i> играют сейчас</small></span><em>Играть →</em></button>
         </div>
       </section>
       <nav class="cat-nav" id="cat-nav">
@@ -281,13 +300,12 @@
         <button class="pf-edit" data-act="nick" aria-label="Изменить ник">✎</button>
       </div>
       <div class="pc-big">
-        <div><span data-ui="trophy"></span><b id="pc-tro">0</b><small>трофеев</small></div>
-        <div><span data-ui="medal"></span><b id="tk-place">—</b><small>место за неделю</small></div>
+        <div><span class="art" data-art="cup1"></span><b id="pc-tro">0</b><small>трофеев</small></div>
+        <div><span class="art" data-art="cup3"></span><b id="tk-place">—</b><small>место за неделю</small></div>
       </div>
       <div class="pc-meta"><span>В игре с <b id="tk-since">—</b></span><span>Тур <b id="tk-tour">1</b></span><span>Опыт <b id="tk-xp">0</b></span></div>
       </div>
     </div>
-    <div class="pc-stats" id="pf-fstats"></div>
     <section id="social-profile" class="pc" aria-label="Витрина карточек"></section>
     <div class="stats pf-stats" id="prof-stats" hidden></div>
     <div class="pf-tiles">
@@ -299,6 +317,7 @@
     <div class="settings">
       <button class="set-row" data-act="admin" id="prof-admin" hidden><span>Админка</span><b>→</b></button>
       <button class="set-row" data-act="as-player" id="prof-asplayer" hidden><span>Режим обычного игрока</span><b id="set-asplayer">Выкл</b></button>
+      <details class="pf-more pf-statd"><summary class="set-row"><span>Статистика</span><b class="pf-arr">›</b></summary><div class="pc-stats" id="pf-fstats"></div></details>
       <details class="pf-more"><summary class="set-row"><span>Настройки</span><b class="pf-arr">›</b></summary><div class="settings">
         <button class="set-row" data-act="music"><span>Фоновая музыка</span><b id="set-music"></b></button>
         <button class="set-row" data-act="sound"><span>Звуки в играх</span><b id="set-sound"></b></button>
@@ -343,7 +362,7 @@
   <section class="screen" id="rewards" hidden>
     <header class="mh rw-mh">
         <button class="mh-me" data-act="profile" aria-label="Профиль"><span class="mh-ava">⚽</span><span class="mh-who"><b class="mh-nick">Игрок</b><small class="mh-tro">🏆 0</small></span></button>
-        <button class="mh-chip mh-club" data-act="myclub" aria-label="Клуб"><span data-ui="users"></span><b>Клуб</b></button>
+        <button class="mh-chip mh-club" data-act="myclub" aria-label="Клуб"><span class="art" data-art="members"></span><b>Клуб</b></button>
         <button class="coins mh-chip" data-act="coins-info" aria-label="Монеты"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></button>
     </header>
     <div id="rewards-body"></div>
@@ -691,7 +710,7 @@
 <script defer src="js/daily.js?v=20261014a"></script>
 <script defer src="js/pick.js?v=20261014-nofarm"></script>
 <script defer src="js/howto.js?v=20261014a"></script>
-<script defer src="js/icons.js?v=20261015-art3"></script>
+<script defer src="js/icons.js?v=20261015-art4"></script>
 <script defer src="js/pack3d.js?v=20261014a"></script>
 <script defer src="js/xdraft/engine.js?v=20261014-frv1"></script>
 <script defer src="js/xdraft/ui.js?v=20261015-fit2"></script>
@@ -704,16 +723,16 @@
 <script defer src="js/cards.js?v=20261015-pg1"></script>
 <link rel="stylesheet" href="css/social.css?v=20261015-pp6">
 <script defer src="js/social.js?v=20261015-pp5"></script>
-<script defer src="js/packs.js?v=20261015-art3"></script>
-<script defer src="js/rewards.js?v=20261015-art3"></script>
+<script defer src="js/packs.js?v=20261015-art4"></script>
+<script defer src="js/rewards.js?v=20261015-art4"></script>
 <script defer src="js/sbc.js?v=20261014-social1"></script>
 <script defer src="js/legends.js?v=20261014-ita2"></script>
 <script defer src="js/gate.js?v=20261014a"></script>
 <script defer src="js/skins.js?v=20261014a"></script>
-<script defer src="js/clubs.js?v=20261015-art3"></script>
+<script defer src="js/clubs.js?v=20261015-art4"></script>
 <script defer src="js/shopstars.js?v=20261015-pv1"></script>
 <script defer src="js/coach.js?v=20261014b"></script>
-<script defer src="js/home.js?v=20261015-art3"></script>
+<script defer src="js/home.js?v=20261015-art4"></script>
 <script defer src="js/wheel.js?v=20261014a"></script>
 <script defer src="js/pz/shell.js?v=20261014a"></script>
 <script defer src="js/pz/sort.js?v=20261014a"></script>
@@ -760,7 +779,7 @@
 <script defer src="js/release.js?v=20261014a"></script>
 <script defer src="js/board.js?v=20261014-social1"></script>
 <script defer src="js/track.js?v=20261015-adm1"></script>
-<script defer src="js/app.js?v=20261015-art3"></script>
+<script defer src="js/app.js?v=20261015-art4"></script>
 <script>
 /* Автообновление: Telegram держит старую копию игры. При запуске (и при возврате в игру на главной) сверяем
    версии файлов (?v=…) в свежем index.html с текущими; если вышло обновление — перезагружаем с обходом кэша.
