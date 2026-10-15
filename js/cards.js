@@ -252,11 +252,17 @@ const Cards = (() => {
   const heart = c => typeof Social !== 'undefined' && spare(c.key) > 0 ? `<button class="social-heart ${Social.favorite(c.key) ? 'on' : ''}" data-social-fav="${esc(c.key)}" aria-pressed="${Social.favorite(c.key)}" aria-label="Избранное: ${esc(c.name)}">♥</button>` : '';
   const cell = (c) => `<div class="cl-cell">${heart(c)}${owned(c.key) ? html(c, { w: 102 }) + (spare(c.key) > 1 ? `<i class="cl-n">×${spare(c.key)}</i>` : !spare(c.key) ? '<i class="cl-n out">сдан</i>' : '') + (S().fresh.includes(c.key) ? '<i class="cl-new">NEW</i>' : '') : html(c, { w: 102, locked: true }) + (view.q ? `<small class="cl-nm">${esc(c.name)} · ${c.r}</small>` : '')}</div>`;
   const norm = (x) => x.toLowerCase().replace(/ё/g, 'е');
+  const PAGE = 24;
+  const cardWord = (n) => (n % 10 === 1 && n % 100 !== 11 ? 'карточка' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 10 || n % 100 >= 20) ? 'карточки' : 'карточек');
   function results() {
     const q = norm((view.q || '').trim());
     if (view.mine || view.favorites) {
       const list = all().filter((c) => view.favorites ? spare(c.key) > 0 && typeof Social !== 'undefined' && Social.favorite(c.key) : owned(c.key)).sort((a, b) => b.r - a.r);
-      return list.length ? `<div class="cl-grid">${list.map(cell).join('')}</div>` : '<p class="rw-note">Карточек пока нет — открывай паки.</p>';
+      if (!list.length) return '<p class="rw-note">Карточек пока нет — открывай паки.</p>';
+      // по 24 на страницу: у активных игроков тысячи карточек, все сразу — это секунды отрисовки и сотни картинок
+      const pages = Math.ceil(list.length / PAGE), pg = Math.min(Math.max(0, view.page || 0), pages - 1);
+      const nav = pages > 1 ? `<div class="gl-pages"><button class="gl-pg" data-glpage="${pg - 1}" ${pg ? '' : 'disabled'}>←</button><span>${pg + 1} / ${pages}</span><button class="gl-pg" data-glpage="${pg + 1}" ${pg + 1 < pages ? '' : 'disabled'}>→</button></div>` : '';
+      return `<p class="gl-cnt">${list.length} ${cardWord(list.length)}</p><div class="cl-grid">${list.slice(pg * PAGE, pg * PAGE + PAGE).map(cell).join('')}</div>${nav}`;
     }
     if (q.length < 2) return '';
     const list = all().filter((c) => !hiddenCard(c) && (norm(c.name).includes(q) || norm(c.club).includes(q) || norm(c.series || '').includes(q))).sort((a, b) => (owned(b.key) ? 1 : 0) - (owned(a.key) ? 1 : 0) || b.r - a.r).slice(0, 48);
@@ -359,6 +365,7 @@ const Cards = (() => {
   }
   function onClick(e) {
     if (e.target.closest('[data-glfavorites]')) { view = { g: '', club: null, favorites: !view.favorites }; return true; }
+    const pgb = e.target.closest('[data-glpage]'); if (pgb) { view = { ...view, page: Math.max(0, +pgb.dataset.glpage || 0) }; Sound.play('tap'); jump = true; return true; }
     const g = e.target.closest('[data-gl]'); if (g) { view = { g: g.dataset.gl, club: null }; Sound.play('tap'); jump = true; return true; }
     if (e.target.closest('[data-glmine]')) { view = { g: '', club: null, q: '', mine: !view.mine }; Sound.play('tap'); return true; }
     const c = e.target.closest('[data-glc]'); if (c) { view = { ...view, g: c.dataset.glg || view.g, club: c.dataset.glc, q: '', mine: false }; Sound.play('tap'); jump = true; return true; }

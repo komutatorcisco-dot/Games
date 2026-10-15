@@ -31,3 +31,7 @@ button.bd-nick { background:none;border:0;text-align:left;font:inherit; }
 /* сердечко — маленький значок на фото карточки, а не отдельная кнопка под ней */
 .cl-cell .social-heart { position: absolute; z-index: 2; left: 4px; bottom: 33%; width: 26px; height: 26px; margin: 0; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1px solid #ffffff40; background: rgba(12,10,26,.72); color: rgba(255,255,255,.75); font-size: 13px; line-height: 1; }
 .cl-cell .social-heart.on { color: #ff668c; background: rgba(64,26,50,.9); border-color: #ff668c80; }
+.gl-cnt { margin: 0 0 8px; font-size: 13px; color: var(--muted, #a5afbf); }
+.gl-pages { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 6px; font: 700 15px var(--font-body, sans-serif); }
+.gl-pg { min-width: 52px; height: 42px; border: 0; border-radius: 14px; background: #283247; color: #fff; font-size: 18px; }
+.gl-pg:disabled { opacity: .35; }

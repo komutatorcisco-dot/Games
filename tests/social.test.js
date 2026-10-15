@@ -50,7 +50,7 @@ vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^
   assert.equal((await server.S.social({DB:db,SOCIAL_ENABLED:'0'},{id:1},{act:'self'})).disabled,true);
   let one=await api(1,{act:'self'}), other=await api(2,{act:'self'});
   assert.match(one.handle,/^[a-f0-9]{32}$/); assert.notEqual(one.handle,other.handle);
-  const read=await api(2,{act:'profile',handle:one.handle});assert.equal(read.private,true);
+  const read=await api(2,{act:'profile',handle:one.handle});assert.equal(read.private,false,'profile is public by default, like Brawl Stars');
   const op={type:'favorite',key:b,value:true};
   const race=await Promise.all([api(1,{act:'edit',revision:0,op}),api(1,{act:'edit',revision:0,op:{type:'privacy',value:true}})]);
   assert.equal(race.filter(r=>r.ok).length,1,'CAS: only one simultaneous writer succeeds');
@@ -96,6 +96,8 @@ vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^
   reads=0;writes=0;
   for(let i=0;i<100;i++)await server.S.socialHandles(env,[1,2,10]);
   assert.equal(reads,1,'100 repeated handle lookups use one indexed query');assert.equal(writes,0);
+  const auto=await server.S.socialHandles(env,[77]);assert.match(String(auto[77]),/^[a-f0-9]{32}$/,'player without a profile code gets one, so the nick opens a profile');
+  assert.equal((await api(2,{act:'profile',handle:auto[77]})).private,false);
   let calls=0;const original=deviceB.Board.post;deviceB.Board.post=(...args)=>{calls++;return original(...args)};
   for(let i=0;i<100;i++)await deviceB.T.Social.sync(false);
   assert.equal(calls,0,'rapid visibility events do not poll');

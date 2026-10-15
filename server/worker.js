@@ -44,7 +44,7 @@ function socialEdit(data, op) {
   } else if (op.type === 'showcase' && Array.isArray(op.keys) && op.keys.length === 3 && op.keys.every(k => k === null || socialKey(k)) && new Set(op.keys.filter(Boolean)).size === op.keys.filter(Boolean).length) {
     // Private preferences only, NOT proof that these cards are owned.
     d.showcase = op.keys.slice();
-  } else if (op.type === 'privacy' && typeof op.value === 'boolean') d.public = op.value;
+  } else if (op.type === 'privacy' && typeof op.value === 'boolean') { d.public = op.value; d.pset = true; }
   else throw Error('bad operation');
   return d;
 }
@@ -98,12 +98,22 @@ async function socialHandles(env, ids) {
     const batch = missing.slice(i, i + 90);
     const rows = (await env.DB.prepare(`SELECT uid, handle FROM social_profiles WHERE uid IN (${batch.map(() => '?').join(',')})`).bind(...batch).all()).results;
     const found = new Map(rows.map(r => [r.uid, r.handle]));
+    // у игрока ещё нет кода профиля (не открывал витрину) — создаём один раз, чтобы ник в рейтинге и клубе открывал профиль
+    const fresh = batch.filter((k) => !found.has(k)).map((k) => [k, crypto.randomUUID().replace(/-/g, '')]);
+    if (fresh.length) {
+      await env.DB.batch(fresh.map(([k, h]) => env.DB.prepare('INSERT OR IGNORE INTO social_profiles (uid, handle) VALUES (?, ?)').bind(k, h)));
+      // перечитываем: параллельный запрос мог успеть создать свой код
+      const again = (await env.DB.prepare(`SELECT uid, handle FROM social_profiles WHERE uid IN (${fresh.map(() => '?').join(',')})`).bind(...fresh.map(([k]) => k)).all()).results;
+      again.forEach((r) => found.set(r.uid, r.handle));
+    }
     for (const k of batch) cache.set(k, { handle: found.get(k) || null, until: now + 60000 });
   }
   const result = Object.fromEntries(keys.filter(k => cache.get(k)?.handle).map(k => [k, cache.get(k).handle]));
   while (cache.size > 512) cache.delete(cache.keys().next().value);
   return result;
 }
+// профиль открыт, как в Brawl Stars, пока игрок сам не закрыл его в настройке (pset — настройку трогали)
+const isPublic = (d) => (d && d.pset ? d.public === true : true);
 async function social(env, user, body) {
   if (!socialOn(env)) return { ok: false, disabled: true };
   const db = env.DB; await schema(db); await socialSchema(db);
@@ -111,7 +121,7 @@ async function social(env, user, body) {
     if (!/^[a-f0-9]{32}$/.test(body.handle || '')) return { ok: false, error: 'unavailable' };
     const row = await db.prepare('SELECT uid, data FROM social_profiles WHERE handle = ?').bind(body.handle).first();
     if (!row) return { ok: false, error: 'unavailable' };
-    if (!JSON.parse(row.data).public) return { ok: true, private: true };
+    if (!isPublic(JSON.parse(row.data))) return { ok: true, private: true };
     const u = await db.prepare('SELECT nick, emoji, xp FROM users WHERE id = ?').bind(row.uid).first();
     const t = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(row.uid).first();
     // «Игрок дня»: частичный индекс только по победам — без перебора всей таблицы daily на каждый просмотр профиля
@@ -151,7 +161,8 @@ async function social(env, user, body) {
       }
     }
   }
-  return { ok: !conflict, conflict, handle: row.handle, revision: row.revision, ...JSON.parse(row.data), shown: await shownFor(db, user.id), showcaseEnabled: true };
+  const pd = JSON.parse(row.data);
+  return { ok: !conflict, conflict, handle: row.handle, revision: row.revision, ...pd, public: isPublic(pd), shown: await shownFor(db, user.id), showcaseEnabled: true };
 }
 
 const tg = (env, method, body) => fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {

@@ -70,17 +70,17 @@ const Social = (() => {
   // что видят другие: сервер показывает только карточки, найденные в сохранении игрока
   function publicNote() {
     const s = state();
-    if (!s.public) return 'Профиль закрыт — витрину видишь только ты.';
+    if (s.public === false) return 'Профиль закрыт — витрину видишь только ты.';
     const shown = Array.isArray(s.shown) ? s.shown : [];
     const waiting = active().filter(k => k && !shown.includes(k)).length;
     return waiting ? 'Новые карточки появятся у других после сохранения прогресса.' : 'Витрину видят другие игроки.';
   }
   function render() {
     const host = document.getElementById('social-profile'); if (!host) return;
-    const signature = JSON.stringify([active(), !!state().public, enabled, !!state().pending.length, state().shown || null]);
+    const signature = JSON.stringify([active(), state().public !== false, enabled, !!state().pending.length, state().shown || null]);
     if (host.dataset.socialRender === signature && host.children.length) return;
     host.dataset.socialRender = signature;
-    host.innerHTML = `<h3>Моя витрина</h3><p class="social-note">Выбери три карточки из своего клуба</p>${slots(active(), true)}<label class="social-privacy"><input type="checkbox" data-social-privacy ${state().public ? 'checked' : ''}> Публичный профиль</label><p class="social-note">${enabled ? (state().pending.length ? 'Изменения ожидают синхронизации' : 'Настройки сохранены') : 'Изменения сохранены на этом устройстве'}. ${publicNote()}</p>`;
+    host.innerHTML = `<h3>Моя витрина</h3><p class="social-note">Выбери три карточки из своего клуба</p>${slots(active(), true)}<label class="social-privacy"><input type="checkbox" data-social-privacy ${state().public !== false ? 'checked' : ''}> Публичный профиль</label><p class="social-note">${enabled ? (state().pending.length ? 'Изменения ожидают синхронизации' : 'Настройки сохранены') : 'Изменения сохранены на этом устройстве'}. ${publicNote()}</p>`;
   }
   function choose(index, query = '', page = 0) {
     const picked = active();
