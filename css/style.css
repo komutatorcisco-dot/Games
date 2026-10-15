@@ -3674,10 +3674,17 @@ body.gated { overflow: hidden; }
   padding: max(14px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); opacity: 0; transition: opacity .3s ease; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
 .po.in { opacity: 1; } .po.out { opacity: 0; pointer-events: none; }
 .po-bg { position: absolute; inset: 0; z-index: -1; background: radial-gradient(70% 45% at 50% 46%, color-mix(in srgb, var(--rc) 38%, #0b0b10) 0%, #08080c 72%); transition: background .5s ease; }
-.po-rays { position: absolute; left: 50%; top: 46%; width: 110vmin; height: 110vmin; margin: -55vmin 0 0 -55vmin; opacity: .22;
-  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--rc) 70%, #fff) 0deg 5deg, transparent 5deg 18deg);
-  -webkit-mask: radial-gradient(closest-side, #000 5%, transparent 60%); mask: radial-gradient(closest-side, #000 5%, transparent 60%);  }
-.po[data-phase="walk"] .po-rays, .po.jackson .po-rays { opacity: .38; animation-duration: 18s; }
+/* Лучи за паком и карточкой. Размер 100vmax (не 220vmax, как было до 1f7a5fa: такая текстура весила ~120 МБ на iPhone),
+   но и не 110vmin с маской 60% — тогда видно лишь узкое кольцо вокруг карточки. Вращение — только transform (композитор),
+   в сетке карточек лучи останавливаются и приглушаются, чтобы не мешать читать и не грузить телефон. */
+.po-rays { position: absolute; left: 50%; top: 46%; width: min(100vmax, 1000px); height: min(100vmax, 1000px); margin: max(-50vmax, -500px) 0 0 max(-50vmax, -500px); opacity: .62; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, transparent 0deg, color-mix(in srgb, var(--rc) 80%, #fff) 3deg 7deg, transparent 11deg 20deg);
+  -webkit-mask: radial-gradient(closest-side, #000 12%, rgba(0,0,0,.75) 45%, transparent 100%); mask: radial-gradient(closest-side, #000 12%, rgba(0,0,0,.75) 45%, transparent 100%);
+  animation: poSpin 36s linear infinite; will-change: transform; transition: opacity .4s ease; }
+.po-rays::after { content: ''; position: absolute; inset: 30%; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--rc) 70%, #fff), transparent); opacity: .55; }
+.po[data-phase="walk"] .po-rays, .po.jackson .po-rays { opacity: .85; animation-duration: 24s; }
+.po[data-phase="grid"] .po-rays, .po[data-phase="done"] .po-rays { opacity: .34; animation: none; }
+.po-k, .po-name, .po-hint { text-shadow: 0 2px 10px rgba(0,0,0,.7); }
 @keyframes poSpin { to { transform: rotate(360deg); } }
 .po-floor { position: absolute; left: -10%; right: -10%; bottom: 0; height: 32%; background: radial-gradient(60% 70% at 50% 0%, color-mix(in srgb, var(--rc) 22%, transparent), transparent 70%); }
 .po-flash { position: absolute; inset: 0; background: radial-gradient(circle at 50% 46%, #fff, color-mix(in srgb, var(--rc) 70%, transparent) 40%, transparent 75%); opacity: 0; pointer-events: none; z-index: 5; }
@@ -3689,7 +3696,7 @@ body.gated { overflow: hidden; }
 .po-name { font: 900 clamp(26px, 8.6vw, 42px)/1 "Rubik", sans-serif; letter-spacing: .01em; color: #fff; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .po-name.slam { animation: poSlam .5s cubic-bezier(.2,1.6,.4,1); }
 @keyframes poSlam { 0% { transform: scale(1.6); opacity: 0; } 100% { transform: none; opacity: 1; } }
-.po.jackson .po-name { color: #ff4f66; }
+.po.jackson .po-name { color: #ff4f66; } .po-name.long { font-size: clamp(22px, 6.6vw, 34px); } .po-hint { text-align: center; }
 .po-steps { display: flex; gap: 6px; min-height: 8px; }
 .po-steps i { width: 26px; height: 6px; border-radius: 4px; background: rgba(255,255,255,.16); transition: background .3s; }
 .po-steps i.on { background: var(--c); }

@@ -50,7 +50,7 @@ const PackOpen = (() => {
     el.dataset.phase = 'walk';
     setCol(el, RCOL[top.c.rar]);
     $('.po-k', el).textContent = top.isNew ? 'Новая карточка' : 'Повтор';
-    const nm = $('.po-name', el); nm.textContent = Cards.RAR[top.c.rar].n; slam(nm);
+    const nm = $('.po-name', el); nm.textContent = Cards.RAR[top.c.rar].n; nm.classList.toggle('long', nm.textContent.length > 13); slam(nm);
     $('.po-steps', el).innerHTML = '';
     const big = Math.min(240, Math.floor(innerWidth * 0.6));
     stage.innerHTML = `<div class="po-walk"><div class="po-flip" style="--w:${big}px"><div class="po-back ${top.c.rar}"><b>ДЖ</b></div><div class="po-front">${Cards.html(top.c, { w: big })}</div></div>
@@ -84,7 +84,7 @@ const PackOpen = (() => {
     const W = Math.min(480, innerWidth) - 32, w = Math.floor((W - (cols - 1) * 8) / cols);
     const nNew = list.filter((x) => x.isNew).length;
     $('.po-k', el).textContent = `${n} ${plural(n, 'карточка', 'карточки', 'карточек')}`;
-    nm.textContent = nNew ? `НОВЫХ: ${nNew}` : 'НОВЫХ НЕТ'; slam(nm);
+    nm.textContent = nNew ? `НОВЫХ: ${nNew}` : 'НОВЫХ НЕТ'; nm.classList.remove('long'); slam(nm);
     hint.textContent = n > 8 ? 'Листай список, чтобы увидеть все карточки' : '';
     stage.innerHTML = `<div class="po-grid" style="--cols:${cols};--cw:${w}px">${list.map((x, i) => `<div class="po-cell ${x.c.rar}" style="--i:${i}">
         ${Cards.html(x.c, { w })}
