@@ -16,7 +16,7 @@ if (dbs.success) for (const d of dbs.result) {
     body: JSON.stringify({ sql: "SELECT name, tbl_name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_%' ORDER BY tbl_name, name" }) })).json();
   if (!r.success) { console.log('Индексы недоступны (права токена?):', JSON.stringify(r.errors).slice(0, 200)); continue; }
   const list = r.result[0].results.map((x) => x.name);
-  const want = ['rmsg_rsi', 'mmg_wait', 'ustats_top', 'event_batches_ts', 'cchat_uid', 'croom_club', 'rooms_created'], gone = ['rmsg_room', 'rmsg_ts', 'mmg_ts'];
+  const want = ['rmsg_rsi', 'mmg_wait', 'ustats_top', 'event_batches_ts', 'cchat_uid', 'croom_club', 'rooms_created', 'draft_tours_uid', 'daily_won_id', 'cmembers_club', 'gwins_game'], gone = ['rmsg_room', 'rmsg_ts', 'mmg_ts'];
   console.log(`Индексы ${d.name}: нужные ${want.map((n) => (list.includes(n) ? '✓' : '✗') + n).join(' ')} · удалённые ${gone.map((n) => (list.includes(n) ? '✗ ещё есть ' : '✓ нет ') + n).join(', ')}`);
 }
 

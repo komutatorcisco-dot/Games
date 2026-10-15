@@ -16,7 +16,7 @@ const db = {
 };
 const sctx = { console, Date, Math, setTimeout, crypto: require('node:crypto').webcrypto, TextEncoder, URL, Response, Request, fetch: () => { throw Error('net'); } };
 vm.createContext(sctx);
-vm.runInContext(fs.readFileSync('server/worker.js', 'utf8').replace(/^export \{[^}]+\};/gm, '').replace('export default {', 'const worker = {').replace(/^export /gm, '') + '\nglobalThis.testAPI = { schema };', sctx);
+vm.runInContext(fs.readFileSync('server/worker.js', 'utf8').replace(/^export \{[^}]+\};/gm, '').replace('export default {', 'const worker = {').replace(/^export /gm, '') + '\nglobalThis.testAPI = { schema, socialSchema };', sctx);
 const plan = (q, n) => sql.prepare('EXPLAIN QUERY PLAN ' + q).all(...Array(n).fill(1)).map((r) => r.detail).join(' | ');
 (async () => {
   await sctx.testAPI.schema(db);
@@ -38,5 +38,22 @@ const plan = (q, n) => sql.prepare('EXPLAIN QUERY PLAN ' + q).all(...Array(n).fi
     assert.ok(!/(^|\| )SCAN (rmsg|rooms|mmg|presence|event_batches|croom|cchat|ustats|s)\b(?! USING)/.test(p), `${what}: полный перебор таблицы — ${p}`);
     assert.ok(!/TEMP B-TREE FOR ORDER BY/.test(p) || /COUNT/.test(q), `${what}: сортировка всей выборки — ${p}`);
   }
-  console.log('D1 budget: hot queries use indexes (online relay, matchmaking, presence, cleanup, clubs, trophy top) passed');
+  // Профиль игрока (открывают из рейтинга, клуба, лобби): каждый запрос — поиск по ключу или индексу, без перебора таблиц.
+  await sctx.testAPI.socialSchema(db);
+  const profile = [
+    ['SELECT uid, data FROM social_profiles WHERE handle = ?', 1, 'код профиля'],
+    ['SELECT nick, emoji, xp FROM users WHERE id = ?', 1, 'ник и опыт'],
+    ['SELECT trophies FROM ustats WHERE id = ?', 1, 'трофеи'],
+    ['SELECT 1 AS n FROM daily WHERE id = ? AND won = 1 LIMIT 1', 1, 'игрок дня'],
+    ['SELECT c.name, c.emoji FROM cmembers m JOIN clubs c ON c.id = m.club WHERE m.id = ?', 1, 'клуб'],
+    ['SELECT COALESCE(SUM(wins), 0) AS n FROM gwins WHERE id = ?', 1, 'победы в играх'],
+    ['SELECT days FROM seen WHERE id = ?', 1, 'дни в игре'],
+    ['SELECT COUNT(*) AS n FROM draft_tours WHERE uid = ?', 1, 'турниры драфта'],
+    ['SELECT keys FROM social_shown WHERE uid = ?', 1, 'витрина'],
+  ];
+  for (const [q, n, what] of profile) {
+    const p = plan(q, n);
+    assert.ok(p.split(' | ').every((step) => /^SEARCH /.test(step)), `профиль, ${what}: не поиск по индексу — ${p}`);
+  }
+  console.log('D1 budget: hot queries use indexes (online relay, matchmaking, presence, cleanup, clubs, trophy top, profile) passed');
 })().catch((e) => { console.error(e); process.exitCode = 1; });
