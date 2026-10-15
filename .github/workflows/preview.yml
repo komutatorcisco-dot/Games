@@ -78,4 +78,6 @@ jobs:
           echo "Сервер: $(head -c 200 presence.json)"
           grep -q '"ok":true' presence.json || { echo "::error::Тестовый сервер не отвечает или не подключён к своей базе D1"; exit 1; }
           echo "$hdr" | grep -qi 'access-control-allow-origin: https://jackson-games-preview.pages.dev' || { echo "::error::Тестовый сервер не пускает тестовый сайт (CORS)"; exit 1; }
+          health=$(curl -sS https://jackson-games-staging.komutatorcisco.workers.dev/health); echo "Проверка сервера: $health"
+          echo "$health" | grep -q '"bot":"' || { echo "::error::Telegram не узнаёт ключ бота BOT_TOKEN на тестовом сервере — вход в тестовую версию не сработает"; exit 1; }
           echo "Тестовая версия работает: сайт открывается, сервер с базой отвечает тестовому сайту"

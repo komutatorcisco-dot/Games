@@ -177,7 +177,10 @@ async function social(env, user, body) {
   return { ok: !conflict, conflict, handle: row.handle, revision: row.revision, ...pd, public: isPublic(pd), shown: await shownFor(db, user.id), showcaseEnabled: true };
 }
 
-const tg = (env, method, body) => fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
+// ключ бота без случайных пробелов и переносов строки (при вставке в панель Cloudflare с телефона они прилипают)
+const botToken = (env) => String(env.BOT_TOKEN || '').trim();
+let healthBot = null;
+const tg = (env, method, body) => fetch(`https://api.telegram.org/bot${botToken(env)}/${method}`, {
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
 }).then((r) => r.json());
 
@@ -1409,7 +1412,7 @@ async function route(request, env) {
   // Боту нужны права администратора в канале, иначе Telegram не отвечает на getChatMember.
   if (url.pathname === '/member' && request.method === 'POST') {
     let body; try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
-    const user = await verifyInit(body.initData, env.BOT_TOKEN);
+    const user = await verifyInit(body.initData, botToken(env));
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     const r = await tg(env, 'getChatMember', { chat_id: CHANNEL, user_id: user.id });
     if (!r || !r.ok) return json({ ok: false, error: (r && r.description) || 'telegram' });
@@ -1418,6 +1421,14 @@ async function route(request, env) {
   }
 
   // ---------- рейтинг ----------
+  // проверка сервера без секретов: есть ли база и узнаёт ли Telegram ключ бота (отдаёт только публичное имя бота, раз в 10 минут)
+  if (url.pathname === '/health' && request.method === 'GET') {
+    if (!healthBot || Date.now() - healthBot.at > 600000) {
+      const r = botToken(env) ? await tg(env, 'getMe', {}).catch(() => null) : null;
+      healthBot = { at: Date.now(), bot: r && r.ok ? r.result.username : null };
+    }
+    return json({ ok: true, db: !!env.DB, bot: healthBot.bot });
+  }
   if (url.pathname === '/presence' && request.method === 'GET') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     return json(await onlinePresence(env, null, { act: 'counts' }));
@@ -1426,7 +1437,7 @@ async function route(request, env) {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
-    const user = await verifyInit(body.initData, env.BOT_TOKEN);
+    const user = await verifyInit(body.initData, botToken(env));
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     if (url.pathname === '/score') return json({ ok: true, ...(await saveScore(env, user, body)) });
     if (url.pathname === '/hello') return json({ ok: true, ...(await hello(env, user, body)) });
@@ -1452,7 +1463,7 @@ async function route(request, env) {
   // Read-only confirmation: the client invoice callback is not proof of payment.
   if (url.pathname === '/shop/purchase' && request.method === 'POST') {
     const body = await request.json();
-    const user = await verifyInit(body.initData, env.BOT_TOKEN);
+    const user = await verifyInit(body.initData, botToken(env));
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     if (!env.DB || !SHOP[body.item] || !Number.isSafeInteger(body.n)) return json({ ok: false, error: 'bad purchase' }, 400);
     await schema(env.DB);
@@ -1463,7 +1474,7 @@ async function route(request, env) {
   // ---------- донат ----------
   if (url.pathname === '/invoice' && url.searchParams.get('item') === 'pass') {
     // премиум-пропуск сезона: кто покупает, узнаём по подписи Telegram
-    const user = await verifyInit(url.searchParams.get('initData'), env.BOT_TOKEN);
+    const user = await verifyInit(url.searchParams.get('initData'), botToken(env));
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     const season = Math.max(1, Math.min(999, Number(url.searchParams.get('season')) || 1));
     const r = await tg(env, 'createInvoiceLink', {
@@ -1475,7 +1486,7 @@ async function route(request, env) {
     return json(r.ok ? { ok: true, link: r.result } : { ok: false, error: r.description });
   }
   if (url.pathname === '/invoice' && SHOP[url.searchParams.get('item')]) {
-    const user = await verifyInit(url.searchParams.get('initData'), env.BOT_TOKEN);
+    const user = await verifyInit(url.searchParams.get('initData'), botToken(env));
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     const item = url.searchParams.get('item'), it = SHOP[item], n = Date.now() * 1000 + crypto.getRandomValues(new Uint32Array(1))[0] % 1000;
     const r = await tg(env, 'createInvoiceLink', {
