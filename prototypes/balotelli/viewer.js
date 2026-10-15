@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from './vendor/meshopt_decoder.module.js';
+import { applyKit, kitFromQuery } from '../player/kit.js';
 import { createRig, planWalk, pose } from './motion.js';
 
 const Q = new URLSearchParams(location.search);
@@ -89,6 +90,7 @@ async function load() {
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const gltf = await loader.loadAsync(new URL(Q.get('model') || 'balotelli-mobile.glb', import.meta.url).href);
   const model = gltf.scene;
+  await applyKit(model, kitFromQuery(Q)); // общая модель: цвета клуба, фамилия и номер
   model.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
   model.traverse((o) => { if (o.isSkinnedMesh && o.skeleton) o.skeleton.pose(); });
   model.updateMatrixWorld(true);

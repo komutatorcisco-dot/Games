@@ -7,6 +7,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from './vendor/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from './vendor/meshopt_decoder.module.js';
+import { applyKit, kitFromQuery } from '../player/kit.js';
 import { createRig, planWalk, pose, smooth, smoother } from './motion.js';
 import { buildStage } from './stage.js';
 
@@ -324,6 +325,7 @@ async function loadModel() {
   const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
   const gltf = await loader.loadAsync(MODEL);
   const model = gltf.scene; // встроенный клип (финты с мячом) не используем
+  await applyKit(model, kitFromQuery(Q)); // общая модель: цвета клуба, фамилия и номер
   const mats = [];
   model.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; const m = o.material; if (m) { m.transparent = true; m.fog = false; mats.push(m); } } });
   scene.add(model);
