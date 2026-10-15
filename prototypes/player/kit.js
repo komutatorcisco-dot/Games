@@ -19,9 +19,17 @@ export function kitFromQuery(Q) {
     num: String(Q.get('num') || '').replace(/[^0-9]/g, '').slice(0, 2), name: String(Q.get('name') || '').toUpperCase().replace(/[^A-ZА-ЯЁ' -]/g, '').slice(0, 14),
     skin: s && /^[0-9a-f]{6}$/i.test(s) ? '#' + s : '',
     // лицо с фото: face — картинка (из папки игры), fp — где на ней глаза и рот: глазаY,ротY,полрасстояния между глазами,центрX (доли картинки)
-    face: /^[\w./-]+\.(webp|png|jpe?g)$/i.test(Q.get('face') || '') && !/\.\./.test(Q.get('face')) ? Q.get('face') : '',
-    fp: (Q.get('fp') || '').split(',').map(Number).filter((n) => n >= 0 && n <= 1),
+    face: faceUrl(Q.get('face') || ''),
+    // у фото с сервера лиц игры (и у img/players/<номер>.webp) кадр одинаковый — глаза и рот на одних местах
+    fp: ((Q.get('fp') || '').split(',').map(Number).filter((n) => n >= 0 && n <= 1).length === 4 ? Q.get('fp').split(',').map(Number) : [0.445, 0.69, 0.117, 0.5]),
     fm: (Q.get('fm') || '').split(',').map(Number).filter((n) => isFinite(n)) };
+}
+
+// откуда можно брать лицо: картинка из папки игры или сервер лиц игры (/face/<номер>)
+function faceUrl(f) {
+  if (/^https:\/\/jackson-games(-staging)?\.komutatorcisco\.workers\.dev\/face\/\d{1,7}(\?s=(120|240))?$/.test(f)) return f;
+  if (/^[\w./-]+\.(webp|png|jpe?g)$/i.test(f) && !/\.\./.test(f)) return new URL('../../' + f, import.meta.url).href;
+  return '';
 }
 
 // средний цвет щёк на фото — им же красим кожу всего тела, чтобы лицо и руки совпадали
@@ -58,7 +66,7 @@ export async function applyKit(model, kit) {
   if (!kit) return;
   let faceTex = null; const tint = new THREE.Vector3(1, 1, 1);
   if (kit.face && kit.fp.length === 4) {
-    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = new URL('../../' + kit.face, import.meta.url).href; }).catch(() => null);
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.crossOrigin = 'anonymous'; i.src = kit.face; }).catch(() => null);
     if (img) { faceTex = new THREE.Texture(img); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.needsUpdate = true; const ch = cheekColor(img, kit.fp); if (!kit.skin) kit.skin = ch;
       // фото и кожа модели одного тона: фото подкрашивается к цвету кожи
       if (ch && kit.skin) { const a = new THREE.Color(kit.skin), b = new THREE.Color(ch); tint.set(a.r / Math.max(b.r, 0.02), a.g / Math.max(b.g, 0.02), a.b / Math.max(b.b, 0.02)); } }
@@ -86,7 +94,9 @@ export async function applyKit(model, kit) {
       sh.fragmentShader = sh.fragmentShader
         .replace('#include <common>', `#include <common>
 varying vec3 vRest; varying vec3 vRestN;
+float kSkinMask = 0.0;
 uniform vec3 kShirt, kShorts, kSocks, kSkin; uniform float kUseSkin, kY0, kH, kUseFace; uniform sampler2D kPrint, kFace; uniform vec3 kFM, kTint; uniform vec4 kFP;`)
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.78, kSkinMask);')
         .replace('#include <map_fragment>', `#include <map_fragment>
 {
   vec3 c = diffuseColor.rgb;
@@ -117,17 +127,19 @@ uniform vec3 kShirt, kShorts, kSocks, kSkin; uniform float kUseSkin, kY0, kH, kU
     float skin = (1.0 - cloth) * smoothstep(0.12, 0.22, sat) * smoothstep(0.03, 0.08, lum) * step(c.b, c.g) * step(c.g, c.r);
     float ref = 0.42;
     diffuseColor.rgb = mix(diffuseColor.rgb, kSkin * clamp(lum / ref, 0.0, 1.6), skin);
+    kSkinMask = skin;
   }
   // лицо с фото: проекция спереди по линии глаз и рта, мягкий овал, только на лицевой стороне головы
-  if (kUseFace > 0.5 && h > 0.86 && vRestN.z > 0.0) {
+  if (kUseFace > 0.5 && h > 0.865 && vRestN.z > 0.0) {
     float xr = vRest.x / kH;
     float v = kFP.x + (h - kFM.x) / (kFM.y - kFM.x) * (kFP.y - kFP.x);
     float u = kFP.w + xr / kFM.z * kFP.z;
     vec4 f = texture2D(kFace, vec2(u, 1.0 - v));
-    vec2 e = vec2((u - kFP.w) / (kFP.z * 2.15), (v - (kFP.x + kFP.y) * 0.5 - (kFP.y - kFP.x) * 0.15) / ((kFP.y - kFP.x) * 1.75));
-    float oval = smoothstep(1.0, 0.72, length(e));
+    vec2 e = vec2((u - kFP.w) / (kFP.z * 2.45), (v - (kFP.x + kFP.y) * 0.5 + (kFP.y - kFP.x) * 0.1) / ((kFP.y - kFP.x) * 2.2));
+    float oval = smoothstep(1.0, 0.8, length(e));
     float fm = f.a * oval * smoothstep(0.15, 0.55, vRestN.z);
     diffuseColor.rgb = mix(diffuseColor.rgb, clamp(f.rgb * kTint, 0.0, 1.0), fm);
+    kSkinMask = max(kSkinMask, fm);
   }
 }`);
     };
