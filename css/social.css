@@ -90,3 +90,5 @@ body.pp-open .tabbar { visibility: hidden; }
 .pf-more > .settings { padding-left: 10px; }
 .pf-shopmenu { margin-top: 10px; } .pf-shopmenu .set-row span { display: flex; align-items: center; gap: 8px; font-weight: 800; } .pf-shopmenu .set-row small { opacity: .7; } .pf-shopmenu .ui-ic { width: 22px; height: 22px; }
 @media (prefers-reduced-motion: reduce) { .pf-more .pf-arr { transition: none; } }
+/* витрина в профиле — в раскрывающейся группе; заголовок уже в кнопке */
+.pf-showd #social-profile { margin: 4px 0 8px; } .pf-showd #social-profile > h3 { display: none; } #pp-hero .pp-hero.empty { cursor: pointer; }

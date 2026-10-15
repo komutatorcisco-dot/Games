@@ -119,6 +119,8 @@ const App = (() => {
     const n = (el.textContent || '').length; el.style.fontSize = (n > 14 ? 13 : n > 11 ? 15 : 18) + 'px'; // пока экран скрыт — по длине
     requestAnimationFrame(fit);
   }
+  // пустой «любимый игрок» в своём профиле раскрывает витрину, где его выбирают
+  document.addEventListener('click', (e) => { if (!e.target.closest('#pp-hero .pp-hero.empty')) return; const d = $('.pf-showd'); if (d) { d.open = true; d.scrollIntoView({ block: 'start', behavior: 'smooth' }); } });
   function renderProfile() {
     if (typeof Social !== 'undefined') Social.render();
     // слева крупно любимый футболист — первая карточка витрины (как в чужом профиле)
