@@ -644,7 +644,9 @@ async function statsRaw(env) {
   const avgOpens = (await one('SELECT ROUND(AVG(opens), 1) AS a FROM seen')).a || 0;
   const days14 = [...Array(14).keys()].map((i) => dayKey(now - i * 864e5)).reverse();
   const dau14Rows = await all('SELECT day, COUNT(*) AS n FROM visits WHERE day >= ? GROUP BY day', days14[0]);
-  const dau14 = days14.map((d) => ({ day: d, n: (dau14Rows.find((r) => r.day === d) || {}).n || 0 }));
+  // новые игроки по дням (по московскому дню первого входа) — чтобы отличать от всех, кто заходил
+  const new14 = await all("SELECT date((first + 10800000) / 1000, 'unixepoch') AS day, COUNT(*) AS n FROM seen WHERE first >= ? GROUP BY day", Date.parse(days14[0]) - 3 * 3600e3);
+  const dau14 = days14.map((d) => ({ day: d, n: (dau14Rows.find((r) => r.day === d) || {}).n || 0, fresh: (new14.find((r) => r.day === d) || {}).n || 0 }));
   return { total, newToday, new7, returnRate: oldEnough ? Math.round((returned / oldEnough) * 100) : 0, reach, dau, wau, games, topXp, reports, platforms,
     topTro, troBuckets, money, money7, clubs, inClubs, topClubs, online, reminded, remindOff, ret7: old7 ? Math.round((back7 / old7) * 100) : 0, avgDays, avgOpens, dau14 };
 }

@@ -131,7 +131,8 @@ const Track = (() => {
     box.innerHTML = `
       <div class="ad-kpis">
         <div><b>${st.total}</b><small>игроков всего</small></div>
-        <div><b>${st.dau[6].n}</b><small>заходили сегодня</small></div>
+        <div><b>${st.dau[6].n}</b><small>всего играли сегодня</small></div>
+        <div><b>${st.newToday}</b><small>из них новых</small></div>
         <div><b>${st.wau}</b><small>за 7 дней</small></div>
         <div><b>+${st.new7}</b><small>новых за неделю</small></div>
         <div><b>${st.returnRate}%</b><small>вернулись хотя бы раз</small></div>
@@ -153,7 +154,10 @@ const Track = (() => {
       ${st.money ? `<h3 class="section-label">Звёзды</h3>
       <div class="ad-kpis"><div><b>${st.money7.stars} ⭐</b><small>за 7 дней · покупок ${st.money7.n}</small></div><div><b>${st.money.reduce((x, m) => x + (m.stars || 0), 0)} ⭐</b><small>за всё время</small></div></div>
       <div class="ad-list">${st.money.map((m) => `<div>${esc(m.item === 'pass' ? 'Премиум-пропуск' : m.item)} — ${m.n} шт · ${m.stars} ⭐</div>`).join('') || '<div>Покупок пока нет</div>'}</div>
-      <h3 class="section-label">Игроки по дням · 2 недели</h3>
+      <h3 class="section-label">Игроки по дням · 2 недели (всего)</h3>
+      ${st.dau14[0] && st.dau14[0].fresh !== undefined ? `<div class="ad-table ad-days"><div class="ad-row head"><span>День</span><span>Всего</span><span>Новых</span><span>Вернулись</span></div>
+        ${st.dau14.slice().reverse().map((d) => `<div class="ad-row"><span>${new Date(d.day).getUTCDate()}.${String(new Date(d.day).getUTCMonth() + 1).padStart(2, '0')}</span><span><b>${d.n}</b></span><span>${d.fresh}</span><span>${Math.max(0, d.n - d.fresh)}</span></div>`).join('')}</div>
+        <p class="ad-note">«Всего» — все, кто открыл игру в этот день (по Москве). «Вернулись» — играли и раньше.</p>` : ''}
       <div class="ad-bars wide">${st.dau14.map((d) => `<div><em>${d.n}</em><i style="height:${Math.round((d.n / Math.max(1, ...st.dau14.map((x) => x.n))) * 100)}%"></i><small>${new Date(d.day).getUTCDate()}</small></div>`).join('')}</div>
       <h3 class="section-label">Трофеи</h3>
       <div class="ad-list">${st.troBuckets.map((b) => `<div>${b.b} 🏆 — ${b.n} игроков</div>`).join('') || '<div>—</div>'}</div>

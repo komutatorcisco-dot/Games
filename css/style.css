@@ -4682,3 +4682,4 @@ body.dg-on { overscroll-behavior: none; }
 .fu.cardmode .fu-c { right: 6%; bottom: 30%; }
 .fu.empty { clip-path: none; border-radius: calc(var(--cw) * .09); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.14); }
 .xd-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ad-days .ad-row { grid-template-columns: 1fr repeat(3, 1fr); }
