@@ -49,7 +49,17 @@
       const b = api.body;
       b.innerHTML = `<h3 class="ng-q">${list.club ? crestImg(list.club, 's') : ''}${esc(list.title)}</h3><div class="t10-lives"></div><div class="ng-in"></div><ol class="t10-list"></ol>
         <div class="ng-row"><button class="btn ghost" data-a="give">Сдаться</button><button class="btn ghost" data-a="next">Другой список</button></div>`;
-      const inp = NG.input($('.ng-in', b), { placeholder: list.ordered || list.club ? 'Фамилия игрока' : 'Твой ответ', button: 'Ввод', onPick: guess });
+      // подсказки при вводе: футболисты из базы и ответы всех списков вместе — по ним не угадать, кто в этом списке
+      const pool = [...new Map(L.flatMap((x) => x.ans.map((v) => v[0])).map((n) => [normName(n), n])).values()];
+      const items = (q) => {
+        const seen = new Set(list.ans.filter((a, i) => found.has(i)).map((a) => normName(a[0])));
+        const out = [];
+        const add = (it) => { const k = normName(it.key); if (!seen.has(k)) { seen.add(k); out.push(it); } };
+        pool.filter((n) => normName(n).includes(q)).sort((x, y) => (normName(x).startsWith(q) ? 0 : 1) - (normName(y).startsWith(q) ? 0 : 1)).forEach((n) => add({ key: n, label: n }));
+        NG.playerItems(q).forEach(add);
+        return out;
+      };
+      const inp = NG.input($('.ng-in', b), { items, free: true, placeholder: list.ordered || list.club ? 'Начни вводить фамилию…' : 'Начни вводить ответ…', button: 'Ввод', onPick: guess });
       const FLAGS = { Бразилия: '🇧🇷', Германия: '🇩🇪', Италия: '🇮🇹', Аргентина: '🇦🇷', Франция: '🇫🇷', Уругвай: '🇺🇾', Англия: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', Испания: '🇪🇸', СССР: '🚩',
         Чехословакия: '🇨🇿', Нидерланды: '🇳🇱', Дания: '🇩🇰', Греция: '🇬🇷', Португалия: '🇵🇹', США: '🇺🇸', Япония: '🇯🇵', 'Южная Корея': '🇰🇷', ЮАР: '🇿🇦', Россия: '🇷🇺', Катар: '🇶🇦', Канада: '🇨🇦', Мексика: '🇲🇽' };
       const pic = (n) => (FLAGS[n] ? `<span class="t10-flag">${FLAGS[n]}</span>` : CRESTS[n] ? crestImg(n, 's') : avatar(n, 's'));
