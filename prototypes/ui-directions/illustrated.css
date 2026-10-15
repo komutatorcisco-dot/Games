@@ -1,0 +1,27 @@
+/* Направление 3 — Illustrated Game UI: рисованные многоцветные иконки, мягкая глубина, свет за наградами.
+   Прототип для сравнения, не часть игры. Иконки — illustrated.js (оригинальные SVG). */
+body[data-skin="pill"] .btn:not(.ghost):not(.xp-x) { background: linear-gradient(180deg,#8ff5a8,#34d06a) !important; color:#063014 !important; border-radius:99px !important;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.65), inset 0 -3px 0 rgba(0,0,0,.12), 0 4px 0 #13873f, 0 8px 16px rgba(20,140,60,.3) !important; font-weight:900 !important; }
+body[data-skin="pill"] .btn:not(.ghost):active { transform: translateY(3px) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.6), 0 1px 0 #13873f !important; }
+body[data-skin="pill"] .btn.ghost { background: linear-gradient(180deg,#43406a,#2f2c52) !important; border-radius:99px !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.14), 0 4px 0 #17152e !important; }
+.sr-i { width:52px; height:52px; border-radius:18px; background: radial-gradient(80% 70% at 50% 25%, #3a3a66, #22213f); box-shadow: inset 0 2px 0 rgba(255,255,255,.12), 0 4px 0 #100f22, 0 8px 14px rgba(0,0,0,.3); }
+.sr-i svg { width:36px !important; height:36px !important; filter: drop-shadow(0 2px 0 rgba(0,0,0,.35)); }
+.sr-b.on .sr-i { background: radial-gradient(80% 70% at 50% 25%, #ffe9a0, #f6b73c); box-shadow: inset 0 2px 0 rgba(255,255,255,.7), 0 4px 0 #a06a0a, 0 0 0 3px rgba(255,214,90,.35); }
+.sr-b small { font-weight:800; color: rgba(255,255,255,.8); } .sr-b.on small { color:#ffd86a; }
+.ps-hero, .kb-head, .kb-chest { background: radial-gradient(120% 90% at 0% 0%, rgba(140,120,255,.22), transparent 55%), linear-gradient(180deg,#2a2850,#1c1b36) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 6px 18px rgba(0,0,0,.35) !important; border:0 !important; border-radius:22px !important; }
+.ps-bar, .kb-bar { height:20px; background: rgba(8,6,24,.7); box-shadow: inset 0 2px 4px rgba(0,0,0,.55); }
+.ps-bar i, .kb-bar i { background: linear-gradient(90deg,#ffd86a,#ffb02e) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 0 10px rgba(255,190,60,.45); }
+.ps-cell { border-radius:22px !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 6px 14px rgba(0,0,0,.35) !important; }
+.ps-cell .ps-art { position: relative; } .ps-cell .ps-art::before { content:''; position:absolute; inset:-14px -18px; z-index:-1; background: radial-gradient(closest-side, rgba(255,240,180,.38), transparent); }
+.ps-cell.ready { box-shadow: inset 0 0 0 2px rgba(143,245,168,.9), 0 6px 18px rgba(52,208,106,.3) !important; }
+.ps-cell .ps-take { background: linear-gradient(180deg,#8ff5a8,#34d06a); color:#063014; box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 2px 0 #13873f; padding:4px 13px; }
+.ps-node { background: radial-gradient(70% 70% at 50% 30%, #3e3c70, #24233f) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.18), 0 3px 0 #100f22 !important; }
+.ps-row.reach .ps-node { background: radial-gradient(70% 70% at 50% 30%, #fff0b3, #f4a81e) !important; box-shadow: inset 0 1px 0 #fff, 0 3px 0 #a06a0a !important; }
+.kb-tabs button { border-radius:18px; background: radial-gradient(80% 70% at 50% 25%, #3a3a66, #22213f); box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 3px 0 #100f22; }
+.kb-tabs button svg { width:28px !important; height:28px !important; }
+.kb-tabs button.on { background: radial-gradient(80% 70% at 50% 25%, #ffe9a0, #f6b73c); box-shadow: inset 0 2px 0 rgba(255,255,255,.7), 0 3px 0 #a06a0a; }
+.kb-emb { border-radius:22px; background: radial-gradient(70% 70% at 50% 30%, #5b55a8, #2a2756); box-shadow: inset 0 2px 0 rgba(255,255,255,.2), 0 0 0 3px rgba(255,214,90,.5), 0 6px 14px rgba(0,0,0,.35); }
+.kb-chi { background: radial-gradient(70% 70% at 50% 30%, #ffe9a0, #f6b73c) !important; } .kb-chi svg { width:38px !important; height:38px !important; }
+.kb-tier { border-radius:18px !important; background: linear-gradient(180deg,#25244a,#1d1c3a) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.kb-tier .kb-ta { position: relative; } .kb-tier .kb-ta::before { content:''; position:absolute; inset:-8px; z-index:0; background: radial-gradient(closest-side, rgba(255,240,180,.3), transparent); } .kb-tier .kb-ta > * { position: relative; }
+.kb-tier.open .kb-tn { background: radial-gradient(70% 70% at 50% 30%, #fff0b3, #f4a81e); color:#3a2400; }

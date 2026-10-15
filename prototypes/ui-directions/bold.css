@@ -1,0 +1,33 @@
+/* Направление 2 — Bold Arcade UI: толстые тёмные контуры, яркие кнопки, глубокая нижняя грань, обводка текста.
+   Прототип для сравнения, не часть игры. */
+:root { --ol: #0b0816; }
+body[data-skin="pill"] .btn:not(.ghost):not(.xp-x) { background: linear-gradient(180deg,#fff27a 0%,#ffd21f 48%,#ff9f0a 52%,#ffb320 100%) !important; color:#fff !important; border-radius:12px !important;
+  box-shadow: 0 0 0 2.5px var(--ol), inset 0 2px 0 rgba(255,255,255,.7), 0 5px 0 2.5px var(--ol) !important; font-weight:900 !important; text-transform:uppercase; letter-spacing:.02em;
+  -webkit-text-stroke: 3px var(--ol); paint-order: stroke fill; }
+body[data-skin="pill"] .btn:not(.ghost):active { transform: translateY(4px) !important; box-shadow: 0 0 0 2.5px var(--ol), inset 0 2px 0 rgba(255,255,255,.6), 0 1px 0 2.5px var(--ol) !important; }
+body[data-skin="pill"] .btn.ghost { background: linear-gradient(180deg,#5ab8ff,#2d7fe6 52%,#246fd0) !important; color:#fff !important; border-radius:12px !important; box-shadow: 0 0 0 2.5px var(--ol), inset 0 2px 0 rgba(255,255,255,.45), 0 5px 0 2.5px var(--ol) !important; -webkit-text-stroke: 3px var(--ol); paint-order: stroke fill; }
+.sr-i { border-radius:14px; background: linear-gradient(180deg,#3a3f55,#262a3a); box-shadow: 0 0 0 2.5px var(--ol), inset 0 2px 0 rgba(255,255,255,.3), 0 4px 0 2.5px var(--ol); color:#fff; }
+.sr-b.on .sr-i { background: linear-gradient(180deg,#fff27a,#ffc21a 50%,#ff9f0a); color:#2a1700; box-shadow: 0 0 0 2.5px var(--ol), inset 0 2px 0 rgba(255,255,255,.8), 0 4px 0 2.5px var(--ol); }
+.sr-b small { font: 900 10px "Rubik", sans-serif; color:#fff; text-shadow: 0 1.5px 0 var(--ol), 0 0 2px var(--ol); }
+.sr-b.on small { color:#ffd21f; }
+.sr-n { box-shadow: 0 0 0 2px var(--ol); background: linear-gradient(180deg,#ff6b6b,#e0202f); }
+.ps-hero, .kb-head, .kb-chest { background: linear-gradient(180deg,#2c3042,#1d2030) !important; box-shadow: 0 0 0 2.5px var(--ol), inset 0 2px 0 rgba(255,255,255,.18), 0 5px 0 2.5px var(--ol) !important; border:0 !important; }
+.ps-hero b, .kb-head h3, .kb-chest b { -webkit-text-stroke: 3px var(--ol); paint-order: stroke fill; }
+.ps-bar, .kb-bar { height:24px; background:#0c0d14; box-shadow: 0 0 0 2.5px var(--ol), inset 0 3px 0 rgba(0,0,0,.45); }
+.ps-bar i, .kb-bar i { background: repeating-linear-gradient(-45deg, rgba(255,255,255,.18) 0 6px, transparent 6px 12px), linear-gradient(180deg,#fff27a,#ffc21a 50%,#ff9f0a) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.6); }
+.ps-bar em, .kb-bar em { -webkit-text-stroke: 3px var(--ol); paint-order: stroke fill; font-size:13px; }
+.ps-cell { border-radius:14px !important; box-shadow: 0 0 0 2.5px var(--ol), inset 0 2px 0 rgba(255,255,255,.2), 0 5px 0 2.5px var(--ol) !important; }
+.ps-cell.prem { background: linear-gradient(180deg,#5b4416,#3a2a0c) !important; } .ps-cell.free { background: linear-gradient(180deg,#24324a,#182234) !important; }
+.ps-cell b { color:#fff; -webkit-text-stroke: 3px var(--ol); paint-order: stroke fill; font-size:13px; }
+.ps-cell.ready { box-shadow: 0 0 0 2.5px var(--ol), inset 0 0 0 3px #7dff9e, 0 5px 0 2.5px var(--ol) !important; }
+.ps-cell .ps-take { background: linear-gradient(180deg,#9dff6a,#3fd21f 52%,#2db50f); color:#fff; box-shadow: 0 0 0 2px var(--ol), 0 3px 0 2px var(--ol); -webkit-text-stroke: 2.5px var(--ol); paint-order: stroke fill; text-transform: uppercase; padding:4px 12px; }
+.ps-node { box-shadow: 0 0 0 2.5px var(--ol), 0 3px 0 2.5px var(--ol) !important; background:#2c3042 !important; color:#fff; font-weight:900; }
+.ps-row.reach .ps-node { background: linear-gradient(180deg,#fff27a,#ff9f0a) !important; color:#2a1700; }
+.kb-tabs button { background: linear-gradient(180deg,#3a3f55,#262a3a); color:#fff; box-shadow: 0 0 0 2.5px var(--ol), inset 0 2px 0 rgba(255,255,255,.3), 0 4px 0 2.5px var(--ol); border-radius:12px; }
+.kb-tabs button span { text-shadow: 0 1.5px 0 var(--ol), 0 0 2px var(--ol); font-weight:900; text-transform:uppercase; }
+.kb-tabs button.on { background: linear-gradient(180deg,#fff27a,#ffc21a 50%,#ff9f0a); color:#fff; }
+.kb-emb { background: linear-gradient(180deg,#ffd21f,#ff9f0a); box-shadow: 0 0 0 2.5px var(--ol), inset 0 2px 0 rgba(255,255,255,.6), 0 4px 0 2.5px var(--ol); }
+.kb-tier { background: linear-gradient(180deg,#2c3042,#1d2030) !important; box-shadow: 0 0 0 2px var(--ol), 0 3px 0 2px var(--ol); border-radius:12px; }
+.kb-tier b { -webkit-text-stroke: 2.5px var(--ol); paint-order: stroke fill; }
+.kb-tier.open .kb-tn { background: linear-gradient(180deg,#fff27a,#ff9f0a); color:#2a1700; box-shadow: 0 0 0 2px var(--ol); }
+.coins.mh-chip, .mh-chip { box-shadow: 0 0 0 2.5px var(--ol), 0 3px 0 2.5px var(--ol) !important; background:#0c0d14 !important; }
