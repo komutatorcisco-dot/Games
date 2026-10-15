@@ -269,8 +269,23 @@ const XDraft = (() => {
   }
 
   // ---------- экраны ----------
+  // на тесных схемах (4-2-3-1, 3-5-2…) карточки соседних позиций налезали друг на друга: уменьшаем все слоты поровну,
+  // пока ни одна пара не пересекается (не меньше 72%)
+  function fitPitch() {
+    const slots = $$('#xd-body .xd-pitch .xd-slot'); if (slots.length < 2) return;
+    slots.forEach((el) => el.style.setProperty('--k', 1));
+    const R = slots.map((el) => el.getBoundingClientRect()); let k = 1;
+    for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) {
+      const A1 = R[i], B = R[j], dx = Math.abs((A1.left + A1.right) - (B.left + B.right)) / 2, dy = Math.abs((A1.top + A1.bottom) - (B.top + B.bottom)) / 2;
+      const w = (A1.width + B.width) / 2 + 4, h = (A1.height + B.height) / 2 + 8;
+      if (dx < w && dy < h) k = Math.min(k, Math.max(dx / w, dy / h));
+    }
+    k = Math.max(0.72, k); if (k < 1) slots.forEach((el) => el.style.setProperty('--k', k.toFixed(3)));
+  }
+  addEventListener('resize', () => requestAnimationFrame(fitPitch));
   function render() {
     const a = A(), box = $('#xd-body'); if (!box) return;
+    requestAnimationFrame(fitPitch);
     const best = S().best;
     $('#xd-sub').textContent = a && a.sys ? `${a.form || ''} · ${a.sys === 'classic' ? 'Классика' : 'Новая химия'}` : 'Собери состав из пятёрок';
     if (!a || a.stage === 'sys') {

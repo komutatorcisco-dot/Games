@@ -3270,10 +3270,10 @@ html, body { touch-action: manipulation; }
 .fu-plus { font: 900 calc(var(--cw) * .4) "Rubik", sans-serif; color: var(--gold); line-height: 1; }
 .fu.empty small { font: 800 calc(var(--cw) * .17) "Oswald", sans-serif; }
 .fu-ch { position: relative; z-index: 3; margin-top: -4px; cursor: pointer; }
-.fu-ch.cl { min-width: 22px; height: 20px; padding: 0 6px; display: grid; place-items: center; border-radius: 99px; background: #120c38; box-shadow: 0 0 0 2px currentColor; font: 900 12px "Rubik", sans-serif; }
+.fu-ch.cl { min-width: 18px; height: 16px; padding: 0 5px; display: grid; place-items: center; border-radius: 99px; background: #120c38; box-shadow: 0 0 0 2px currentColor; font: 900 12px "Rubik", sans-serif; }
 .fu-ch.cg { color: #48f07a; } .fu-ch.cy { color: #ffd24a; } .fu-ch.cr { color: #ff6b80; }
-.fu-ch.new { display: flex; gap: 3px; padding: 4px 6px; border-radius: 99px; background: #120c38; }
-.fu-ch.new i { width: 7px; height: 7px; transform: rotate(45deg); background: rgba(255,255,255,.22); }
+.fu-ch.new { display: flex; gap: 2px; padding: 2px 4px; border-radius: 99px; background: #120c38; }
+.fu-ch.new i { width: 4.5px; height: 4.5px; transform: rotate(45deg); background: rgba(255,255,255,.22); }
 .fu-ch.new i.on { background: #3ee6c1; }
 .xd-slot.sel .fu { transform: translateY(-5px) scale(1.08); filter: drop-shadow(0 0 0 #000) ; }
 .xd-pitch.swapping .xd-slot:not(.sel) .fu:not(.empty) { animation: fuPulse 1.2s ease-in-out infinite; }
