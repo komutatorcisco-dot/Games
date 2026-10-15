@@ -16,6 +16,8 @@
 const ALLOWED = [50, 100, 250, 500, 1000];
 const PASS_STARS = 100; // цена премиум-пропуска (как в js/rewards.js)
 const ORIGIN = 'https://komutatorcisco-dot.github.io';
+// тестовая версия (.github/workflows/preview.yml): сама ходит только на проверочный сервер; вход по-прежнему по подписи Telegram
+const PREVIEW_ORIGIN = 'https://jackson-games-preview.pages.dev';
 const CHANNEL = '@oldjacksons'; // канал «Старики Джексоны»: играть могут только подписчики
 const TOP = 50;
 
@@ -126,13 +128,23 @@ async function social(env, user, body) {
     const t = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(row.uid).first();
     // «Игрок дня»: частичный индекс только по победам — без перебора всей таблицы daily на каждый просмотр профиля
     const d = await db.prepare('SELECT 1 AS n FROM daily WHERE id = ? AND won = 1 LIMIT 1').bind(row.uid).first();
+    // для профиля: клуб, победы в играх, дни в игре, турниры драфта — всё по первичным ключам и индексам, без перебора таблиц
+    const cl = await db.prepare('SELECT c.name, c.emoji FROM cmembers m JOIN clubs c ON c.id = m.club WHERE m.id = ?').bind(row.uid).first();
+    const gw = await db.prepare('SELECT COALESCE(SUM(wins), 0) AS n FROM gwins WHERE id = ?').bind(row.uid).first();
+    const sn = await db.prepare('SELECT days FROM seen WHERE id = ?').bind(row.uid).first();
+    const dt = await db.prepare('SELECT COUNT(*) AS n FROM draft_tours WHERE uid = ?').bind(row.uid).first();
+    const showcase = await shownFor(db, row.uid);
     const xp = Math.max(0, Number(u && u.xp) || 0);
     const thresholds = [0, 60, 180, 400, 800, 1400, 2400, 4000];
     // Existing profile statistics are server-stored but retain legacy client-result trust limitations.
     // Витрина — только проверенная сервером (social_shown), а не то, что игрок выбрал.
     return { ok: true, private: false, nick: String(u && u.nick || 'Игрок').slice(0, 32), emoji: String(u && u.emoji || '⚽').slice(0, 16),
       level: thresholds.filter(n => xp >= n).length, trophies: Math.max(0, Math.min(11000, Number(t && t.trophies) || 0)),
-      achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase: await shownFor(db, row.uid), showcaseEnabled: true };
+      achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase, showcaseEnabled: true,
+      // подтверждено сервером: особые карточки прошли проверку записи о выдаче (legend_claims); обычные — только по сохранению игрока
+      verified: showcase.map((k) => !!k && SERVER_GRANTED.test(k)),
+      club: cl ? { name: String(cl.name || '').slice(0, 32), emoji: String(cl.emoji || '⚽').slice(0, 16) } : null,
+      wins: Math.max(0, Number(gw && gw.n) || 0), days: Math.max(0, Number(sn && sn.days) || 0), drafts: Math.max(0, Number(dt && dt.n) || 0) };
   }
   if (!['self', 'edit'].includes(body.act)) return { ok: false, error: 'bad operation' };
   let row = await db.prepare('SELECT handle, revision, data FROM social_profiles WHERE uid = ?').bind(user.id).first();
@@ -165,14 +177,17 @@ async function social(env, user, body) {
   return { ok: !conflict, conflict, handle: row.handle, revision: row.revision, ...pd, public: isPublic(pd), shown: await shownFor(db, user.id), showcaseEnabled: true };
 }
 
-const tg = (env, method, body) => fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/${method}`, {
+// ключ бота без случайных пробелов и переносов строки (при вставке в панель Cloudflare с телефона они прилипают)
+const botToken = (env) => String(env.BOT_TOKEN || '').trim();
+let healthBot = null;
+const tg = (env, method, body) => fetch(`https://api.telegram.org/bot${botToken(env)}/${method}`, {
   method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
 }).then((r) => r.json());
 
 // Ответы разрешены сайту игр; ALLOW_ORIGIN — ещё один адрес (например, для проверки на своём компьютере)
 function cors(res, request, env) {
   const from = request.headers.get('origin');
-  res.headers.set('access-control-allow-origin', from && from === env.ALLOW_ORIGIN ? from : ORIGIN);
+  res.headers.set('access-control-allow-origin', from && (from === env.ALLOW_ORIGIN || from === PREVIEW_ORIGIN) ? from : ORIGIN);
   res.headers.set('access-control-allow-methods', 'GET, POST, OPTIONS');
   res.headers.set('access-control-allow-headers', 'content-type');
   res.headers.set('vary', 'origin');
@@ -1397,7 +1412,7 @@ async function route(request, env) {
   // Боту нужны права администратора в канале, иначе Telegram не отвечает на getChatMember.
   if (url.pathname === '/member' && request.method === 'POST') {
     let body; try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
-    const user = await verifyInit(body.initData, env.BOT_TOKEN);
+    const user = await verifyInit(body.initData, botToken(env));
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     const r = await tg(env, 'getChatMember', { chat_id: CHANNEL, user_id: user.id });
     if (!r || !r.ok) return json({ ok: false, error: (r && r.description) || 'telegram' });
@@ -1406,6 +1421,14 @@ async function route(request, env) {
   }
 
   // ---------- рейтинг ----------
+  // проверка сервера без секретов: есть ли база и узнаёт ли Telegram ключ бота (отдаёт только публичное имя бота, раз в 10 минут)
+  if (url.pathname === '/health' && request.method === 'GET') {
+    if (!healthBot || Date.now() - healthBot.at > 600000) {
+      const r = botToken(env) ? await tg(env, 'getMe', {}).catch(() => null) : null;
+      healthBot = { at: Date.now(), bot: r && r.ok ? r.result.username : null };
+    }
+    return json({ ok: true, db: !!env.DB, bot: healthBot.bot });
+  }
   if (url.pathname === '/presence' && request.method === 'GET') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     return json(await onlinePresence(env, null, { act: 'counts' }));
@@ -1414,7 +1437,7 @@ async function route(request, env) {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
-    const user = await verifyInit(body.initData, env.BOT_TOKEN);
+    const user = await verifyInit(body.initData, botToken(env));
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     if (url.pathname === '/score') return json({ ok: true, ...(await saveScore(env, user, body)) });
     if (url.pathname === '/hello') return json({ ok: true, ...(await hello(env, user, body)) });
@@ -1440,7 +1463,7 @@ async function route(request, env) {
   // Read-only confirmation: the client invoice callback is not proof of payment.
   if (url.pathname === '/shop/purchase' && request.method === 'POST') {
     const body = await request.json();
-    const user = await verifyInit(body.initData, env.BOT_TOKEN);
+    const user = await verifyInit(body.initData, botToken(env));
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     if (!env.DB || !SHOP[body.item] || !Number.isSafeInteger(body.n)) return json({ ok: false, error: 'bad purchase' }, 400);
     await schema(env.DB);
@@ -1451,7 +1474,7 @@ async function route(request, env) {
   // ---------- донат ----------
   if (url.pathname === '/invoice' && url.searchParams.get('item') === 'pass') {
     // премиум-пропуск сезона: кто покупает, узнаём по подписи Telegram
-    const user = await verifyInit(url.searchParams.get('initData'), env.BOT_TOKEN);
+    const user = await verifyInit(url.searchParams.get('initData'), botToken(env));
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     const season = Math.max(1, Math.min(999, Number(url.searchParams.get('season')) || 1));
     const r = await tg(env, 'createInvoiceLink', {
@@ -1463,7 +1486,7 @@ async function route(request, env) {
     return json(r.ok ? { ok: true, link: r.result } : { ok: false, error: r.description });
   }
   if (url.pathname === '/invoice' && SHOP[url.searchParams.get('item')]) {
-    const user = await verifyInit(url.searchParams.get('initData'), env.BOT_TOKEN);
+    const user = await verifyInit(url.searchParams.get('initData'), botToken(env));
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     const item = url.searchParams.get('item'), it = SHOP[item], n = Date.now() * 1000 + crypto.getRandomValues(new Uint32Array(1))[0] % 1000;
     const r = await tg(env, 'createInvoiceLink', {

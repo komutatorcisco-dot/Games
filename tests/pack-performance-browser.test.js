@@ -32,6 +32,13 @@ const {chromium}=require('playwright');
         PackOpen.reveal(cards.map(c=>({c,isNew:true,coins:0})),()=>window.packDone++);
       });
       await page.waitForFunction(()=>document.querySelector('.po-hint')?.textContent.includes('увидеть все'));
+      // Лучи за карточкой: крупные (не узкое кольцо), яркие, под карточкой и текстом; вращаются, если движение не отключено.
+      const rays=await page.evaluate(()=>{ const r=document.querySelector('.po-rays'),st=getComputedStyle(r),bg=getComputedStyle(document.querySelector('.po-bg'));
+        return {w:r.getBoundingClientRect().width,op:+st.opacity,anim:st.animationName,z:+bg.zIndex}; });
+      assert.ok(rays.w>=844*0.95,`rays cover the screen height (${rays.w}px)`);
+      assert.ok(rays.op>=0.6,`rays are bright on the walkout (${rays.op})`);
+      assert.equal(rays.z,-1,'rays stay behind the card and text');
+      assert.equal(rays.anim,reduced?'none':'poSpin');
       // tapOnce deliberately arms its listener after 250 ms.
       await page.waitForTimeout(300);
       await page.locator('.po-stage').click();

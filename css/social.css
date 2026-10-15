@@ -35,3 +35,58 @@ button.bd-nick { background:none;border:0;text-align:left;font:inherit; }
 .gl-pages { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 14px 0 6px; font: 700 15px var(--font-body, sans-serif); }
 .gl-pg { min-width: 52px; height: 42px; border: 0; border-radius: 14px; background: #283247; color: #fff; font-size: 18px; }
 .gl-pg:disabled { opacity: .35; }
+/* ---------- профиль: компоновка как в Brawl Stars, цвета панелей — от скина (.pc, .pc-st) ---------- */
+.pc.pp { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: 12px; align-items: start; overflow: visible; margin-top: 30px; }
+.pp-hero-host { min-width: 0; }
+.pp-hero { position: relative; display: grid; justify-items: center; gap: 2px; width: 100%; margin-top: -40px; padding: 0; border: 0; background: none; color: inherit; text-align: center; cursor: pointer; }
+.pp-hero .cc { transform: rotate(-4deg); filter: drop-shadow(0 10px 14px rgba(0,0,0,.55)); transition: transform .2s; }
+.pp-hero:active .cc { transform: rotate(-4deg) scale(.97); }
+.pp-hero > small { margin-top: 6px; font: 800 10px var(--font-body); letter-spacing: .08em; text-transform: uppercase; opacity: .75; }
+.pp-hero.empty { margin-top: 0; cursor: default; padding: 14px 6px; border-radius: 16px; background: rgba(0,0,0,.22); }
+.pp-ph { font-size: 54px; line-height: 1; }
+.pp-hero.empty > small { text-transform: none; letter-spacing: 0; }
+.pp-side { display: grid; gap: 10px; min-width: 0; }
+.pp-own .pc-who { grid-template-columns: auto minmax(0, 1fr) auto; }
+.pp-own .pc-ava { width: 52px; height: 52px; font-size: 28px; }
+.pp-own .pc-big { grid-template-columns: 1fr; gap: 8px; }
+.pp-own .pc-meta { flex-wrap: wrap; gap: 4px 10px; font-size: 12px; }
+.pp-id { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.pp-id .pc-ava { flex: none; width: 52px; height: 52px; display: grid; place-items: center; font-size: 28px; }
+.pp-nm { display: grid; gap: 4px; min-width: 0; }
+.pp-nm b { font: 900 19px/1.1 "Rubik", sans-serif; overflow-wrap: anywhere; }
+.pp-nm .pc-rk { justify-self: start; }
+.pp-big { grid-template-columns: 1fr !important; }
+.pp-club { font: 800 13px var(--font-body); opacity: .9; }
+.pp-stats { margin-top: 12px; }
+.pp-h { margin: 18px 0 8px; }
+.pp-ach { display: flex; flex-wrap: wrap; gap: 8px; }
+.pp-ach .pc-st { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; }
+.pp-ach .pc-st i { width: 18px; height: 18px; }
+/* чужой профиль — слой на весь экран поверх игры; фон тот же, что у страницы (скин) */
+.pp-layer { position: fixed; inset: 0; z-index: 45; display: flex; flex-direction: column; background: inherit; background-color: var(--night, #0d0b1e); animation: ppIn .2s ease-out; }
+.pp-layer.out { opacity: 0; transition: opacity .2s; }
+.pp-top { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: max(10px, calc(var(--safe-top, 0px) + 6px)) 12px 8px; }
+.pp-top b { text-align: center; font: 900 18px "Rubik", sans-serif; }
+.pp-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 16px calc(24px + env(safe-area-inset-bottom, 0px)); max-width: 520px; width: 100%; margin: 0 auto; box-sizing: border-box; }
+.pp-msg { display: grid; justify-items: center; gap: 8px; padding: 60px 16px; text-align: center; }
+body.pp-open .tabbar { visibility: hidden; }
+@keyframes ppIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pp-layer { animation: none; } .pp-hero .cc { transition: none; } }
+@media (max-width: 359px) { .pc.pp { grid-template-columns: 108px minmax(0, 1fr); } .pp-hero .cc { transform: rotate(-4deg) scale(.84); transform-origin: top center; margin-bottom: -30px; } }
+.pp-own { position: relative; }
+.pp-own .pc-who { grid-template-columns: 52px minmax(0, 1fr); gap: 10px; }
+.pp-own .pc-nm b { display: block; font-size: 18px; line-height: 1.15; }
+.pp-own .pc-nx { font-size: 11px; }
+/* карандаш — на уголке аватара, чтобы не отнимать место у ника */
+.pp-own .pc-who { position: relative; } .pp-own .pf-edit { position: absolute; left: 34px; top: 34px; width: 26px; height: 26px; padding: 0; font-size: 12px; line-height: 26px; border-radius: 50%; z-index: 2; }
+.pp-own #prof-badge.pc-ava { width: 52px !important; height: 52px !important; border-radius: 15px !important; font-size: 28px !important; }
+.pp-own .pc-nm b { white-space: nowrap !important; text-overflow: ellipsis !important; overflow: hidden !important; } /* размер подбирает fitNick() в app.js */
+#profile #social-profile.pc { display: block; }
+.social-ver { display:block;margin-top:4px;font:700 10px/1.2 var(--font-body);color:#9aa4b8; } .social-ver.ok { color:#3ee66b; } .pp-vnote { margin-top:-6px;font-size:12px; }
+/* профиль: 4 плитки 2×2 и раскрывающиеся группы «Настройки» / «Помощь» вместо длинного списка */
+#profile .pf-tiles { grid-template-columns: repeat(2, 1fr); }
+.pf-more { display: grid; gap: 8px; } .pf-more > summary { list-style: none; cursor: pointer; } .pf-more > summary::-webkit-details-marker { display: none; }
+.pf-more .pf-arr { display: inline-block; transition: transform .2s; font-size: 20px; line-height: 1; } .pf-more[open] .pf-arr { transform: rotate(90deg); }
+.pf-more > .settings { padding-left: 10px; }
+.pf-shopmenu { margin-top: 10px; } .pf-shopmenu .set-row span { display: flex; align-items: center; gap: 8px; font-weight: 800; } .pf-shopmenu .set-row small { opacity: .7; } .pf-shopmenu .ui-ic { width: 22px; height: 22px; }
+@media (prefers-reduced-motion: reduce) { .pf-more .pf-arr { transition: none; } }

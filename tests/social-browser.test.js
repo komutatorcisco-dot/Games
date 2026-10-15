@@ -43,10 +43,49 @@ const {chromium}=require('playwright');
   assert.equal(await page.evaluate(()=>Social.active()[0]),null);
   // Public profile renderer tested using an explicit fixture, not a production ownership claim.
   await page.evaluate(async()=>{Board.post=async()=>({ok:true,nick:'<script>unsafe</script>',emoji:'⚽',level:3,trophies:200,achievements:['Игрок дня'],showcase:[],showcaseEnabled:false});await Social.open('a'.repeat(32))});
-  assert.equal(await page.locator('.social-public h2').textContent(),'<script>unsafe</script>');
-  assert.equal(await page.locator('#modal-card script').count(),0);
-  assert.equal(await page.locator('.social-public .cc').count(),0);
+  assert.equal(await page.locator('.pp-layer .pp-nm b').textContent(),'<script>unsafe</script>','nick is escaped in the full-screen profile');
+  assert.equal(await page.locator('.pp-layer script').count(),0);
+  assert.equal(await page.locator('.pp-layer .cc').count(),0,'empty showcase shows no cards');
+  assert.ok(await page.locator('.pp-layer .pc-st').count()>=2,'stats tiles reuse skin classes');
   await page.screenshot({path:'tests/social-mobile-public.png',fullPage:false});
+  // Вариант А: обычные карточки видны, отмечено, какие подтвердил сервер; пустые места чужой витрины без «+»
+  const marks=await page.evaluate(async()=>{
+    const ks=[Cards.all().find(c=>/^FL:/.test(c.key)).key,Cards.all().find(c=>c.rar==='gold').key,null];
+    Board.post=async()=>({ok:true,nick:'V',emoji:'⚽',level:3,trophies:200,achievements:[],showcase:ks,verified:[true,false,false],showcaseEnabled:true});
+    await Social.open('e'.repeat(32));
+    return {cards:document.querySelectorAll('.pp-layer:not(.out) .social-slot .cc').length,
+      marks:[...document.querySelectorAll('.pp-layer:not(.out) .social-ver')].map(x=>x.textContent),
+      empty:document.querySelector('.pp-layer:not(.out) .social-empty')?.textContent};
+  });
+  assert.deepEqual(marks,{cards:2,marks:['✓ Подтверждено','Из сохранения'],empty:'—'},'verified marks in public showcase');
+  // Быстрое открытие нескольких чужих профилей и закрытие во время загрузки: на экране всегда тот, кого открыли последним.
+  const race=await page.evaluate(async()=>{
+    const wait=ms=>new Promise(ok=>setTimeout(ok,ms)), pending={};
+    Board.post=(url,b)=>new Promise(ok=>{pending[b.handle]=ok;});
+    const prof=(nick)=>({ok:true,nick,emoji:'⚽',level:2,trophies:10,achievements:[],showcase:[],showcaseEnabled:true});
+    const nick=()=>document.querySelector('.pp-layer:not(.out) .pp-nm b')?.textContent||null, out={};
+    Social.closeLayer(); await wait(250);
+    const A='a'.repeat(32),B='b'.repeat(32),C='c'.repeat(32),D='d'.repeat(32);
+    // 1) A, затем B; ответ A приходит последним
+    Social.open(A); Social.open(B); pending[B](prof('B')); await wait(0); pending[A](prof('A')); await wait(0);
+    out.lateA=nick();
+    // 2) C открыт и закрыт во время загрузки, затем D; ответ C приходит после открытия D
+    Social.closeLayer(); await wait(250);
+    Social.open(C); Social.closeLayer(); Social.open(D); pending[C](prof('C')); await wait(0);
+    out.afterCloseLoading=document.querySelector('.pp-layer:not(.out) .pp-msg')?'loading':nick();
+    pending[D](prof('D')); await wait(0); out.d=nick();
+    // 3) закрыли во время загрузки — слой не появляется снова
+    Social.closeLayer(); await wait(250);
+    Social.open(A); Social.closeLayer(); pending[A](prof('A')); await wait(300);
+    out.layers=document.querySelectorAll('.pp-layer').length; out.bodyOpen=document.body.classList.contains('pp-open');
+    // 4) ошибка сети у старого запроса не затирает новый профиль
+    Social.open(B); Social.open(C); pending[C](prof('C')); await wait(0);
+    Board.post=null; // старый запрос B завершится ошибкой
+    pending[B](Promise.reject(Error('net'))); await wait(10); out.afterOldError=nick();
+    Social.closeLayer(); await wait(250);
+    return out;
+  });
+  assert.deepEqual(race,{lateA:'B',afterCloseLoading:'loading',d:'D',layers:0,bodyOpen:false,afterOldError:'C'},'stale profile responses are ignored');
   for(const width of [360,390,430]){await page.setViewportSize({width,height:844});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow at '+width)}
   assert.deepEqual(errors,[]);console.log('PASS mobile social: favorites, filter, reorder, replace, remove, bounded picker, inactive ownership, escaped public profile, widths 360/390/430');
  }finally{await browser.close();await new Promise(ok=>server.close(ok));}

@@ -124,6 +124,14 @@ const Rewards = (() => {
     const after = passLevel();
     if (after > before) setTimeout(() => toast(`Пропуск: уровень ${after}! Забери награду во вкладке «Награды»`), 1400);
   }
+  // подробности награды пропуска (будущей или уже полученной) — только просмотр
+  let psFresh = true; // открыли «Награды» заново — дорожка пропуска встаёт на текущий уровень
+  function passInfo(v) {
+    const [line, si] = String(v).split(':'), i = +si; if (!PASS[i]) return;
+    const r = PASS[i][line === 'free' ? 0 : 1], l = rewardLabel(r), p = passSync(), got = p[line === 'free' ? 'free' : 'prem'].includes(i);
+    Sound.play('tap');
+    Modal.open(`<div class="ps-info-m"><span class="ps-art big">${l.art}</span><h2>${esc(l.name)}</h2><p>${line === 'free' ? 'Бесплатная линия' : 'Премиум-пропуск'} · уровень ${i + 1}</p><p class="ps-st">${got ? 'Уже получено ✓' : passLevel() > i ? 'Можно забрать' : `Откроется на уровне ${i + 1}`}</p></div>`, [{ label: 'Понятно', cls: 'ghost' }]);
+  }
   function claimPass(i, line) {
     const p = passSync(), L = i + 1;
     if (passLevel() < L) return;
@@ -133,6 +141,7 @@ const Rewards = (() => {
     giveReward(PASS[i][line === 'free' ? 0 : 1], `ПРОПУСК · УРОВЕНЬ ${L}`);
   }
   async function buyPass() {
+    if (typeof CONFIG !== 'undefined' && CONFIG.stage) { toast('В превью покупки отключены — это проверочная версия'); return; }
     const base = CONFIG.api;
     if (!(base && TG && TG.openInvoice && TG.initData)) { toast('Купить пропуск можно в Telegram через бота @JacksonGamesbot'); return; }
     try {
@@ -373,15 +382,15 @@ const Rewards = (() => {
     else if (tab === 'pass') {
       const L = passLevel(), left = Math.max(0, Math.ceil((seasonEnd() - Date.now()) / 864e5)), xp = L >= PASS_LEVELS ? PASS_STEP : p.xp % PASS_STEP;
       const pcell = (r, st, i, line) => { const l = rewardLabel(r), nm = r.pack !== undefined ? PACKNAME[r.pack].replace(' пак', '') : r.coins ? `${r.coins}` : l.name;
-        const act = st === 'ready' ? `data-${line}="${i}"` : st === 'buy' ? 'data-act="rw-buy"' : '';
+        const act = st === 'ready' ? `data-${line}="${i}"` : st === 'buy' ? 'data-act="rw-buy"' : `data-psinfo="${line}:${i}"`;
         return `<button class="ps-cell ${line} ${st}" ${act}><span class="ps-art">${l.art}</span><b>${esc(nm)}</b>${st === 'got' ? `<i class="ps-ok">✓</i>` : st === 'ready' ? '<i class="ps-take">Забрать</i>' : `<i class="ps-lk">${Ui.get('lock')}</i>`}</button>`; };
       const perks = ['Эксклюзивный скин «Золото» — только здесь', 'Вторая линия наград: паки сильнее, жизни, пак «ДЖЕКСОН!!»', '+1 пак за победы каждый день', 'Награды за пройденные уровни — сразу'];
       body = `<div class="ps-hero"><span class="ps-lv"><small>УР.</small><b>${L}</b></span>
           <div class="ps-info"><b>Сезон ${season()}</b><small>${left} ${plural(left, 'день', 'дня', 'дней')} до конца сезона</small>
             <span class="ps-bar"><i style="width:${Math.round((xp / PASS_STEP) * 100)}%"></i><em>${L >= PASS_LEVELS ? 'Пропуск пройден' : `${xp}/${PASS_STEP} до ур. ${L + 1}`}</em></span></div></div>
+        <div class="ps-cols"><span class="pr">▲ Премиум</span><span>▼ Бесплатно</span></div>
+        <div class="ps-track" data-pslevel="${L}">${PASS.map(([f, pr], i) => `<div class="ps-row ${L > i ? 'reach' : ''} ${L === i + 1 ? 'cur' : ''}">${pcell(pr, p.prem.includes(i) ? 'got' : L > i ? (p.premium ? 'ready' : 'buy') : 'lock', i, 'prem')}<span class="ps-node">${i + 1}</span>${pcell(f, p.free.includes(i) ? 'got' : L > i ? 'ready' : 'lock', i, 'free')}</div>`).join('')}</div>
         ${p.premium ? `<div class="ps-on">${Ui.get('star')} Премиум активен${Store.d.admin ? ' · админ' : ''}</div>` : `<div class="ps-buy"><b>${Ui.get('star')} Премиум-пропуск</b><ul>${perks.map((x) => `<li>${x}</li>`).join('')}</ul><button class="btn gold rw-buy" data-act="rw-buy">Открыть за ${PASS_STARS} ⭐</button></div>`}
-        <div class="ps-cols"><span>Бесплатно</span><span></span><span class="pr">Премиум</span></div>
-        <div class="ps-track">${PASS.map(([f, pr], i) => `<div class="ps-row ${L > i ? 'reach' : ''}">${pcell(f, p.free.includes(i) ? 'got' : L > i ? 'ready' : 'lock', i, 'free')}<span class="ps-node">${i + 1}</span>${pcell(pr, p.prem.includes(i) ? 'got' : L > i ? (p.premium ? 'ready' : 'buy') : 'lock', i, 'prem')}</div>`).join('')}</div>
         <p class="rw-note">Очки пропуска: победа +20, матч +5, задания — больше всего.</p>`;
     } else {
       const dl = Math.max(0, Math.ceil((seasonEnd() - Date.now()) / 864e5));
@@ -397,7 +406,13 @@ const Rewards = (() => {
         if (tab === 'cards' && Cards.freshN()) setTimeout(() => { Cards.clearFresh(); const c2 = claimable(); $$('.rw-dot').forEach((el) => { el.textContent = c2.all > 9 ? '9+' : c2.all; el.hidden = !c2.all; }); }, 1200);
     const box = $('#rewards-body');
     const keep = box.querySelector('.rs-strip'), sx = keep ? keep.scrollLeft : null;
+    const pst = !psFresh && box.querySelector('.ps-track'), psx = pst ? pst.scrollLeft : null; psFresh = false; // забрал награду — дорожка остаётся на месте
     box.innerHTML = tabs ? `${packs}<div class="srw">${tabs}<div class="sr-main">${body}</div></div>` : packs + body;
+    if (tab === 'pass') {
+      const tr = box.querySelector('.ps-track');
+      if (tr && psx !== null) tr.scrollLeft = psx;
+      else if (tr) { const lv = +tr.dataset.pslevel || 0, col = tr.children[Math.max(0, Math.min(tr.children.length - 1, lv - 1))]; if (col) tr.scrollLeft = Math.max(0, col.offsetLeft - (tr.clientWidth - col.offsetWidth) / 2); }
+    }
     if (tab === 'road') {
       const here = box.querySelector('.rd-here'), path = box.querySelector('.rd-path'), fill = box.querySelector('.rd-fill');
       if (path && fill) fill.style.height = (here ? here.offsetTop + 26 : path.offsetHeight) + 'px';
@@ -407,7 +422,7 @@ const Rewards = (() => {
     }
     header();
   }
-  function open(t) { if (t) tab = t; scrolled = false; delete $('#rewards-body').dataset.roadIn; Modal.close(); Screens.show('rewards'); window.scrollTo(0, 0); render(); }
+  function open(t) { if (t) tab = t; scrolled = false; psFresh = true; delete $('#rewards-body').dataset.roadIn; Modal.close(); Screens.show('rewards'); window.scrollTo(0, 0); render(); }
   function bind() {
     $('#rewards-body').addEventListener('input', (e) => Cards.onInput(e));
     $('#rewards-body').addEventListener('click', (e) => {
@@ -418,6 +433,7 @@ const Rewards = (() => {
       const f = e.target.closest('[data-free]'); if (f) return claimPass(+f.dataset.free, 'free');
       const pr = e.target.closest('[data-prem]'); if (pr) return claimPass(+pr.dataset.prem, 'prem');
       const q = e.target.closest('[data-quest]'); if (q) return claimQuest(q.dataset.quest);
+      const pi = e.target.closest('[data-psinfo]'); if (pi) return passInfo(pi.dataset.psinfo);
     });
     header();
   }

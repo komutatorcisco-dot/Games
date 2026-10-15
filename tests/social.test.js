@@ -114,6 +114,7 @@ vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^
   await save(20,{[a]:1,[b]:2,'FL:mario-balotelli':1});
   p20=await api(2,{act:'profile',handle:v.handle});
   assert.deepEqual(JSON.parse(JSON.stringify(p20.showcase)),[a,b,'FL:mario-balotelli'],'server-granted special card shown');
+  assert.deepEqual(JSON.parse(JSON.stringify(p20.verified)),[false,false,true],'only server-granted cards are marked verified; regular cards stay visible');
   await save(20,{[a]:1,[b]:2,'FL:mario-balotelli':1},{[a]:1});
   p20=await api(2,{act:'profile',handle:v.handle});
   assert.deepEqual(JSON.parse(JSON.stringify(p20.showcase)),[null,b,'FL:mario-balotelli'],'card spent in SBC disappears after the next save');

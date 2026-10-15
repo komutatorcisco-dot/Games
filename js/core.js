@@ -161,6 +161,8 @@ const Cloud = (() => {
   const cs = () => {
     try { return TG && TG.CloudStorage && TG.isVersionAtLeast && TG.isVersionAtLeast('6.9') ? TG.CloudStorage : null; } catch (e) { return null; }
   };
+  // превью (?stage=1) пишет в облако Telegram под своими ключами: настоящее сохранение только читается для старта, не перезаписывается
+  const pfx = () => (typeof CONFIG !== 'undefined' && CONFIG.stage ? 'pv_' : '');
   const call = (fn, ...args) => new Promise((ok) => { try { cs()[fn](...args, (err, res) => ok(err ? null : res)); } catch (e) { ok(null); } });
   const srvOn = () => typeof Board !== 'undefined' && Board.ready && Board.ready();
   const tro = (d) => Math.min(11000, Math.max(0, Math.floor(Number(d && d.rw && d.rw.trophies) || 0)));
@@ -172,9 +174,9 @@ const Cloud = (() => {
     busy = true;
     try {
       const str = JSON.stringify(Store.d, (k, v) => k === 'social' ? undefined : v), n = Math.ceil(str.length / CHUNK);
-      await Promise.all(Array.from({ length: n }, (_, i) => call('setItem', 's' + i, str.slice(i * CHUNK, (i + 1) * CHUNK))));
-      await call('setItem', 'sn', String(n));
-      await call('setItem', 'st', String(Store.d.ts || 0));
+      await Promise.all(Array.from({ length: n }, (_, i) => call('setItem', pfx() + 's' + i, str.slice(i * CHUNK, (i + 1) * CHUNK))));
+      await call('setItem', pfx() + 'sn', String(n));
+      await call('setItem', pfx() + 'st', String(Store.d.ts || 0));
     } finally { busy = false; }
     if (again) { again = false; push(); }
   }
@@ -197,14 +199,15 @@ const Cloud = (() => {
     if (cs()) { clearTimeout(timer); timer = setTimeout(() => { timer = null; push(); }, 3000); }
     if (srvOn() && !srvTimer) srvTimer = setTimeout(() => { srvTimer = null; pushSrv(); }, 120000);
   }
-  async function readTg() {
+  async function readTg(p = pfx()) {
     if (!cs()) return null;
-    const meta = await call('getItems', ['sn', 'st']);
-    if (!meta || !+meta.sn) return null;
-    const keys = Array.from({ length: +meta.sn }, (_, i) => 's' + i);
+    if (p && !(await call('getItems', [p + 'sn']) || {})[p + 'sn']) return readTg(''); // первый запуск превью — копия настоящего сохранения
+    const meta = await call('getItems', [p + 'sn', p + 'st']);
+    if (!meta || !+meta[p + 'sn']) return null;
+    const keys = Array.from({ length: +meta[p + 'sn'] }, (_, i) => p + 's' + i);
     const parts = await call('getItems', keys);
     if (!parts) return null;
-    try { const raw = JSON.parse(keys.map((k) => parts[k] || '').join('')); raw.ts = raw.ts || +meta.st || 0; return raw; } catch (e) { return null; } // записалось не до конца — пропускаем
+    try { const raw = JSON.parse(keys.map((k) => parts[k] || '').join('')); raw.ts = raw.ts || +meta[p + 'st'] || 0; return raw; } catch (e) { return null; } // записалось не до конца — пропускаем
   }
   async function readSrv() {
     if (!srvOn()) return null;

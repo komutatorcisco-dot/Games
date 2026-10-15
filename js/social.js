@@ -61,10 +61,11 @@ const Social = (() => {
     }
     return true;
   }
-  function slots(keys, editable) {
+  // verified — только в чужом профиле: под карточкой отметка, подтвердил ли её сервер (вариант А, docs/showcase-trust.md)
+  function slots(keys, editable, verified) {
     return `<div class="social-slots">${[0, 1, 2].map(i => {
       const c = keys[i] && Cards.get(keys[i]);
-      return `<div class="social-slot">${editable ? `<button data-social-slot="${i}" aria-label="Выбрать карточку ${i + 1}">` : `<button ${c ? `data-social-card="${esc(c.key)}"` : 'disabled'} aria-label="${c ? esc(c.name) : 'Пустое место'}">`}${c ? Cards.html(c, { w: 94 }) : '<span class="social-empty">＋</span>'}</button>${editable ? `<div class="social-order"><button data-social-move="${i}" aria-label="Переместить карточку вправо">→</button><button data-social-clear="${i}" aria-label="Убрать карточку">×</button></div>` : ''}</div>`;
+      return `<div class="social-slot">${editable ? `<button data-social-slot="${i}" aria-label="Выбрать карточку ${i + 1}">` : `<button ${c ? `data-social-card="${esc(c.key)}"` : 'disabled'} aria-label="${c ? esc(c.name) : 'Пустое место'}">`}${c ? Cards.html(c, { w: 94 }) : `<span class="social-empty">${editable ? '＋' : '—'}</span>`}</button>${c && verified ? (verified[i] ? '<small class="social-ver ok">✓ Подтверждено</small>' : '<small class="social-ver">Из сохранения</small>') : ''}${editable ? `<div class="social-order"><button data-social-move="${i}" aria-label="Переместить карточку вправо">→</button><button data-social-clear="${i}" aria-label="Убрать карточку">×</button></div>` : ''}</div>`;
     }).join('')}</div>`;
   }
   // что видят другие: сервер показывает только карточки, найденные в сохранении игрока
@@ -80,6 +81,7 @@ const Social = (() => {
     const signature = JSON.stringify([active(), state().public !== false, enabled, !!state().pending.length, state().shown || null]);
     if (host.dataset.socialRender === signature && host.children.length) return;
     host.dataset.socialRender = signature;
+    const ph = document.getElementById('pp-hero'); if (ph) ph.innerHTML = hero(active().find(Boolean), Store.d.user && Store.d.user.emoji);
     host.innerHTML = `<h3>Моя витрина</h3><p class="social-note">Выбери три карточки из своего клуба</p>${slots(active(), true)}<label class="social-privacy"><input type="checkbox" data-social-privacy ${state().public !== false ? 'checked' : ''}> Публичный профиль</label><p class="social-note">${enabled ? (state().pending.length ? 'Изменения ожидают синхронизации' : 'Настройки сохранены') : 'Изменения сохранены на этом устройстве'}. ${publicNote()}</p>`;
   }
   function choose(index, query = '', page = 0) {
@@ -101,16 +103,57 @@ const Social = (() => {
     // Read only: no Cards.details(), which changes local fresh flags and adds owner controls.
     Modal.open(`${Cards.html(c, { w: 180 })}<h2>${esc(c.name)}</h2><p>${esc(c.pos)} · ${esc(c.nat || '')} · ${c.r}</p>`, [{ label: 'Закрыть', cls: 'ghost' }]);
   }
+  // ---------- профиль: одна компоновка для своего и чужого (как в Brawl Stars, но вертикально) ----------
+  // Слева крупно любимый футболист — первая карточка витрины; справа аватар, ник, звание, трофеи; ниже статистика,
+  // витрина и достижения. Собрано из тех же классов панелей (.pc, .pc-st), что красят скины, — своего оформления нет.
+  const RANK_NAMES = ['Новичок', 'Дворовый игрок', 'Любитель', 'Полупрофи', 'Профи', 'Звезда', 'Легенда', 'Старик Джексон'];
+  const num = (x) => Number(x || 0).toLocaleString('ru-RU');
+  function hero(key, emoji) {
+    const c = key && Cards.get(key);
+    if (!c) return `<div class="pp-hero empty"><span class="pp-ph">${esc(emoji || '⚽')}</span><small>Любимый игрок не выбран</small></div>`;
+    return `<button class="pp-hero" data-social-card="${esc(c.key)}" aria-label="Любимый игрок: ${esc(c.name)}">${Cards.html(c, { w: 124 })}<small>Любимый игрок</small></button>`;
+  }
+  function stats(list) { return `<div class="pc-stats pp-stats">${list.map(([ic, k, v]) => `<span class="pc-st"><i>${Ui.get(ic)}</i><b>${v}</b><small>${k}</small></span>`).join('')}</div>`; }
+  function layout(r) {
+    const sc = r.showcase || [], ver = sc.map((k, i) => (Array.isArray(r.verified) ? !!r.verified[i] : /^FL:/.test(k || ''))); // старый сервер без verified — по тому же правилу
+    const rank = RANK_NAMES[Math.max(0, Math.min(RANK_NAMES.length - 1, (r.level || 1) - 1))];
+    const list = [['star', 'уровень', r.level || 1]];
+    if (r.wins !== undefined) list.push(['swords', 'побед в играх', num(r.wins)], ['shirt', 'турниров драфта', num(r.drafts)], ['flame', 'дней в игре', num(r.days)]);
+    list.push(['medal', 'достижений', r.achievements.length]);
+    return `<div class="pc pp">${hero(r.showcase && r.showcase.find(Boolean), r.emoji)}
+        <div class="pp-side"><div class="pp-id"><span class="pc-ava prof-badge">${esc(r.emoji)}</span><span class="pp-nm"><b>${esc(r.nick)}</b><span class="pc-rk">${esc(rank)}</span></span></div>
+          <div class="pc-big pp-big"><div><span>${Ui.get('trophy')}</span><b>${num(r.trophies)}</b><small>трофеев</small></div></div>
+          <div class="pp-club">${r.club ? `${esc(r.club.emoji)} ${esc(r.club.name)}` : 'Без клуба'}</div></div></div>
+      ${stats(list)}
+      <h3 class="section-label pp-h">Витрина</h3>${slots(sc, false, ver)}${sc.some(Boolean) ? '<p class="social-note pp-vnote">✓ — карточку выдал сервер. «Из сохранения» — по данным игры игрока.</p>' : ''}
+      <h3 class="section-label pp-h">Достижения</h3>${r.achievements.length ? `<div class="pp-ach">${r.achievements.map((a) => `<span class="pc-st"><i>${Ui.get('medal')}</i><small>${esc(a)}</small></span>`).join('')}</div>` : '<p class="social-note">Пока нет достижений</p>'}`;
+  }
+  // чужой профиль — полноэкранный слой поверх игры: экран не меняется, поэтому онлайн-матч в лобби не обрывается
+  let layer = null;
+  let seq = 0; // номер последнего запроса профиля: ответ на более старый (или закрытый) не показываем
+  function closeLayer() { seq++; if (!layer) return; const l = layer; layer = null; l.classList.add('out'); document.body.classList.remove('pp-open'); setTimeout(() => l.remove(), 200); }
+  function showLayer(html) {
+    if (!layer) {
+      layer = document.createElement('div'); layer.className = 'pp-layer';
+      layer.innerHTML = `<header class="pp-top"><button class="back" data-pp-close="1" aria-label="Назад">←</button><b>Профиль</b><span></span></header><div class="pp-body"></div>`;
+      document.body.appendChild(layer); document.body.classList.add('pp-open');
+    }
+    $('.pp-body', layer).innerHTML = html; $('.pp-body', layer).scrollTop = 0;
+  }
   async function open(profile) {
     if (!/^[a-f0-9]{32}$/.test(profile || '')) return;
-    Modal.open('<p>Загружаем профиль…</p>', [{ label: 'Закрыть', cls: 'ghost' }]);
+    Modal.close();
+    const my = ++seq;
+    showLayer('<div class="pp-msg"><div class="bd-spin"></div><p>Загружаем профиль…</p></div>');
     try {
       const r = await Board.post('/social', { act: 'profile', handle: profile });
+      if (my !== seq || !layer) return;
       if (!r.ok) throw Error('unavailable');
-      if (r.private) { Modal.open('<h2>Профиль закрыт</h2><p>Игрок ограничил просмотр своего профиля.</p>', [{ label: 'Закрыть', cls: 'ghost' }]); return; }
-      Modal.open(`<div class="social-public"><div class="social-avatar">${esc(r.emoji)}</div><h2>${esc(r.nick)}</h2><p>Уровень ${r.level} · ${r.trophies} 🏆</p><h3>Достижения</h3>${r.achievements.length ? r.achievements.map(a => `<p>🏅 ${esc(a)}</p>`).join('') : '<p>Пока нет достижений</p>'}<h3>Витрина</h3>${slots(r.showcase, false)}${!r.showcaseEnabled ? '<p class="social-note">Витрина появится после серверной проверки коллекции.</p>' : ''}</div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
-    } catch (_) { Modal.open('<h2>Профиль недоступен</h2><p>Попробуй позже.</p>', [{ label: 'Закрыть', cls: 'ghost' }]); }
+      if (r.private) { showLayer('<div class="pp-msg"><span class="pp-ph">🔒</span><h2>Профиль закрыт</h2><p>Игрок ограничил просмотр своего профиля.</p></div>'); return; }
+      showLayer(layout(r) + (!r.showcaseEnabled ? '<p class="social-note">Витрина появится после серверной проверки коллекции.</p>' : ''));
+    } catch (_) { if (my === seq && layer) showLayer('<div class="pp-msg"><h2>Профиль недоступен</h2><p>Попробуй позже.</p></div>'); }
   }
+  document.addEventListener('click', e => { if (e.target.closest('[data-pp-close]')) { e.preventDefault(); closeLayer(); } });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-social-fav],[data-social-slot],[data-social-clear],[data-social-move],[data-profile],[data-social-card],[data-social-room]'); if (!b) return;
     e.preventDefault(); e.stopPropagation();
@@ -126,5 +169,5 @@ const Social = (() => {
   document.addEventListener('change', e => { if (e.target.matches('[data-social-privacy]')) change({ type: 'privacy', value: e.target.checked }); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(false); });
   window.addEventListener('online', () => sync(false));
-  return { favorite, available, active, toggle, sync, render, open, beforeSpend, handle: () => handle, state };
+  return { favorite, available, active, toggle, sync, render, open, beforeSpend, handle: () => handle, state, hero, closeLayer, layerOpen: () => !!layer };
 })();

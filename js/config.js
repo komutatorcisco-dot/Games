@@ -3,7 +3,8 @@
 // Пока пусто, вкладка «Рейтинг» пишет, что рейтинг скоро запустится, а кнопка доната скрыта.
 // donateApi — старое имя того же адреса (можно оставить пустым). donateUrl — запасная ссылка на донат (Boosty и т.п.).
 // ?stage=1 — проверочный сервер (staging) для новых функций до включения всем; адрес фиксированный.
-const STAGE = /[?&]stage=1(&|$)/.test(location.search);
+// тестовая версия на jackson-games-preview.pages.dev всегда работает с проверочным сервером
+const STAGE = /[?&]stage=1(&|$)/.test(location.search) || /(^|\.)jackson-games-preview\.pages\.dev$/.test(location.hostname);
 const CONFIG = {
   api: STAGE ? 'https://jackson-games-staging.komutatorcisco.workers.dev' : 'https://jackson-games.komutatorcisco.workers.dev',
   stage: STAGE,
