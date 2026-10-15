@@ -64,7 +64,7 @@ vm.createContext(sctx);
 vm.runInContext(fs.readFileSync('server/worker.js', 'utf8').replace(/^export \{[^}]+\};/gm, '').replace('export default {', 'const worker = {').replace(/^export /gm, '') + '\nglobalThis.testAPI = { schema, legends, draftTour, FL_ITALY, FL };', sctx);
 const S = sctx.testAPI;
 const poolIta = XDraft.pool().filter((p) => p.nat === 'Италия').map((p) => p.name).sort();
-assert.equal(JSON.stringify([...S.FL_ITALY].sort()), JSON.stringify(poolIta), 'server Italian list matches the draft pool (regenerate if players change)');
+assert.equal(poolIta.filter((n) => !S.FL_ITALY.has(n)).length, 0, 'every Italian of the draft pool counts on the server (list covers all PLAYERS Italians)');
 
 (async () => {
   const ON = { DB: db, FL_ENABLED: '1', FL_START: '1000' }, OFF = { DB: db, FL_ENABLED: '0' };

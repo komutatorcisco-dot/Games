@@ -135,7 +135,13 @@ const Legends = (() => {
     if (loading) return loading;
     loading = (async () => {
       await flushDraft();
-      const r = await call({ act: 'status' });
+      let r = await call({ act: 'status' });
+      // драфт, сыгранный до исправления списка итальянцев на сервере (там не было части игроков): отправляем ещё раз
+      const cur = Store.d.xd && Store.d.xd.cur, L = S();
+      if (r.ok && r.tasks && !r.tasks.italians && cur && cur.stage === 'done' && !L.itaRetry && typeof XDraft !== 'undefined' && XDraft.xiOf) {
+        L.itaRetry = 1; Store.save();
+        const xi = XDraft.xiOf(); if (xi.filter((p) => p && p.nat === 'Италия').length >= 7) { onDraft(cur.id + ':r', xi); await flushDraft(); r = await call({ act: 'status' }); }
+      }
       if (r.ok) { S().st = { tasks: r.tasks, need: r.need, done: r.done, claimed: r.claimed, at: Date.now() }; if (r.claimed && ensureCard(r.card)) toast('Карточка Балотелли восстановлена с сервера'); Store.save(); }
       else if (r.disabled) { S().st = null; Store.save(); }
       const old = document.querySelector('.fx-list [data-legend]'); if (old) { const html = listCard(); if (html) old.outerHTML = html; }

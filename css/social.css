@@ -28,3 +28,6 @@ button.bd-nick { background:none;border:0;text-align:left;font:inherit; }
 .cl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); container-type: inline-size; }
 .cl-cell { min-width: 0; }
 .cl-cell .cc { --w: min(102px, calc((100cqw - 16px) / 3)) !important; }
+/* сердечко — маленький значок на фото карточки, а не отдельная кнопка под ней */
+.cl-cell .social-heart { position: absolute; z-index: 2; left: 4px; bottom: 33%; width: 26px; height: 26px; margin: 0; padding: 0; display: grid; place-items: center; border-radius: 50%; border: 1px solid #ffffff40; background: rgba(12,10,26,.72); color: rgba(255,255,255,.75); font-size: 13px; line-height: 1; }
+.cl-cell .social-heart.on { color: #ff668c; background: rgba(64,26,50,.9); border-color: #ff668c80; }
