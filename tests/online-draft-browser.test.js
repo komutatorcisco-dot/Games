@@ -37,7 +37,8 @@ const {chromium}=require('playwright');
       return {total:XD.chem('new','4-3-3',XDraft.xiOf()).total,icons:XDraft.xiOf().filter(p=>p.icon).length};
     });
     assert.equal(result.icons,11);assert.equal(result.total,33);
-    assert.equal(await page.locator('#xd-body .xd-pitch .fu.legend').count(),11);
+    // с 4ee2ff4 игроки драфта на поле — карточки коллекции (.fu.cardmode .cc.legend); старые фишки .fu.legend тоже засчитываем
+    assert.equal(await page.locator('#xd-body .xd-pitch .fu.legend, #xd-body .xd-pitch .fu.cardmode .cc.legend').count(),11);
     assert.equal(await page.locator('#xd-body .xd-pitch .fu-ch.new .on').count(),33);
     await page.evaluate(()=>{XDraft.A().stage='done';XDraft.A().result={r:1,c:0};XDraft.S().tour={paid:true,over:true};XDraft.render();});
     assert.equal(await page.locator('.xd-rs span').nth(1).locator('b').textContent(),'33/33','finished drafts recalculate stale saved chemistry');

@@ -128,7 +128,8 @@ const Social = (() => {
   }
   // чужой профиль — полноэкранный слой поверх игры: экран не меняется, поэтому онлайн-матч в лобби не обрывается
   let layer = null;
-  function closeLayer() { if (!layer) return; const l = layer; layer = null; l.classList.add('out'); document.body.classList.remove('pp-open'); setTimeout(() => l.remove(), 200); }
+  let seq = 0; // номер последнего запроса профиля: ответ на более старый (или закрытый) не показываем
+  function closeLayer() { seq++; if (!layer) return; const l = layer; layer = null; l.classList.add('out'); document.body.classList.remove('pp-open'); setTimeout(() => l.remove(), 200); }
   function showLayer(html) {
     if (!layer) {
       layer = document.createElement('div'); layer.className = 'pp-layer';
@@ -140,14 +141,15 @@ const Social = (() => {
   async function open(profile) {
     if (!/^[a-f0-9]{32}$/.test(profile || '')) return;
     Modal.close();
+    const my = ++seq;
     showLayer('<div class="pp-msg"><div class="bd-spin"></div><p>Загружаем профиль…</p></div>');
     try {
       const r = await Board.post('/social', { act: 'profile', handle: profile });
-      if (!layer) return;
+      if (my !== seq || !layer) return;
       if (!r.ok) throw Error('unavailable');
       if (r.private) { showLayer('<div class="pp-msg"><span class="pp-ph">🔒</span><h2>Профиль закрыт</h2><p>Игрок ограничил просмотр своего профиля.</p></div>'); return; }
       showLayer(layout(r) + (!r.showcaseEnabled ? '<p class="social-note">Витрина появится после серверной проверки коллекции.</p>' : ''));
-    } catch (_) { if (layer) showLayer('<div class="pp-msg"><h2>Профиль недоступен</h2><p>Попробуй позже.</p></div>'); }
+    } catch (_) { if (my === seq && layer) showLayer('<div class="pp-msg"><h2>Профиль недоступен</h2><p>Попробуй позже.</p></div>'); }
   }
   document.addEventListener('click', e => { if (e.target.closest('[data-pp-close]')) { e.preventDefault(); closeLayer(); } });
   document.addEventListener('click', e => {
