@@ -282,10 +282,10 @@ const XDraft = (() => {
     }
     k = Math.max(0.72, k); if (k < 1) slots.forEach((el) => el.style.setProperty('--k', k.toFixed(3)));
   }
-  addEventListener('resize', () => requestAnimationFrame(fitPitch));
+  if (typeof addEventListener === 'function') addEventListener('resize', () => requestAnimationFrame(fitPitch));
   function render() {
     const a = A(), box = $('#xd-body'); if (!box) return;
-    requestAnimationFrame(fitPitch);
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(fitPitch);
     const best = S().best;
     $('#xd-sub').textContent = a && a.sys ? `${a.form || ''} · ${a.sys === 'classic' ? 'Классика' : 'Новая химия'}` : 'Собери состав из пятёрок';
     if (!a || a.stage === 'sys') {
