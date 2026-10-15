@@ -4450,25 +4450,32 @@ body.covered .h2w-in { animation-play-state: paused; }
 .ps-buy li::before { content: ""; position: absolute; left: 2px; top: 5px; width: 10px; height: 6px; border-left: 2.5px solid #ffcf3a; border-bottom: 2.5px solid #ffcf3a; transform: rotate(-45deg); }
 .ps-buy .btn { width: 100%; margin-top: 4px; }
 .ps-on { display: flex; align-items: center; justify-content: center; gap: 6px; margin-bottom: 14px; padding: 10px; border-radius: 14px; background: rgba(255,207,58,.12); box-shadow: inset 0 0 0 1.5px rgba(255,207,58,.5); font: 900 14px "Rubik", sans-serif; color: #ffd34d; } .ps-on .ui-ic { width: 16px; height: 16px; }
-.ps-cols { display: grid; grid-template-columns: 1fr 40px 1fr; gap: 8px; margin-bottom: 6px; text-align: center; font: 900 12px "Rubik", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.55); } .ps-cols .pr { color: #ffcf3a; }
-.ps-track { position: relative; display: grid; gap: 10px; }
-.ps-track::before { content: ""; position: absolute; left: 50%; top: 10px; bottom: 10px; width: 4px; margin-left: -2px; border-radius: 4px; background: rgba(255,255,255,.12); }
-.ps-row { position: relative; display: grid; grid-template-columns: 1fr 40px 1fr; gap: 8px; align-items: center; }
-.ps-node { position: relative; z-index: 1; display: grid; place-items: center; width: 34px; height: 34px; margin: 0 auto; border-radius: 50%; background: #262b36; box-shadow: 0 0 0 3px #0e1118; font: 900 14px "Rubik", sans-serif; color: rgba(255,255,255,.6); }
+/* сезонный пропуск — горизонтальная дорожка: сверху премиум, посередине уровни, снизу бесплатная линия */
+.ps-cols { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font: 900 11px "Rubik", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.6); } .ps-cols .pr { color: #ffcf3a; }
+.ps-track { position: relative; display: flex; gap: 0; overflow-x: auto; overflow-y: hidden; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; margin: 0 -4px; padding: 6px 4px 12px; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent); }
+.ps-track::-webkit-scrollbar { display: none; }
+.ps-row { position: relative; flex: 0 0 116px; display: grid; grid-template-rows: auto 44px auto; gap: 8px; padding: 0 5px; scroll-snap-align: center; }
+/* линия прогресса проходит через все уровни; пройденные участки — золотые */
+.ps-row::before { content: ""; position: absolute; left: 0; right: 0; top: calc(50% - 3px); height: 6px; background: rgba(0,0,0,.45); box-shadow: inset 0 1px 0 rgba(255,255,255,.08); }
+.ps-row.reach::before { background: linear-gradient(180deg, #ffe68a, #f0a812); }
+.ps-row.cur::before { background: linear-gradient(90deg, #f0a812 50%, rgba(0,0,0,.45) 50%); }
+.ps-row:first-child::before { left: 50%; } .ps-row:last-child::before { right: 50%; }
+.ps-node { position: relative; z-index: 1; align-self: center; display: grid; place-items: center; width: 38px; height: 38px; margin: 0 auto; border-radius: 50%; background: #262b36; box-shadow: 0 0 0 3px #0e1118, 0 3px 0 3px #0e1118; font: 900 15px "Rubik", sans-serif; color: rgba(255,255,255,.65); }
 .ps-row.reach .ps-node { background: linear-gradient(180deg, #ffe68a, #f0a812); color: #2b1a00; }
-.ps-cell { position: relative; display: grid; justify-items: center; gap: 4px; min-height: 104px; padding: 10px 6px 8px; border: 0; border-radius: 16px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.09); color: #fff; }
-.ps-cell.prem { background: radial-gradient(100% 80% at 50% 0%, rgba(255,207,58,.16), transparent 70%), rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px rgba(255,207,58,.35); }
-.ps-cell b { font: 800 12px "Rubik", sans-serif; text-align: center; line-height: 1.15; }
-.ps-art { display: grid; place-items: center; height: 58px; filter: drop-shadow(0 4px 0 rgba(0,0,0,.3)); }
-.ps-art .fpk { --pw: 38px; --ph: 53px; --d: 4px; } .ps-art .fpk em, .ps-art .fpk .fpk-sh, .ps-art .fpk::after { display: none; } .ps-art .fpk b { font-size: 12px; }
-.ps-art .rs-coins .coin { width: 30px !important; height: 30px !important; }
-.ps-art .rs-heart .ui-ic { width: 40px; height: 40px; color: #ff4f66; }
-.ps-art .rs-card { transform: scale(.8); }
-.ps-skin { display: block; width: 40px; height: 56px; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 2px #e8c157; } .ps-skin img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 85%; }
+.ps-row.cur .ps-node { transform: scale(1.12); box-shadow: 0 0 0 3px #0e1118, 0 0 0 6px rgba(255,207,58,.45); }
+.ps-cell { position: relative; display: grid; justify-items: center; align-content: center; gap: 6px; height: 150px; padding: 12px 6px 10px; border: 0; border-radius: 18px; background: linear-gradient(180deg, rgba(120,170,255,.22), rgba(60,90,200,.12)); box-shadow: inset 0 0 0 1.5px rgba(150,190,255,.35), 0 4px 0 rgba(0,0,0,.35); color: #fff; }
+.ps-cell.prem { background: linear-gradient(180deg, rgba(255,210,90,.32), rgba(240,140,20,.14)); box-shadow: inset 0 0 0 1.5px rgba(255,207,58,.55), 0 4px 0 rgba(0,0,0,.35); }
+.ps-cell b { font: 900 12.5px "Rubik", sans-serif; text-align: center; line-height: 1.15; }
+.ps-art { display: grid; place-items: center; height: 86px; filter: drop-shadow(0 5px 0 rgba(0,0,0,.35)); }
+.ps-art .fpk { --pw: 56px; --ph: 78px; --d: 5px; } .ps-art .fpk em, .ps-art .fpk .fpk-sh, .ps-art .fpk::after { display: none; } .ps-art .fpk b { font-size: 15px; }
+.ps-art .rs-coins .coin { width: 40px !important; height: 40px !important; }
+.ps-art .rs-heart .ui-ic { width: 56px; height: 56px; color: #ff4f66; }
+.ps-art .rs-card { transform: scale(1.05); }
+.ps-skin { display: block; width: 54px; height: 78px; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 2px #e8c157; } .ps-skin img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 85%; }
 .ps-cell .ps-ok { position: absolute; top: 6px; right: 8px; font: 900 15px "Rubik", sans-serif; font-style: normal; color: #3ee66b; }
 .ps-cell .ps-lk { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; background: rgba(0,0,0,.45); } .ps-cell .ps-lk .ui-ic { width: 12px; height: 12px; }
 .ps-cell .ps-take { font: 900 11px "Rubik", sans-serif; font-style: normal; padding: 3px 10px; border-radius: 99px; background: #3ee66b; color: #062a12; }
-.ps-cell.got { opacity: .5; } .ps-cell.got .ps-art { filter: grayscale(.4); }
+.ps-cell.got { opacity: .62; } .ps-cell.got .ps-art { filter: grayscale(.4); }
 .ps-cell.lock .ps-art { opacity: .55; filter: saturate(.4); }
 .ps-cell.buy .ps-art { opacity: .8; }
 .ps-cell.ready { animation: psReady 1.6s ease-in-out infinite; box-shadow: inset 0 0 0 2px #3ee66b; }
@@ -4683,3 +4690,11 @@ body.dg-on { overscroll-behavior: none; }
 .fu.empty { clip-path: none; border-radius: calc(var(--cw) * .09); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.14); }
 .xd-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ad-days .ad-row { grid-template-columns: 1fr repeat(3, 1fr); }
+
+/* подробности награды пропуска */
+.ps-info-m { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.ps-info-m .ps-art.big { height: 140px; } .ps-info-m .ps-art.big .fpk { --pw: 90px; --ph: 126px; } .ps-info-m .ps-art.big .rs-coins .coin { width: 60px !important; height: 60px !important; }
+.ps-info-m .ps-art.big .ps-skin { width: 90px; height: 130px; }
+.ps-info-m h2 { margin: 4px 0 0; } .ps-info-m p { margin: 0; } .ps-info-m p { font: 700 14px "Rubik", sans-serif; color: rgba(255,255,255,.7); } .ps-info-m .ps-st { color: #ffcf3a; font-weight: 900; }
+.ps-cell.ready .ps-take { padding: 4px 12px; font-size: 12px; box-shadow: 0 0 12px rgba(62,230,107,.6); }
+.ps-cell .ps-ok { top: 6px; right: 8px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: #3ee66b; color: #062a12; font-size: 14px; }
