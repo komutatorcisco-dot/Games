@@ -98,7 +98,8 @@ const NG = (() => {
   }
 
   // Поле ввода с подсказками. items(q) → [{key, label, sub}]. Без items — свободный ввод по Enter.
-  function input(host, { items, onPick, placeholder = 'Начни вводить фамилию…', button = '' }) {
+  // free: с подсказками, но ответ можно ввести и вручную (Enter или кнопка, если подходящей подсказки нет)
+  function input(host, { items, onPick, placeholder = 'Начни вводить фамилию…', button = '', free = false }) {
     host.innerHTML = `<div class="guess-input ng-input"><input type="text" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="${esc(placeholder)}">
       ${button ? `<button class="btn gold ng-go" type="button">${button}</button>` : ''}<div class="suggest" hidden></div></div>`;
     const inp = $('input', host), box = $('.suggest', host);
@@ -111,7 +112,7 @@ const NG = (() => {
       if (q.length < 2) return hide();
       opts = lenient(items, q).slice(0, 6);
       placeSuggest(box, inp);
-      if (!opts.length) { box.innerHTML = '<button type="button" disabled>Нет в базе</button>'; box.hidden = false; return; }
+      if (!opts.length) { if (free) return hide(); box.innerHTML = '<button type="button" disabled>Нет в базе</button>'; box.hidden = false; return; }
       sel = 0;
       box.innerHTML = opts.map((it, i) => `<button type="button" data-i="${i}" class="${i ? '' : 'sel'}"><span>${esc(it.label)}</span>${it.sub ? `<small>${esc(it.sub)}</small>` : ''}</button>`).join('');
       box.hidden = false;
@@ -121,7 +122,7 @@ const NG = (() => {
     inp.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (items && opts.length) choose(opts[sel]); else if (!items) submitFree();
+        if (items && opts.length) choose(opts[sel]); else if (!items || free) submitFree();
       } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && opts.length) {
         e.preventDefault();
         sel = (sel + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length;
@@ -139,7 +140,7 @@ const NG = (() => {
     });
     box.addEventListener('pointercancel', () => { downI = -1; });
     const go = $('.ng-go', host);
-    if (go) go.addEventListener('click', () => (items ? opts.length && choose(opts[sel]) : submitFree()));
+    if (go) go.addEventListener('click', () => (items && opts.length ? choose(opts[sel]) : (!items || free) && submitFree()));
     return { focus: () => inp.focus(), disable(v) { inp.disabled = v; if (go) go.disabled = v; }, el: inp };
   }
 
