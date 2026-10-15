@@ -46,6 +46,17 @@ jobs:
             -F 'worker.js=@server/worker.js;type=application/javascript+module')
           echo "$out" | head -c 600; echo
           echo "$out" | grep -Eq '"success": *true' || { echo "::error::Воркер jackson-games-staging не принял код — см. worker-staging.yml"; exit 1; }
+      - name: Тестовый сервер — адрес workers.dev и подключения
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          ACC=$(echo "$CF_ACCOUNT_ID" | tr -d '[:space:]'); TOK=$(echo "$CF_API_TOKEN" | tr -d '[:space:]')
+          API="https://api.cloudflare.com/client/v4/accounts/$ACC/workers/scripts/jackson-games-staging"
+          # включить адрес jackson-games-staging.<имя>.workers.dev (без него Cloudflare отвечает «error code: 1042»)
+          curl -sS -X POST "$API/subdomain" -H "Authorization: Bearer $TOK" -H 'content-type: application/json' -d '{"enabled":true}' | head -c 300; echo
+          # какие подключения есть у тестового сервера: только имена и типы, значения секретов API не отдаёт
+          curl -sS "$API/settings" -H "Authorization: Bearer $TOK" | python3 -c "import sys,json; r=json.load(sys.stdin); b=(r.get('result') or {}).get('bindings') or []; print('Подключения:', ', '.join(x.get('name','?')+' ('+x.get('type','?')+')' for x in b) or 'нет', '| ok' if r.get('success') else r.get('errors'))"
       - name: Сайт превью → Cloudflare Pages
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
