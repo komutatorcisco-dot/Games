@@ -23,3 +23,18 @@ node pack.mjs rigged.glb out.glb       # WebP-текстуры (цвет 2048, �
 руки — главная ось точек дальше плеч; локоть и запястье — 40 % и 76 % длины от плеча до кончиков пальцев.
 
 Проверка: `prototypes/balotelli/viewer.html?model=../player/out.glb` и `index.html?model=../player/out.glb`.
+
+## Лицо игрока на общей модели (без платных сервисов)
+
+Фото лица прямо (лучше крупное, ровный свет) «натягивается» по 478 точкам лица (MediaPipe Face Mesh)
+на лицо общей модели: глаза, нос и рот фото ложатся точно на глаза, нос и рот модели.
+
+```
+pip install mediapipe==0.10.14 scikit-image
+python3 -m http.server 8765 &                       # из корня репозитория
+node face-frame.cjs model-front.png                 # снимок головы модели спереди (один раз на модель)
+python3 face.py фото.webp prototypes/player/faces/<игрок>.webp   # печатает цвет щёк → skin
+```
+
+В игре: `viewer.html?model=../player/player-mobile.glb&face=prototypes/player/faces/<игрок>.webp&ff=-0.1,0.1,0.82,1.02&skin=<цвет>`
+(ff — кадр снимка в долях роста, как в face-frame.html).

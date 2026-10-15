@@ -22,7 +22,10 @@ export function kitFromQuery(Q) {
     face: faceUrl(Q.get('face') || ''),
     // у фото с сервера лиц игры (и у img/players/<номер>.webp) кадр одинаковый — глаза и рот на одних местах
     fp: ((Q.get('fp') || '').split(',').map(Number).filter((n) => n >= 0 && n <= 1).length === 4 ? Q.get('fp').split(',').map(Number) : [0.445, 0.69, 0.117, 0.5]),
-    fm: (Q.get('fm') || '').split(',').map(Number).filter((n) => isFinite(n)) };
+    fm: (Q.get('fm') || '').split(',').map(Number).filter((n) => isFinite(n)),
+    // готовая текстура лица (tools/rig/face.py): фото уже «натянуто» по точкам лица на лицо модели;
+    // ff — её кадр в долях роста: x слева, x справа, высота низа, высота верха
+    ff: (Q.get('ff') || '').split(',').map(Number).filter((n) => isFinite(n) && Math.abs(n) <= 1.2) };
 }
 
 // откуда можно брать лицо: картинка из папки игры или сервер лиц игры (/face/<номер>)
@@ -65,9 +68,10 @@ function printTexture(kit) {
 export async function applyKit(model, kit) {
   if (!kit) return;
   let faceTex = null; const tint = new THREE.Vector3(1, 1, 1);
-  if (kit.face && kit.fp.length === 4) {
+  const framed = kit.ff.length === 4;
+  if (kit.face && (framed || kit.fp.length === 4)) {
     const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.crossOrigin = 'anonymous'; i.src = kit.face; }).catch(() => null);
-    if (img) { faceTex = new THREE.Texture(img); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.needsUpdate = true; const ch = cheekColor(img, kit.fp); if (!kit.skin) kit.skin = ch;
+    if (img) { faceTex = new THREE.Texture(img); faceTex.colorSpace = THREE.SRGBColorSpace; faceTex.needsUpdate = true; const ch = framed ? '' : cheekColor(img, kit.fp); if (!kit.skin) kit.skin = ch;
       // фото и кожа модели одного тона: фото подкрашивается к цвету кожи
       if (ch && kit.skin) { const a = new THREE.Color(kit.skin), b = new THREE.Color(ch); tint.set(a.r / Math.max(b.r, 0.02), a.g / Math.max(b.g, 0.02), a.b / Math.max(b.b, 0.02)); } }
   }
@@ -86,7 +90,7 @@ export async function applyKit(model, kit) {
         kSkin: { value: lin(kit.skin || '#000000') }, kUseSkin: { value: kit.skin ? 1 : 0 },
         kPrint: { value: print }, kY0: { value: minY }, kH: { value: Hm },
         kFace: { value: faceTex || print }, kUseFace: { value: faceTex ? 1 : 0 }, kTint: { value: tint },
-        kFM: { value: new THREE.Vector3(...FM) }, kFP: { value: new THREE.Vector4(...(kit.fp.length === 4 ? kit.fp : [0, 1, 1, 0.5])) },
+        kFM: { value: new THREE.Vector3(...FM) }, kFF: { value: new THREE.Vector4(...(framed ? kit.ff : [0, 0, 0, 0])) }, kFP: { value: new THREE.Vector4(...(kit.fp.length === 4 ? kit.fp : [0, 1, 1, 0.5])) },
       });
       sh.vertexShader = sh.vertexShader
         .replace('#include <common>', '#include <common>\nvarying vec3 vRest; varying vec3 vRestN;')
@@ -95,7 +99,7 @@ export async function applyKit(model, kit) {
         .replace('#include <common>', `#include <common>
 varying vec3 vRest; varying vec3 vRestN;
 float kSkinMask = 0.0;
-uniform vec3 kShirt, kShorts, kSocks, kSkin; uniform float kUseSkin, kY0, kH, kUseFace; uniform sampler2D kPrint, kFace; uniform vec3 kFM, kTint; uniform vec4 kFP;`)
+uniform vec3 kShirt, kShorts, kSocks, kSkin; uniform float kUseSkin, kY0, kH, kUseFace; uniform sampler2D kPrint, kFace; uniform vec3 kFM, kTint; uniform vec4 kFP, kFF;`)
         .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.78, kSkinMask);')
         .replace('#include <map_fragment>', `#include <map_fragment>
 {
@@ -130,7 +134,16 @@ uniform vec3 kShirt, kShorts, kSocks, kSkin; uniform float kUseSkin, kY0, kH, kU
     kSkinMask = skin;
   }
   // лицо с фото: проекция спереди по линии глаз и рта, мягкий овал, только на лицевой стороне головы
-  if (kUseFace > 0.5 && h > 0.865 && vRestN.z > 0.0) {
+  if (kUseFace > 0.5 && kFF.w > kFF.z && vRestN.z > 0.0) {
+    float xr = vRest.x / kH;
+    vec2 fuv = vec2((xr - kFF.x) / (kFF.y - kFF.x), (h - kFF.z) / (kFF.w - kFF.z));
+    if (fuv.x > 0.0 && fuv.x < 1.0 && fuv.y > 0.0 && fuv.y < 1.0) {
+      vec4 f = texture2D(kFace, fuv);
+      float fm = f.a * smoothstep(0.05, 0.45, vRestN.z);
+      diffuseColor.rgb = mix(diffuseColor.rgb, clamp(f.rgb * kTint, 0.0, 1.0), fm);
+      kSkinMask = max(kSkinMask, fm);
+    }
+  } else if (kUseFace > 0.5 && h > 0.865 && vRestN.z > 0.0) {
     float xr = vRest.x / kH;
     float v = kFP.x + (h - kFM.x) / (kFM.y - kFM.x) * (kFP.y - kFP.x);
     float u = kFP.w + xr / kFM.z * kFP.z;
@@ -143,7 +156,7 @@ uniform vec3 kShirt, kShorts, kSocks, kSkin; uniform float kUseSkin, kY0, kH, kU
   }
 }`);
     };
-    m.customProgramCacheKey = () => 'kit:' + kit.shirt + kit.shorts + kit.socks + kit.skin + (faceTex ? 'f' : '');
+    m.customProgramCacheKey = () => 'kit:' + kit.shirt + kit.shorts + kit.socks + kit.skin + (faceTex ? (framed ? 'F' : 'f') : '');
     m.needsUpdate = true;
   });
 }

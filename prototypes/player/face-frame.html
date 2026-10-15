@@ -1,0 +1,30 @@
+<!doctype html><html><head><meta charset="utf-8"><script type="importmap">{ "imports": { "three": "../balotelli/vendor/three.module.min.js" } }</script></head>
+<!-- Снимок головы общей модели строго спереди (без света), кадр в долях роста — основа для tools/rig/face.py -->
+<body style="margin:0;background:#fff"><canvas id="c" width="1024" height="1024"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from '../balotelli/vendor/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from '../balotelli/vendor/meshopt_decoder.module.js';
+const R = new THREE.WebGLRenderer({ canvas: c, antialias: true, preserveDrawingBuffer: true }); R.setClearColor(0xffffff, 1); R.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const g = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('player-mobile.glb');
+let minY = Infinity, maxY = -Infinity;
+g.scene.traverse((o) => { if (o.isMesh) { o.material = new THREE.MeshBasicMaterial({ map: o.material.map }); o.geometry.computeBoundingBox(); minY = Math.min(minY, o.geometry.boundingBox.min.y); maxY = Math.max(maxY, o.geometry.boundingBox.max.y); } });
+g.scene.traverse((o) => { if (o.isSkinnedMesh) o.skeleton.pose(); });
+scene.add(g.scene);
+g.scene.updateMatrixWorld(true);
+const wb = new THREE.Box3().setFromObject(g.scene), WH = wb.max.y - wb.min.y;
+let mw; g.scene.traverse((o) => { if (o.isSkinnedMesh) mw = o.matrixWorld.elements.slice(); });
+let sm; g.scene.traverse((o) => { if (o.isSkinnedMesh) sm = o; }); const sb = new THREE.Box3(), pv = new THREE.Vector3(), pos = sm.geometry.attributes.position;
+for (let i = 0; i < pos.count; i += 3) { sm.getVertexPosition(i, pv); pv.applyMatrix4(sm.matrixWorld); sb.expandByPoint(pv); }
+{ const a = new THREE.Vector3(), b = new THREE.Vector3(); a.fromBufferAttribute(pos, 0); sm.getVertexPosition(0, b); window.MAP0 = [a.toArray(), b.toArray()]; }
+const RH = sb.max.y - sb.min.y, RY = sb.min.y, RS = RH; // доли роста в сцене
+window.SB = [sb.min.toArray(), sb.max.toArray()];
+const H = maxY - minY, F = window.FRAME = { xr0: -0.10, xr1: 0.10, h0: 0.82, h1: 1.02, x0: (sb.min.x + sb.max.x) / 2 - 0.10 * RH, x1: (sb.min.x + sb.max.x) / 2 + 0.10 * RH, sb: [sb.min.toArray(), sb.max.toArray()], y0: RY + 0.82 * RH, y1: RY + 1.02 * RH };
+const cam = new THREE.OrthographicCamera(F.x0, F.x1, F.y1, F.y0, 0.01, 10); const cx = (F.x0 + F.x1) / 2; cam.left = F.x0 - cx; cam.right = F.x1 - cx; cam.position.set(cx, (F.y0 + F.y1) / 2, 3); cam.lookAt(cx, (F.y0 + F.y1) / 2, 0);
+ cam.top = (F.y1 - F.y0) / 2; cam.bottom = -cam.top; cam.updateProjectionMatrix();
+const v = new THREE.Vector3(); const bones = {}; g.scene.traverse((o) => { if (o.isBone) { o.getWorldPosition(v); bones[o.name] = v.toArray().map((x) => +x.toFixed(3)); } });
+F.bones = { head: bones.head, neck: bones.neck, foot: bones['foot.L'], root: bones.root };
+const hb = bones.head; if (window.AUTO !== false) { const hy = hb[1]; }
+R.render(scene, cam); window.done = true;
+</script></body></html>
