@@ -4723,6 +4723,8 @@ body.dg-on { overscroll-behavior: none; }
 .fpk.pimg .fpk-f::before, .fpk.pimg .fpk-f::after, .fpk.pimg em { display: none; }
 .fpk.pimg .fpk-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; z-index: 1; }
 .fpk.pimg .fpk-sh { opacity: .55; }
+/* всё, что лежит на лице (блик, полоска отрыва), обрезается по силуэту пака — без прямоугольника вокруг */
+.fpk.pimg .fpk-f { overflow: visible; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
 .fpk.pimg .fpk-s, .fpk.pimg .fpk-k { display: none; } /* объём уже нарисован на картинке — торец и задник старой модели не нужны */
 .fpk.pimg.p0 { --a: #cfd6de; --b: #5f6b7a; --c: #f4f7fa; } .fpk.pimg.p4 { --a: #3a3a3a; --b: #111; --c: #f2cb5c; }
 .fpk.pimg .po-cap { left: 8%; right: 8%; top: 3%; height: 8%; border-radius: 4px; background: linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.05)); border-bottom: 2px dashed rgba(0,0,0,.45); }

@@ -23,7 +23,7 @@ const PackOpen = (() => {
   const PIMG = ['pk-silver', 'pk-blue', 'pk-purple', 'pk-gold', 'pk-black'];
   const pimg = (lv, sz) => `img/icons/${PIMG[lv]}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp`;
   const art = (lv, sz = '', cap = false) => `<span class="fpk p${lv} ${sz} pimg"><span class="fpk-b">
-      <i class="fpk-f"><img class="fpk-img" src="${pimg(lv, sz)}" alt="" decoding="async" draggable="false"><i class="fpk-sh"></i><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
+      <i class="fpk-f" style="-webkit-mask-image:url(${pimg(lv, sz)});mask-image:url(${pimg(lv, sz)})"><img class="fpk-img" src="${pimg(lv, sz)}" alt="" decoding="async" draggable="false"><i class="fpk-sh"></i><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;
 
   const best = (res) => res.slice().sort((a, b) => ORDER.indexOf(b.c.rar) - ORDER.indexOf(a.c.rar) || b.c.r - a.c.r);
@@ -138,7 +138,7 @@ const PackOpen = (() => {
     function setLevel(lv) {
       level = lv;
       setCol(el, LV[lv].css);
-      const f = $('.fpk', packEl); f.className = f.className.replace(/\bp\d\b/, 'p' + lv); $('.fpk-f em', packEl).textContent = LV[lv].short; const im = $('.fpk-img', packEl); if (im) im.src = pimg(lv, 'xxl');
+      const f = $('.fpk', packEl); f.className = f.className.replace(/\bp\d\b/, 'p' + lv); $('.fpk-f em', packEl).textContent = LV[lv].short; const im = $('.fpk-img', packEl); if (im) { im.src = pimg(lv, 'xxl'); im.parentNode.style.webkitMaskImage = im.parentNode.style.maskImage = `url(${pimg(lv, 'xxl')})`; }
       const nm = $('.po-name', el); nm.textContent = LV[lv].name; slam(nm);
       $$('.po-steps i', el).forEach((s, i) => s.classList.toggle('on', i <= lv));
       el.classList.toggle('jackson', lv === 4);
