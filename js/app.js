@@ -154,12 +154,10 @@ const App = (() => {
       const ok = test(); if (ok) got++;
       return `<div class="ach ${ok ? 'ok' : ''}"><i>${Ui.get(TROPHY[name] || 'trophy')}</i><div><b>${name}</b><small>${desc}</small></div></div>`;
     }).join('');
-    $('#pf-ach').textContent = `${got} из ${achs.length}`;
     $('#ach-sub').textContent = `${got} из ${achs.length}`;
     $('#prof-admin').hidden = !Store.d.admin;
     $('#prof-asplayer').hidden = !Store.d.admin;
     $('#set-asplayer').textContent = Store.d.ui && Store.d.ui.asPlayer ? 'Вкл' : 'Выкл';
-    $('#set-wheel').textContent = safe('wheel', () => Wheel.ready()) ? 'Открыть' : 'Завтра';
     $('#set-music').textContent = Store.d.music ? 'Вкл' : 'Выкл';
     $('#set-sound').textContent = Store.d.sound ? 'Вкл' : 'Выкл';
     { const r = $('#set-remind'); if (r) r.textContent = Store.d.ui && Store.d.ui.noRemind ? 'Выкл' : 'Вкл'; }
@@ -374,6 +372,7 @@ const App = (() => {
 
   function tabs() {
     const id = Screens.current;
+    $('#tab-shop').classList.toggle('on', id === 'shop');
     $('#tab-home').classList.toggle('on', id === 'hub' && panel === 'home');
     $('#tab-games').classList.toggle('on', id === 'hub' && panel === 'games');
     $('#tab-friends').classList.toggle('on', id === 'hub' && panel === 'friends');
@@ -471,16 +470,13 @@ const App = (() => {
     'ttt-duo': () => TTT.start('duo'),
     'ttt-skip': () => TTT.skip(),
     wheel: () => Wheel.open(),
-    skins: () => Skins.open(),
+    skins: () => Shop.open('skins'),
     myclub: () => Clubs.open(),
     // онлайн с живым соперником: выбор режима
     online: () => Home.pick('online'),
-    starshop: () => StarShop.open(),
-    // профиль: три магазина собраны в одну плитку «Магазин»
-    shopmenu: () => Modal.open(`<h3 class="sk-h">Магазин</h3><div class="settings pf-shopmenu">
-        <button class="set-row" data-act="starshop"><span>${Art.img('qpack', 'sm', 96)} Магазин паков</span><small>монеты · ⭐</small></button>
-        <button class="set-row" data-act="shop"><span>${Art.img('squad', 'sm', 96)} Экипировка</span><small>форма и мячи</small></button>
-        <button class="set-row" data-act="skins"><span>${Ui.get('star')} Оформление</span><small>скины</small></button></div>`, [{ label: 'Закрыть', cls: 'ghost' }]),
+    starshop: () => Shop.open('packs'),
+    // старое меню магазина → теперь отдельная вкладка «Магазин»
+    shopmenu: () => Shop.open(),
     remind: () => { const ui = Store.d.ui || (Store.d.ui = {}); ui.noRemind = !ui.noRemind; Store.save(); Track.hello({ remind: !ui.noRemind }); renderProfile(); toast(ui.noRemind ? 'Напоминания выключены' : 'Напоминания включены'); },
     runner: () => {
       const f = $('#runner-frame');
@@ -496,7 +492,7 @@ const App = (() => {
     'pick-duo': () => Pick.start('duo'),
     'pick-bot': () => Pick.start('bot'),
     'pick-solo': () => Pick.start('solo'),
-    'coins-info': () => Shop.open(),
+    'coins-info': () => Shop.open('packs'),
     shop: () => Shop.open(),
     chest: () => {
       if ((Store.d.ng.chest || '') === Day.key() || NG.dailyStatus().some(([, d]) => !d)) return;

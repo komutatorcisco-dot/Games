@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;700;800&family=Rubik:ital,wght@0,500;0,700;0,800;0,900;1,900&family=Oswald:wght@500;700&family=Russo+One&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261015-art5">
+<link rel="stylesheet" href="css/style.css?v=20261015-shop1">
 <link rel="stylesheet" href="css/skins.css?v=20261014a">
 <style>
 #boot{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;overflow:hidden;background:radial-gradient(80% 55% at 50% 34%,#2a2f52 0%,#141729 55%,#07080f 100%);color:#fff;font-family:Rubik,"Golos Text",system-ui,sans-serif;transition:opacity .45s ease,transform .45s ease}
@@ -63,7 +63,7 @@
 (function () {
   var el = document.getElementById('boot'), bar = el.querySelector('.bt-bar i'), pct = el.querySelector('.bt-pct'), lbl = el.querySelector('.bt-lbl'), tipEl = el.querySelector('.bt-tip');
   var t0 = Date.now(), p = 0, target = 0.04, done = false, gone = false, loaded = 0;
-  var TIPS = ['Побеждай — получай трофеи. Каждые 200 🏆 открывают новую игру', 'Задания дня дают очки сезонного пропуска', 'Пак дня можно открыть бесплатно раз в сутки', 'Скины меняются в Профиле → Оформление', 'В Драфте собери 11 игроков и сыграй турнир до финала', '«Игрок дня» — новый футболист каждые сутки'];
+  var TIPS = ['Побеждай — получай трофеи. Каждые 200 🏆 открывают новую игру', 'Задания дня дают очки сезонного пропуска', 'Пак дня можно открыть бесплатно раз в сутки', 'Скины меняются в Магазине → Скины', 'В Драфте собери 11 игроков и сыграй турнир до финала', '«Игрок дня» — новый футболист каждые сутки'];
   var ti = Math.floor(Math.random() * TIPS.length);
   function tip() { tipEl.style.opacity = 0; setTimeout(function () { tipEl.textContent = 'Совет: ' + TIPS[ti++ % TIPS.length]; tipEl.style.opacity = 1; }, 300); }
   tip(); var tipT = setInterval(tip, 3200);
@@ -308,10 +308,8 @@
     </div>
     <div class="stats pf-stats" id="prof-stats" hidden></div>
     <div class="pf-tiles">
-      <button data-act="achievements"><span class="art" data-art="cup1"></span><b>Трофеи</b><small id="pf-ach"></small></button>
-      <button data-act="wheel"><span class="pf-pk2"></span><b>Пак дня</b><small id="set-wheel"></small></button>
-      <button data-act="shopmenu"><span class="art" data-art="shop"></span><b>Магазин</b><small>паки · экипировка · скины</small></button>
-      <button data-act="myclub"><span class="art" data-art="members"></span><b>Клуб</b><small>играй командой</small></button>
+      <button data-act="wheel"><span class="pf-pk2"></span><b>Пак дня</b></button>
+      <button data-act="myclub"><span class="art" data-art="members"></span><b>Клуб</b></button>
     </div>
     <div class="settings">
       <button class="set-row" data-act="admin" id="prof-admin" hidden><span>Админка</span><b>→</b></button>
@@ -570,10 +568,13 @@
   <section class="screen" id="shop" hidden>
     <header class="topbar">
       <button class="back" data-act="home" aria-label="Назад">←</button>
-      <div class="topbar-title">Магазин<small>Трать монеты с пользой</small></div>
+      <div class="topbar-title">Магазин</div>
       <div class="coins small"><span class="coin" aria-hidden="true"></span><b class="coin-count">0</b></div>
     </header>
-    <div id="shop-body"></div>
+    <nav class="shp-tabs" role="tablist" aria-label="Разделы магазина"><button data-shtab="packs" role="tab">Паки</button><button data-shtab="gear" role="tab">Экипировка</button><button data-shtab="skins" role="tab">Скины</button></nav>
+    <div id="shop-packs" class="shp-pane"></div>
+    <div id="shop-body" class="shp-pane" hidden></div>
+    <div id="shop-skins" class="shp-pane" hidden></div>
   </section>
 
   <!-- ===== ИГРОК ДНЯ ===== -->
@@ -668,6 +669,7 @@
   <!-- ===== НИЖНЕЕ МЕНЮ ===== -->
   <div class="safe-cap" aria-hidden="true"></div>
   <nav class="tabbar" id="tabbar">
+    <button data-act="shop" class="tab" id="tab-shop"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 9.5 L5 4 H19 L20.5 9.5 C20.5 11 19.3 12 18 12 C16.7 12 15.5 11 15.5 9.5 C15.5 11 14.3 12 12 12 C9.7 12 8.5 11 8.5 9.5 C8.5 11 7.3 12 6 12 C4.7 12 3.5 11 3.5 9.5 Z M5 12 V20 H19 V12 M10 20 V15.5 H14 V20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>Магазин</button>
     <button data-act="home" class="tab" id="tab-home"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12 H21" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>Главная</button>
     <button data-act="games" class="tab" id="tab-games" hidden>Игры</button>
     <button data-act="friends" class="tab" id="tab-friends"><span><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M2.5 20 C2.5 15.5 5 13.5 8 13.5 C11 13.5 13.5 15.5 13.5 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="16.5" cy="8.5" r="2.8" fill="none" stroke="currentColor" stroke-width="2"/><path d="M15 13.6 C19 13.4 21.5 15.5 21.5 19.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>С другом</button>
@@ -710,7 +712,7 @@
 <script defer src="js/daily.js?v=20261014a"></script>
 <script defer src="js/pick.js?v=20261014-nofarm"></script>
 <script defer src="js/howto.js?v=20261014a"></script>
-<script defer src="js/icons.js?v=20261015-art5"></script>
+<script defer src="js/icons.js?v=20261015-shop1"></script>
 <script defer src="js/pack3d.js?v=20261014a"></script>
 <script defer src="js/xdraft/engine.js?v=20261014-frv1"></script>
 <script defer src="js/xdraft/ui.js?v=20261015-fit2"></script>
@@ -721,18 +723,18 @@
 <script defer src="js/positions.js?v=20261014-frv1"></script>
 <script defer src="js/data/cards.js?v=20261014-frv1"></script>
 <script defer src="js/cards.js?v=20261015-pg1"></script>
-<link rel="stylesheet" href="css/social.css?v=20261015-art5">
-<script defer src="js/social.js?v=20261015-pp5"></script>
-<script defer src="js/packs.js?v=20261015-art5"></script>
-<script defer src="js/rewards.js?v=20261015-art5"></script>
+<link rel="stylesheet" href="css/social.css?v=20261015-shop1">
+<script defer src="js/social.js?v=20261015-shop1"></script>
+<script defer src="js/packs.js?v=20261015-shop1"></script>
+<script defer src="js/rewards.js?v=20261015-shop1"></script>
 <script defer src="js/sbc.js?v=20261014-social1"></script>
 <script defer src="js/legends.js?v=20261014-ita2"></script>
 <script defer src="js/gate.js?v=20261014a"></script>
-<script defer src="js/skins.js?v=20261014a"></script>
-<script defer src="js/clubs.js?v=20261015-art5"></script>
-<script defer src="js/shopstars.js?v=20261015-pv1"></script>
+<script defer src="js/skins.js?v=20261015-shop1"></script>
+<script defer src="js/clubs.js?v=20261015-shop1"></script>
+<script defer src="js/shopstars.js?v=20261015-shop1"></script>
 <script defer src="js/coach.js?v=20261014b"></script>
-<script defer src="js/home.js?v=20261015-art5"></script>
+<script defer src="js/home.js?v=20261015-shop1"></script>
 <script defer src="js/wheel.js?v=20261014a"></script>
 <script defer src="js/pz/shell.js?v=20261014a"></script>
 <script defer src="js/pz/sort.js?v=20261014a"></script>
@@ -771,7 +773,7 @@
 <script defer src="js/data/pop.js?v=20261014a"></script>
 <script defer src="js/ng/vs100.js?v=20261014a"></script>
 <script defer src="js/ng/darts.js?v=20261014a"></script>
-<script defer src="js/shop.js?v=20261014a"></script>
+<script defer src="js/shop.js?v=20261015-shop1"></script>
 <script defer src="js/config.js?v=20261015-pv1"></script>
 <script defer src="js/donate.js?v=20261015-pv1"></script>
 <script defer src="js/user.js?v=20261014b"></script>
@@ -779,7 +781,7 @@
 <script defer src="js/release.js?v=20261014a"></script>
 <script defer src="js/board.js?v=20261014-social1"></script>
 <script defer src="js/track.js?v=20261015-adm1"></script>
-<script defer src="js/app.js?v=20261015-art5"></script>
+<script defer src="js/app.js?v=20261015-shop1"></script>
 <script>
 /* Автообновление: Telegram держит старую копию игры. При запуске (и при возврате в игру на главной) сверяем
    версии файлов (?v=…) в свежем index.html с текущими; если вышло обновление — перезагружаем с обходом кэша.

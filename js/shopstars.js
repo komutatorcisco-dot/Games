@@ -49,7 +49,7 @@ const StarShop = (() => {
     const pack = ITEMS.find(x => x.id === item && x.level !== undefined);
     if (pack) showCards(keysFor(pack), () => paid().push(key));
     else if (item === 'coins') { paid().push(key); Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(2000); }
-    else if (item.startsWith('skin:') && SKINS.includes(item.slice(5))) { paid().push(key); Skins.grant(item.slice(5)); Store.save(); toast('Скин включён — сменить можно в Профиле → Оформление'); }
+    else if (item.startsWith('skin:') && SKINS.includes(item.slice(5))) { paid().push(key); Skins.grant(item.slice(5)); Store.save(); toast('Скин включён — сменить можно в Магазине → Скины'); }
     else return false;
     return true;
   }
@@ -78,20 +78,25 @@ const StarShop = (() => {
       });
     } catch (e) { toast('Не получилось открыть оплату. Попробуй позже'); }
   }
-  function open() {
-    const own = (k) => Skins.has(k);
-    Modal.open(`<h3 class="sk-h">Магазин паков</h3><p class="sk-p">Собирай клуб: выбирай пак за монеты или звёзды Telegram.</p>
-      <h4 class="ss-h">За монеты · баланс ${Store.d.coins}</h4>
+  const own = (k) => Skins.has(k);
+  // паки за монеты и звёзды — и в окне, и во вкладке «Магазин»
+  function packsHtml() {
+    return `<h4 class="ss-h">За монеты</h4>
       <div class="ss-grid">${COIN_PACKS.map(x => `<div class="ss-c"><span class="ss-art">${x.art()}</span><b>${x.name}</b><small>${x.sub}</small><button class="btn gold" data-coinpack="${x.id}">${x.coins} монет</button><details><summary>Шансы</summary><small>${odds(x)}</small></details></div>`).join('')}</div>
       <h4 class="ss-h">За звёзды Telegram</h4>
       <div class="ss-grid">${ITEMS.map((x) => `<button class="ss-c" data-ss="${x.id}"><span class="ss-art">${x.art()}</span><b>${x.name}</b><small>${x.sub}</small><em>${free() ? '0 ⭐ · админ' : `${x.stars} ⭐`}</em></button>`).join('')}</div>
-      <p class="sk-p">Для одинаковых паков за монеты и ⭐ состав и шансы одинаковые. Повторы возможны. Шансы указаны в разделе выше.</p>
-      <h4 class="ss-h">Скины навсегда</h4>
-      <div class="ss-grid">${SKINS.map((k) => { const s = Skins.LIST.find((x) => x.id === k); return `<button class="ss-c sk ${own(k) ? 'own' : ''}" ${own(k) ? '' : `data-ss="skin:${k}"`}><img src="img/skins/${k}.webp" alt="" loading="lazy"><b>${esc(s.name)}</b><em>${own(k) ? 'Есть' : free() ? '0 ⭐' : '29 ⭐'}</em></button>`; }).join('')}</div>`,
+      <p class="sk-p">Для одинаковых паков за монеты и ⭐ состав и шансы одинаковые. Повторы возможны. Шансы указаны в разделе выше.</p>`;
+  }
+  function skinsHtml() {
+    return `<h4 class="ss-h">Скины навсегда за звёзды</h4>
+      <div class="ss-grid">${SKINS.map((k) => { const s = Skins.LIST.find((x) => x.id === k); return `<button class="ss-c sk ${own(k) ? 'own' : ''}" ${own(k) ? '' : `data-ss="skin:${k}"`}><img src="img/skins/${k}.webp" alt="" loading="lazy"><b>${esc(s.name)}</b><em>${own(k) ? 'Есть' : free() ? '0 ⭐' : '29 ⭐'}</em></button>`; }).join('')}</div>`;
+  }
+  function open() {
+    Modal.open(`<h3 class="sk-h">Магазин паков</h3><p class="sk-p">Собирай клуб: выбирай пак за монеты или звёзды Telegram.</p>${packsHtml()}${skinsHtml()}`,
     [{ label: 'Закрыть', cls: 'ghost' }]);
   }
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-ss]'); if (b) { Sound.play('tap'); buy(b.dataset.ss); } });
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-coinpack]'); if (b) buyCoins(b.dataset.coinpack); });
   document.addEventListener('ss-buy', (e) => buy(e.detail));
-  return { open, sync, grant, ITEMS };
+  return { open, packsHtml, skinsHtml, sync, grant, ITEMS };
 })();

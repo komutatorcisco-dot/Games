@@ -84,11 +84,30 @@ const Shop = (() => {
     Coins.render();
   }
 
-  function open() {
-    Modal.close();
-    render();
-    Screens.show('shop');
+  // вкладка «Магазин» (как в Clash Royale): пак дня сверху и три раздела — паки, экипировка, скины
+  let tab = 'packs';
+  function daily() {
+    const ok = Release.feature('cards') && typeof Wheel !== 'undefined';
+    if (!ok) return '';
+    const r = Wheel.ready();
+    return `<button class="shp-daily ${r ? 'hot' : 'done'}" data-act="wheel"><span class="shp-dart">${PackOpen.art(r ? 1 : 0, 'rs')}</span><span><b>Пак дня</b><small>${r ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${r ? 'Забрать' : 'Завтра'}</em></button>`;
   }
+  function show(t) {
+    if (t) tab = t;
+    document.querySelectorAll('[data-shtab]').forEach((b) => { const on = b.dataset.shtab === tab; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
+    $('#shop-packs').hidden = tab !== 'packs'; $('#shop-body').hidden = tab !== 'gear'; $('#shop-skins').hidden = tab !== 'skins';
+    if (tab === 'packs') $('#shop-packs').innerHTML = daily() + StarShop.packsHtml();
+    else if (tab === 'gear') render();
+    else $('#shop-skins').innerHTML = Skins.grid() + StarShop.skinsHtml();
+    Coins.render();
+  }
+  function open(t) {
+    Modal.close();
+    show(t);
+    Screens.show('shop');
+    window.scrollTo(0, 0);
+  }
+  const refresh = () => { if (Screens.current === 'shop') show(); };
 
   function buy(key, price) {
     const s = S();
@@ -118,6 +137,7 @@ const Shop = (() => {
   }
 
   function bind() {
+    document.addEventListener('click', (e) => { const b = e.target.closest('[data-shtab]'); if (b) { Sound.play('tap'); show(b.dataset.shtab); window.scrollTo(0, 0); } });
     $('#shop-body').addEventListener('click', (e) => {
       const b = e.target.closest('[data-shop]');
       if (b) buy(b.dataset.shop);
@@ -125,5 +145,5 @@ const Shop = (() => {
     apply();
   }
 
-  return { FRAMES, CARDS, BALLS, open, bind, apply, offerLife, ballStyle, PACK_COST };
+  return { FRAMES, CARDS, BALLS, open, refresh, bind, apply, offerLife, ballStyle, PACK_COST };
 })();

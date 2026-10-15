@@ -82,7 +82,7 @@ const Social = (() => {
     if (host.dataset.socialRender === signature && host.children.length) return;
     host.dataset.socialRender = signature;
     const ph = document.getElementById('pp-hero'); if (ph) ph.innerHTML = hero(active().find(Boolean), Store.d.user && Store.d.user.emoji);
-    host.innerHTML = `<h3>Моя витрина</h3><p class="social-note">Выбери три карточки из своего клуба</p>${slots(active(), true)}<label class="social-privacy"><input type="checkbox" data-social-privacy ${state().public !== false ? 'checked' : ''}> Публичный профиль</label><p class="social-note">${enabled ? (state().pending.length ? 'Изменения ожидают синхронизации' : 'Настройки сохранены') : 'Изменения сохранены на этом устройстве'}. ${publicNote()}</p>`;
+    host.innerHTML = `<h3>Моя витрина</h3><p class="social-note">Выбери три карточки из своего клуба</p>${slots(active(), true)}${state().public === false ? '<button class="btn social-open" data-social-open>Открыть профиль для всех</button>' : ''}<p class="social-note">${enabled ? (state().pending.length ? 'Изменения ожидают синхронизации' : 'Настройки сохранены') : 'Изменения сохранены на этом устройстве'}. ${publicNote()}</p>`;
   }
   function choose(index, query = '', page = 0) {
     const picked = active();
@@ -166,7 +166,8 @@ const Social = (() => {
     if (b.dataset.socialRoom) Board.post('/room', { act: 'profile', room: b.dataset.socialRoom }).then(r => r.profile ? open(r.profile) : toast('Профиль пока недоступен')).catch(() => toast('Не удалось загрузить профиль'));
   }, true);
   document.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[data-profile][role="button"]')) { e.preventDefault(); open(e.target.dataset.profile); } });
-  document.addEventListener('change', e => { if (e.target.matches('[data-social-privacy]')) change({ type: 'privacy', value: e.target.checked }); });
+  // профили открыты всем; закрыть больше нельзя — тем, кто закрыл раньше, остаётся кнопка «открыть»
+  document.addEventListener('click', e => { if (e.target.closest('[data-social-open]')) change({ type: 'privacy', value: true }); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(false); });
   window.addEventListener('online', () => sync(false));
   return { favorite, available, active, toggle, sync, render, open, beforeSpend, handle: () => handle, state, hero, closeLayer, layerOpen: () => !!layer };
