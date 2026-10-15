@@ -16,6 +16,8 @@
 const ALLOWED = [50, 100, 250, 500, 1000];
 const PASS_STARS = 100; // цена премиум-пропуска (как в js/rewards.js)
 const ORIGIN = 'https://komutatorcisco-dot.github.io';
+// тестовая версия (.github/workflows/preview.yml): сама ходит только на проверочный сервер; вход по-прежнему по подписи Telegram
+const PREVIEW_ORIGIN = 'https://jackson-games-preview.pages.dev';
 const CHANNEL = '@oldjacksons'; // канал «Старики Джексоны»: играть могут только подписчики
 const TOP = 50;
 
@@ -131,13 +133,16 @@ async function social(env, user, body) {
     const gw = await db.prepare('SELECT COALESCE(SUM(wins), 0) AS n FROM gwins WHERE id = ?').bind(row.uid).first();
     const sn = await db.prepare('SELECT days FROM seen WHERE id = ?').bind(row.uid).first();
     const dt = await db.prepare('SELECT COUNT(*) AS n FROM draft_tours WHERE uid = ?').bind(row.uid).first();
+    const showcase = await shownFor(db, row.uid);
     const xp = Math.max(0, Number(u && u.xp) || 0);
     const thresholds = [0, 60, 180, 400, 800, 1400, 2400, 4000];
     // Existing profile statistics are server-stored but retain legacy client-result trust limitations.
     // Витрина — только проверенная сервером (social_shown), а не то, что игрок выбрал.
     return { ok: true, private: false, nick: String(u && u.nick || 'Игрок').slice(0, 32), emoji: String(u && u.emoji || '⚽').slice(0, 16),
       level: thresholds.filter(n => xp >= n).length, trophies: Math.max(0, Math.min(11000, Number(t && t.trophies) || 0)),
-      achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase: await shownFor(db, row.uid), showcaseEnabled: true,
+      achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase, showcaseEnabled: true,
+      // подтверждено сервером: особые карточки прошли проверку записи о выдаче (legend_claims); обычные — только по сохранению игрока
+      verified: showcase.map((k) => !!k && SERVER_GRANTED.test(k)),
       club: cl ? { name: String(cl.name || '').slice(0, 32), emoji: String(cl.emoji || '⚽').slice(0, 16) } : null,
       wins: Math.max(0, Number(gw && gw.n) || 0), days: Math.max(0, Number(sn && sn.days) || 0), drafts: Math.max(0, Number(dt && dt.n) || 0) };
   }
@@ -179,7 +184,7 @@ const tg = (env, method, body) => fetch(`https://api.telegram.org/bot${env.BOT_T
 // Ответы разрешены сайту игр; ALLOW_ORIGIN — ещё один адрес (например, для проверки на своём компьютере)
 function cors(res, request, env) {
   const from = request.headers.get('origin');
-  res.headers.set('access-control-allow-origin', from && from === env.ALLOW_ORIGIN ? from : ORIGIN);
+  res.headers.set('access-control-allow-origin', from && (from === env.ALLOW_ORIGIN || from === PREVIEW_ORIGIN) ? from : ORIGIN);
   res.headers.set('access-control-allow-methods', 'GET, POST, OPTIONS');
   res.headers.set('access-control-allow-headers', 'content-type');
   res.headers.set('vary', 'origin');

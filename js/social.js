@@ -61,10 +61,11 @@ const Social = (() => {
     }
     return true;
   }
-  function slots(keys, editable) {
+  // verified — только в чужом профиле: под карточкой отметка, подтвердил ли её сервер (вариант А, docs/showcase-trust.md)
+  function slots(keys, editable, verified) {
     return `<div class="social-slots">${[0, 1, 2].map(i => {
       const c = keys[i] && Cards.get(keys[i]);
-      return `<div class="social-slot">${editable ? `<button data-social-slot="${i}" aria-label="Выбрать карточку ${i + 1}">` : `<button ${c ? `data-social-card="${esc(c.key)}"` : 'disabled'} aria-label="${c ? esc(c.name) : 'Пустое место'}">`}${c ? Cards.html(c, { w: 94 }) : '<span class="social-empty">＋</span>'}</button>${editable ? `<div class="social-order"><button data-social-move="${i}" aria-label="Переместить карточку вправо">→</button><button data-social-clear="${i}" aria-label="Убрать карточку">×</button></div>` : ''}</div>`;
+      return `<div class="social-slot">${editable ? `<button data-social-slot="${i}" aria-label="Выбрать карточку ${i + 1}">` : `<button ${c ? `data-social-card="${esc(c.key)}"` : 'disabled'} aria-label="${c ? esc(c.name) : 'Пустое место'}">`}${c ? Cards.html(c, { w: 94 }) : `<span class="social-empty">${editable ? '＋' : '—'}</span>`}</button>${c && verified ? (verified[i] ? '<small class="social-ver ok">✓ Подтверждено</small>' : '<small class="social-ver">Из сохранения</small>') : ''}${editable ? `<div class="social-order"><button data-social-move="${i}" aria-label="Переместить карточку вправо">→</button><button data-social-clear="${i}" aria-label="Убрать карточку">×</button></div>` : ''}</div>`;
     }).join('')}</div>`;
   }
   // что видят другие: сервер показывает только карточки, найденные в сохранении игрока
@@ -114,6 +115,7 @@ const Social = (() => {
   }
   function stats(list) { return `<div class="pc-stats pp-stats">${list.map(([ic, k, v]) => `<span class="pc-st"><i>${Ui.get(ic)}</i><b>${v}</b><small>${k}</small></span>`).join('')}</div>`; }
   function layout(r) {
+    const sc = r.showcase || [], ver = sc.map((k, i) => (Array.isArray(r.verified) ? !!r.verified[i] : /^FL:/.test(k || ''))); // старый сервер без verified — по тому же правилу
     const rank = RANK_NAMES[Math.max(0, Math.min(RANK_NAMES.length - 1, (r.level || 1) - 1))];
     const list = [['star', 'уровень', r.level || 1]];
     if (r.wins !== undefined) list.push(['swords', 'побед в играх', num(r.wins)], ['shirt', 'турниров драфта', num(r.drafts)], ['flame', 'дней в игре', num(r.days)]);
@@ -123,7 +125,7 @@ const Social = (() => {
           <div class="pc-big pp-big"><div><span>${Ui.get('trophy')}</span><b>${num(r.trophies)}</b><small>трофеев</small></div></div>
           <div class="pp-club">${r.club ? `${esc(r.club.emoji)} ${esc(r.club.name)}` : 'Без клуба'}</div></div></div>
       ${stats(list)}
-      <h3 class="section-label pp-h">Витрина</h3>${slots(r.showcase || [], false)}
+      <h3 class="section-label pp-h">Витрина</h3>${slots(sc, false, ver)}${sc.some(Boolean) ? '<p class="social-note pp-vnote">✓ — карточку выдал сервер. «Из сохранения» — по данным игры игрока.</p>' : ''}
       <h3 class="section-label pp-h">Достижения</h3>${r.achievements.length ? `<div class="pp-ach">${r.achievements.map((a) => `<span class="pc-st"><i>${Ui.get('medal')}</i><small>${esc(a)}</small></span>`).join('')}</div>` : '<p class="social-note">Пока нет достижений</p>'}`;
   }
   // чужой профиль — полноэкранный слой поверх игры: экран не меняется, поэтому онлайн-матч в лобби не обрывается

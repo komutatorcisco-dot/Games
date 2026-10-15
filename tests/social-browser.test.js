@@ -48,6 +48,16 @@ const {chromium}=require('playwright');
   assert.equal(await page.locator('.pp-layer .cc').count(),0,'empty showcase shows no cards');
   assert.ok(await page.locator('.pp-layer .pc-st').count()>=2,'stats tiles reuse skin classes');
   await page.screenshot({path:'tests/social-mobile-public.png',fullPage:false});
+  // Вариант А: обычные карточки видны, отмечено, какие подтвердил сервер; пустые места чужой витрины без «+»
+  const marks=await page.evaluate(async()=>{
+    const ks=[Cards.all().find(c=>/^FL:/.test(c.key)).key,Cards.all().find(c=>c.rar==='gold').key,null];
+    Board.post=async()=>({ok:true,nick:'V',emoji:'⚽',level:3,trophies:200,achievements:[],showcase:ks,verified:[true,false,false],showcaseEnabled:true});
+    await Social.open('e'.repeat(32));
+    return {cards:document.querySelectorAll('.pp-layer:not(.out) .social-slot .cc').length,
+      marks:[...document.querySelectorAll('.pp-layer:not(.out) .social-ver')].map(x=>x.textContent),
+      empty:document.querySelector('.pp-layer:not(.out) .social-empty')?.textContent};
+  });
+  assert.deepEqual(marks,{cards:2,marks:['✓ Подтверждено','Из сохранения'],empty:'—'},'verified marks in public showcase');
   // Быстрое открытие нескольких чужих профилей и закрытие во время загрузки: на экране всегда тот, кого открыли последним.
   const race=await page.evaluate(async()=>{
     const wait=ms=>new Promise(ok=>setTimeout(ok,ms)), pending={};
