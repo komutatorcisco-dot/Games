@@ -292,22 +292,24 @@
     <div class="stats pf-stats" id="prof-stats" hidden></div>
     <div class="pf-tiles">
       <button data-act="achievements"><span data-ui="trophy"></span><b>Трофеи</b><small id="pf-ach"></small></button>
-      <button data-act="shop"><span data-ui="shirt"></span><b>Экипировка</b><small>магазин</small></button>
       <button data-act="wheel"><span class="pf-pk2"></span><b>Пак дня</b><small id="set-wheel"></small></button>
-      <button data-act="skins"><span data-ui="star"></span><b>Оформление</b><small>скины</small></button>
-      <button data-act="starshop"><span data-ui="gift"></span><b>Магазин паков</b><small>монеты · ⭐ · скины</small></button>
+      <button data-act="shopmenu"><span data-ui="gift"></span><b>Магазин</b><small>паки · экипировка · скины</small></button>
       <button data-act="myclub"><span data-ui="users"></span><b>Клуб</b><small>играй командой</small></button>
     </div>
     <div class="settings">
       <button class="set-row" data-act="admin" id="prof-admin" hidden><span>Админка</span><b>→</b></button>
       <button class="set-row" data-act="as-player" id="prof-asplayer" hidden><span>Режим обычного игрока</span><b id="set-asplayer">Выкл</b></button>
-      <button class="set-row" data-act="music"><span>Фоновая музыка</span><b id="set-music"></b></button>
-      <button class="set-row" data-act="sound"><span>Звуки в играх</span><b id="set-sound"></b></button>
-      <button class="set-row" data-act="remind"><span>Напоминания от бота</span><b id="set-remind"></b></button>
-      <button class="set-row" data-act="board"><span>Таблица канала</span><b>→</b></button>
-      <button class="set-row" data-act="report"><span>Нашёл ошибку</span><b>→</b></button>
-      <button class="set-row" data-act="terms"><span>Условия и оплата</span><b>→</b></button>
-      <button class="set-row donate-entry" data-act="donate" hidden><span>Поддержать канал</span><b data-ui="star"></b></button>
+      <details class="pf-more"><summary class="set-row"><span>Настройки</span><b class="pf-arr">›</b></summary><div class="settings">
+        <button class="set-row" data-act="music"><span>Фоновая музыка</span><b id="set-music"></b></button>
+        <button class="set-row" data-act="sound"><span>Звуки в играх</span><b id="set-sound"></b></button>
+        <button class="set-row" data-act="remind"><span>Напоминания от бота</span><b id="set-remind"></b></button>
+      </div></details>
+      <details class="pf-more"><summary class="set-row"><span>Помощь</span><b class="pf-arr">›</b></summary><div class="settings">
+        <button class="set-row" data-act="board"><span>Таблица канала</span><b>→</b></button>
+        <button class="set-row" data-act="report"><span>Нашёл ошибку</span><b>→</b></button>
+        <button class="set-row" data-act="terms"><span>Условия и оплата</span><b>→</b></button>
+        <button class="set-row donate-entry" data-act="donate" hidden><span>Поддержать канал</span><b data-ui="star"></b></button>
+      </div></details>
     </div>
   </section>
 
@@ -700,7 +702,7 @@
 <script defer src="js/positions.js?v=20261014-frv1"></script>
 <script defer src="js/data/cards.js?v=20261014-frv1"></script>
 <script defer src="js/cards.js?v=20261015-pg1"></script>
-<link rel="stylesheet" href="css/social.css?v=20261015-pp5">
+<link rel="stylesheet" href="css/social.css?v=20261015-pp6">
 <script defer src="js/social.js?v=20261015-pp5"></script>
 <script defer src="js/packs.js?v=20261015-rays1"></script>
 <script defer src="js/rewards.js?v=20261015-pv1"></script>
@@ -758,7 +760,7 @@
 <script defer src="js/release.js?v=20261014a"></script>
 <script defer src="js/board.js?v=20261014-social1"></script>
 <script defer src="js/track.js?v=20261015-adm1"></script>
-<script defer src="js/app.js?v=20261015-pp1"></script>
+<script defer src="js/app.js?v=20261015-pp6"></script>
 <script>
 /* Автообновление: Telegram держит старую копию игры. При запуске (и при возврате в игру на главной) сверяем
    версии файлов (?v=…) в свежем index.html с текущими; если вышло обновление — перезагружаем с обходом кэша.

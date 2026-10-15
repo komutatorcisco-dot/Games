@@ -75,10 +75,18 @@ body.pp-open .tabbar { visibility: hidden; }
 @media (max-width: 359px) { .pc.pp { grid-template-columns: 108px minmax(0, 1fr); } .pp-hero .cc { transform: rotate(-4deg) scale(.84); transform-origin: top center; margin-bottom: -30px; } }
 .pp-own { position: relative; }
 .pp-own .pc-who { grid-template-columns: 52px minmax(0, 1fr); gap: 10px; }
-.pp-own .pc-nm b { display: block; font-size: 18px; line-height: 1.1; overflow-wrap: anywhere; padding-right: 30px; }
+.pp-own .pc-nm b { display: block; font-size: 18px; line-height: 1.15; }
 .pp-own .pc-nx { font-size: 11px; }
-.pp-own .pf-edit { position: absolute; top: 10px; right: 10px; width: 34px; height: 34px; font-size: 15px; }
+/* карандаш — на уголке аватара, чтобы не отнимать место у ника */
+.pp-own .pc-who { position: relative; } .pp-own .pf-edit { position: absolute; left: 34px; top: 34px; width: 26px; height: 26px; padding: 0; font-size: 12px; line-height: 26px; border-radius: 50%; z-index: 2; }
 .pp-own #prof-badge.pc-ava { width: 52px !important; height: 52px !important; border-radius: 15px !important; font-size: 28px !important; }
-.pp-own .pc-nm b { white-space: normal !important; text-overflow: clip !important; overflow: visible !important; }
+.pp-own .pc-nm b { white-space: nowrap !important; text-overflow: ellipsis !important; overflow: hidden !important; } /* размер подбирает fitNick() в app.js */
 #profile #social-profile.pc { display: block; }
 .social-ver { display:block;margin-top:4px;font:700 10px/1.2 var(--font-body);color:#9aa4b8; } .social-ver.ok { color:#3ee66b; } .pp-vnote { margin-top:-6px;font-size:12px; }
+/* профиль: 4 плитки 2×2 и раскрывающиеся группы «Настройки» / «Помощь» вместо длинного списка */
+#profile .pf-tiles { grid-template-columns: repeat(2, 1fr); }
+.pf-more { display: grid; gap: 8px; } .pf-more > summary { list-style: none; cursor: pointer; } .pf-more > summary::-webkit-details-marker { display: none; }
+.pf-more .pf-arr { display: inline-block; transition: transform .2s; font-size: 20px; line-height: 1; } .pf-more[open] .pf-arr { transform: rotate(90deg); }
+.pf-more > .settings { padding-left: 10px; }
+.pf-shopmenu { margin-top: 10px; } .pf-shopmenu .set-row span { display: flex; align-items: center; gap: 8px; font-weight: 800; } .pf-shopmenu .set-row small { opacity: .7; } .pf-shopmenu .ui-ic { width: 22px; height: 22px; }
+@media (prefers-reduced-motion: reduce) { .pf-more .pf-arr { transition: none; } }

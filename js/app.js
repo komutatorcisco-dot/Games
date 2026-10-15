@@ -112,6 +112,13 @@ const App = (() => {
     paint($('#dly-progress'));
   }
 
+  // ник в одну строку: шрифт уменьшается, пока имя не влезет (от 18 до 12 px), дальше — многоточие
+  function fitNick() {
+    const el = $('#prof-nick'); if (!el) return;
+    const fit = () => { if (!el.clientWidth) return; let f = 18; el.style.fontSize = f + 'px'; while (el.scrollWidth > el.clientWidth && f > 12) el.style.fontSize = --f + 'px'; };
+    const n = (el.textContent || '').length; el.style.fontSize = (n > 14 ? 13 : n > 11 ? 15 : 18) + 'px'; // пока экран скрыт — по длине
+    requestAnimationFrame(fit);
+  }
   function renderProfile() {
     if (typeof Social !== 'undefined') Social.render();
     // слева крупно любимый футболист — первая карточка витрины (как в чужом профиле)
@@ -130,7 +137,7 @@ const App = (() => {
       ['рекорд сборной', (Store.d.nation && Store.d.nation.best) || 0], ['тики-така', (Store.d.ttt && Store.d.ttt.wins) || 0],
     ].map(([k, v], i) => `<span class="pc-st"><i>${Ui.get(['eye', 'flame', 'swords', 'coin', 'flag', 'hash'][i])}</i><b>${v}</b><small>${k}</small></span>`).join('');
     $('#pc-tro').textContent = Rewards.S().trophies;
-    $('#prof-nick').textContent = Store.d.user.nick || 'Игрок';
+    $('#prof-nick').textContent = Store.d.user.nick || 'Игрок'; fitNick();
     const dh = (Store.d.fduel && Store.d.fduel.hist) || [];
     const stats = [
       ['опыт', Store.d.stats.xp],
@@ -467,6 +474,11 @@ const App = (() => {
     // онлайн с живым соперником: выбор режима
     online: () => Home.pick('online'),
     starshop: () => StarShop.open(),
+    // профиль: три магазина собраны в одну плитку «Магазин»
+    shopmenu: () => Modal.open(`<h3 class="sk-h">Магазин</h3><div class="settings pf-shopmenu">
+        <button class="set-row" data-act="starshop"><span>${Ui.get('gift')} Магазин паков</span><small>монеты · ⭐</small></button>
+        <button class="set-row" data-act="shop"><span>${Ui.get('shirt')} Экипировка</span><small>форма и мячи</small></button>
+        <button class="set-row" data-act="skins"><span>${Ui.get('star')} Оформление</span><small>скины</small></button></div>`, [{ label: 'Закрыть', cls: 'ghost' }]),
     remind: () => { const ui = Store.d.ui || (Store.d.ui = {}); ui.noRemind = !ui.noRemind; Store.save(); Track.hello({ remind: !ui.noRemind }); renderProfile(); toast(ui.noRemind ? 'Напоминания выключены' : 'Напоминания включены'); },
     runner: () => {
       const f = $('#runner-frame');
