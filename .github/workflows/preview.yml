@@ -57,3 +57,14 @@ jobs:
           npx --yes wrangler@3.114.0 pages project create jackson-games-preview --production-branch main || true
           npx --yes wrangler@3.114.0 pages deploy site --project-name jackson-games-preview --branch main --commit-dirty=true
           echo "Превью: https://jackson-games-preview.pages.dev/ (в Telegram — через ссылку Mini App из @BotFather)"
+      - name: Проверить, что тестовая версия отвечает
+        run: |
+          sleep 15
+          code=$(curl -sS -o site.html -w '%{http_code}' https://jackson-games-preview.pages.dev/)
+          echo "Сайт: HTTP $code"; [ "$code" = 200 ] && grep -q 'js/config.js' site.html || { echo "::error::Тестовый сайт не открылся"; exit 1; }
+          curl -sS https://jackson-games-preview.pages.dev/js/config.js | grep -q 'jackson-games-preview' || { echo "::error::На сайте старая версия config.js"; exit 1; }
+          hdr=$(curl -sS -D - -o presence.json -H 'Origin: https://jackson-games-preview.pages.dev' https://jackson-games-staging.komutatorcisco.workers.dev/presence)
+          echo "Сервер: $(head -c 200 presence.json)"
+          grep -q '"ok":true' presence.json || { echo "::error::Тестовый сервер не отвечает или не подключён к своей базе D1"; exit 1; }
+          echo "$hdr" | grep -qi 'access-control-allow-origin: https://jackson-games-preview.pages.dev' || { echo "::error::Тестовый сервер не пускает тестовый сайт (CORS)"; exit 1; }
+          echo "Тестовая версия работает: сайт открывается, сервер с базой отвечает тестовому сайту"
