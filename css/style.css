@@ -3947,9 +3947,9 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 @keyframes h2Hot { 50% { transform: translateY(-4px); } }
 .h2-sb b { font: 900 10.5px/1.1 "Rubik", sans-serif; text-transform: uppercase; color: #fff; -webkit-text-stroke: 2.5px var(--ink-0); paint-order: stroke fill; }
 .h2-sbi { position: relative; display: grid; place-items: center; width: 50px; height: 50px; }
-.h2-sbi.dly img { width: 46px; height: 46px; border-radius: 12px; object-fit: cover; filter: brightness(.22) contrast(1.2); box-shadow: 0 0 0 2px var(--ink-0), inset 0 0 0 2px #fff; background: #10163a; }
-.h2-sbi.dly i { position: absolute; font: 900 28px "Rubik", sans-serif; color: #ffcf3a; font-style: normal; -webkit-text-stroke: 3px var(--ink-0); paint-order: stroke fill; }
-.h2-sb.done .h2-sbi.dly img { filter: none; } .h2-sb.done .h2-sbi.dly i { display: none; }
+.h2-sbi.dly .ji { width: 54px; height: 54px; }
+.h2-sbi.dly i { position: absolute; right: -6px; bottom: -4px; font: 900 22px "Rubik", sans-serif; color: #ffcf3a; font-style: normal; -webkit-text-stroke: 3px var(--ink-0); paint-order: stroke fill; }
+.h2-sb.done .h2-sbi.dly i { display: none; }
 .h2-sbi > em { position: absolute; right: -10px; top: -9px; min-width: 22px; height: 22px; padding: 0 4px; border-radius: 11px; background: linear-gradient(180deg, #ff6b7d, #e3243f); box-shadow: 0 0 0 2px var(--ink-0); font: 900 12px/22px "Rubik", sans-serif; font-style: normal; text-align: center; color: #fff; }
 .h2-sbi .fpk.rs { --pw: 34px; --ph: 46px; --d: 4px; }
 /* кнопки снизу: ИГРАТЬ и список игр */
@@ -3966,7 +3966,7 @@ body.home2 .hub-head { position: relative; top: auto; margin: 0; padding: 0 0 6p
 /* нижнее меню: активная вкладка — выпуклая */
 .tab.on { background: linear-gradient(180deg, #ffe07a, #ffbf1f 60%, #f0a012) !important; color: #2a1a00 !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -3px 0 rgba(150,80,0,.35), 0 0 0 2px var(--ink-0), 0 3px 0 var(--ink-0) !important; }
 .tab.on span svg { color: #2a1a00 !important; }
-@media (max-width: 350px) { .h2-sb { width: 62px; } .h2-sbi { width: 44px; height: 44px; } .h2-sbi.dly img { width: 40px; height: 40px; } .h2-cta { grid-template-columns: minmax(0, 1fr) 68px; } }
+@media (max-width: 350px) { .h2-sb { width: 62px; } .h2-sbi { width: 44px; height: 44px; } .h2-sbi.dly .ji { width: 46px; height: 46px; } .h2-cta { grid-template-columns: minmax(0, 1fr) 68px; } }
 @media (prefers-reduced-motion: reduce) { .h2-hex, .h2-shadow, .h2-sb.hot, .h2-play::after { animation: none !important; } }
 
 /* ===== дорога трофеев v3: объёмный путь, награды по обе стороны ===== */
@@ -4508,7 +4508,7 @@ body.covered .h2w-in { animation-play-state: paused; }
 .rw-tabs > button { flex: none !important; scroll-snap-align: start; padding-left: 12px !important; padding-right: 12px !important; white-space: nowrap; }
 /* «Игрок дня»: картинка не вылезает за скруглённую кнопку */
 .h2-sb { padding-top: 8px !important; }
-.h2-sbi.dly img { width: 42px !important; height: 42px !important; border-radius: 11px !important; }
+
 .ad-bars.wide { grid-template-columns: repeat(14, 1fr); gap: 3px; } .ad-bars.wide em { font-size: 9px; }
 /* таблица лидеров: вкладки прокручиваются, выбор игры — чипсами */
 .bd-tabs { display: flex !important; overflow-x: auto; scrollbar-width: none; gap: 4px !important; } .bd-tabs::-webkit-scrollbar { display: none; }
@@ -4705,3 +4705,25 @@ body.dg-on { overscroll-behavior: none; }
 .ps-info-m h2 { margin: 4px 0 0; } .ps-info-m p { margin: 0; } .ps-info-m p { font: 700 14px "Rubik", sans-serif; color: rgba(255,255,255,.7); } .ps-info-m .ps-st { color: #ffcf3a; font-weight: 900; }
 .ps-cell.ready .ps-take { padding: 4px 12px; font-size: 12px; box-shadow: 0 0 12px rgba(62,230,107,.6); }
 .ps-cell .ps-ok { top: 6px; right: 8px; width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: #3ee66b; color: #062a12; font-size: 14px; }
+/* ===== рисованные иконки, монеты и паки (img/icons, Art в js/icons.js) =====
+   Картинка заполняет прежнее место значка: размеры мест не менялись, поэтому раскладка экранов прежняя. */
+.ji { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; -webkit-user-drag: none; }
+.sr-i.art .ji { width: 44px; height: 44px; filter: drop-shadow(0 2px 1px rgba(0,0,0,.35)); }
+.h2-sbi.art .ji { width: 52px; height: 52px; filter: drop-shadow(0 3px 2px rgba(0,0,0,.4)); }
+.kb-tabs button .ji { width: 30px; height: 30px; margin: -3px auto -1px; }
+.kb-chi.art .ji { width: 46px; height: 46px; }
+.qs-ico.art { background: none !important; } .qs-ico.art .ji { width: 42px; height: 42px; filter: drop-shadow(0 2px 1px rgba(0,0,0,.3)); }
+#profile .pf-tiles .art { display: block; width: 44px; height: 44px; } #profile .pf-tiles .art .ji { filter: drop-shadow(0 3px 2px rgba(0,0,0,.4)); }
+.pf-shopmenu .ji.sm { display: inline-block; width: 28px; height: 28px; vertical-align: middle; }
+/* монеты в наградах: одна картинка-кучка вместо трёх нарисованных монет; размер — по месту */
+.rs-coins .ji { width: var(--csz, 44px); height: var(--csz, 44px); filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+.rd-art { --csz: 58px; } .ps-art { --csz: 66px; } .ss-art { --csz: 56px; } .kb-ta { --csz: 42px; } .ps-info-m .ps-art.big { --csz: 120px; }
+/* пак: рисунок на лицевой стороне; торец и задник — прежние цвета редкости, поэтому вращение остаётся объёмным */
+.fpk.pimg .fpk-f { background: none !important; box-shadow: none !important; border-radius: 6px; }
+.fpk.pimg .fpk-f::before, .fpk.pimg .fpk-f::after, .fpk.pimg em { display: none; }
+.fpk.pimg .fpk-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: fill; z-index: 1; }
+.fpk.pimg .fpk-sh { opacity: .55; }
+.fpk.pimg .fpk-s, .fpk.pimg .fpk-k { display: none; } /* объём уже нарисован на картинке — торец и задник старой модели не нужны */
+.fpk.pimg.p0 { --a: #cfd6de; --b: #5f6b7a; --c: #f4f7fa; } .fpk.pimg.p4 { --a: #3a3a3a; --b: #111; --c: #f2cb5c; }
+.fpk.pimg .po-cap { left: 8%; right: 8%; top: 3%; height: 8%; border-radius: 4px; background: linear-gradient(rgba(255,255,255,.35), rgba(255,255,255,.05)); border-bottom: 2px dashed rgba(0,0,0,.45); }
+@media (max-width: 350px) { .h2-sbi.art .ji, .h2-sbi.dly .ji { width: 44px; height: 44px; } .sr-i.art .ji { width: 40px; height: 40px; } }

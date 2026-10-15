@@ -81,7 +81,7 @@ const Rewards = (() => {
   const PACKCOL = ['#7fe0a0', '#56d4ff', '#b98bff', '#f2cb5c', '#ff4f66'];
   const CARDNAME = { gold: 'Золотая карточка', legend: 'Карточка-легенда', jack: 'Карточка «Джексон»' };
   function rewardLabel(r) {
-    if (r.coins) return { ico: '<i class="coin"></i>', txt: `${r.coins}`, art: '<span class="rs-coins"><i class="coin"></i><i class="coin"></i><i class="coin"></i></span>', name: `+${r.coins}` };
+    if (r.coins) return { ico: '<i class="coin"></i>', txt: `${r.coins}`, art: `<span class="rs-coins">${Art.img(r.coins >= 150 ? 'coinpile' : 'coins')}</span>`, name: `+${r.coins}` };
     if (r.lives) return { ico: `<span class="ui-red">${Ui.get('heart')}</span>`, txt: `×${r.lives}`, art: `<span class="rs-heart">${Ui.get('heart')}</span>`, name: `Жизни ×${r.lives}` };
     if (r.card) return { ico: `<span class="rs-card sm ${r.card}">?</span>`, txt: CARDNAME[r.card].split(' ')[0], art: `<span class="rs-card ${r.card}">?</span>`, name: CARDNAME[r.card].replace('Карточка-', '').replace('Карточка ', '') };
     if (r.skin) return { ico: `<span class="ps-skin"><img src="img/skins/${r.skin}.webp" alt=""></span>`, txt: 'Скин', art: `<span class="ps-skin"><img src="img/skins/${r.skin}.webp" alt=""></span>`, name: 'Скин «Золото»' };
@@ -126,6 +126,8 @@ const Rewards = (() => {
   }
   // подробности награды пропуска (будущей или уже полученной) — только просмотр
   let psFresh = true; // открыли «Награды» заново — дорожка пропуска встаёт на текущий уровень
+  // значок задания по его типу: паки, победы, матчи и игры, остальное — лист заданий
+  const questArt = (d) => { const e = (d && d.ev) || ''; return /sbc|card/.test(e) ? 'qcards' : e === 'pack' ? 'qpack' : e.startsWith('win') ? 'qwin' : /^(end|game|dgame)/.test(e) ? 'qplay' : 'qlist'; };
   function passInfo(v) {
     const [line, si] = String(v).split(':'), i = +si; if (!PASS[i]) return;
     const r = PASS[i][line === 'free' ? 0 : 1], l = rewardLabel(r), p = passSync(), got = p[line === 'free' ? 'free' : 'prem'].includes(i);
@@ -371,9 +373,11 @@ const Rewards = (() => {
     const sbcOn = Release.isOut('act:sbc');
     const locked = [!Release.feature('cards') && ['Галерея', 'feat:cards'], !Release.feature('pass') && ['Задания', 'feat:pass']].filter(Boolean);
     const lockBtns = locked.map(([n, k]) => `<button class="rw-lk" data-rwlock="${Release.need(k)}">${Ui.get('lock')} ${n}<small>${Release.need(k)} ${Ui.get('trophy')}</small></button>`).join('');
-    const IC = { road: 'trophy', cards: 'pack', pass: 'star', quests: 'target' };
-    const rb = (attr, ico, name, badge, cls = '') => `<button ${attr} class="sr-b ${cls}"><span class="sr-i">${Ui.get(ico)}</span><small>${name}</small>${badge ? `<i class="sr-n">${badge}</i>` : ''}</button>`;
-    const tabs = !TB.length ? '' : `<nav class="sr-rail rw-rail">${TB.map(([k, n, k2]) => rb(`data-rwtab="${k}"`, IC[k], n, k2, tab === k ? 'on' : '')).join('')}${Release.feature('cards') ? rb('data-act="squad"', 'shirt', 'Состав', '', 'go') : ''}${sbcOn ? rb('data-act="sbc"', 'puzzle', 'ИПК', typeof SBC !== 'undefined' && SBC.ready() ? '1' : '', 'go') : ''}${locked.map(([n, k]) => rb(`data-rwlock="${Release.need(k)}"`, 'lock', n, '', 'lk')).join('')}</nav>`;
+    // рисованные иконки разделов (img/icons); «@» — картинка, иначе прежний значок Ui (замок у закрытых)
+    const IC = { road: '@road', cards: '@gallery', pass: '@pass', quests: '@quests' };
+    const ico = (k) => (k[0] === '@' ? Art.img(k.slice(1), '', 96) : Ui.get(k));
+    const rb = (attr, ic, name, badge, cls = '') => `<button ${attr} class="sr-b ${cls}"><span class="sr-i${ic[0] === '@' ? ' art' : ''}">${ico(ic)}</span><small>${name}</small>${badge ? `<i class="sr-n">${badge}</i>` : ''}</button>`;
+    const tabs = !TB.length ? '' : `<nav class="sr-rail rw-rail">${TB.map(([k, n, k2]) => rb(`data-rwtab="${k}"`, IC[k], n, k2, tab === k ? 'on' : '')).join('')}${Release.feature('cards') ? rb('data-act="squad"', '@squad', 'Состав', '', 'go') : ''}${sbcOn ? rb('data-act="sbc"', '@sbc', 'ИПК', typeof SBC !== 'undefined' && SBC.ready() ? '1' : '', 'go') : ''}${locked.map(([n, k]) => rb(`data-rwlock="${Release.need(k)}"`, 'lock', n, '', 'lk')).join('')}</nav>`;
     let body = '';
     const nx = Release.next();
     if (tab === 'road') body = trophyRoad(s);
@@ -394,7 +398,7 @@ const Rewards = (() => {
         <p class="rw-note">Очки пропуска: победа +20, матч +5, задания — больше всего.</p>`;
     } else {
       const dl = Math.max(0, Math.ceil((seasonEnd() - Date.now()) / 864e5));
-      const row = (x, kind) => { const d = qdef(x.id); return `<div class="qs ${kind} ${x.got ? 'got' : x.done ? 'done' : ''}"><span class="qs-ico">${Ui.get(kind === 's' ? 'crown' : kind === 'w' ? 'star' : 'trophy')}</span>
+      const row = (x, kind) => { const d = qdef(x.id); return `<div class="qs ${kind} ${x.got ? 'got' : x.done ? 'done' : ''}"><span class="qs-ico art">${Art.img(questArt(d), '', 96)}</span>
         <div class="qs-b"><b>${d.t}</b><span class="qs-bar"><i style="width:${(x.p / d.n) * 100}%"></i><em>${x.p}/${d.n}</em></span></div>
         ${x.got ? '<i class="qs-ok">✓</i>' : x.done ? `<button class="qs-take" data-quest="${x.id}"><b>+${d.xp}</b><small>Забрать</small></button>` : `<span class="qs-xp"><b>+${d.xp}</b><small>очков</small></span>`}</div>`; };
       body = `<div class="qs-h"><b>На сегодня</b><small>обновятся в полночь по МСК</small></div>${q.list.map((x) => row(x, 'd')).join('')}

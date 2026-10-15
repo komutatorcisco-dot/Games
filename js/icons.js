@@ -170,4 +170,13 @@ const Ui = (() => {
   const get = (name, cls = '') => (G[name] ? `<svg class="ui-ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${G[name]}</svg>` : '');
   return { get, has: (n) => !!G[n] };
 })();
-document.addEventListener('DOMContentLoaded', () => { document.querySelectorAll('[data-ui]').forEach((el) => { el.innerHTML = Ui.get(el.dataset.ui); }); });
+// Рисованные иконки и предметы (img/icons/<имя>-96|192.webp, прозрачный фон). Вставляются внутрь прежних мест значков —
+// размеры задаёт место (.ji заполняет его), поэтому расположение экранов не меняется.
+const Art = (() => {
+  const img = (name, cls = '', px = 192) => `<img class="ji ${cls}" src="img/icons/${name}-${px}.webp" alt="" decoding="async" draggable="false">`;
+  return { img };
+})();
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-ui]').forEach((el) => { el.innerHTML = Ui.get(el.dataset.ui); });
+  document.querySelectorAll('[data-art]').forEach((el) => { el.innerHTML = Art.img(el.dataset.art); });
+});

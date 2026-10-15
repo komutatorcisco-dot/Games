@@ -19,8 +19,11 @@ const PackOpen = (() => {
   const rollLevel = () => { let x = Math.random() * LV.reduce((s, l) => s + l.w, 0), i = 0; while ((x -= LV[i].w) > 0 && i < LV.length - 1) i++; return i; };
 
   // модель пака: лицо с голограммой и обжимом, торец, задник; cap — верхняя полоска, которую срывают
-  const art = (lv, sz = '', cap = false) => `<span class="fpk p${lv} ${sz}"><span class="fpk-b">
-      <i class="fpk-f"><i class="fpk-holo"></i><i class="fpk-sh"></i><i class="fpk-crest"></i><b>ДЖ</b><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
+  // рисунок пака по редкости (img/icons/pk-*.webp); объём нарисован на самой картинке
+  const PIMG = ['pk-silver', 'pk-blue', 'pk-purple', 'pk-gold', 'pk-black'];
+  const pimg = (lv, sz) => `img/icons/${PIMG[lv]}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp`;
+  const art = (lv, sz = '', cap = false) => `<span class="fpk p${lv} ${sz} pimg"><span class="fpk-b">
+      <i class="fpk-f"><img class="fpk-img" src="${pimg(lv, sz)}" alt="" decoding="async" draggable="false"><i class="fpk-sh"></i><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;
 
   const best = (res) => res.slice().sort((a, b) => ORDER.indexOf(b.c.rar) - ORDER.indexOf(a.c.rar) || b.c.r - a.c.r);
@@ -116,6 +119,7 @@ const PackOpen = (() => {
   // contents(level) → { coins, cards:[keys] }; commit(got) записывает награду и возвращает [{c,isNew,coins}]
   async function drop({ gift = false, title = '', minLevel = 0, contents, commit, onStart, onTake, onDone, label = '' } = {}) {
     const final = Math.max(minLevel, typeof window.__packLv === 'number' ? window.__packLv : rollLevel());
+    PIMG.forEach((_, i) => { if (i >= minLevel && i <= final) new Image().src = pimg(i, 'xxl'); }); // смена редкости без мигания
     const got = contents ? contents(final) : { coins: 0, cards: [] };
     const el = layer('pack');
     let level = minLevel, started = false, busy = false, opened = false;
@@ -134,7 +138,7 @@ const PackOpen = (() => {
     function setLevel(lv) {
       level = lv;
       setCol(el, LV[lv].css);
-      const f = $('.fpk', packEl); f.className = f.className.replace(/\bp\d\b/, 'p' + lv); $('.fpk-f em', packEl).textContent = LV[lv].short;
+      const f = $('.fpk', packEl); f.className = f.className.replace(/\bp\d\b/, 'p' + lv); $('.fpk-f em', packEl).textContent = LV[lv].short; const im = $('.fpk-img', packEl); if (im) im.src = pimg(lv, 'xxl');
       const nm = $('.po-name', el); nm.textContent = LV[lv].name; slam(nm);
       $$('.po-steps i', el).forEach((s, i) => s.classList.toggle('on', i <= lv));
       el.classList.toggle('jackson', lv === 4);

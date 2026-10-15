@@ -101,12 +101,12 @@ const Clubs = (() => {
       return;
     }
     const c = data, cr = chestReady(), lp = leaguePrize();
-    const TABS = [['chat', 'Чат', 'send', c.reqs.filter((r) => !r.me && Cards.spare(r.card) >= 2).length], ['members', 'Состав', 'users', 0], ['chest', 'Сундук', 'gift', cr], ['league', 'Лига', 'trophy', lp ? 1 : 0]];
+    const TABS = [['chat', 'Чат', '@chat', c.reqs.filter((r) => !r.me && Cards.spare(r.card) >= 2).length], ['members', 'Состав', '@members', 0], ['chest', 'Сундук', '@chest', cr], ['league', 'Лига', '@league', lp ? 1 : 0]];
     b.innerHTML = `<div class="kb-head"><span class="kb-emb">${esc(c.emoji)}</span><div class="kb-ht"><h3>${esc(c.name)}</h3>
         <small><b>${Ui.get('trophy')} ${c.trophies.toLocaleString('ru-RU')}</b> · ${c.members.length}/${c.max} · код <em>${esc(c.code)}</em></small>
         ${c.descr ? `<p>${esc(c.descr)}</p>` : ''}${c.mintro ? `<small class="kb-min">Вступить: от ${c.mintro} 🏆</small>` : ''}</div>
         ${c.myRole >= 2 ? `<button class="kb-gear" data-cl="settings" aria-label="Настройки">${Ui.get('gear')}</button>` : ''}</div>
-      <nav class="kb-tabs">${TABS.map(([k, n, ic, d]) => `<button data-cltab="${k}" class="${tab === k ? 'on' : ''}">${Ui.get(ic)}<span>${n}</span>${d ? `<i>${d}</i>` : ''}</button>`).join('')}</nav>
+      <nav class="kb-tabs">${TABS.map(([k, n, ic, d]) => `<button data-cltab="${k}" class="${tab === k ? 'on' : ''}">${ic[0] === '@' ? Art.img(ic.slice(1), '', 96) : Ui.get(ic)}<span>${n}</span>${d ? `<i>${d}</i>` : ''}</button>`).join('')}</nav>
       <div class="kb-body"></div>`;
     renderTab();
   }
@@ -162,7 +162,7 @@ const Clubs = (() => {
         <button class="btn ghost kb-wide" data-cl="leave">Выйти из клуба</button>`;
     } else if (tab === 'chest') {
       const t = tierOf(), got = chestS().got, step = c.goal / 10;
-      b.innerHTML = `<div class="kb-chest"><div class="kb-ch-top"><span class="kb-chi">${Ui.get('gift')}</span><div><b>Клубный сундук недели</b><small>Уровень ${t} из 10 · ${c.wins} / ${c.goal} побед</small></div></div>
+      b.innerHTML = `<div class="kb-chest"><div class="kb-ch-top"><span class="kb-chi art">${Art.img('chest', '', 96)}</span><div><b>Клубный сундук недели</b><small>Уровень ${t} из 10 · ${c.wins} / ${c.goal} побед</small></div></div>
           <span class="kb-bar big"><i style="width:${Math.min(100, (c.wins / c.goal) * 100)}%"></i></span>
           <p class="kb-note">Каждая победа любого участника двигает сундук. Каждый уровень открывает награду — её забирает каждый в клубе. Новый сундук — в понедельник.</p></div>
         <div class="kb-tiers">${CHEST.map((r, i) => { const L = Rewards.rewardLabel(r), open = i < t, mine = got.includes(i);

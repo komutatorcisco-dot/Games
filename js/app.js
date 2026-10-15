@@ -476,8 +476,8 @@ const App = (() => {
     starshop: () => StarShop.open(),
     // профиль: три магазина собраны в одну плитку «Магазин»
     shopmenu: () => Modal.open(`<h3 class="sk-h">Магазин</h3><div class="settings pf-shopmenu">
-        <button class="set-row" data-act="starshop"><span>${Ui.get('gift')} Магазин паков</span><small>монеты · ⭐</small></button>
-        <button class="set-row" data-act="shop"><span>${Ui.get('shirt')} Экипировка</span><small>форма и мячи</small></button>
+        <button class="set-row" data-act="starshop"><span>${Art.img('qpack', 'sm', 96)} Магазин паков</span><small>монеты · ⭐</small></button>
+        <button class="set-row" data-act="shop"><span>${Art.img('squad', 'sm', 96)} Экипировка</span><small>форма и мячи</small></button>
         <button class="set-row" data-act="skins"><span>${Ui.get('star')} Оформление</span><small>скины</small></button></div>`, [{ label: 'Закрыть', cls: 'ghost' }]),
     remind: () => { const ui = Store.d.ui || (Store.d.ui = {}); ui.noRemind = !ui.noRemind; Store.save(); Track.hello({ remind: !ui.noRemind }); renderProfile(); toast(ui.noRemind ? 'Напоминания выключены' : 'Напоминания включены'); },
     runner: () => {
