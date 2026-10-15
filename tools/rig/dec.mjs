@@ -1,0 +1,12 @@
+import { NodeIO } from '@gltf-transform/core';
+import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
+import { weld, simplify, dequantize } from '@gltf-transform/functions';
+import { MeshoptDecoder, MeshoptSimplifier } from 'meshoptimizer';
+await MeshoptDecoder.ready; await MeshoptSimplifier.ready;
+const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder });
+const doc = await io.read('src.glb');
+for (const e of doc.getRoot().listExtensionsUsed()) if (/meshopt|quantization/.test(e.extensionName)) e.dispose();
+await doc.transform(dequantize(), weld(), simplify({ simplifier: MeshoptSimplifier, ratio: +process.argv[2], error: 0.002 }));
+const p = doc.getRoot().listMeshes()[0].listPrimitives()[0];
+console.log('verts', p.getAttribute('POSITION').getCount(), 'tris', p.getIndices().getCount()/3);
+await io.write('low.glb', doc);
