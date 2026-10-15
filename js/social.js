@@ -110,7 +110,7 @@ const Social = (() => {
   function hero(key, emoji) {
     const c = key && Cards.get(key);
     if (!c) return `<div class="pp-hero empty"><span class="pp-ph">${esc(emoji || '⚽')}</span><small>Любимый игрок не выбран</small></div>`;
-    return `<button class="pp-hero" data-social-card="${esc(c.key)}" aria-label="Любимый игрок: ${esc(c.name)}">${Cards.html(c, { w: 150 })}<small>Любимый игрок</small></button>`;
+    return `<button class="pp-hero" data-social-card="${esc(c.key)}" aria-label="Любимый игрок: ${esc(c.name)}">${Cards.html(c, { w: 124 })}<small>Любимый игрок</small></button>`;
   }
   function stats(list) { return `<div class="pc-stats pp-stats">${list.map(([ic, k, v]) => `<span class="pc-st"><i>${Ui.get(ic)}</i><b>${v}</b><small>${k}</small></span>`).join('')}</div>`; }
   function layout(r) {
