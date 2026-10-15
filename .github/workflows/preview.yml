@@ -1,0 +1,60 @@
+# Превью новой версии на своём iPhone внутри Telegram — без влияния на игроков.
+# Срабатывает ТОЛЬКО на пуш в ветку preview/* (например preview/redesign). Рабочий сайт (GitHub Pages),
+# рабочий сервер jackson-games и его база D1 не затрагиваются:
+#   • сайт → Cloudflare Pages, проект «jackson-games-preview» (https://jackson-games-preview.pages.dev);
+#   • сервер → проверочный воркер «jackson-games-staging» со своей базой D1 (как в worker-staging.yml);
+#   • игра открывается с ?stage=1: ходит только на проверочный сервер, пишет в облако Telegram под ключами pv_*
+#     (настоящее сохранение лишь копируется при первом запуске), покупки за Stars отключены.
+# Разовая настройка (вручную, один раз):
+#   1) Токен CF_API_TOKEN должен иметь право «Cloudflare Pages: Edit» (и «Workers Scripts: Edit», как уже есть).
+#   2) В воркере jackson-games-staging → Settings → Variables: ALLOW_ORIGIN = https://jackson-games-preview.pages.dev
+#      (сервер отвечает только своему сайту и этому адресу). Воркер и база staging — см. worker-staging.yml.
+#   3) @BotFather → /newapp → бот игры → ссылка https://jackson-games-preview.pages.dev/?stage=1, короткое имя preview.
+#      Появится отдельная ссылка t.me/<бот>/preview; кнопка «Играть» и меню бота у игроков не меняются.
+name: Превью для iPhone
+
+on:
+  push:
+    branches: ['preview/**']
+
+concurrency: { group: preview, cancel-in-progress: true }
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Проверить код и тесты
+        run: |
+          find js server tests -name '*.js' -not -path '*/vendor/*' -print0 | xargs -0 -n1 node --check
+          for test in tests/*.test.js; do
+            case "$test" in *-browser.test.js) continue ;; esac
+            node "$test"
+          done
+      - name: Сервер превью → jackson-games-staging
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          ACC=$(echo "$CF_ACCOUNT_ID" | tr -d '[:space:]')
+          [ -n "$ACC" ] || { echo "::error::Нет секретов Cloudflare"; exit 1; }
+          out=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACC/workers/scripts/jackson-games-staging/content" \
+            -H "Authorization: Bearer $(echo "$CF_API_TOKEN" | tr -d '[:space:]')" \
+            -F 'metadata={"main_module":"worker.js"};type=application/json' \
+            -F 'worker.js=@server/worker.js;type=application/javascript+module')
+          echo "$out" | head -c 600; echo
+          echo "$out" | grep -Eq '"success": *true' || { echo "::error::Воркер jackson-games-staging не принял код — см. worker-staging.yml"; exit 1; }
+      - name: Сайт превью → Cloudflare Pages
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          export CLOUDFLARE_API_TOKEN=$(echo "$CF_API_TOKEN" | tr -d '[:space:]') CLOUDFLARE_ACCOUNT_ID=$(echo "$CF_ACCOUNT_ID" | tr -d '[:space:]')
+          mkdir -p site
+          cp -r index.html css js img fonts vendor prototypes site/
+          npx --yes wrangler@3.114.0 pages project create jackson-games-preview --production-branch main || true
+          npx --yes wrangler@3.114.0 pages deploy site --project-name jackson-games-preview --branch main --commit-dirty=true
+          echo "Превью: https://jackson-games-preview.pages.dev/?stage=1 (в Telegram — через ссылку Mini App из @BotFather)"

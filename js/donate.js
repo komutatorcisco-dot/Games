@@ -19,6 +19,7 @@ const Donate = (() => {
   }
 
   async function pay(stars) {
+    if (typeof CONFIG !== 'undefined' && CONFIG.stage) { toast('В превью покупки отключены — это проверочная версия'); return; }
     const base = api();
     if (base && TG && TG.openInvoice && stars > 0) {
       try {

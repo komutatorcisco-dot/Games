@@ -59,6 +59,7 @@ const StarShop = (() => {
   const free = () => !!(Store.d.admin && !(Store.d.ui && Store.d.ui.asPlayer));
   async function buy(item) {
     if (free()) { Modal.close(); confetti(); Sound.play('goal'); grant(item, 'adm' + Date.now()); return; }
+    if (typeof CONFIG !== 'undefined' && CONFIG.stage) { toast('В превью покупки отключены — это проверочная версия'); return; } // превью ходит на проверочный сервер: настоящие Stars не списываем
     const base = CONFIG.api;
     if (!(base && TG && TG.openInvoice && TG.initData)) { toast('Покупки работают в Telegram через бота @JacksonGamesbot'); return; }
     try {

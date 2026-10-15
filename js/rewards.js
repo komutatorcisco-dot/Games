@@ -141,6 +141,7 @@ const Rewards = (() => {
     giveReward(PASS[i][line === 'free' ? 0 : 1], `ПРОПУСК · УРОВЕНЬ ${L}`);
   }
   async function buyPass() {
+    if (typeof CONFIG !== 'undefined' && CONFIG.stage) { toast('В превью покупки отключены — это проверочная версия'); return; }
     const base = CONFIG.api;
     if (!(base && TG && TG.openInvoice && TG.initData)) { toast('Купить пропуск можно в Telegram через бота @JacksonGamesbot'); return; }
     try {
