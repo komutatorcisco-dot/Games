@@ -1,13 +1,11 @@
 # Статистика игроков из рабочей базы D1 — только чтение. Итог — в сводке запуска (Summary) и в журнале.
+# Только ручной запуск: один прогон читает ~13 млн строк при дневном лимите D1 в 5 млн (16.10 база встала до полуночи UTC).
 name: Статистика игроков
 
 on:
   workflow_dispatch:
     inputs:
       days: { description: 'За сколько дней', default: '21' }
-  push:
-    branches: ['claude/ui-quality', 'claude/telegram-channel-games-kj1xly']
-    paths: ['tools/player-stats.mjs', '.github/workflows/player-stats.yml']
 
 permissions:
   contents: read
