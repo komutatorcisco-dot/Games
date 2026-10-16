@@ -106,12 +106,23 @@ const Icons = (() => {
   // старые ключи плиток
   MAP.ng = MAP['ng-duel'];
 
-  const get = (id) => MAP[id] || '';
+  // Объёмные иконки игр (img/games/<ключ>.webp): тёмная обводка, кремовый и золотой с тенью на половину.
+  // TILE — цвет плитки под иконкой (верх, низ), как в наборе рисунков; рисунок есть — SVG выше только запасной.
+  const TILE = { 'auction': ['#242a38', '#181d28'], 'career': ['#212f45', '#131e2f'], 'career-duel': ['#212f45', '#131e2f'], 'club': ['#274b97', '#16326e'], 'fc': ['#223247', '#121e30'], 'flood': ['#274b97', '#16326e'], 'g2048': ['#a54e21', '#792f1a'], 'guess': ['#212f45', '#131e2f'], 'guess-duel': ['#212f45', '#131e2f'], 'hl': ['#9a4128', '#782d1b'], 'memory': ['#212f45', '#131e2f'], 'nation': ['#212d3f', '#151f2e'], 'ng-bingo': ['#a54e21', '#792f1a'], 'ng-box2box': ['#212f45', '#131e2f'], 'ng-connect': ['#213047', '#131f31'], 'ng-context': ['#21334d', '#132236'], 'ng-darts': ['#9a4128', '#782d1b'], 'ng-draft': ['#165335', '#083a26'], 'ng-duel': ['#9a4128', '#782d1b'], 'ng-false9': ['#212f45', '#131e2f'], 'ng-lineup': ['#165335', '#083a26'], 'ng-linkup': ['#212f45', '#131e2f'], 'ng-numhist': ['#32486c', '#19283f'], 'ng-rank': ['#212f45', '#131e2f'], 'ng-replay': ['#212f45', '#131e2f'], 'ng-score': ['#256d48', '#104632'], 'ng-timemachine': ['#23324a', '#152234'], 'ng-top10': ['#32486c', '#19283f'], 'ng-treble': ['#692d72', '#4e1f5a'], 'ng-trumps': ['#692d72', '#4e1f5a'], 'ng-vs100': ['#212f45', '#131e2f'], 'ng-whoami': ['#285b58', '#123c3a'], 'ng-wordle': ['#212f44', '#162030'], 'pass': ['#256d48', '#104632'], 'pick': ['#202e45', '#131e2f'], 'pick-duo': ['#222f42', '#151e2e'], 'pipes': ['#256d48', '#104632'], 'popit': ['#692d72', '#4e1f5a'], 'sbc': ['#285b58', '#123c3a'], 'slide': ['#212f45', '#131e2f'], 'sort': ['#a54e21', '#792f1a'], 'transfer': ['#1e2f45', '#122134'], 'ttt': ['#274b97', '#16326e'], 'ttt-duo': ['#212f45', '#131e2f'], 'value': ['#212f45', '#131e2f'], 'words': ['#212f45', '#131e2f'] };
+  const V = '20261016';
+  const art = (id) => (TILE[id] ? `<img class="gi" src="img/games/${id}.webp?v=${V}" alt="" decoding="async" draggable="false">` : '');
+  const get = (id) => art(id) || MAP[id] || '';
+  const tile = (id) => TILE[id] || null;
   // Подставляет картинки во все <span class="tile-ico" data-ico="...">
   function fill(root = document) {
-    $$('[data-ico]', root).forEach((el) => { if (!el.dataset.done) { el.innerHTML = get(el.dataset.ico); el.dataset.done = 1; } });
+    $$('[data-ico]', root).forEach((el) => {
+      if (el.dataset.done) return;
+      el.innerHTML = get(el.dataset.ico); el.dataset.done = 1;
+      const t = tile(el.dataset.ico);
+      if (t) { el.classList.add('gi-on'); el.style.setProperty('--g1', t[0]); el.style.setProperty('--g2', t[1]); }
+    });
   }
-  return { get, fill };
+  return { get, fill, tile };
 })();
 
 // Мелкие значки интерфейса 24×24 вместо эмодзи: одна толщина линий, цвет текста + золотой акцент.

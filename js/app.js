@@ -196,7 +196,7 @@ const App = (() => {
       `<button class="tile-card" data-act="auction-bot" style="--c1:#ff5f6d;--c2:#7b2b8a"><span class="tile-ico" data-ico="auction"></span><b>Аукцион</b><small>Против бота или вдвоём</small></button>`,
       `<button class="tile-card" data-ng="duel" style="--c1:#ff8a5c;--c2:#c2348d"><span class="tile-ico" data-ico="ng-duel"></span><b>Футбольная дуэль</b><small>С другом онлайн или рядом</small></button>`,
       `<button class="tile-card" data-act="xdraft" style="--c1:#34c46a;--c2:#2f6fe4"><span class="tile-ico" data-ico="ng-draft"></span><b>Драфт</b><small>Собери состав и сыграй матч</small></button>`,
-      `<button class="tile-card" data-act="sbc" style="--c1:#5fe0d0;--c2:#5a46c8"><span class="tile-ico" data-ico="ng-draft"></span><b>ИПК</b><small>Сдавай карточки, получай паки</small></button>`,
+      `<button class="tile-card" data-act="sbc" style="--c1:#5fe0d0;--c2:#5a46c8"><span class="tile-ico" data-ico="sbc"></span><b>ИПК</b><small>Сдавай карточки, получай паки</small></button>`,
     ];
     $('#featured').innerHTML = extra.join('');
     src.forEach((el) => { const c = el.cloneNode(true); c.classList.remove('wide', 'duo'); $$('.limit-note', c).forEach((x) => x.remove()); $('#featured').appendChild(c); });

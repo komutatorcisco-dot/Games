@@ -25,7 +25,9 @@ const Home = (() => {
     });
     // драфт и ИПК — свои экраны
     map.set('act:xdraft', { key: 'act:xdraft', data: { act: 'xdraft' }, ico: 'ng-draft', title: 'Драфт', sub: 'Собери состав и сыграй матч', c1: '#34c46a', c2: '#2f6fe4' });
-    map.set('act:sbc', { key: 'act:sbc', data: { act: 'sbc' }, ico: 'ng-draft', title: 'ИПК', sub: 'Сдавай карточки, получай паки', c1: '#5fe0d0', c2: '#5a46c8' });
+    map.set('act:sbc', { key: 'act:sbc', data: { act: 'sbc' }, ico: 'sbc', title: 'ИПК', sub: 'Сдавай карточки, получай паки', c1: '#5fe0d0', c2: '#5a46c8' });
+    // цвет плитки — как у объёмной иконки игры
+    if (typeof Icons !== 'undefined' && Icons.tile) map.forEach((g) => { const t = Icons.tile(g.ico); if (t) { g.c1 = t[0]; g.c2 = t[1]; g.art = true; } });
     cat = map;
     return map;
   }
@@ -132,8 +134,8 @@ const Home = (() => {
     const t = Release.trophies(), sel = (selected() || {}).key;
     const cell = (g) => {
       const on = open(g), need = Release.need(g.key);
-      return `<button class="h2-pc ${on ? '' : 'lock'} ${g.key === sel ? 'sel' : ''}" ${on ? `data-sel="${esc(g.key)}"` : ''} style="--c1:${g.c1};--c2:${g.c2}">
-        <span class="h2-pci">${icon(g)}</span><b>${esc(g.title)}</b>${on ? '' : `<small>${Ui.get('lock')} ${Ui.get('trophy')} ${need}</small>`}</button>`;
+      return `<button class="h2-pc ${g.art ? 'gt' : ''} ${on ? '' : 'lock'} ${g.key === sel ? 'sel' : ''}" ${on ? `data-sel="${esc(g.key)}"` : ''} style="--c1:${g.c1};--c2:${g.c2}">
+        <span class="h2-pci">${icon(g)}</span><i class="h2-pdv"></i><b>${esc(g.title)}</b>${on ? '' : `<small>${Ui.get('lock')} ${Ui.get('trophy')} ${need}</small>`}</button>`;
     };
     const el = document.createElement('div');
     el.className = 'sx-sheet-wrap h2-sheet';
