@@ -67,7 +67,7 @@ const Home = (() => {
           ${cards ? `<button class="h2-sb sq" data-act="squad"><span class="h2-sbi art">${Art.img('squad', '', 96)}</span><b>Состав</b></button>` : ''}
         </div>
         <div class="h2-side r">
-          ${cards ? `<button class="h2-sb ${packReady ? 'hot' : 'done'}" data-act="wheel"><span class="h2-sbi">${PackOpen.art(packReady ? 1 : 0, 'rs')}</span><b>${packReady ? 'Пак дня' : 'Завтра'}</b></button>` : ''}
+          ${cards ? `<button class="h2-sb ${packReady ? 'hot' : 'done'}" data-act="wheel"><span class="h2-sbi art">${Art.img('qpack', '', 96)}</span><b>${packReady ? 'Пак дня' : 'Завтра'}</b></button>` : ''}
           ${Release.isOut('ng:duel') ? `<button class="h2-sb on" data-act="online"><span class="h2-sbi art">${Art.img('online', '', 96)}</span><b>Онлайн</b></button>` : ''}
           ${cards && pend ? `<button class="h2-sb hot cnt" data-act="rw-packs"><span class="h2-sbi">${PackOpen.art(0, 'rs')}<em>${pend}</em></span><b>За победы</b></button>` : ''}
         </div>
@@ -220,7 +220,7 @@ const Home = (() => {
 
   function bind() {
     // значок пака дня в профиле — та же модель пака
-    const pk = $('.pf-pk2'); if (pk && typeof PackOpen !== 'undefined') pk.innerHTML = PackOpen.art(1, 'rs');
+    const pk = $('.pf-pk2'); if (pk) pk.innerHTML = Art.img('qpack', '', 96);
     document.addEventListener('click', (e) => {
       if (e.target.closest('#home2 [data-h2="pick"]')) { Sound.play('tap'); haptic('tap'); pick(); }
       const p = e.target.closest('#home2 .h2-play');

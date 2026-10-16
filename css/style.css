@@ -4796,6 +4796,12 @@ body.dg-on { overscroll-behavior: none; }
 .tile-ico.gi-on::after { background: linear-gradient(180deg, rgba(255,255,255,.08), transparent 45%); }
 .tile-ico.gi-on .gi { position: absolute; inset: 7%; width: 86%; height: 86%; }
 .h2-hex-in .gi { width: 64%; height: 64%; filter: drop-shadow(0 5px 0 rgba(0,0,0,.25)); }
+.pf-pk2 .ji { width: 44px; height: 44px; }
+.tile-ico:has(> .gi) { background: linear-gradient(180deg, #212f45, #131e2f) !important; }
+.tile-ico > .gi { position: absolute; inset: 7%; width: 86%; height: 86%; }
+.rd-hex .gi { position: relative; z-index: 1; width: 64%; height: 64%; filter: drop-shadow(0 3px 0 rgba(0,0,0,.3)); }
+.rs-hex .gi { position: relative; z-index: 1; width: 70%; height: 70%; }
+.sb-ico .gi { width: 100%; height: 100%; }
 .h2-pg { gap: 12px 10px; }
 .h2-pc.gt { gap: 0; padding: 12px 6px 11px; border-radius: 20px; align-content: start; background: linear-gradient(180deg, #212f45, #131e2f) !important; transition: background .25s, transform .1s;
   box-shadow: inset 0 0 0 2px rgba(255,255,255,.13), inset 0 3px 0 rgba(255,255,255,.1), inset 0 -3px 0 rgba(0,0,0,.25), 0 0 0 3px #0a0f1a, 0 6px 0 #070a12 !important; }

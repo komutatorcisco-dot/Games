@@ -193,8 +193,10 @@ const Ui = (() => {
 })();
 // Рисованные иконки и предметы (img/icons/<имя>-96|192.webp, прозрачный фон). Вставляются внутрь прежних мест значков —
 // размеры задаёт место (.ji заполняет его), поэтому расположение экранов не меняется.
+// Значки меню перерисованы в стиле иконок игр (img/ui2/<имя>.webp): тёмная обводка, кремовый и золотой с тенью на половину.
 const Art = (() => {
-  const img = (name, cls = '', px = 192) => `<img class="ji ${cls}" src="img/icons/${name}-${px}.webp" alt="" decoding="async" draggable="false">`;
+  const UI2 = new Set(['chat', 'chest', 'coin', 'coinpile', 'coins', 'cup1', 'cup2', 'cup3', 'daily', 'gallery', 'league', 'leagues', 'members', 'online', 'pass', 'qcards', 'qlist', 'qpack', 'qplay', 'quests', 'qwin', 'road', 'sbc', 'shop', 'squad']);
+  const img = (name, cls = '', px = 192) => `<img class="ji ${cls}" src="${UI2.has(name) ? `img/ui2/${name}.webp?v=20261016` : `img/icons/${name}-${px}.webp`}" alt="" decoding="async" draggable="false">`;
   return { img };
 })();
 document.addEventListener('DOMContentLoaded', () => {
