@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Удар — проба</title>
+<script type="importmap">{ "imports": { "three": "../balotelli/vendor/three.module.min.js" } }</script>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1020; font-family: "Rubik", system-ui, sans-serif; color: #fff; touch-action: none; user-select: none; -webkit-user-select: none; }
+  canvas { display: block; }
+  .hud { position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top) + 10px); display: flex; justify-content: center; gap: 8px; pointer-events: none; }
+  .pill { padding: 6px 14px; border-radius: 99px; background: rgba(8,12,28,.72); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.16); font: 800 15px/1.2 system-ui, sans-serif; }
+  .pill b { color: #ffcf3a; }
+  .dots { display: flex; gap: 6px; align-items: center; }
+  .dots i { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,.18); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.3); }
+  .dots i.g { background: #3fd14a; } .dots i.m { background: #ff4f5e; }
+  .msg { position: fixed; left: 0; right: 0; top: 30%; text-align: center; font: 900 54px/1 system-ui, sans-serif; letter-spacing: .02em; text-shadow: 0 4px 0 #0b1022, 0 0 30px rgba(0,0,0,.5); -webkit-text-stroke: 2px #0b1022; opacity: 0; transform: scale(.6); transition: all .25s cubic-bezier(.2,1.4,.4,1); pointer-events: none; }
+  .msg.on { opacity: 1; transform: none; }
+  .msg.goal { color: #ffcf3a; } .msg.miss { color: #fff; }
+  .hint { position: fixed; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 22px); text-align: center; font: 700 15px/1.4 system-ui, sans-serif; color: rgba(255,255,255,.9); text-shadow: 0 2px 6px rgba(0,0,0,.6); pointer-events: none; }
+  .end { position: fixed; inset: 0; display: none; place-items: center; background: rgba(5,8,18,.7); }
+  .end.on { display: grid; }
+  .card { width: min(320px, 86vw); padding: 22px 18px; border-radius: 22px; background: #1a2029; box-shadow: inset 0 0 0 1.5px rgba(255,207,58,.5); text-align: center; }
+  .card h2 { margin: 0 0 6px; font: 900 26px system-ui, sans-serif; } .card p { margin: 0 0 16px; color: rgba(255,255,255,.8); font: 600 15px system-ui, sans-serif; }
+  .btn { width: 100%; padding: 14px; border: 0; border-radius: 16px; background: #ffcf3a; color: #1b1340; font: 900 17px system-ui, sans-serif; box-shadow: 0 4px 0 #b88a12; }
+  .modes { position: fixed; right: 10px; top: calc(env(safe-area-inset-top) + 52px); display: grid; gap: 6px; }
+  .modes button { padding: 6px 10px; border: 0; border-radius: 12px; background: rgba(8,12,28,.72); color: #fff; font: 800 12px system-ui, sans-serif; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.16); }
+  .modes button.on { background: #ffcf3a; color: #1b1340; }
+  .load { position: fixed; inset: 0; display: grid; place-items: center; background: #0b1020; font: 800 16px system-ui, sans-serif; }
+</style>
+</head>
+<body>
+<div class="hud"><span class="pill" id="who">—</span><span class="pill dots" id="dots"></span></div>
+<div class="modes"><button data-m="fk" class="on">Штрафной</button><button data-m="pen">Пенальти</button></div>
+<div class="msg" id="msg"></div>
+<div class="hint" id="hint">Проведи пальцем по мячу к воротам. Изогни линию — мяч закрутится.</div>
+<div class="end" id="end"><div class="card"><h2 id="endT"></h2><p id="endP"></p><button class="btn" id="again">Ещё серия</button></div></div>
+<div class="load" id="load">Загружаем поле…</div>
+<script type="module" src="shot.js"></script>
+</body>
+</html>
