@@ -1,5 +1,5 @@
 // Скины оформления: меняют кнопки и панели главной, наград, профиля, шапки экранов и нижнее меню.
-// «Таблетки» (по умолчанию) и «Классика» есть у всех; «Золото» — из премиум-пропуска; остальные — за трофеи или монеты.
+// «Классика» (по умолчанию) и «Таблетки» есть у всех; «Золото» — из премиум-пропуска; остальные — за трофеи или монеты.
 // Сохранение: Store.d.skin = { on, own: [...], v }.
 const Skins = (() => {
   const LIST = [
@@ -14,16 +14,16 @@ const Skins = (() => {
     { id: 'cyber', name: 'Киберспорт', need: 1000, price: 900 },
   ];
   const S = () => {
-    const s = Store.d.skin || (Store.d.skin = { on: 'pill', own: ['pill', 'classic'], v: 2 });
+    const s = Store.d.skin || (Store.d.skin = { on: 'classic', own: ['pill', 'classic'], v: 3 });
     if (!s.own) s.own = ['pill', 'classic'];
-    if (s.v !== 2) { s.v = 2; if (s.on === 'classic') s.on = 'pill'; } // «Таблетки» — новый вид по умолчанию
+    if (s.v !== 3) { s.v = 3; if (s.on === 'pill') s.on = 'classic'; } // «Классика» — вид по умолчанию (стоял «Таблетки»)
     return s;
   };
   const tro = () => (typeof Release !== 'undefined' ? Release.trophies() : 0);
   const admin = () => !!(Store.d && Store.d.admin);
   const has = (k) => { const x = LIST.find((s) => s.id === k); return !!x && (admin() || S().own.includes(k) || (!x.prem && tro() >= x.need)); };
   function apply() {
-    const s = S(); if (!has(s.on)) s.on = 'pill';
+    const s = S(); if (!has(s.on)) s.on = 'classic';
     if (s.on === 'classic') delete document.body.dataset.skin; else document.body.dataset.skin = s.on;
   }
   function pick(k) {
