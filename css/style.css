@@ -4683,3 +4683,31 @@ body.dg-on { overscroll-behavior: none; }
 .fu.empty { clip-path: none; border-radius: calc(var(--cw) * .09); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.14); }
 .xd-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .ad-days .ad-row { grid-template-columns: 1fr repeat(3, 1fr); }
+/* «Пригласи друга» */
+.rf { display: grid; gap: 10px; text-align: left; }
+.rf-hero { display: grid; place-items: center; height: 96px; } .rf-hero > * { width: 84px; height: 84px; color: #ffcf3a; animation: rfSway 4s ease-in-out infinite; }
+@keyframes rfSway { 50% { transform: rotate(-6deg) translateY(-4px); } }
+.rf .sk-h, .rf > .sk-p { text-align: center; }
+.rf-inv { width: 100%; }
+.rf-miles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.rf-m, .rf-f { display: grid; align-items: center; gap: 4px 10px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.07); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+.rf-m { grid-template-columns: 1fr auto; } .rf-m small { grid-column: 1; font: 700 11px var(--font-body); color: rgba(255,255,255,.65); } .rf-m > :last-child { grid-column: 2; grid-row: 1 / 3; }
+.rf-f { grid-template-columns: auto 1fr auto; }
+.rf-m.ready, .rf-f.ready { box-shadow: inset 0 0 0 2px #ffcf3a; } .rf-m.done, .rf-f.done { opacity: .7; }
+.rf-ava { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(180deg, #5aa8ff, #3b7ff0); font: 900 16px "Rubik", sans-serif; }
+.rf-nm { display: grid; gap: 3px; min-width: 0; } .rf-nm b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .rf-nm small { font: 700 11px var(--font-body); color: rgba(255,255,255,.6); }
+.rf-bar { height: 6px; border-radius: 99px; background: rgba(0,0,0,.35); overflow: hidden; } .rf-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #ffcf3a, #ff9d00); }
+.rf em { font: 800 12px var(--font-body); font-style: normal; color: rgba(255,255,255,.6); } .rf em.rf-ok { color: #3fd26b; }
+.rf-go { padding: 8px 12px; font-size: 13px; }
+/* плашка «Игрок ищет соперника» — над нижним меню */
+.seek-bar { position: fixed; left: 12px; right: 12px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); z-index: 60; display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px;
+  padding: 10px 10px 10px 14px; border-radius: 18px; color: #fff; background: linear-gradient(180deg, #3b7ff0, #2453b8); box-shadow: inset 0 2px 0 rgba(255,255,255,.35), 0 0 0 2.5px #0b0d1a, 0 8px 20px rgba(0,0,0,.45);
+  animation: seekIn .35s cubic-bezier(.3,1.4,.5,1) both; }
+.seek-bar b { display: block; font: 900 15px "Rubik", sans-serif; } .seek-bar small { display: block; font: 700 12px var(--font-body); color: rgba(255,255,255,.8); }
+.seek-bar .btn { padding: 9px 14px; font-size: 14px; }
+.seek-x { width: 30px; height: 30px; border: 0; border-radius: 50%; background: rgba(0,0,0,.25); color: #fff; font-size: 13px; }
+.seek-dot { width: 12px; height: 12px; border-radius: 50%; background: #3fd26b; box-shadow: 0 0 0 0 rgba(63,210,107,.7); animation: seekPulse 1.4s ease-out infinite; }
+@keyframes seekIn { from { transform: translateY(30px) scale(.9); opacity: 0; } }
+@keyframes seekPulse { 70% { box-shadow: 0 0 0 10px rgba(63,210,107,0); } 100% { box-shadow: 0 0 0 0 rgba(63,210,107,0); } }
+@media (prefers-reduced-motion: reduce) { .seek-bar, .seek-dot, .rf-hero > * { animation: none; } }
+#profile .pf-tiles .pf-wide { grid-column: 1 / -1; }

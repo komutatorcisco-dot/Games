@@ -435,10 +435,10 @@ const Duel = (() => {
           if (!alive || !mmOn || conn) return;
           if (r.ok && r.role === 'join') { mmOn = false; toast(`Соперник найден: ${String(r.nick || 'Игрок').slice(0, 16)}`); return join(r.code); }
           const w = $('.du-wait h3', b); if (w) w.textContent = r.ok && r.waiting > 1 ? `Ищем соперника… онлайн ищут: ${r.waiting}` : 'Ищем соперника…';
-          if (Date.now() - t0 > 60000) { mmStop(); stopPeer(); b.innerHTML = `<div class="du-intro"><div class="du-big-emo">${Ui.get('users')}</div><h3>Пока никого нет онлайн</h3>
+          if (Date.now() - t0 > 120000) { mmStop(); stopPeer(); b.innerHTML = `<div class="du-intro"><div class="du-big-emo">${Ui.get('users')}</div><h3>Пока никого нет онлайн</h3>
             <p>Позови друга в комнату или брось вызов по ссылке — он сыграет, когда сможет.</p>
-            <button class="btn gold" data-du="rnd">Искать ещё</button><button class="btn" data-du="live">${Ui.get('bolt')} Комната для друга</button><button class="btn ghost" data-du="menu">Назад</button></div>`;
-            acts = { rnd: random, live: liveMenu, menu }; return; }
+            <button class="btn gold" data-du="rnd">Искать ещё</button><button class="btn" data-du="solo">Сыграть сейчас — вызов по ссылке</button><button class="btn" data-du="live">${Ui.get('bolt')} Комната для друга</button><button class="btn ghost" data-du="menu">Назад</button></div>`;
+            acts = { rnd: random, solo: () => solo(newSeed(), null), live: liveMenu, menu }; return; }
           T(poll, 3000);
         };
         peer.on('open', poll);

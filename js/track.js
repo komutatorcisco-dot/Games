@@ -77,6 +77,7 @@ const Track = (() => {
       // сервер помнит лучший счёт трофеев: если на этом устройстве меньше (откатилось со старой копии) — возвращаем
       if (r && r.ok && r.tro > Rewards.S().trophies) { const was = Rewards.S().trophies; Rewards.S().trophies = r.tro; Store.save(); Rewards.refresh(); if (typeof renderHub === 'function') safe('hub', renderHub); toast(`Трофеи восстановлены: ${was} → ${r.tro}`); }
       if (r && r.ok && r.cupWin) { const g = Store.d.cupGot || (Store.d.cupGot = []); if (!g.includes(r.cupWin)) { g.push(r.cupWin); Store.save(); setTimeout(() => Rewards.openDrop({ title: 'КУБОК ДРАФТА НЕДЕЛИ · 1 МЕСТО', minLevel: 3 }), 2500); } }
+      if (r && r.ok && r.refGift && typeof Refs !== 'undefined') setTimeout(() => Refs.welcome(), 2200); // пришёл по ссылке друга — подарок один раз
       if (r && r.ok && !!r.admin !== !!Store.d.admin) { Store.d.admin = !!r.admin; Store.save(true); if (typeof App !== 'undefined') App.refresh(); }
     } catch (e) { /* нет сети */ }
   }
