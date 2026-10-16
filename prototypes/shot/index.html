@@ -26,16 +26,21 @@
   .modes { position: fixed; right: 10px; top: calc(env(safe-area-inset-top) + 52px); display: grid; gap: 6px; }
   .modes button { padding: 6px 10px; border: 0; border-radius: 12px; background: rgba(8,12,28,.72); color: #fff; font: 800 12px system-ui, sans-serif; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.16); }
   .modes button.on { background: #ffcf3a; color: #1b1340; }
-  .load { position: fixed; inset: 0; display: grid; place-items: center; background: #0b1020; font: 800 16px system-ui, sans-serif; }
+  .load { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #24306a, #0b1020 70%); font: 800 16px system-ui, sans-serif; text-align: center; z-index: 5; }
+  .load b { display: block; margin-bottom: 12px; font-size: 20px; }
+  .lb { display: block; width: 220px; height: 10px; border-radius: 9px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .lb i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #ffcf3a, #ff9f1c); transition: width .3s; }
+  .swipe { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
+  .hint { transition: opacity .4s; }
 </style>
 </head>
 <body>
 <div class="hud"><span class="pill" id="who">—</span><span class="pill dots" id="dots"></span></div>
 <div class="modes"><button data-m="fk" class="on">Штрафной</button><button data-m="pen">Пенальти</button></div>
 <div class="msg" id="msg"></div>
-<div class="hint" id="hint">Проведи пальцем по мячу к воротам. Изогни линию — мяч закрутится.</div>
+<div class="hint" id="hint">Проведи пальцем от мяча к воротам.<br>Быстрее — сильнее, изогни линию — мяч закрутится.</div>
 <div class="end" id="end"><div class="card"><h2 id="endT"></h2><p id="endP"></p><button class="btn" id="again">Ещё серия</button></div></div>
-<div class="load" id="load">Загружаем поле…</div>
+<div class="load" id="load"><div><b>Выходим на поле…</b><span class="lb"><i id="loadbar"></i></span></div></div>
 <script type="module" src="shot.js"></script>
 </body>
 </html>
