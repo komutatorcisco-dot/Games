@@ -26,8 +26,8 @@ const Home = (() => {
     // драфт и ИПК — свои экраны
     map.set('act:xdraft', { key: 'act:xdraft', data: { act: 'xdraft' }, ico: 'ng-draft', title: 'Драфт', sub: 'Собери состав и сыграй матч', c1: '#34c46a', c2: '#2f6fe4' });
     map.set('act:sbc', { key: 'act:sbc', data: { act: 'sbc' }, ico: 'sbc', title: 'ИПК', sub: 'Сдавай карточки, получай паки', c1: '#5fe0d0', c2: '#5a46c8' });
-    // цвет плитки — как у объёмной иконки игры
-    if (typeof Icons !== 'undefined' && Icons.tile) map.forEach((g) => { const t = Icons.tile(g.ico); if (t) { g.c1 = t[0]; g.c2 = t[1]; g.art = true; } });
+    // свой цвет игры: им горит выбранная плитка и шестиугольник на главной (остальные плитки тёмные)
+    if (typeof Icons !== 'undefined' && Icons.color) map.forEach((g) => { const t = Icons.color(g.ico); if (t) { g.c1 = t[0]; g.c2 = t[1]; g.art = true; } });
     cat = map;
     return map;
   }

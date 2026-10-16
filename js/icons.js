@@ -112,7 +112,17 @@ const Icons = (() => {
   const V = '20261016';
   const art = (id) => (TILE[id] ? `<img class="gi" src="img/games/${id}.webp?v=${V}" alt="" decoding="async" draggable="false">` : '');
   const get = (id) => art(id) || MAP[id] || '';
-  const tile = (id) => TILE[id] || null;
+  // Плитки — все тёмные (нуар); свой цвет у игры загорается, когда её выбрали (плитка, шестиугольник на главной)
+  const NOIR = ['#212f45', '#131e2f'];
+  const PAL = [['#256d48', '#104632'], ['#a54e21', '#792f1a'], ['#692d72', '#4e1f5a'], ['#274b97', '#16326e'], ['#285b58', '#123c3a'], ['#9a4128', '#782d1b'], ['#8a6a1c', '#5e4410'], ['#8c2f52', '#5e1d38']];
+  const tile = (id) => (TILE[id] ? NOIR : null);
+  const color = (id) => {
+    const t = TILE[id]; if (!t) return null;
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(t[0].slice(i, i + 2), 16));
+    if (Math.max(r, g, b) - Math.min(r, g, b) > 40) return t; // в наборе плитка уже цветная
+    let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+    return PAL[h % PAL.length];
+  };
   // Подставляет картинки во все <span class="tile-ico" data-ico="...">
   function fill(root = document) {
     $$('[data-ico]', root).forEach((el) => {
@@ -122,7 +132,7 @@ const Icons = (() => {
       if (t) { el.classList.add('gi-on'); el.style.setProperty('--g1', t[0]); el.style.setProperty('--g2', t[1]); }
     });
   }
-  return { get, fill, tile };
+  return { get, fill, tile, color };
 })();
 
 // Мелкие значки интерфейса 24×24 вместо эмодзи: одна толщина линий, цвет текста + золотой акцент.
