@@ -5,3 +5,10 @@
   значки меню — из `extra2.js`, ИПК — из `extra.js`.
   Запуск: `OUTD=out node render.js ttt daily squad` → PNG 256×256; потом сжать в webp 192 px
   и положить в `img/games/<ключ>.webp` (игры) или `img/ui2/<имя>.webp` (меню). После замены поднять `V` в `js/icons.js`.
+
+## 3D (стиль Brawl Stars)
+
+- `3d/models.js` — модели иконок из 3D-фигур, `3d/scene.html` — свет и обводка, `3d/render.js` — запуск.
+  Нужен пакет three: `cd 3d && npm i three@0.169.0 --no-save` (папка node_modules в репозиторий не идёт).
+  Запуск: `cd 3d && OUTD=out node render.js ttt guess shop` → PNG 256×256.
+- `PROMPTS.md` — подсказки для нейросети, если иконки рисуются там.

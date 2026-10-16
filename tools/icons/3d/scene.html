@@ -1,0 +1,43 @@
+<!doctype html><html><body style="margin:0;background:transparent">
+<script type="importmap">{"imports":{"three":"http://icons.local/three/build/three.module.js","three/addons/":"http://icons.local/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {TTFLoader} from 'three/addons/loaders/TTFLoader.js';
+import {Font} from 'three/addons/loaders/FontLoader.js';
+import {MODELS,kit} from './models.js';
+const S=+new URLSearchParams(location.search).get('size')||256, R=2; // рисуем вдвое крупнее, потом уменьшаем
+const ren=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+ren.setSize(S*R,S*R);ren.outputColorSpace=THREE.SRGBColorSpace;
+const pm=new THREE.PMREMGenerator(ren);const env=pm.fromScene(new RoomEnvironment(),.04).texture;
+const font=new Font(await new Promise(r=>new TTFLoader().load('http://icons.local/font',r)));
+kit.init(THREE,font);
+window.draw=(key)=>{
+  const make=MODELS[key];if(!make)return null;
+  const scene=new THREE.Scene();scene.environment=env;
+  scene.add(new THREE.HemisphereLight(0xffffff,0x223355,.9));
+  const key1=new THREE.DirectionalLight(0xffffff,2.4);key1.position.set(-3,6,5);scene.add(key1);
+  const rim=new THREE.DirectionalLight(0xbfe0ff,1.6);rim.position.set(4,2,-4);scene.add(rim);
+  const g=make(kit);kit.outlineAll(g);scene.add(g);
+  // вписываем в кадр
+  const cam=new THREE.PerspectiveCamera(26,1,.1,100);
+  const tilt=g.userData.tilt??0.32;cam.position.set(0,Math.sin(tilt)*10,Math.cos(tilt)*10);cam.lookAt(0,0,0);
+  const box=new THREE.Box3().setFromObject(g),c=box.getCenter(new THREE.Vector3());g.position.sub(c);
+  const sp=new THREE.Box3().setFromObject(g).getBoundingSphere(new THREE.Sphere());
+  cam.position.multiplyScalar(sp.radius*1.02/ (10*Math.sin(THREE.MathUtils.degToRad(13))));cam.lookAt(0,0,0);
+  ren.setClearColor(0,0);ren.render(scene,cam);
+  // 2D: общая тёмная обводка силуэта + тень, уменьшение
+  const src=ren.domElement,W=S*R,cv=document.createElement('canvas');cv.width=cv.height=S;const x=cv.getContext('2d');
+  const o=document.createElement('canvas');o.width=o.height=W;const ox=o.getContext('2d');
+  const sil=document.createElement('canvas');sil.width=sil.height=W;const sx=sil.getContext('2d');
+  sx.drawImage(src,0,0);sx.globalCompositeOperation='source-in';sx.fillStyle='#0b1022';sx.fillRect(0,0,W,W);
+  const t=W*0.024;for(let a=0;a<24;a++){const r=a/24*Math.PI*2;ox.drawImage(sil,Math.cos(r)*t,Math.sin(r)*t+t*.6);}
+  ox.drawImage(sil,0,t*1.6);
+  const sc=0.9,off=W*(1-sc)/2;
+  x.scale(1/R,1/R);
+  x.filter=`blur(${W*0.012}px)`;x.globalAlpha=.55;x.drawImage(sil,off,off+W*0.035,W*sc,W*sc);x.filter='none';x.globalAlpha=1;
+  x.drawImage(o,off,off,W*sc,W*sc);x.drawImage(src,off,off,W*sc,W*sc);
+  return cv.toDataURL('image/png');
+};
+window.ready=true;
+</script></body></html>
