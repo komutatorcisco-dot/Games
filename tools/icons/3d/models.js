@@ -28,7 +28,7 @@ export const kit={
   text(str,size,depth,c){const g=new TextGeometry(str,{font:FONT,size,depth,curveSegments:10,bevelEnabled:true,bevelThickness:size*.05,bevelSize:size*.04,bevelSegments:3});
     g.computeBoundingBox();const b=g.boundingBox;g.translate(-(b.max.x+b.min.x)/2,-(b.max.y+b.min.y)/2,-depth/2);return mesh(g,c);},
   // тонкая тёмная обводка у каждой детали (как у мультяшных иконок)
-  outlineAll(root,w=.05){
+  outlineAll(root,w=.12){
     const om=new T.ShaderMaterial({side:T.BackSide,uniforms:{w:{value:w}},
       vertexShader:'uniform float w;void main(){vec4 p=modelViewMatrix*vec4(position,1.);vec3 n=normalize(normalMatrix*normal);p.xyz+=n*w;gl_Position=projectionMatrix*p;}',
       fragmentShader:'void main(){gl_FragColor=vec4(.043,.063,.133,1.);}'});
@@ -40,38 +40,54 @@ export const kit={
 const k=kit;
 
 // ── детали, которые повторяются ──
-const person=(c=C.blue,skin=C.skin)=>k.group(
-  at(k.ball(.42,skin),0,.55,0),
-  (()=>{const b=k.ball(.62,c);b.scale.set(1,.7,.75);return at(b,0,-.25,0);})(),
+const egg=(r,sx,sy,sz,c)=>{const b=k.ball(r,c);b.scale.set(sx,sy,sz);return b;};
+// игрок: голова с причёской, плечи в футболке с воротником
+const person=(c=C.blue,hair=C.navy)=>k.group(
+  at(egg(.62,1,.62,.78,c),0,-.42,0),                       // плечи
+  at(k.box(.36,.14,.2,.06,C.wht),0,-.06,.36),              // воротник
+  at(k.ball(.4,C.skin),0,.42,0),                           // голова
+  at(egg(.42,1.04,.55,1.0,hair),0,.66,-.1),               // волосы
+  at(k.ball(.06,C.navy),-.14,.42,.37),at(k.ball(.06,C.navy),.14,.42,.37), // глаза
 );
-const coin=(r,ch,c=C.gold)=>k.group(at(k.cyl(r,r,.18,c),0,0,0,Math.PI/2),at(k.cyl(r*.78,r*.78,.2,C.org),0,0,.0,Math.PI/2),at(k.text(ch,r*1.05,.12,C.wht),0,0,.12));
-const X=(s,c)=>{const a=k.box(s,s*.28,s*.28,s*.12,c),b=k.box(s,s*.28,s*.28,s*.12,c);a.rotation.z=Math.PI/4;b.rotation.z=-Math.PI/4;return k.group(a,b);};
+const coin=(r,ch,c=C.gold)=>k.group(
+  at(k.cyl(r,r,.22,c),0,0,0,Math.PI/2),
+  at(k.cyl(r*.76,r*.76,.24,C.org),0,0,0,Math.PI/2),
+  at(k.text(ch,r*1.0,.12,C.wht),0,0,.15));
+const X=(s,c)=>{const a=k.box(s,s*.3,s*.3,s*.15,c),b=k.box(s,s*.3,s*.3,s*.15,c);a.rotation.z=Math.PI/4;b.rotation.z=-Math.PI/4;return k.group(a,b);};
+const arrow=(R,arc,c)=>{const g=k.group(k.torus(R,.12,c,arc));const t=k.cone(.24,.36,c);
+  t.position.set(R*Math.cos(arc),R*Math.sin(arc),0);t.rotation.z=arc;g.add(t);return g;};
+const jersey=(c,num,trim=C.wht)=>{const body=k.shape([[-.55,.6],[-.2,.72],[0,.58],[.2,.72],[.55,.6],[.9,.22],[.62,0],[.45,.16],[.45,-.72],[-.45,-.72],[-.45,.16],[-.62,0],[-.9,.22]],.22,c);
+  return k.group(body,
+    at(k.torus(.2,.05,trim,Math.PI),0,.72,.14,0,0,Math.PI),
+    at(k.box(.36,.08,.06,.03,trim),-.72,.1,.12,0,0,-.85),at(k.box(.36,.08,.06,.03,trim),.72,.1,.12,0,0,.85),
+    num?at(k.text(num,.4,.1,trim),0,-.15,.17):null);};
 
 export const MODELS={
-  ttt(){const g=k.group(at(k.box(2.2,2.2,.3,.22,C.pur),0,0,-.1));
+  ttt(){const g=k.group(at(k.box(2.3,2.3,.34,.26,C.pur),0,0,-.12),at(k.box(2.06,2.06,.1,.16,'#6c2fd1'),0,0,.06));
     const lay=[['x','o','x'],[' ','x','o'],['o',' ','x']];
-    lay.forEach((r,i)=>r.forEach((v,j)=>{const x=(j-1)*.68,y=(1-i)*.68;g.add(at(k.box(.6,.6,.16,.1,'#c9b8ff'),x,y,.08));
-      if(v==='x')g.add(at(X(.5,C.red),x,y,.24));if(v==='o')g.add(at(k.torus(.17,.075,C.blue),x,y,.24));}));
-    g.rotation.x=-.25;return g;},
-  guess(){const p=person(C.blue);const c=coin(.42,'?');at(c,.62,.72,.35);return k.group(p,c);},
-  transfer(){
-    const shirt=k.shape([[-.55,.6],[-.2,.72],[0,.6],[.2,.72],[.55,.6],[.85,.25],[.6,.05],[.45,.2],[.45,-.7],[-.45,-.7],[-.45,.2],[-.6,.05],[-.85,.25]],.22,C.red);
-    const num=at(k.text('10',.36,.08,C.wht),0,-.12,.18);
-    const sh=at(k.group(shirt,num),-.55,.25,0);
-    const arc=at(k.torus(.55,.1,C.yel,Math.PI*.8),.35,.25,.3,0,0,Math.PI*.1);
-    const tip=at(k.cone(.2,.32,C.yel),.95,-.05,.3,0,0,Math.PI);
-    const pl=person(C.grn);pl.scale.setScalar(.62);at(pl,.75,-.35,.1);
-    return k.group(sh,arc,tip,pl);},
+    lay.forEach((r,i)=>r.forEach((v,j)=>{const x=(j-1)*.66,y=(1-i)*.66;g.add(at(k.box(.58,.58,.14,.12,'#d9ccff'),x,y,.14));
+      if(v==='x')g.add(at(X(.5,C.red),x,y,.3));if(v==='o')g.add(at(k.torus(.16,.085,C.blue),x,y,.3));}));
+    g.rotation.x=-.3;return g;},
+  guess(){const p=person(C.blue);const c=coin(.44,'?');at(c,.66,.78,.42);return k.group(p,c);},
+  transfer(){const sh=at(jersey(C.red,'10'),-.62,.1,0);sh.scale.setScalar(.85);
+    const ar=at(arrow(.55,Math.PI*.8,C.yel),.25,.55,.3,0,Math.PI,0);
+    const pl=person(C.grn);pl.scale.setScalar(.72);at(pl,.95,-.15,.05);
+    return k.group(sh,ar,pl);},
   'ng-wordle'(){const g=k.group();const L=[['Г',C.grn],['О',C.yel],['Л',C.gry]];
-    L.forEach(([ch,c],i)=>{const x=(i-1)*.78;g.add(at(k.box(.68,.68,.3,.12,c),x,.42,0));g.add(at(k.text(ch,.44,.16,C.wht),x,.42,.2));
-      g.add(at(k.box(.68,.68,.22,.12,C.dk),x,-.4,-.04));});
-    g.rotation.x=-.15;return g;},
-  shop(){const g=k.group(at(k.box(1.8,1.2,1,.1,C.wht),0,-.35,0),at(k.box(.5,.75,.1,.06,C.sky),0,-.58,.5),at(k.box(.45,.35,.08,.05,C.sky),-.55,-.3,.5),at(k.box(.45,.35,.08,.05,C.sky),.55,-.3,.5));
-    for(let i=0;i<6;i++){const x=-.85+i*.34,c=i%2?C.wht:C.red;g.add(at(k.box(.34,.5,.12,.04,c),x,.38,.42,.55,0,0));const s=k.cyl(.17,.17,.12,c,24);g.add(at(s,x,.16,.56,Math.PI/2+.55,0,0));}
-    g.add(at(k.box(2,.24,.5,.08,C.yel),0,.68,0));g.add(at(k.text('$',.3,.08,C.org),0,.68,.27));return g;},
-  chest(){const g=k.group(at(k.box(1.9,.95,1.1,.1,C.brn),0,-.35,0));
-    const lid=k.cyl(.55,.55,1.9,C.brn,40);lid.rotation.z=Math.PI/2;g.add(at(lid,0,.12,0));
-    for(const x of[-.62,.62]){g.add(at(k.box(.24,1,1.18,.05,C.gold),x,-.35,0));const b=k.cyl(.6,.6,.24,C.gold,40);b.rotation.z=Math.PI/2;g.add(at(b,x,.12,0));}
-    g.add(at(k.box(.42,.5,.14,.08,C.gold),0,-.1,.58));g.add(at(k.ball(.08,C.navy),0,-.12,.66));
-    g.rotation.y=-.15;return g;},
+    L.forEach(([ch,c],i)=>{const x=(i-1)*.8;g.add(at(k.box(.7,.7,.32,.14,c),x,.42,0));g.add(at(k.text(ch,.46,.16,C.wht),x,.42,.22));
+      g.add(at(k.box(.7,.7,.2,.14,C.dk),x,-.42,-.05));g.add(at(k.box(.5,.5,.06,.08,'#3a4470'),x,-.42,.06));});
+    g.rotation.x=-.2;return g;},
+  shop(){const g=k.group(
+      at(k.box(1.8,1.15,1,.12,C.wht),0,-.4,0),
+      at(k.box(.52,.8,.12,.08,C.sky),0,-.6,.5),at(k.ball(.05,C.navy),.15,-.6,.58),
+      at(k.box(.46,.36,.1,.06,C.sky),-.58,-.32,.5),at(k.box(.46,.36,.1,.06,C.sky),.58,-.32,.5),
+      at(k.box(1.96,.16,1.1,.06,C.brn),0,-.96,0));
+    for(let i=0;i<6;i++){const x=-.85+i*.34,c=i%2?C.wht:C.red;g.add(at(k.box(.34,.5,.12,.04,c),x,.36,.42,.55,0,0));g.add(at(k.cyl(.17,.17,.12,c,24),x,.15,.56,Math.PI/2+.55,0,0));}
+    g.add(at(k.box(2.04,.34,.6,.12,C.yel),0,.72,0));g.add(at(k.text('SHOP',.22,.08,C.red),0,.72,.32));return g;},
+  chest(){const g=k.group(at(k.box(1.9,.95,1.1,.12,C.brn),0,-.35,0));
+    const lid=k.cyl(.55,.55,1.9,'#c27a35',40);g.add(at(lid,0,.1,0,0,0,Math.PI/2));
+    for(const x of[-.62,.62]){g.add(at(k.box(.26,1,1.18,.06,C.gold),x,-.35,0));g.add(at(k.cyl(.6,.6,.26,C.gold,40),x,.1,0,0,0,Math.PI/2));
+      g.add(at(k.ball(.06,C.org),x,-.65,.6));g.add(at(k.ball(.06,C.org),x,-.1,.6));}
+    g.add(at(k.box(.46,.56,.16,.1,C.gold),0,-.12,.6));g.add(at(k.cyl(.07,.07,.1,C.navy,20),0,-.06,.7,Math.PI/2,0,0));g.add(at(k.box(.06,.14,.08,.02,C.navy),0,-.2,.7));
+    g.rotation.y=-.18;return g;},
 };

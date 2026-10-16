@@ -6,7 +6,7 @@ import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
 import {TTFLoader} from 'three/addons/loaders/TTFLoader.js';
 import {Font} from 'three/addons/loaders/FontLoader.js';
 import {MODELS,kit} from './models.js';
-const S=+new URLSearchParams(location.search).get('size')||256, R=2; // рисуем вдвое крупнее, потом уменьшаем
+const S=+new URLSearchParams(location.search).get('size')||256, R=3; // рисуем втрое крупнее, потом уменьшаем
 const ren=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
 ren.setSize(S*R,S*R);ren.outputColorSpace=THREE.SRGBColorSpace;
 const pm=new THREE.PMREMGenerator(ren);const env=pm.fromScene(new RoomEnvironment(),.04).texture;
@@ -18,14 +18,29 @@ window.draw=(key)=>{
   scene.add(new THREE.HemisphereLight(0xffffff,0x223355,.9));
   const key1=new THREE.DirectionalLight(0xffffff,2.4);key1.position.set(-3,6,5);scene.add(key1);
   const rim=new THREE.DirectionalLight(0xbfe0ff,1.6);rim.position.set(4,2,-4);scene.add(rim);
-  const g=make(kit);kit.outlineAll(g);scene.add(g);
+  const g=make(kit);scene.add(g);
   // вписываем в кадр
   const cam=new THREE.PerspectiveCamera(26,1,.1,100);
   const tilt=g.userData.tilt??0.32;cam.position.set(0,Math.sin(tilt)*10,Math.cos(tilt)*10);cam.lookAt(0,0,0);
   const box=new THREE.Box3().setFromObject(g),c=box.getCenter(new THREE.Vector3());g.position.sub(c);
   const sp=new THREE.Box3().setFromObject(g).getBoundingSphere(new THREE.Sphere());
   cam.position.multiplyScalar(sp.radius*1.02/ (10*Math.sin(THREE.MathUtils.degToRad(13))));cam.lookAt(0,0,0);
-  ren.setClearColor(0,0);ren.render(scene,cam);
+  ren.setClearColor(0,0);
+  // проход «номера деталей»: каждая деталь своим цветом → линии там, где детали встречаются
+  const meshes=[];g.traverse(o=>{if(o.isMesh)meshes.push(o)});const keep=meshes.map(m=>m.material);
+  meshes.forEach((m,i)=>{const id=i+1;m.material=new THREE.MeshBasicMaterial({color:new THREE.Color((id&15)/15,((id>>4)&15)/15,.5+((id*7)%8)/16)});});
+  const ex=scene.environment;scene.environment=null;ren.toneMapping=THREE.NoToneMapping;ren.outputColorSpace=THREE.LinearSRGBColorSpace;
+  ren.render(scene,cam);const W0=S*R,ids=new Uint8ClampedArray(W0*W0*4);
+  {const c2=document.createElement('canvas');c2.width=c2.height=W0;const x2=c2.getContext('2d');x2.drawImage(ren.domElement,0,0);ids.set(x2.getImageData(0,0,W0,W0).data);}
+  meshes.forEach((m,i)=>{m.material.dispose();m.material=keep[i];});scene.environment=ex;ren.outputColorSpace=THREE.SRGBColorSpace;
+  ren.render(scene,cam);
+  const edge=document.createElement('canvas');edge.width=edge.height=W0;const ex2=edge.getContext('2d'),ed=ex2.createImageData(W0,W0);
+  const LW=Math.max(2,Math.round(W0*0.006));
+  const idAt=(x,y)=>{const p=(y*W0+x)*4;return ids[p+3]<128?-1:(ids[p]<<16)|(ids[p+1]<<8)|ids[p+2];};
+  for(let y=LW;y<W0-LW;y++)for(let x=LW;x<W0-LW;x++){const a=idAt(x,y);if(a<0)continue;
+    if(idAt(x+LW,y)!==a&&idAt(x+LW,y)>=0||idAt(x,y+LW)!==a&&idAt(x,y+LW)>=0||idAt(x-LW,y)!==a&&idAt(x-LW,y)>=0||idAt(x,y-LW)!==a&&idAt(x,y-LW)>=0){const p=(y*W0+x)*4;ed.data[p]=11;ed.data[p+1]=16;ed.data[p+2]=34;ed.data[p+3]=255;}}
+  ex2.putImageData(ed,0,0);
+  {const c3=document.createElement('canvas');c3.width=c3.height=W0;const x3=c3.getContext('2d');x3.drawImage(ren.domElement,0,0);x3.filter='blur(.6px)';x3.drawImage(edge,0,0);var shot=c3;}
   // 2D: общая тёмная обводка силуэта + тень, уменьшение
   const src=ren.domElement,W=S*R,cv=document.createElement('canvas');cv.width=cv.height=S;const x=cv.getContext('2d');
   const o=document.createElement('canvas');o.width=o.height=W;const ox=o.getContext('2d');
@@ -36,7 +51,7 @@ window.draw=(key)=>{
   const sc=0.9,off=W*(1-sc)/2;
   x.scale(1/R,1/R);
   x.filter=`blur(${W*0.012}px)`;x.globalAlpha=.55;x.drawImage(sil,off,off+W*0.035,W*sc,W*sc);x.filter='none';x.globalAlpha=1;
-  x.drawImage(o,off,off,W*sc,W*sc);x.drawImage(src,off,off,W*sc,W*sc);
+  x.drawImage(o,off,off,W*sc,W*sc);x.drawImage(shot,off,off,W*sc,W*sc);
   return cv.toDataURL('image/png');
 };
 window.ready=true;
