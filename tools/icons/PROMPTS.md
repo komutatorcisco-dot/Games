@@ -93,3 +93,22 @@ Subject:
 | sbc | player cards turning into a pack |
 | shop | a small shop stall with a red and white striped awning |
 | squad | a green football jersey with number "10" |
+
+## Паки (img/icons/pk-*.webp)
+
+Сначала отправить общий запрос, потом по одному паку. Все 5 делать в одном чате, чтобы стиль совпал.
+
+```
+Create a game asset: a football (soccer) card pack for a mobile game, Brawl Stars / Supercell cartoon style.
+Tall foil booster pack, front view slightly tilted 3/4, crimped top and bottom edges with a hang hole on top,
+thick dark-navy outline, glossy foil with bold diagonal light streaks, soft cel shading, bright saturated colors.
+In the center: a shield-shaped player card with a dark player silhouette, two more cards peeking behind it.
+Square 1024×1024, transparent background, the pack fills 85% of the height, no text, no logos, no ground shadow.
+```
+
+Потом:
+1. `Common pack: silver-white foil with green diagonal stripes, grey card in the center.`
+2. `Rare pack: bright blue foil with light-blue stripes, blue card in the center.`
+3. `Epic pack: purple foil with a big crown pattern behind the card, glowing purple card.`
+4. `Legendary pack: shiny gold foil, small crown above a gold card, sparkles.`
+5. `Jackson pack: black foil with gold diagonal stripes, gold card with laurel wreath and crown, red glow around the edges.`
