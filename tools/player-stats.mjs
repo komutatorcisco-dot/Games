@@ -54,7 +54,7 @@ say(`## Игры за ${DAYS} дней (открытий, доиграно, по
 const g = await q(`SELECT e.game, COALESCE(n.title, e.game) AS title, SUM(CASE WHEN kind = 'open' THEN e.n END) AS opens, SUM(CASE WHEN kind = 'end' THEN e.n END) AS ends,
   SUM(CASE WHEN kind = 'win' THEN e.n END) AS wins, CAST(SUM(CASE WHEN kind = 'end' THEN e.ms END) / MAX(1, SUM(CASE WHEN kind = 'end' THEN e.n END)) / 1000 AS INTEGER) AS sec
   FROM evd e LEFT JOIN names n ON n.game = e.game WHERE e.day >= ?1 GROUP BY e.game ORDER BY opens DESC LIMIT 40`, [since]);
-const gp = await q(`SELECT game, COUNT(DISTINCT id) AS players FROM events WHERE day >= ?1 AND kind = 'open' GROUP BY game`, [since]);
+const gp = await q(`SELECT game, COUNT(DISTINCT id) AS players FROM evu WHERE day >= ?1 GROUP BY game`, [since]); // evu: игрок отмечен в игре раз в день
 const P = Object.fromEntries(gp.map((r) => [r.game, r.players]));
 table(g.map((r) => ({ 'игра': r.title, 'игроков': P[r.game] ?? '', 'открытий': r.opens ?? 0, 'доиграно': `${r.ends ?? 0} (${pct(r.ends || 0, r.opens || 0)})`, 'побед': r.wins ?? 0, 'партия, с': r.sec ?? '' })), ['игра', 'игроков', 'открытий', 'доиграно', 'побед', 'партия, с']);
 
@@ -62,13 +62,17 @@ say('## Во что играют новички в первый день (и к�
 const fd = await q(`WITH f AS (SELECT id, MIN(day) AS d0 FROM visits GROUP BY id HAVING MIN(day) >= ?1),
   b AS (SELECT f.id, EXISTS(SELECT 1 FROM visits v WHERE v.id = f.id AND v.day > f.d0) AS back FROM f)
   SELECT e.game, COALESCE(n.title, e.game) AS title, COUNT(DISTINCT e.id) AS players, COUNT(DISTINCT CASE WHEN b.back THEN e.id END) AS back
-  FROM f JOIN events e ON e.id = f.id AND e.day = f.d0 AND e.kind = 'open' JOIN b ON b.id = f.id LEFT JOIN names n ON n.game = e.game
+  FROM f JOIN evu e ON e.id = f.id AND e.day = f.d0 JOIN b ON b.id = f.id LEFT JOIN names n ON n.game = e.game
   GROUP BY e.game ORDER BY players DESC LIMIT 25`, [since]);
 table(fd.map((r) => ({ 'игра': r.title, 'новичков открыли': r.players, 'из них вернулись': `${r.back} (${pct(r.back, r.players)})` })), ['игра', 'новичков открыли', 'из них вернулись']);
 const [first] = await q(`WITH f AS (SELECT id, MIN(day) AS d0 FROM visits GROUP BY id HAVING MIN(day) >= ?1)
-  SELECT COUNT(*) AS n, SUM(NOT EXISTS(SELECT 1 FROM events e WHERE e.id = f.id AND e.day = f.d0 AND e.kind = 'open')) AS none,
-    SUM((SELECT COUNT(*) FROM events e WHERE e.id = f.id AND e.day = f.d0 AND e.kind = 'end') = 0) AS noend FROM f`, [since]);
-say(`Новичков: ${first.n} · не открыли ни одной игры в первый день: ${first.none} (${pct(first.none, first.n)}) · не доиграли ни одной партии: ${first.noend} (${pct(first.noend, first.n)})`); say();
+  SELECT COUNT(*) AS n, SUM(NOT EXISTS(SELECT 1 FROM evu e WHERE e.id = f.id AND e.day = f.d0)) AS none,
+    SUM((SELECT COUNT(*) FROM evu e WHERE e.id = f.id AND e.day = f.d0) >= 3) AS three FROM f`, [since]);
+say(`Новичков: ${first.n} · не открыли ни одной игры в первый день: ${first.none} (${pct(first.none, first.n)}) · попробовали 3+ разные игры: ${first.three} (${pct(first.three, first.n)})`); say();
+const [fv] = await q(`WITH f AS (SELECT id, MIN(day) AS d0 FROM visits GROUP BY id HAVING MIN(day) >= ?1),
+  x AS (SELECT f.id, (SELECT COUNT(*) FROM evu e WHERE e.id = f.id AND e.day = f.d0) AS g, EXISTS(SELECT 1 FROM visits v WHERE v.id = f.id AND v.day > f.d0) AS back FROM f)
+  SELECT SUM(g = 0) AS n0, SUM(g = 0 AND back) AS b0, SUM(g BETWEEN 1 AND 2) AS n1, SUM(g BETWEEN 1 AND 2 AND back) AS b1, SUM(g >= 3) AS n3, SUM(g >= 3 AND back) AS b3 FROM x`, [since]);
+say(`Вернулись хоть раз: без игр в первый день — ${pct(fv.b0, fv.n0)} из ${fv.n0} · 1–2 игры — ${pct(fv.b1, fv.n1)} из ${fv.n1} · 3+ игры — ${pct(fv.b3, fv.n3)} из ${fv.n3}`); say();
 
 say('## Платформы'); table((await q('SELECT COALESCE(NULLIF(platform, \'\'), \'?\') AS p, COUNT(*) AS n FROM seen GROUP BY p ORDER BY n DESC LIMIT 8')).map((r) => ({ 'платформа': r.p, 'игроков': r.n })), ['платформа', 'игроков']);
 
