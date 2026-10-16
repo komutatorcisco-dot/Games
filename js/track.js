@@ -49,7 +49,9 @@ const Track = (() => {
     push({ game, kind: 'open', title: String(title || '').trim().slice(0, 40) });
   }
   // партия закончилась (вызывается из общего экрана итога)
-  function end(win) {
+  // game — для режимов со своим экраном итога (драфт, дуэль, состав, ИПК): засчитать именно эту игру
+  function end(win, game) {
+    if (game && (!cur || cur.game !== game)) { push({ game, kind: 'end', ms: 0 }); if (win) push({ game, kind: 'win', ms: 0 }); Track.games = (Track.games || 0) + 1; return; }
     if (!cur) return;
     const ms = Date.now() - cur.t;
     // «Ещё раз» без выхода в меню — новая партия: считаем и её открытие, иначе доигранных выйдет больше 100%
