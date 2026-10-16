@@ -93,6 +93,7 @@ export const MODELS={
       at(k.box(1.96,.16,1.1,.06,C.brn),0,-.96,0));
     for(let i=0;i<6;i++){const x=-.85+i*.34,c=i%2?C.wht:C.red;g.add(at(k.box(.34,.5,.12,.04,c),x,.36,.42,.55,0,0));g.add(at(k.cyl(.17,.17,.12,c,24),x,.15,.56,Math.PI/2+.55,0,0));}
     g.add(at(k.box(2.04,.34,.6,.12,C.yel),0,.72,0));g.add(at(k.text('SHOP',.22,.08,C.red),0,.72,.32));return g;},
+  squad(){const j=jersey(C.grn,'10');j.rotation.x=-.12;return j;},
   chest(){const g=k.group(at(k.box(1.9,.95,1.1,.12,C.brn),0,-.35,0));
     const lid=k.cyl(.55,.55,1.9,'#c27a35',40);g.add(at(lid,0,.1,0,0,0,Math.PI/2));
     for(const x of[-.62,.62]){g.add(at(k.box(.26,1,1.18,.06,C.gold),x,-.35,0));g.add(at(k.cyl(.6,.6,.26,C.gold,40),x,.1,0,0,0,Math.PI/2));
