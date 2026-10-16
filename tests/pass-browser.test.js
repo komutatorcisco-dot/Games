@@ -8,7 +8,7 @@ const SHOTS=process.env.PASS_SHOTS||'';
   try {
     const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
-    await page.addInitScript(()=>!localStorage.getItem('oldjacksons.hub.v1') && localStorage.setItem('oldjacksons.hub.v1',JSON.stringify({coins:500,user:{nick:'QA',emoji:'⚽'},ui:{coach:1},rw:{trophies:11000}})));
+    await page.addInitScript(()=>!localStorage.getItem('oldjacksons.hub.v1') && localStorage.setItem('oldjacksons.hub.v1',JSON.stringify({coins:500,user:{nick:'QA',emoji:'⚽'},ui:{coach:1,tut:99},rw:{trophies:11000}})));
     await page.route('**/*',async route=>{
       const url=new URL(route.request().url());
       if(url.hostname!=='jackson.test')return route.abort();

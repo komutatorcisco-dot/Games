@@ -237,10 +237,13 @@ const Guess = (() => {
     G.level = lvl + 1;
     Store.save();
     reward = Econ.play(reward);
+    // первый матч обучения: после него — обратно на главную, тренер покажет дальше
+    const tut = typeof Coach !== 'undefined' && Coach.inMatch();
+    if (tut) Coach.matchDone();
     later(() => Modal.open(
       resultHtml({ act: 'guess-career', ico: 'guess', win: won, title: won ? 'Угадал!' : 'Не угадал', text: won ? `С ${tries}-й попытки` : 'Это был:',
         extra: playerCard() + quoteHtml(won ? 'win' : 'lose'), reward }),
-      [
+      tut ? [{ label: 'Дальше →', onClick: () => App.home() }] : [
         { label: 'Следующий игрок →', onClick: startCareer },
         { label: 'В меню', cls: 'ghost', onClick: () => App.home() },
       ],

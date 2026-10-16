@@ -282,6 +282,7 @@ const App = (() => {
   function maybeSub() {
     const cur = Release.current(), ui = Store.d.ui || (Store.d.ui = {}), wk = Release.weekKey();
     if (!cur || ui.subWeek === wk || Modal.isOpen || !Store.d.user.nick) return;
+    if (typeof Coach !== 'undefined' && Coach.active()) return; // во время обучения — позже
     ui.subWeek = wk; Store.save();
     Sound.play('whistle'); haptic('ok');
     const t = $$('#hub :is(.tile-card, .game-card, .auction-hero)').find((el) => cur.keys.includes(keyOf(el)));

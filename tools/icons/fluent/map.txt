@@ -69,3 +69,5 @@ u road Motorway
 u sbc Hammer and wrench
 u shop Shopping cart
 u squad T-shirt
+u coach Man raising hand
+u finger Backhand index pointing up

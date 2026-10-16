@@ -183,6 +183,7 @@ const Home = (() => {
   let showing = false;
   function checkUnlocks() {
     if (showing || Screens.current !== 'hub' || Modal.isOpen || $('.po') || $('.h2-un')) return;
+    if (typeof Coach !== 'undefined' && Coach.active()) return; // во время обучения праздники открытий ждут
     const ui = UI(), t = Release.trophies();
     if (typeof ui.unl !== 'number') { ui.unl = t; Store.save(); return; } // старые игроки: без лавины праздников
     const fresh = Release.UNLOCKS.filter((u) => u[0] > ui.unl && u[0] <= t);

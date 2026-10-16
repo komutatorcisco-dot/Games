@@ -15,7 +15,7 @@ const tgMock=(real)=>{
 (async()=>{
   const browser=await chromium.launch(process.env.PW_CHROMIUM?{executablePath:process.env.PW_CHROMIUM}:{channel:'chrome',headless:true});
   try {
-    const realSave=JSON.stringify({coins:777,user:{nick:'Owner',emoji:'⚽'},ui:{coach:1},rw:{trophies:5000},ts:1});
+    const realSave=JSON.stringify({coins:777,user:{nick:'Owner',emoji:'⚽'},ui:{coach:1,tut:99},rw:{trophies:5000},ts:1});
     const real={s0:realSave,sn:'1',st:'1'};
     const run=async(query)=>{
       const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});

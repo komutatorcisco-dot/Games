@@ -6,7 +6,7 @@ const {chromium}=require('playwright');
   try {
     const page=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});
     const errors=[];page.on('pageerror',e=>errors.push(e.message));
-    await page.addInitScript(()=>localStorage.setItem('oldjacksons.hub.v1',JSON.stringify({user:{nick:'QA',emoji:'⚽'},ui:{coach:1},rw:{trophies:11000}})));
+    await page.addInitScript(()=>localStorage.setItem('oldjacksons.hub.v1',JSON.stringify({user:{nick:'QA',emoji:'⚽'},ui:{coach:1,tut:99},rw:{trophies:11000}})));
     await page.route('**/*',async route=>{
       const url=new URL(route.request().url());
       if(url.pathname==='/presence') return route.fulfill({contentType:'application/json',body:JSON.stringify({ok:true,total:2,modes:{duel:1,xdraft:1,trumps:0}})});
