@@ -515,6 +515,7 @@ const SBC = (() => {
     if (!Cards.use(keys)) return;
     cur.submitted = true;
     S().done[ch.id] = doneN(ch.id) + 1; Store.save();
+    if (typeof Track !== 'undefined') Track.end(true, 'act:sbc'); // статистика: испытание ИПК сдано
     const groupRes = claimGroup(ch.parent);
     // Выдаём до анимации: закрытие приложения не должно терять награду.
     const rewardCards = ch.reward.pack !== undefined ? Cards.packCards(ch.reward.pack) : ch.reward.card ? [ch.reward.card] : [];

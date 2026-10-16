@@ -38,7 +38,7 @@ const Squad = (() => {
   const CTX = {
     screen: 'squad', body: '#sq-body', st: S, form: () => S().form, sys: () => (S().sys === 'classic' ? 'classic' : 'new'), xi,
     back: () => { S().match = null; Store.save(); render(); }, title: () => `Мой состав ${S().form}`, link: 'squad',
-    onEnd: (w) => { if (typeof Rewards !== 'undefined') Rewards.onEnd(w === 'win', 'squad'); },
+    onEnd: (w) => { if (typeof Rewards !== 'undefined') Rewards.onEnd(w === 'win', 'squad'); if (typeof Track !== 'undefined') Track.end(w === 'win', 'act:squad'); },
   };
 
   // ---------- экран ----------

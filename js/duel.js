@@ -155,6 +155,7 @@ const Duel = (() => {
     // вызов по ссылке — как обычная партия: счёт соперника лежит в самой ссылке, и подделать его легко.
     if (entry.mode === 'hot' || !['win', 'lose', 'draw'].includes(entry.res)) return;
     safe('rewards', () => Rewards.onEnd(entry.mode === 'live' && entry.res === 'win', 'ng:duel'));
+    safe('track', () => Track.end(entry.res === 'win', 'ng:duel'));
   }
 
   // онлайн идёт через наш сервер (js/relay.js) — нужен только вход через Telegram
