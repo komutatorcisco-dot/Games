@@ -1,0 +1,71 @@
+g auction Hammer
+g career Chart increasing
+g career-duel Chart increasing|duel
+g club Shield
+g fc Identification card
+g flood Artist palette
+g g2048 Input numbers
+g guess Detective
+g guess-duel Detective|duel
+g hl Up-down arrow
+g memory Brain
+g nation Globe showing europe-africa
+g ng-bingo Check box with check
+g ng-box2box Stadium
+g ng-connect Link
+g ng-context Thermometer
+g ng-darts Bullseye
+g ng-draft Pencil
+g ng-duel Vs button
+g ng-false9 Keycap 9
+g ng-lineup Goal net
+g ng-linkup Chains
+g ng-numhist Keycap 10
+g ng-rank Bar chart
+g ng-replay Clapper board
+g ng-score Soccer ball
+g ng-timemachine Hourglass not done
+g ng-top10 Crown
+g ng-treble Trophy
+g ng-trumps Joker
+g ng-vs100 Hundred points
+g ng-whoami Disguised face
+g ng-wordle Input latin uppercase
+g pass Ticket
+g pick Balance scale
+g pick-duo Balance scale|duel
+g pipes Running shoe
+g popit Bubbles
+g sbc Hammer and wrench
+g slide Puzzle piece
+g sort Test tube
+g transfer Handshake
+g ttt Joystick
+g ttt-duo Joystick|duel
+g value Gem stone
+g words Open book
+u chat Speech balloon
+u chest Wrapped gift
+u coin Coin
+u coinpile Money bag
+u coins Money with wings
+u cup1 1st place medal
+u cup2 2nd place medal
+u cup3 3rd place medal
+u daily Tear-off calendar
+u gallery Framed picture
+u league Rosette
+u leagues Triangular flag
+u members Busts in silhouette
+u online High voltage
+u pass Ticket
+u qcards Card index
+u qlist Clipboard
+u qpack Package
+u qplay Play button
+u quests Scroll
+u qwin Sports medal
+u road Motorway
+u sbc Hammer and wrench
+u shop Shopping cart
+u squad T-shirt
