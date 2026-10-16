@@ -7,7 +7,16 @@ let T,FONT;
 export const C={yel:'#ffc21a',org:'#ff8a1a',red:'#ff3b3b',blue:'#2f8cff',sky:'#5cc8ff',grn:'#3fd14a',pur:'#9b4dff',
   wht:'#f4f1ea',gry:'#8a93a6',dk:'#2a3150',navy:'#1b2440',brn:'#a8642a',skin:'#ffcf9e',gold:'#ffcc33'};
 const mats={};
-const mat=(c,o={})=>{const k=c+JSON.stringify(o);return mats[k]||(mats[k]=new T.MeshPhysicalMaterial({color:c,roughness:.45,metalness:0,clearcoat:.6,clearcoatRoughness:.2,envMapIntensity:.35,...o}));};
+// мультяшный свет: тень тремя чёткими полосами + белый блик пятном
+let ramp;
+const mat=(c,o={})=>{const k=c+JSON.stringify(o);if(mats[k])return mats[k];
+  if(!ramp){ramp=new T.DataTexture(new Uint8Array([90,90,90,255, 165,165,165,255, 225,225,225,255, 255,255,255,255]),4,1);ramp.minFilter=ramp.magFilter=T.NearestFilter;ramp.needsUpdate=true;}
+  const m=new T.MeshToonMaterial({color:c,gradientMap:ramp,...o});
+  m.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <dithering_fragment>',`#include <dithering_fragment>
+    vec3 Ld=normalize((viewMatrix*vec4(-0.45,0.75,0.55,0.)).xyz);vec3 H=normalize(Ld+vec3(0.,0.,1.));
+    float sp=pow(max(dot(normalize(vNormal),H),0.),60.);gl_FragColor.rgb=mix(gl_FragColor.rgb,vec3(1.),step(.5,sp)*.85);
+    float rim=1.-max(dot(normalize(vNormal),vec3(0.,0.,1.)),0.);gl_FragColor.rgb+=vec3(.12)*step(.72,rim)*step(0.,-normalize(vNormal).y+.3);`);};
+  return mats[k]=m;};
 const mesh=(geo,c,o)=>new T.Mesh(geo,typeof c==='string'?mat(c,o):c);
 const at=(m,x=0,y=0,z=0,rx,ry,rz)=>{m.position.set(x,y,z);if(rx!==undefined)m.rotation.set(rx,ry||0,rz||0);return m;};
 export const kit={

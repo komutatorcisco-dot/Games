@@ -15,9 +15,9 @@ kit.init(THREE,font);
 window.draw=(key)=>{
   const make=MODELS[key];if(!make)return null;
   const scene=new THREE.Scene();scene.environment=env;
-  scene.add(new THREE.HemisphereLight(0xffffff,0x223355,.9));
-  const key1=new THREE.DirectionalLight(0xffffff,2.4);key1.position.set(-3,6,5);scene.add(key1);
-  const rim=new THREE.DirectionalLight(0xbfe0ff,1.6);rim.position.set(4,2,-4);scene.add(rim);
+  scene.add(new THREE.HemisphereLight(0xffffff,0x8899cc,.75));
+  const key1=new THREE.DirectionalLight(0xffffff,2.0);key1.position.set(-3,5,4);scene.add(key1);
+  const rim=new THREE.DirectionalLight(0xbfe0ff,0.0);rim.position.set(4,2,-4);scene.add(rim);
   const g=make(kit);scene.add(g);
   // вписываем в кадр
   const cam=new THREE.PerspectiveCamera(26,1,.1,100);
@@ -35,7 +35,7 @@ window.draw=(key)=>{
   meshes.forEach((m,i)=>{m.material.dispose();m.material=keep[i];});scene.environment=ex;ren.outputColorSpace=THREE.SRGBColorSpace;
   ren.render(scene,cam);
   const edge=document.createElement('canvas');edge.width=edge.height=W0;const ex2=edge.getContext('2d'),ed=ex2.createImageData(W0,W0);
-  const LW=Math.max(2,Math.round(W0*0.006));
+  const LW=Math.max(2,Math.round(W0*0.008));
   const idAt=(x,y)=>{const p=(y*W0+x)*4;return ids[p+3]<128?-1:(ids[p]<<16)|(ids[p+1]<<8)|ids[p+2];};
   for(let y=LW;y<W0-LW;y++)for(let x=LW;x<W0-LW;x++){const a=idAt(x,y);if(a<0)continue;
     if(idAt(x+LW,y)!==a&&idAt(x+LW,y)>=0||idAt(x,y+LW)!==a&&idAt(x,y+LW)>=0||idAt(x-LW,y)!==a&&idAt(x-LW,y)>=0||idAt(x,y-LW)!==a&&idAt(x,y-LW)>=0){const p=(y*W0+x)*4;ed.data[p]=11;ed.data[p+1]=16;ed.data[p+2]=34;ed.data[p+3]=255;}}
@@ -46,7 +46,7 @@ window.draw=(key)=>{
   const o=document.createElement('canvas');o.width=o.height=W;const ox=o.getContext('2d');
   const sil=document.createElement('canvas');sil.width=sil.height=W;const sx=sil.getContext('2d');
   sx.drawImage(src,0,0);sx.globalCompositeOperation='source-in';sx.fillStyle='#0b1022';sx.fillRect(0,0,W,W);
-  const t=W*0.024;for(let a=0;a<24;a++){const r=a/24*Math.PI*2;ox.drawImage(sil,Math.cos(r)*t,Math.sin(r)*t+t*.6);}
+  const t=W*0.03;for(let a=0;a<24;a++){const r=a/24*Math.PI*2;ox.drawImage(sil,Math.cos(r)*t,Math.sin(r)*t+t*.6);}
   ox.drawImage(sil,0,t*1.6);
   const sc=0.9,off=W*(1-sc)/2;
   x.scale(1/R,1/R);
