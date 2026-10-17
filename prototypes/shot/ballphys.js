@@ -105,7 +105,7 @@ export function newBall(p = vec(0, CFG.R, 0)) {
 }
 export function resetBall(b, p) {
   set(b.p, p.x, p.y, p.z); set(b.v, 0, 0, 0); set(b.w, 0, 0, 0);
-  Object.assign(b, { state: 'free', owner: null, lockOwner: null, lockUntil: 0, mustClear: false, push: 0, touchCd: 0, trapT: 1, trapDur: 0, inGoal: false, goal: false, stopped: false });
+  Object.assign(b, { state: 'free', owner: null, lockOwner: null, lockUntil: 0, mustClear: false, push: 0, touchCd: 0, trapT: 1, trapDur: 0, inGoal: false, goal: false, stopped: false, strikeAt: null });
 }
 
 // ---------- полёт ----------
@@ -295,6 +295,8 @@ const fwd = (P) => vec(Math.sin(P.yaw), 0, Math.cos(P.yaw));
 // точка контроля: перед стопой ведущей (правой) ноги по направлению ведения
 export function controlPoint(P, b, out = vec()) {
   const C = CFG.control, f = fwd(P), sp = Math.hypot(P.v.x, P.v.z);
+  // во время замаха мяч ведётся туда, где окажется ударная стопа в момент касания (b.strikeAt — из анимации удара)
+  if (b && b.strikeAt) { const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw); return set(out, P.p.x + f.x * b.strikeAt.f + rx * b.strikeAt.s, CFG.R, P.p.z + f.z * b.strikeAt.f + rz * b.strikeAt.s); }
   const reach = C.reach + C.reachPerSpeed * sp + (b ? b.push : 0);
   // правая сторона: при взгляде вдоль +z правая рука — это −x, т. е. вектор (−cos yaw, 0, sin yaw)
   const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw);
@@ -375,7 +377,7 @@ export function controlStep(b, P, h, obstacles) {
 // отпустить мяч (удар, потеря); lock — сколько секунд бывший владелец не может его снова взять
 export function release(b, who, t, lock = CFG.control.regrab, mustClear = true) {
   b.lockOwner = who ?? b.owner; b.lockUntil = t + lock; b.mustClear = mustClear;
-  b.state = 'free'; b.owner = null; b.push = 0; b.stopped = false; b.trapT = 1;
+  b.state = 'free'; b.owner = null; b.push = 0; b.stopped = false; b.trapT = 1; b.strikeAt = null;
 }
 
 // ---------- удар ----------

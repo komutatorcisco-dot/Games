@@ -10,7 +10,8 @@ import { GLTFLoader } from '../balotelli/vendor/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from '../balotelli/vendor/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from '../balotelli/vendor/utils/SkeletonUtils.js';
 import * as sfx from './sfx.js';
-import * as BP from './ballphys.js'; // физика мяча, ведение, удар — единый конфиг BP.CFG
+import * as BP from './ballphys.js';
+import * as GFX from './gfx.js'; // профили качества и внешний вид сцены (свет, газон, материалы) // физика мяча, ведение, удар — единый конфиг BP.CFG
 
 const Q = new URLSearchParams(location.search);
 const ST = Math.max(40, Math.min(99, Number(Q.get('st')) || 82));
@@ -27,17 +28,19 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const AY = new THREE.Vector3(0, 1, 0);
 
 // ---------- рендер ----------
-// на экранах с плотными пикселями сглаживание почти не видно, а стоит дорого — выключаем
-// мерцание («рябь») на телефоне было от выключенного сглаживания и низкого разрешения — возвращаем оба
+// качество: low / medium / high (gfx.js); «Авто» — по замеру кадров. Сглаживание (MSAA) включено всегда — без него газон и сетка рябят.
+let QCHOICE = GFX.savedChoice(); if (LOW && QCHOICE === 'auto') QCHOICE = 'low';
+let QL = QCHOICE === 'auto' ? GFX.autoStart() : QCHOICE, PQ = GFX.PROFILES[QL];
+const LOOK = GFX.LOOK;
 const ren = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-ren.setPixelRatio(Math.min(LOW ? 1 : 1.5, devicePixelRatio)); ren.setSize(innerWidth, innerHeight);
-ren.outputColorSpace = THREE.SRGBColorSpace; ren.toneMapping = THREE.ACESFilmicToneMapping; ren.toneMappingExposure = 1.15;
-ren.shadowMap.enabled = false; // вместо карты теней — мягкие пятна под игроками и мячом (вдвое меньше работы видеокарте)
+ren.setPixelRatio(Math.min(PQ.pixelRatio, devicePixelRatio)); ren.setSize(innerWidth, innerHeight);
+ren.outputColorSpace = THREE.SRGBColorSpace; ren.toneMapping = THREE.NeutralToneMapping; ren.toneMappingExposure = LOOK.exposure;
+ren.shadowMap.enabled = PQ.shadows; ren.shadowMap.type = THREE.PCFShadowMap; // PCF учитывает radius — мягкий край без размытия всей тени
 document.body.prepend(ren.domElement);
 const scene = new THREE.Scene();
-scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#bcd3ea', 90, 220);
+scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#c3d4e6', 95, 230);
 // горизонтальный экран: угол обзора поуже, чтобы ворота не казались далёкими
-const fov = () => (innerWidth > innerHeight ? { pen: 33, fk: 37, run: 42 }[MODE] : 48);
+const fov = () => (innerWidth > innerHeight ? { pen: 33, fk: 37, run: 44 }[MODE] : 48);
 const cam = new THREE.PerspectiveCamera(fov(), innerWidth / innerHeight, 0.1, 400);
 addEventListener('resize', () => { ren.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.fov = fov(); cam.updateProjectionMatrix(); fitSwipe(); });
 // в Telegram (мини-приложение) — на весь экран и горизонтально
@@ -48,12 +51,33 @@ document.getElementById('rotBtn').addEventListener('click', async () => {
   try { await document.documentElement.requestFullscreen(); await screen.orientation.lock('landscape'); } catch (e) { /* не везде можно */ }
 });
 
-// свет: днём — солнце и небо (освещение берём из самой картинки неба), ночью — прожекторы
-scene.add(new THREE.HemisphereLight(NIGHT ? '#b9c8ff' : '#cfe4ff', NIGHT ? '#2d5a24' : '#3d6b2c', NIGHT ? 0.9 : 0.7));
-const key = new THREE.DirectionalLight(NIGHT ? '#fff6e6' : '#fff2dc', NIGHT ? 2.6 : 3.0); key.position.set(-18, 30, 22);
-key.target.position.set(0, 0, 10); scene.add(key, key.target);
-const fill = new THREE.DirectionalLight('#cfe0ff', NIGHT ? 0.9 : 0.6); fill.position.set(20, 18, 30); scene.add(fill);
-const rim = new THREE.DirectionalLight('#ffffff', 0.7); rim.position.set(0, 14, -30); scene.add(rim);
+// ---------- свет ----------
+// Днём: одно солнце с тенью (направление совпадает с солнцем на картинке неба) + рассеянный свет и отражения от самого неба
+// (scene.environment). Лишних «заполняющих» ламп нет — они делали картинку плоской. Ночью — прожекторы, как было.
+const SUN = (() => { const e = THREE.MathUtils.degToRad(LOOK.sun.elevation), a = THREE.MathUtils.degToRad(LOOK.sun.azimuth);
+  return new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)).normalize(); })(); // направление НА солнце
+const key = new THREE.DirectionalLight(NIGHT ? '#fff6e6' : LOOK.sun.color, NIGHT ? 2.6 : LOOK.sun.intensity);
+key.position.copy(SUN).multiplyScalar(70); key.target.position.set(0, 0, 10); scene.add(key, key.target);
+{ const sh = key.shadow; sh.bias = LOOK.shadow.bias; sh.normalBias = LOOK.shadow.normalBias; sh.radius = LOOK.shadow.radius;
+  sh.camera.near = 20; sh.camera.far = 130; sh.mapSize.set(PQ.shadowMap || 1024, PQ.shadowMap || 1024); key.castShadow = PQ.shadows; }
+if (NIGHT) {
+  scene.add(new THREE.HemisphereLight('#b9c8ff', '#2d5a24', 0.9));
+  const fill = new THREE.DirectionalLight('#cfe0ff', 0.9); fill.position.set(20, 18, 30); scene.add(fill);
+} else scene.add(new THREE.HemisphereLight('#dfe9f5', '#46642f', 0.18)); // чуть отражённого от травы снизу
+// область карты теней — только активная игровая зона (чем меньше область, тем чётче тени); центр «прилипает» к сетке
+// текселей карты, чтобы края теней не дрожали, когда область едет за игроком
+const shadowFit = { size: 0, c: new THREE.Vector3() };
+const SH_R = new THREE.Vector3(), SH_U = new THREE.Vector3();
+SH_R.crossVectors(AY, SUN).normalize(); SH_U.crossVectors(SUN, SH_R).normalize();
+function fitShadow(cx, cz, radius) {
+  if (!key.castShadow) return;
+  const L = LOOK.shadow, size = Math.max(L.min, Math.min(L.max, radius * 2 + L.pad * 2)), sc = key.shadow.camera;
+  if (Math.abs(size - shadowFit.size) > 1) { shadowFit.size = size; sc.left = sc.bottom = -size / 2; sc.right = sc.top = size / 2; sc.updateProjectionMatrix(); }
+  const texel = shadowFit.size / key.shadow.mapSize.x, c = shadowFit.c.set(cx, 0, cz);
+  const r = Math.round(c.dot(SH_R) / texel) * texel, u = Math.round(c.dot(SH_U) / texel) * texel, f = c.dot(SUN);
+  c.copy(SH_R).multiplyScalar(r).addScaledVector(SH_U, u).addScaledVector(SUN, f);
+  key.target.position.copy(c); key.position.copy(c).addScaledVector(SUN, 70);
+}
 
 // ---------- небо ----------
 if (NIGHT) {
@@ -63,45 +87,85 @@ if (NIGHT) {
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   scene.add(new THREE.Mesh(new THREE.SphereGeometry(200, 32, 16), new THREE.MeshBasicMaterial({ map: t, side: THREE.BackSide, fog: false })));
 } else {
-  // дневное небо: ambientCG DaySkyHDRI069B (CC0) — и фон, и мягкий отражённый свет на игроках и газоне
+  // дневное небо: ambientCG DaySkyHDRI069B (CC0) — и фон, и рассеянный свет/отражения. Поворачиваем так, чтобы солнце
+  // на картинке стояло там же, откуда светит наше солнце (иначе тени «не оттуда»)
   new THREE.TextureLoader().load('assets/sky.webp', (t) => {
     t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
-    scene.background = t;
-    const pm = new THREE.PMREMGenerator(ren); scene.environment = pm.fromEquirectangular(t).texture; scene.environmentIntensity = 0.55; pm.dispose();
+    const rot = Math.atan2(-SUN.z, SUN.x) - THREE.MathUtils.degToRad(LOOK.skyAzimuth);
+    scene.background = t; scene.backgroundRotation.set(0, rot, 0); scene.environmentRotation.set(0, rot, 0);
+    const pm = new THREE.PMREMGenerator(ren); scene.environment = pm.fromEquirectangular(t).texture; scene.environmentIntensity = LOOK.env; pm.dispose();
   });
 }
 
 // ---------- газон ----------
+// Газон — одна плоскость под всем стадионом. Полосы стрижки, крупные пятна и мелкая трава считаются в шейдере
+// по мировым координатам (без отдельной плоскости вокруг поля — нет наложения поверхностей и мерцания).
+// Разметка — отдельная маска (холст), краска смешивается с травой, а не лежит чистым белым.
+// Цветовая текстура травы — sRGB, карта нормалей — данные (без перевода цвета). Мипмапы и анизотропия — против ряби.
+function smoothNoise(n = 128, cells = 8, seed = 7) { // плавный бесшовный шум для крупных пятен
+  let s0 = seed; const rnd = () => ((s0 = (s0 * 16807) % 2147483647) / 2147483647);
+  const grid = Array.from({ length: cells * cells }, rnd), c = document.createElement('canvas'); c.width = c.height = n;
+  const g = c.getContext('2d'), img = g.createImageData(n, n), at = (x, y) => grid[((y + cells) % cells) * cells + ((x + cells) % cells)];
+  const sm = (t) => t * t * (3 - 2 * t);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const fx = (x / n) * cells, fy = (y / n) * cells, ix = Math.floor(fx), iy = Math.floor(fy), tx = sm(fx - ix), ty = sm(fy - iy);
+    const v = lerp(lerp(at(ix, iy), at(ix + 1, iy), tx), lerp(at(ix, iy + 1), at(ix + 1, iy + 1), tx), ty), i = (y * n + x) * 4;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v * 255; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
 function pitch() {
-  const X0 = -40, X1 = 40, Z0 = -8, Z1 = 56, S = LOW ? 10 : 14, c = document.createElement('canvas');
+  const P = LOOK.pitch, X0 = -40, X1 = 40, Z0 = -8, Z1 = 56, S = PQ.pitchRes, c = document.createElement('canvas');
   c.width = (X1 - X0) * S; c.height = (Z1 - Z0) * S;
   const g = c.getContext('2d'), px = (x) => (x - X0) * S, pz = (z) => (z - Z0) * S;
-  for (let i = 0; i * 5.5 < Z1 - Z0; i++) { g.fillStyle = i % 2 ? '#2f7d2c' : '#378f33'; g.fillRect(0, i * 5.5 * S, c.width, 5.5 * S); }
-  // травинки: мелкий шум, чтобы газон не был пластиковым
-  const img = g.getImageData(0, 0, c.width, c.height), d = img.data;
-  for (let i = 0; i < d.length; i += 4) { const n = (Math.random() - 0.5) * 18; d[i] += n * 0.5; d[i + 1] += n; d[i + 2] += n * 0.4; }
-  g.putImageData(img, 0, 0);
-  g.strokeStyle = 'rgba(255,255,255,.9)'; g.lineWidth = 0.12 * S;
+  g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height);
+  g.strokeStyle = g.fillStyle = '#fff'; g.lineWidth = 0.12 * S; // линии 12 см, как на настоящем поле
   const rect = (x0, z0, x1, z1) => g.strokeRect(px(x0), pz(z0), px(x1) - px(x0), pz(z1) - pz(z0));
   g.beginPath(); g.moveTo(px(X0), pz(0)); g.lineTo(px(X1), pz(0)); g.stroke();
   rect(-20.16, 0, 20.16, 16.5); rect(-9.16, 0, 9.16, 5.5);
-  g.beginPath(); g.arc(px(0), pz(11), 0.11 * S, 0, 7); g.fillStyle = '#fff'; g.fill(); // точка пенальти — 22 см, как настоящая
+  g.beginPath(); g.arc(px(0), pz(11), 0.11 * S, 0, 7); g.fill(); // точка пенальти — 22 см
   g.beginPath(); g.arc(px(0), pz(11), 9.15 * S, Math.asin(5.5 / 9.15), Math.PI - Math.asin(5.5 / 9.15)); g.stroke();
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = ren.capabilities.getMaxAnisotropy();
-  // настоящая трава (ambientCG Grass001, CC0): мелкий рисунок и рельеф поверх полос стрижки
-  const tl = new THREE.TextureLoader(), rep = new THREE.Vector2((X1 - X0) / 2.2, (Z1 - Z0) / 2.2);
-  const gN = tl.load('assets/grass_n.webp'), gC = tl.load('assets/grass.webp');
-  for (const x of [gN, gC]) { x.wrapS = x.wrapT = THREE.RepeatWrapping; x.repeat.copy(rep); x.anisotropy = 8; }
-  gC.colorSpace = THREE.SRGBColorSpace;
-  const pm = new THREE.MeshStandardMaterial({ map: t, roughness: 0.95, normalMap: gN, normalScale: new THREE.Vector2(0.7, 0.7) });
+  for (const sx of [-1, 1]) { g.beginPath(); g.arc(px(sx * 34), pz(0), 1 * S, sx < 0 ? 0 : Math.PI / 2, sx < 0 ? Math.PI / 2 : Math.PI); g.stroke(); } // угловые дуги
+  g.beginPath(); g.moveTo(px(-34), pz(0)); g.lineTo(px(-34), pz(52.5)); g.moveTo(px(34), pz(0)); g.lineTo(px(34), pz(52.5)); g.stroke(); // боковые линии
+  g.beginPath(); g.moveTo(px(-34), pz(52.5)); g.lineTo(px(34), pz(52.5)); g.stroke(); g.beginPath(); g.arc(px(0), pz(52.5), 9.15 * S, Math.PI, 2 * Math.PI); g.stroke(); // середина поля
+  const lines = new THREE.CanvasTexture(c); lines.anisotropy = ren.capabilities.getMaxAnisotropy(); // маска: данные, без перевода цвета
+  const tl = new THREE.TextureLoader();
+  const gN = tl.load('assets/grass_n.webp'), gC = tl.load('assets/grass.webp'), noise = smoothNoise();
+  for (const x of [gN, gC]) { x.wrapS = x.wrapT = THREE.RepeatWrapping; x.anisotropy = Math.min(PQ.aniso, ren.capabilities.getMaxAnisotropy()); }
+  gC.colorSpace = THREE.SRGBColorSpace; // цвет — sRGB; нормали (gN) — линейные данные
+  const W = 220, rep = W / 2.2; gN.repeat.set(rep, rep);
+  const pm = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: P.roughness, normalMap: gN, normalScale: new THREE.Vector2(P.normal, P.normal) });
+  const col = (h) => new THREE.Color(h); // THREE.Color сам переводит sRGB → линейный
+  const paint = P.paint.match(/[\d.]+/g).map(Number);
   pm.onBeforeCompile = (sh) => {
-    sh.uniforms.grassC = { value: gC };
-    sh.fragmentShader = 'uniform sampler2D grassC;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  float ln = smoothstep(0.45, 0.75, min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b)));\n  diffuseColor.rgb *= mix(texture2D(grassC, vNormalMapUv).rgb * 2.7, vec3(1.0), ln); // разметку (белое) травой не красим');
+    Object.assign(sh.uniforms, { grassC: { value: gC }, noiseT: { value: noise }, lineT: { value: lines },
+      stripeA: { value: col(P.stripeA) }, stripeB: { value: col(P.stripeB) }, paintC: { value: col(`rgb(${paint[0]},${paint[1]},${paint[2]})`) },
+      gp: { value: new THREE.Vector4(P.stripeWidth, P.macro, P.detail, P.paintDetail) }, gp2: { value: new THREE.Vector4(P.detailMean, paint[3], 0, 0) },
+      lineBox: { value: new THREE.Vector4(X0, Z0, X1 - X0, Z1 - Z0) } });
+    sh.vertexShader = 'varying vec3 vW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n  vW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'varying vec3 vW;\nuniform sampler2D grassC, noiseT, lineT;\nuniform vec3 stripeA, stripeB, paintC;\nuniform vec4 gp, gp2, lineBox;\n' +
+      sh.fragmentShader.replace('#include <map_fragment>', `
+  vec2 wp = vW.xz;
+  // полосы стрижки поперёк поля, со сглаженным краем (без «лесенки» вдали)
+  float sx = (wp.y + 8.0) / gp.x, aa = fwidth(sx) * 1.5;
+  float stripe = smoothstep(0.5 - aa, 0.5 + aa, abs(fract(sx * 0.5) * 2.0 - 1.0));
+  vec3 base = mix(stripeA, stripeB, stripe);
+  // крупные мягкие пятна (20–60 м) — убирают повторяемость, а не добавляют шум
+  float m1 = texture2D(noiseT, wp * 0.019).r, m2 = texture2D(noiseT, wp * 0.0071 + 0.37).r;
+  base *= 1.0 + gp.y * ((m1 - 0.5) * 1.3 + (m2 - 0.5) * 0.9);
+  // мелкая трава: две выборки в разном масштабе и повороте — повтор плитки не читается
+  vec3 d1 = texture2D(grassC, wp / 2.2).rgb, d2 = texture2D(grassC, mat2(0.8, -0.6, 0.6, 0.8) * wp / 3.7).rgb;
+  float lum = dot(mix(d1, d2, 0.45), vec3(0.2126, 0.7152, 0.0722)) / gp2.x;
+  // разметка — краска: чуть приглушённый белый, сквозь неё немного видна трава
+  vec2 luv = (wp - lineBox.xy) / lineBox.zw;
+  float inside = step(0.0, luv.x) * step(luv.x, 1.0) * step(0.0, luv.y) * step(luv.y, 1.0);
+  float pnt = texture2D(lineT, vec2(luv.x, 1.0 - luv.y)).r * inside * gp2.y;
+  vec3 c = mix(base, paintC, pnt);
+  c *= mix(1.0, clamp(lum, 0.45, 1.6), gp.z * mix(1.0, gp.w, pnt));
+  diffuseColor.rgb *= c;`);
   };
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(X1 - X0, Z1 - Z0), pm);
-  m.rotation.x = -Math.PI / 2; m.position.set((X0 + X1) / 2, 0, (Z0 + Z1) / 2); m.receiveShadow = true; scene.add(m);
-  const run = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: '#2a6a27', roughness: 1 }));
-  run.rotation.x = -Math.PI / 2; run.position.y = -0.01; scene.add(run);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(W, W), pm);
+  m.rotation.x = -Math.PI / 2; m.position.set(0, 0, 20); m.receiveShadow = true; scene.add(m);
 }
 
 // ---------- ворота и сетка (сетка колышется от мяча) ----------
@@ -158,6 +222,9 @@ async function goalModel() {
   g.traverse((o) => {
     if (!o.isMesh) return;
     const m = o.material;
+    o.castShadow = m.name !== 'rope' || PQ.netShadow; o.receiveShadow = m.name !== 'rope'; if (m.name === 'rope') o.userData.net = true;
+    // штанги — окрашенный металл (краска, не хром); сетка — матовая нить
+    const L = m.name === 'rope' ? LOOK.net : LOOK.posts; m.color.set(L.color); m.roughness = L.rough; m.metalness = 0; if (L.env) m.envMapIntensity = L.env;
     if (m.name === 'rope') m.onBeforeCompile = (sh) => {
       sh.uniforms.uHit = netU.uHit;
       sh.vertexShader = 'uniform vec4 uHit[4];\n' + sh.vertexShader.replace('#include <project_vertex>', `
@@ -255,7 +322,7 @@ function stadium() {
     bg.fillStyle = i % 2 ? '#ffcf3a' : '#1b1340'; bg.font = 'italic 900 40px system-ui'; bg.textAlign = 'center'; bg.fillText(i % 2 ? 'JACKSON' : 'GAMES', i * 256 + 128, 46);
   }
   const bt = new THREE.CanvasTexture(b); bt.colorSpace = THREE.SRGBColorSpace; bt.wrapS = THREE.RepeatWrapping; bt.repeat.x = 6;
-  const led = new THREE.MeshBasicMaterial({ map: bt, toneMapped: false });
+  const led = new THREE.MeshBasicMaterial({ map: bt, color: new THREE.Color().setScalar(LOOK.led.brightness) }); // днём не ярче всего кадра
   const ad = new THREE.Mesh(new THREE.BoxGeometry(84, 0.95, 0.15), led); ad.position.set(0, 0.48, -6.5); scene.add(ad);
   for (const s of [-1, 1]) { const sd = new THREE.Mesh(new THREE.BoxGeometry(60, 0.95, 0.15), led); sd.rotation.y = Math.PI / 2; sd.position.set(s * 38, 0.48, 22); scene.add(sd); }
   crowd.userData.led = bt;
@@ -270,7 +337,7 @@ function ballMesh() {
     for (let k = 0; k < 5; k++) { const a = k * 1.2566 - 1.57; g.lineTo(x + Math.cos(a) * 17, y + Math.sin(a) * 17 * 0.9); } g.fill();
   }
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const m = new THREE.Mesh(new THREE.SphereGeometry(R, 40, 24), new THREE.MeshStandardMaterial({ map: t, roughness: 0.32 }));
+  const m = new THREE.Mesh(new THREE.SphereGeometry(R, 40, 24), new THREE.MeshStandardMaterial({ map: t, roughness: LOOK.ball.white.rough, envMapIntensity: LOOK.ball.env })); // запасной мяч
   m.castShadow = true; return m;
 }
 const ball = ballMesh();
@@ -324,8 +391,14 @@ function blob(target, size) {
   m.rotation.x = -Math.PI / 2; m.renderOrder = 1; scene.add(m); blobs.push({ m, target, size }); return m;
 }
 function blobTick() {
-  for (const b of blobs) { const t = b.bone ? b.bone.getWorldPosition(blobV) : b.target.position; b.m.position.set(t.x, 0.01, t.z); b.m.visible = b.target.visible !== false;
-    const k = Math.max(0.35, 1 - t.y / 2.5); b.m.scale.setScalar(k); b.m.material.opacity = k; }
+  // с настоящими тенями пятна под игроками не нужны (иначе двойное тёмное пятно); под мячом остаётся маленькая мягкая
+  // «контактная» тень — она показывает, где мяч касается газона
+  const contact = !PQ.blobs;
+  for (const b of blobs) {
+    if (b.player && contact) { b.m.visible = false; continue; }
+    const t = b.bone ? b.bone.getWorldPosition(blobV) : b.target.position; b.m.position.set(t.x, 0.01, t.z); b.m.visible = b.target.visible !== false;
+    const k = Math.max(0.35, 1 - t.y / 2.5); b.m.scale.setScalar(k * (contact ? 0.55 : 1)); b.m.material.opacity = k * (contact ? 0.45 : 1);
+  }
 }
 
 // ---------- игроки ----------
@@ -338,6 +411,34 @@ const v3 = new THREE.Vector3();
 let base = null;
 const baseReady = loader.loadAsync('assets/player.glb').then((g) => (base = g));
 const PART = { Ch38_Shirt: 'shirt', Ch38_Shorts: 'shorts', Ch38_Socks: 'socks' };
+// Материалы Ch38. При переводе из Mixamo в glTF карта Glossiness попала в слот «металл/шероховатость»:
+// зелёный канал — глянец (а three.js читает его как шероховатость), синий — «металл» = 1 (× 0,5) — отсюда «мокрый пластик».
+// Исправление: металл = 0, глянец переворачиваем и переводим в шероховатость в своём диапазоне для каждой части (LOOK.mats).
+// Карта Specular однородно-серая (56/255) и ничего не добавляет — её не используем, силу блика задаём сами.
+const MAT_OF = { Ch38_Shirt: 'cloth', Ch38_Shorts: 'cloth', Ch38_Socks: 'cloth', Ch38_Body: 'skin', Ch38_Shoes: 'shoes', Ch38_Hair: 'hair', Ch38_Eyelashes: 'hair' };
+function playerMaterial(o, kit) {
+  const mt = o.material, kind = MAT_OF[o.name] || 'cloth', L = LOOK.mats[kind];
+  mt.metalness = 0; mt.metalnessMap = null;
+  if ('specularIntensity' in mt) { mt.specularIntensityMap = null; mt.specularColorMap = null; mt.specularIntensity = L.spec; mt.specularColor.set(L.specColor || '#ffffff'); }
+  mt.envMapIntensity = L.env;
+  if (kind === 'hair') { // карточки волос: прозрачность «сквозь сглаживание» — без сортировки и мерцания
+    mt.roughness = L.rough; mt.roughnessMap = null; mt.transparent = false; mt.alphaTest = 0.35; mt.alphaToCoverage = true; mt.depthWrite = true;
+  } else {
+    if (mt.normalScale) mt.normalScale.set(L.normal, L.normal);
+    mt.roughness = 1; mt.userData.rough = new THREE.Vector2(L.rough[0], L.rough[1]);
+    mt.onBeforeCompile = (sh) => {
+      sh.uniforms.uRough = { value: mt.userData.rough };
+      sh.fragmentShader = 'uniform vec2 uRough;\n' + sh.fragmentShader.replace('#include <roughnessmap_fragment>', `
+  float roughnessFactor = roughness;
+  #ifdef USE_ROUGHNESSMAP
+    roughnessFactor = mix(uRough.x, uRough.y, 1.0 - texture2D(roughnessMap, vRoughnessMapUv).g); // глянец → шероховатость
+  #endif`);
+    };
+    if (kind === 'cloth' && PQ.sheen && 'sheen' in mt) { mt.sheen = L.sheen; mt.sheenRoughness = 0.75; mt.sheenColor.set('#ffffff'); } // ворс ткани
+  }
+  // форма перекрашивается умножением: складки и швы из текстуры остаются
+  const part = kit && PART[o.name]; if (part && kit[part]) mt.color.set(kit[part]);
+}
 async function player(kit) { // у всех одна и та же полная модель — без упрощения
   await baseReady;
   const src = base;
@@ -345,18 +446,14 @@ async function player(kit) { // у всех одна и та же полная �
   const baseMats = {}; base.scene.traverse((o) => { if (o.isMesh) baseMats[o.name] = o.material; });
   m.traverse((o) => {
     if (!o.isMesh) return;
-    o.frustumCulled = false;
+    o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true;
     o.material = (baseMats[o.name] || o.material).clone(); // свой материал (цвет формы), текстуры общие
-    // матовая ткань и кожа: при переводе модели материал получил «металл» 0,5 и двойной блеск — выглядело мокрым пластиком
-    const mt = o.material; mt.metalness = 0; mt.metalnessMap = null; mt.roughnessMap = null; mt.roughness = o.name === 'Ch38_Hair' ? 0.7 : 0.88;
-    if ('specularIntensity' in mt) { mt.specularIntensity = 0.25; mt.specularIntensityMap = null; mt.specularColorMap = null; mt.specularColor && mt.specularColor.set('#ffffff'); }
-    if (mt.normalScale) mt.normalScale.set(0.8, 0.8);
-    const part = kit && PART[o.name]; if (part && kit[part]) o.material.color.set(kit[part]);
+    playerMaterial(o, kit);
   });
   const holder = new THREE.Group(); holder.add(m); scene.add(holder);
   const bl = blob(holder, 1.3);
   const hips = m.getObjectByName('Hips');
-  blobs.find((x) => x.m === bl).bone = hips; // тень идёт за тазом: записанные движения двигают игрока сами
+  Object.assign(blobs.find((x) => x.m === bl), { bone: hips, player: true }); // тень идёт за тазом: записанные движения двигают игрока сами
   const footL = m.getObjectByName('LeftFoot'), footR = m.getObjectByName('RightFoot');
   const body = ['LeftHand', 'RightHand', 'Spine2', 'Head'].map((n) => m.getObjectByName(n)); // чем вратарь касается мяча
   return { holder, model: m, mixer: new THREE.AnimationMixer(m), hips, hipsRest: hips.position.clone(), body, footL, footR, act: null, t: 0 };
@@ -621,9 +718,29 @@ function variant(name, fx = 1, fz = 1) {
 }
 function play(pl, name, { t = 0, loop = false, fade = 0.25, speed = 1, hold = Infinity, fx = 1, fz = 1, lock = null, lift = 0, follow = false } = {}) {
   const a = pl.mixer.clipAction(variant(name, fx, fz));
-  a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); a.clampWhenFinished = true; a.timeScale = speed; a.time = t;
-  if (pl.act && pl.act !== a && fade > 0) a.crossFadeFrom(pl.act, fade, false); else if (pl.act && pl.act !== a) pl.act.stop();
+  a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); a.clampWhenFinished = true; a.timeScale = speed; a.time = t; a.setEffectiveWeight(1);
+  if (pl.name === 'loco' && pl.loco) { // из смешанного бега: гасим обе записи (и незавершённый прошлый переход)
+    const o = pl.loco; for (const x of [o.idle, o.jog, o.prev]) if (x && x !== a) { if (fade > 0) x.fadeOut(fade); else x.stop(); }
+    o.prev = null; if (fade > 0) a.fadeIn(fade);
+  } else if (pl.act && pl.act !== a && fade > 0) a.crossFadeFrom(pl.act, fade, false); else if (pl.act && pl.act !== a) pl.act.stop();
   a.play(); Object.assign(pl, { act: a, name, hold, lock, lift, t0: t, t, follow });
+}
+// Бег и стойка смешиваются плавно по скорости (а не переключаются): вес бега растёт от 0,3 до 1,9 м/с.
+// Ноги крутятся со скоростью перемещения: в записи jog_forward таз проходит 2,155 м за 0,87 с — это 2,48 м/с.
+const JOG_SPEED = 2.48;
+function loco(pl, sp, dt) {
+  const L = pl.loco || (pl.loco = { idle: pl.mixer.clipAction(variant('idle')), jog: pl.mixer.clipAction(variant('jog')), f: 1, prev: null });
+  if (pl.name !== 'loco') {
+    L.prev = pl.act; L.f = 0;
+    for (const a of [L.idle, L.jog]) { a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.play(); a.setEffectiveWeight(0); }
+    Object.assign(pl, { name: 'loco', act: L.jog, hold: Infinity, lock: null, lift: 0, follow: true });
+  }
+  L.f = Math.min(1, L.f + dt / 0.3);
+  const w = THREE.MathUtils.smoothstep(sp, 0.3, 1.9);
+  L.idle.setEffectiveWeight((1 - w) * L.f); L.jog.setEffectiveWeight(w * L.f);
+  if (L.prev && L.prev !== L.idle && L.prev !== L.jog) { L.prev.setEffectiveWeight(1 - L.f); if (L.f >= 1) { L.prev.stop(); L.prev = null; } }
+  // на рывке шаг в жизни длиннее — частоту ног ограничиваем (лёгкое скольжение лучше «семенящих» ног)
+  L.jog.timeScale = THREE.MathUtils.clamp(sp / JOG_SPEED, 0.75, 2.1);
 }
 // таз в мировых координатах ↔ в координатах скелета (у скелета Mixamo свой поворот и масштаб 0,01)
 function tickPlayer(pl, dt) {
@@ -684,6 +801,13 @@ function wallTick(w, i, dt) { // стенка: стоят, при ударе т�
 // runAnim — каждый кадр: позы, касания ногой, наклоны.
 let STRIKE = null, run = null, crowdT = 0;
 const joy = { x: 0, y: 0, id: null, cx: 0, cy: 0 }, keys = {}, btn = { shot: false, fin: false, sprint: false };
+// камера «1 на 1»: за спиной игрока по линии на ворота, игрок — в нижней трети кадра, ворота видны впереди
+const CAM_RUN = { back: 6.3, height: 2.9, ahead: 8, lookH: 0.9 };
+function runCam(out) {
+  const hp = shooter.holder.position, gx = -hp.x * 0.35, gz = -hp.z, gl = Math.hypot(gx, gz) || 1, dx = gx / gl, dz = gz / gl;
+  out.p.set(hp.x - dx * CAM_RUN.back, CAM_RUN.height, hp.z - dz * CAM_RUN.back);
+  out.l.set(hp.x + dx * CAM_RUN.ahead, CAM_RUN.lookH, hp.z + dz * CAM_RUN.ahead);
+}
 function resetRun() {
   wall.forEach((w) => (w.holder.visible = false));
   const sx = (Math.random() * 2 - 1) * 7, P = BP.newPlayer({ x: sx, z: 30 }, Math.PI);
@@ -694,7 +818,7 @@ function resetRun() {
   play(keeper, 'gk_idle', { loop: true, fade: 0.3, follow: true });
   resetSpheres(keeper); resetSpheres(shooter);
   run = { P, charge: -1, fin: false, kv: new THREE.Vector3(), strike: null, fire: false, shotT: 0, slowT: 0, t0: simT, lastPost: null, wasStopping: false };
-  const hp = shooter.holder.position; camAim.p.set(hp.x * 0.8, 3.4, hp.z + 7.4); camAim.l.set(hp.x * 0.55, 0.9, hp.z - 9);
+  runCam(camAim);
   if (state === 'load') { camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); }
   state = 'play'; celebrate = -1; dots();
   // подсказка — только при первом запуске «1 на 1» на этом телефоне
@@ -739,13 +863,13 @@ function releaseCharge() {
   const pw = chargePw(); run.charge = -1; $('#ring').classList.remove('on');
   if (state !== 'play' || B.state !== 'owned') return;
   // замах начинается сразу; мяч остаётся под контролем до касания ноги, импульс — один раз в момент касания (runPhys)
-  run.strike = { pw, fin: run.fin, aim: input() }; B.state = 'strike';
+  run.strike = { pw, fin: run.fin, aim: input() }; B.state = 'strike'; B.strikeAt = STRIKE.at;
   play(shooter, 'strike', { t: Math.max(0, STRIKE.tc - 0.3), fade: 0.1, speed: 1.25, follow: true });
 }
 function fireStrike() {
   const s = run.strike, P = run.P; run.strike = null;
   const sv = BP.shotVelocity(B, P, s.aim, s.pw, s.fin, goalDef());
-  if (BP.applyShot(B, sv, BP.controlPoint(P, null), 'me', simT)) {
+  if (BP.applyShot(B, sv, BP.controlPoint(P, B), 'me', simT)) {
     B.inGoal = false; B.goal = false; B.netHit = false;
     shot = { tx: 0, ty: 0, speed: sv.speed, curve: s.fin ? 1 : 0 }; run.shotT = simT; run.lastPost = null;
     planKeeper(); kicked(s.pw);
@@ -813,9 +937,7 @@ function runAnim(dt) {
   const lean = Math.max(-0.26, Math.min(0.26, -P.yawRate * sp * 0.035)), pitch = Math.max(-0.08, Math.min(0.14, P.acc * 0.025));
   const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
   const busy = shooter.name === 'strike' && shooter.t < STRIKE.tc + 0.3;
-  const anim = sp > 0.6 ? 'jog' : 'idle';
-  if (!busy && shooter.name !== anim) play(shooter, anim, { loop: true, fade: 0.3, follow: true });
-  if (shooter.name === 'jog') shooter.act.timeScale = Math.max(0.7, sp / 3.6);
+  if (!busy) loco(shooter, sp, dt);
   tickPlayer(shooter, dt);
   if (run.strike && shooter.name === 'strike' && shooter.t >= STRIKE.tc) run.fire = true; // нога дошла до мяча
   // касания при ведении: когда стопа у мяча (по анимации), не реже раза в touchMax
@@ -846,9 +968,12 @@ function afterKick(dt) {
 function prepStrike() { // когда в ударе на ходу нога бьёт по мячу
   const a = shooter.mixer.clipAction(clipOf('strike')); a.reset().play();
   const fp = (n) => { shooter.model.updateMatrixWorld(true); return shooter.model.getObjectByName(n).getWorldPosition(new THREE.Vector3()); };
-  let best = 0, tc = 0.6, prev = {};
-  for (let t = 0; t <= a.getClip().duration - 0.02; t += 1 / 60) { shooter.mixer.setTime(t); for (const n of ['LeftFoot', 'RightFoot']) { const q = fp(n); if (prev[n] && t > 0.2) { const v = q.distanceTo(prev[n]) * 60; if (v > best) { best = v; tc = t; } } prev[n] = q; } }
-  a.stop(); STRIKE = { tc };
+  let best = 0, tc = 0.6, foot = 'RightFoot', prev = {};
+  for (let t = 0; t <= a.getClip().duration - 0.02; t += 1 / 60) { shooter.mixer.setTime(t); for (const n of ['LeftFoot', 'RightFoot']) { const q = fp(n); if (prev[n] && t > 0.2) { const v = q.distanceTo(prev[n]) * 60; if (v > best) { best = v; tc = t; foot = n; } } prev[n] = q; } }
+  // где ударная стопа в момент касания относительно таза: туда мяч подводится во время замаха (визуальный контакт = событие удара)
+  shooter.mixer.setTime(tc); const fpos = fp(foot), hp = shooter.hips.getWorldPosition(new THREE.Vector3()), yaw = shooter.holder.rotation.y;
+  const dx = fpos.x - hp.x, dz = fpos.z - hp.z, f = dx * Math.sin(yaw) + dz * Math.cos(yaw), side = -(dx * Math.cos(yaw) - dz * Math.sin(yaw));
+  a.stop(); STRIKE = { tc, at: { f: Math.max(0.25, Math.min(0.7, f + 0.12)), s: Math.max(-0.25, Math.min(0.25, side)) } };
 }
 
 // ---------- кадр ----------
@@ -886,7 +1011,7 @@ function frame() {
   // сам подстраивается: если кадры долгие, уменьшаем разрешение картинки (один раз)
   if (!autoLow) { autoN++; autoT += raw; if (autoN === 90) { if (autoT / autoN > 0.024) { ren.setPixelRatio(Math.min(1.25, devicePixelRatio)); autoLow = true; } autoN = 0; autoT = 0; } }
   if (fpsEl) { fpsN++; fpsT += raw; fpsWorst = Math.max(fpsWorst, raw); if (fpsT > 1) { fpsEl.textContent = `${Math.round(fpsN / fpsT)} к/с · худший кадр ${Math.round(fpsWorst * 1000)} мс`; fpsN = 0; fpsT = 0; fpsWorst = 0; } }
-  if (crowd) { crowd.userData.U.uTime.value = now; crowd.userData.led.offset.x = (now * 0.04) % 1; }
+  if (crowd) { crowd.userData.U.uTime.value = now; crowd.userData.led.offset.x = (now * LOOK.led.speed) % 1; }
   drawSwipe(raw);
   if (state === 'load') return;
 
@@ -908,9 +1033,9 @@ function frame() {
 
   // камера: перед ударом — за мячом; в полёте — следует за мячом; в 1 на 1 — за спиной игрока, после удара смотрит на мяч
   if (MODE === 'run') {
-    const hp = shooter.holder.position; camAim.p.set(hp.x * 0.8, 3.4, hp.z + 7.4); camAim.l.set(hp.x * 0.55, 0.9, hp.z - 9);
+    runCam(camAim);
     if (run && run.shotT > 0 && B.state !== 'owned') camAim.l.lerp(tmpB.set(ball.position.x, Math.max(0.6, ball.position.y), ball.position.z), Math.min(1, (simT - run.shotT) / 0.6) * 0.45);
-    camNow.p.lerp(camAim.p, 1 - Math.exp(-raw * 5)); camNow.l.lerp(camAim.l, 1 - Math.exp(-raw * 5));
+    camNow.p.lerp(camAim.p, 1 - Math.exp(-raw * 7)); camNow.l.lerp(camAim.l, 1 - Math.exp(-raw * 9)); // быстро — без ощущения задержки
   } else if (kick && (state === 'fly' || state === 'over')) {
     const bp = ball.position, follow = Math.min(1, Math.max(0, (spot.z - Math.max(bp.z, 2)) / spot.z));
     tmpA.set(bp.x * 0.5, 2.1, Math.max(bp.z + 8, 9));
@@ -923,6 +1048,11 @@ function frame() {
   if (shake > 0) { shake = Math.max(0, shake - raw); cam.position.x += (Math.random() - 0.5) * shake * 0.4; cam.position.y += (Math.random() - 0.5) * shake * 0.4; }
   cam.lookAt(camNow.l);
   if (camPunch > 0 || cam.fov !== fov()) { camPunch = Math.max(0, camPunch - raw * 2.5); cam.fov = fov() - 4 * camPunch * camPunch; cam.updateProjectionMatrix(); } // камера чуть вздрагивает от удара
+  // тень солнца — на активную зону: в «1 на 1» от игрока к воротам, в штрафном и пенальти — от мяча до ворот
+  if (MODE === 'run' && run) { const P = run.P.p; fitShadow(P.x * 0.7, P.z * 0.65, Math.max(9, Math.hypot(P.x, P.z) * 0.35 + 4)); }
+  else fitShadow(spot.x * 0.5, spot.z * 0.5 - 0.5, spot.length() * 0.5 + 3);
+  // для сравнения кадров (скриншоты до/после): window.__cam = { p: [x, y, z], l: [x, y, z], fov } — камера стоит ровно там
+  if (window.__cam) { cam.position.fromArray(window.__cam.p); cam.lookAt(tmpA.fromArray(window.__cam.l)); if (window.__cam.fov) { cam.fov = window.__cam.fov; cam.updateProjectionMatrix(); } }
   ren.render(scene, cam);
 }
 
@@ -935,7 +1065,8 @@ function frame() {
   [shooter, keeper] = got; wall.push(...got.slice(2)); blob(ball, 0.45); makeSpheres(keeper, 'gk'); makeSpheres(shooter, 'me');
   // мяч: модель LeMon74 (Sketchfab, CC BY 4.0), облегчена gltfpack до 3,5 тыс. треугольников
   try { const bm = (await loader.loadAsync('assets/ball.glb')).scene, bb = new THREE.Box3().setFromObject(bm), sz = bb.getSize(new THREE.Vector3()).x;
-    bm.scale.setScalar((R * 2) / sz); bm.position.copy(bb.getCenter(new THREE.Vector3()).multiplyScalar(-(R * 2) / sz)); ball.add(bm); ball.material.visible = false; } catch (e) { /* остаётся простой мяч */ }
+    bm.traverse((o) => { if (!o.isMesh) return; o.castShadow = true; // настоящий мяч LeMon74: белые и чёрные панели — без хрома, мягкий блик
+      const L = o.material.color.r > 0.3 ? LOOK.ball.white : LOOK.ball.black; o.material.color.set(L.color); o.material.roughness = L.rough; o.material.metalness = 0; o.material.envMapIntensity = LOOK.ball.env; }); bm.scale.setScalar((R * 2) / sz); bm.position.copy(bb.getCenter(new THREE.Vector3()).multiplyScalar(-(R * 2) / sz)); ball.add(bm); ball.material.visible = false; } catch (e) { /* остаётся простой мяч */ }
   await goalModel().catch(() => goalSimple());
   prepKick(); prepStrike();
 
