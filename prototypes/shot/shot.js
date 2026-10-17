@@ -586,6 +586,11 @@ world.onSphere = (q, c) => {
     B.state = 'held'; B.owner = 'gk'; B.v.set(0, 0, 0); B.w.set(0, 0, 0); if (kick) kick.held = true;
     sfx.hands(true); sfx.buzz('medium'); finish(false, 'Поймал!', 'miss'); return 'stop';
   }
+  // медленный низкий мяч, коснувшийся руки, вратарь прижимает и забирает (сильный — отскакивает, как раньше)
+  if (state !== 'over' && FREE() && q.name.endsWith('Hand') && c.rel < K.gather && B.p.y < K.gatherH) {
+    B.state = 'held'; B.owner = 'gk'; B.v.set(0, 0, 0); B.w.set(0, 0, 0); if (kick) kick.held = true;
+    sfx.hands(true); finish(false, 'Подобрал', 'miss'); return 'stop';
+  }
   if (first) { sfx.hands(false); sfx.buzz('medium'); if (FREE()) toast(q.kind === 'hand' ? 'Отбил!' : 'Блок!'); else finish(false, 'Отбил!', 'miss'); }
   return 'bounce';
 };
@@ -733,10 +738,13 @@ const clipOf = (name) => base.animations.find((c) => c.name === (ALIAS[name] || 
 const variants = new Map();
 // копия движения: смещение таза по сторонам (fx) и вперёд (fz) умножено — вратарь долетает ровно до мяча и не выбегает из ворот
 function variant(name, fx = 1, fz = 1) {
+  fx = Math.round(fx * 20) / 20; fz = Math.round(fz * 20) / 20; // шаг 0,05: глазом не отличить, копий меньше
   const key = name + '|' + fx.toFixed(2) + '|' + fz.toFixed(2); if (variants.has(key)) return variants.get(key);
-  const c = clipOf(name).clone(); c.name = key;
-  const tr = c.tracks.find((t) => t.name === 'Hips.position');
-  if (tr && (fx !== 1 || fz !== 1)) { const v = tr.values, x0 = v[0], y0 = v[1]; for (let i = 0; i < v.length; i += 3) { v[i] = x0 + (v[i] - x0) * fx; v[i + 1] = y0 + (v[i + 1] - y0) * fz; } }
+  // копируем только дорожку таза (её растягиваем), остальные дорожки — общие с исходной записью: меньше памяти и без рывка при создании
+  const src = clipOf(name), stretch = fx !== 1 || fz !== 1;
+  const c = new THREE.AnimationClip(key, src.duration, src.tracks.map((t) => (stretch && t.name === 'Hips.position' ? t.clone() : t)));
+  const tr = stretch && c.tracks.find((t) => t.name === 'Hips.position');
+  if (tr) { const v = tr.values, x0 = v[0], y0 = v[1]; for (let i = 0; i < v.length; i += 3) { v[i] = x0 + (v[i] - x0) * fx; v[i + 1] = y0 + (v[i + 1] - y0) * fz; } }
   variants.set(key, c); return c;
 }
 function play(pl, name, { t = 0, loop = false, fade = 0.25, speed = 1, hold = Infinity, fx = 1, fz = 1, lock = null, lift = 0, follow = false } = {}) {
@@ -1165,9 +1173,14 @@ function keeperAI(h) {
   }
   const ready = run.charge >= 0 || (B.state === 'owned' && dist < 14);
   // бросок в ноги: рядом с мячом во время выхода
-  if (GKS.st === 'rush' && toBall < K.smother && bp.y < 0.5) {
+  // свободный медленный мяч подбирает, подбежав вплотную (руки достают); бросок в ноги — только когда мяч у соперника или быстрый
+  // катящийся мяч — туда, где он будет к моменту, когда руки дойдут до земли (~0,3 с)
+  const slowFree = B.state === 'free' && B.v.length() < 4, lp0 = slowFree ? k.worldToLocal(tmpA.set(bp.x + B.v.x * 0.3, 0, bp.z + B.v.z * 0.3)) : null;
+  const toMeet = slowFree ? Math.hypot(lp0.x, lp0.z) : toBall;
+  const goNow = slowFree ? toMeet < K.scoopAt && lp0.z > 0 && (Math.abs(lp0.x) < 0.5 || toMeet < 0.5) : toBall < K.smother;
+  if (GKS.st === 'rush' && goNow && bp.y < 0.5) {
     // ложится туда, где мяч будет через 0,3 с (по ходу соперника), — телом поперёк пути мяча
-    const lp = k.worldToLocal(tmpA.set(bp.x + B.v.x * 0.3, 0, bp.z + B.v.z * 0.3)), slow = B.v.length() < 4 && Math.abs(lp.x) < 0.5 && B.state === 'free';
+    const lp = k.worldToLocal(tmpA.set(bp.x + B.v.x * 0.3, 0, bp.z + B.v.z * 0.3)), slow = slowFree;
     const name = slow ? 'gk_scoop' : lp.x > 0 ? 'gk_block' : 'gk_block2', G = GKC[name];
     const fx = name === 'gk_scoop' ? 1 : THREE.MathUtils.clamp((Math.abs(lp.x) + 0.2) / Math.max(0.5, Math.abs(G.hx)), 0.25, 1);
     play(keeper, name, { t: Math.max(0, G.tc - 0.3), fade: 0.1, fx, fz: name === 'gk_scoop' ? 0.25 : 0.5, hold: G.tc + 0.6 });
@@ -1199,7 +1212,9 @@ function bodyAnim(pl, P, dt) { // положение, наклон, бег/ст�
   // наклон: на повороте — внутрь, при разгоне — вперёд
   const lean = Math.max(-0.26, Math.min(0.26, -P.yawRate * sp * 0.035)), pitch = Math.max(-0.08, Math.min(0.14, P.acc * 0.025));
   const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
-  const busy = (pl.name === 'strike' && pl.t < STRIKE.tc + 0.3) || (pl.name === 'pass' && pl.t < PASS.tc + 0.22) || (pl === shooter && run.feint);
+  // замах занят до конца движения ноги; запись может закончиться раньше этого запаса — тогда до её конца (иначе поза застывает навсегда)
+  const busyTill = (C, extra) => Math.min(C.tc + extra, C.dur - 0.05);
+  const busy = (pl.name === 'strike' && pl.t < busyTill(STRIKE, 0.3)) || (pl.name === 'pass' && pl.t < busyTill(PASS, 0.22)) || (pl === shooter && run.feint);
   if (!busy) loco(pl, sp, dt);
   tickPlayer(pl, dt);
   // касания при ведении — в такт шагу: правая нога проходит вперёд на ~62–69% цикла бега (замер записи jog_forward);
@@ -1240,7 +1255,7 @@ function afterKick(dt) {
   }
   tickPlayer(shooter, dt);
 }
-function prepStrike() { STRIKE = prepContact('strike', 0.2); PASS = prepContact('pass', 0.15); }
+function prepStrike() { STRIKE = prepContact('strike', 0.2); PASS = prepContact('pass', 0.15); if (TRACE) window.__contact = { STRIKE, PASS }; }
 // когда в записи нога бьёт по мячу (самая быстрая стопа) и где стопа в этот момент относительно таза
 function prepContact(clipName, tMin) {
   const a = shooter.mixer.clipAction(clipOf(clipName)); shooter.mixer.stopAllAction(); a.reset().play();
@@ -1250,7 +1265,7 @@ function prepContact(clipName, tMin) {
   // где ударная стопа в момент касания относительно таза: туда мяч подводится во время замаха (визуальный контакт = событие удара)
   shooter.mixer.setTime(tc); const fpos = fp(foot), hp = shooter.hips.getWorldPosition(new THREE.Vector3()), yaw = shooter.holder.rotation.y;
   const dx = fpos.x - hp.x, dz = fpos.z - hp.z, f = dx * Math.sin(yaw) + dz * Math.cos(yaw), side = -(dx * Math.cos(yaw) - dz * Math.sin(yaw));
-  a.stop(); shooter.act = null; return { tc, foot, at: { f: Math.max(0.25, Math.min(0.7, f + 0.12)), s: Math.max(-0.25, Math.min(0.25, side)) } };
+  const dur = a.getClip().duration; a.stop(); shooter.act = null; return { tc, dur, foot, at: { f: Math.max(0.25, Math.min(0.7, f + 0.12)), s: Math.max(-0.25, Math.min(0.25, side)) } };
 }
 
 // ---------- кадр ----------
@@ -1338,11 +1353,15 @@ function frame() {
     // от поверхности мяча до ближайшего носка (реальная стопа в мире)
     const toe = Math.min(shooter.toeL.getWorldPosition(tmpB).distanceTo(B.p), shooter.toeR.getWorldPosition(tmpB).distanceTo(B.p)) - R;
     const mt = run.mate; TRACE.push({ ow: B.owner, mp: mt ? [mt.P.p.x, mt.P.p.z] : null, mst: mt ? mt.st : null, man: mt ? mt.pl.name : null, toe, push: B.push, gst: GKS.st, gan: keeper.name, gp: [keeper.holder.position.x, keeper.holder.position.z], ev: lastEvent, t: +clock.toFixed(4), st: state, bs: B.state, b: ball.position.toArray(), bp: B.p.toArray(), p: [run.P.p.x, run.P.p.z], v: Math.hypot(run.P.v.x, run.P.v.z), yaw: run.P.yaw,
-      cam: cam.position.toArray(), an: shooter.name, at: !!B.strikeAt, gk, q: QL });
+      cam: cam.position.toArray(), an: shooter.name, at: !!B.strikeAt, gk, q: QL,
+      lo: shooter.loco ? [shooter.loco.idle, shooter.loco.jog].map((a) => [+a.getEffectiveWeight().toFixed(2), +a.time.toFixed(2), a.enabled, a.isRunning()]) : null, aw: shooter.act ? +shooter.act.getEffectiveWeight().toFixed(2) : 0 });
   }
 }
 const TRACE = Q.get('trace') === '1' ? (window.__trace = []) : null;
+if (TRACE) window.__variants = () => { let n = 0; for (const c of variants.values()) for (const t of c.tracks) n += t.values.length + t.times.length; return { clips: variants.size, mb: +(n * 4 / 1e6).toFixed(2) }; };
 if (TRACE) window.__joy = (x, y) => { joy.x = x; joy.y = y; }; // для проверки: джойстик из теста (медленный ход)
+// для проверки: свободный мяч в заданной точке и с заданной скоростью (лежащий / медленно катящийся)
+if (TRACE) window.__ball = (x, z, vx = 0, vz = 0) => { if (B.state === 'owned' || B.state === 'strike') BP.release(B, B.owner, simT, 0.5, false); B.state = 'free'; B.owner = null; B.p.set(x, R, z); B.v.set(vx, 0, vz); B.w.set(0, 0, 0); ballPrev.copy(B.p); if (run) run.shotT = simT; };
 
 // ---------- старт ----------
 (async () => {
@@ -1359,8 +1378,10 @@ if (TRACE) window.__joy = (x, y) => { joy.x = x; joy.y = y; }; // для про�
   prepKick(); prepStrike(); prepKeeper();
 
   resetShot();
-  // шейдеры собираем заранее, иначе первый гол и первое конфетти подтормаживают
-  conf.visible = true; ren.compile(scene, cam); conf.visible = false;
+  // шейдеры собираем заранее для всего, что пока скрыто (брызги травы при ударе, конфетти, стенка, партнёр), —
+  // иначе видеокарта собирает их в момент первого удара и кадр подвисает
+  const hidden = []; scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
+  ren.compile(scene, cam); ren.render(scene, cam); hidden.forEach((o) => (o.visible = false)); // один кадр под заставкой загрузки: драйвер доделывает шейдеры при первой отрисовке
   $('#load').remove();
   if (QCHOICE === 'auto') autoQ = new GFX.AutoQuality(QL, applyQuality);
   gfxLabel();
@@ -1383,6 +1404,6 @@ if (TRACE) window.__joy = (x, y) => { joy.x = x; joy.y = y; }; // для про�
   window.gfx = () => ({ q: QL, choice: QCHOICE, pr: ren.getPixelRatio(), shadows: ren.shadowMap.enabled, mem: { ...ren.info.memory }, programs: ren.info.programs.length, crowd: crowd.count, last: autoQ && autoQ.last });
   const r2 = (v) => [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)];
   window.dbg = () => ({ state, ball: B.state, owner: B.owner, sh: shooter.name, st: +shooter.t.toFixed(2), b: r2(B.p), v: r2(B.v), p: run ? r2(run.P.p) : null,
-    d: run ? +Math.hypot(B.p.x - run.P.p.x, B.p.z - run.P.p.z).toFixed(2) : null, msg: lastEvent, calls: ren.info.render.calls, tris: ren.info.render.triangles });
+    d: run ? +Math.hypot(B.p.x - run.P.p.x, B.p.z - run.P.p.z).toFixed(2) : null, msg: lastEvent, calls: ren.info.render.calls, tris: ren.info.render.triangles, progs: ren.info.programs ? ren.info.programs.length : 0 });
 })().catch((e) => { $('#load').textContent = 'Не получилось загрузить: ' + e.message; });
 frame();
