@@ -13,7 +13,7 @@
   /* стиль как в FC Mobile: узкий наклонный шрифт, полупрозрачное «стекло», тонкие светлые рамки */
   :root { --f: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; --acc: #ffd23f; --glass: rgba(14,20,38,.42); --line: rgba(255,255,255,.28);
     --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); }
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1020; font-family: var(--f); color: #fff; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: #0b1020; font-family: var(--f); color: #fff; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; }
   .vig { position: fixed; inset: 0; pointer-events: none; z-index: 1; background: radial-gradient(ellipse 80% 75% at 50% 48%, transparent 62%, rgba(0,6,20,.22) 100%); /* слабая виньетка: края не тонут в темноте */ }
   .glass { background: var(--glass); -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3); box-shadow: inset 0 0 0 1px var(--line), 0 6px 18px rgba(0,0,0,.25); }
@@ -52,7 +52,7 @@
   .swipe { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
   /* 1 на 1: джойстик появляется там, где коснулся пальцем слева; справа — кнопки */
   .pad { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
-  .zone { position: absolute; left: 0; top: 60px; bottom: 0; width: 48%; pointer-events: auto; touch-action: none; }
+  .zone { position: absolute; left: max(28px, var(--sl, 0px)); top: 60px; bottom: 0; width: 48%; pointer-events: auto; touch-action: none; }
   .joy { position: absolute; width: 124px; height: 124px; margin: -62px; border-radius: 50%; opacity: 0; transform: scale(.7); transition: opacity .15s, transform .15s; pointer-events: none;
     background: radial-gradient(circle, rgba(255,255,255,.05) 40%, rgba(255,255,255,.14) 100%); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.4); }
   .joy.on { opacity: 1; transform: none; }

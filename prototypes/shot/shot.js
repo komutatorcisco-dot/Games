@@ -50,10 +50,15 @@ scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#c3d4e6',
 // горизонтальный экран: угол обзора поуже, чтобы ворота не казались далёкими
 // «2 на 1»: камера сбоку и сверху, как в трансляции (?cam=old — прежняя камера за спиной игрока, для сравнения)
 const DUO_OLD = Q.get('cam') === 'old', TV = () => MODE === 'duo' && !DUO_OLD;
-const CAM_TV = { side: 20, h: 11.5, fov: 24, look: 4, ahead: 6, rate: 2.6 }; // узкий объектив издалека, как в трансляции: меньше искажений по краям
+const CAM_TV = { side: 15, h: 14, fov: 34, look: -0.5, ahead: 6, rate: 2.6 }; // ~43° сверху; по глубине видно ±7 м от центра // узкий объектив издалека, как в трансляции: меньше искажений по краям
 const fov = () => (innerWidth > innerHeight ? (TV() ? CAM_TV.fov : { pen: 33, fk: 37, run: 44, duo: 44 }[MODE]) : 48);
 const cam = new THREE.PerspectiveCamera(fov(), innerWidth / innerHeight, 0.1, 400);
 addEventListener('resize', () => { ren.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.fov = fov(); cam.updateProjectionMatrix(); fitSwipe(); });
+// Встроенный браузер Telegram/Safari: свайп от левого края — «Назад», на первой странице он закрывает игру.
+// Запретить системный жест страница не может, поэтому держим в истории запасной шаг: свайп назад остаётся внутри игры.
+// Плюс страница не прокручивается и не «тянется» (иначе вертикальный свайп может свернуть окно).
+try { history.pushState({ shot: 1 }, ''); addEventListener('popstate', () => history.pushState({ shot: 1 }, '')); } catch (e) { /* без истории */ }
+document.addEventListener('touchmove', (e) => { if (e.touches.length) e.preventDefault(); }, { passive: false });
 // в Telegram (мини-приложение) — на весь экран и горизонтально
 addEventListener('load', () => { const tg = window.Telegram && Telegram.WebApp; if (!tg || !tg.initData) return;
   try { tg.ready(); tg.expand(); tg.requestFullscreen && tg.requestFullscreen(); tg.lockOrientation && tg.lockOrientation(); tg.disableVerticalSwipes && tg.disableVerticalSwipes(); } catch (e) { /* старый Telegram */ } });
@@ -877,7 +882,7 @@ function resetRun() {
   run = { P, charge: -1, kv: new THREE.Vector3(), strike: null, fire: false, shotT: 0, slowT: 0, t0: simT, lastPost: null, wasStopping: false, pass: null, passFire: false, mate: null };
   if (MODE === 'duo') { // партнёр — бот в нашей форме, стартует сбоку и чуть впереди
     const side = sx > 0 ? -1 : 1, M = BP.newPlayer({ x: sx + side * 8, z: 27 }, Math.PI), pl = wall[0];
-    recolor(pl, myKit || { shirt: '#ffffff', shorts: '#ffffff', socks: '#ffffff' }); pl.holder.visible = true; pl.holder.position.set(M.p.x, 0, M.p.z); pl.holder.rotation.set(0, Math.PI, 0);
+    recolor(pl, { shirt: '#17181c', shorts: '#17181c', socks: '#17181c' }); pl.holder.visible = true; // второй атакующий — в чёрной форме pl.holder.position.set(M.p.x, 0, M.p.z); pl.holder.rotation.set(0, Math.PI, 0);
     play(pl, 'idle', { loop: true, fade: 0.2, follow: true }); resetSpheres(pl);
     run.mate = { pl, P: M, side, st: 'support', hold: 0, pass: null, fire: false, plan: null, planT: 0, pick: -1, pickT: 0 };
   }
@@ -1043,7 +1048,7 @@ function meetPoint(M, speed) {
 // или чуть сзади); точка оценивается по дистанции, границам поля, линии паса (не через вратаря) и тому, не стоит ли
 // она у меня на пути. Выбор пересматривается раз в replan секунд и меняется, только если новая точка заметно лучше.
 const MATE = { minGap: 1.1, replan: 0.45, better: 1.5, near: 8.5, stop: 0.35 };
-const SUPPORT = [[-6.5, 5], [6.5, 5], [-8, 0.5], [8, 0.5], [-5.5, -4.5], [5.5, -4.5]]; // [вбок, вперёд к воротам], м (вбок — не дальше, чем видно с камеры)
+const SUPPORT = [[-6, 5.5], [6, 5.5], [-7, 1], [7, 1], [-5, -4.5], [5, -4.5]]; // [вбок, вперёд к воротам], м (вбок — не дальше, чем видно с камеры)
 const supportAt = (P, k, out) => { // точка поддержки k относительно игрока P: «вперёд» — к центру ворот
   const gx = -P.p.x * 0.3, gz = -P.p.z, gl = Math.hypot(gx, gz) || 1, fx = gx / gl, fz = gz / gl, [sd, fw] = SUPPORT[k];
   out.x = Math.max(-25, Math.min(25, P.p.x - fz * sd + fx * fw)); out.z = Math.max(Math.max(6.5, keeper.holder.position.z + 4.5), Math.min(42, P.p.z + fz * fw + fx * sd));
