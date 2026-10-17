@@ -229,11 +229,15 @@ async function goalModel() {
     if (m.name === 'rope') { m.transparent = true; m.opacity = LOOK.net.opacity; m.depthWrite = false; m.forceSinglePass = true; } // нити тоньше пикселя: полупрозрачность гасит мерцание
     if (m.name === 'rope') m.onBeforeCompile = (sh) => {
       sh.uniforms.uHit = netU.uHit;
-      sh.vertexShader = 'uniform vec4 uHit[4];\n' + sh.vertexShader.replace('#include <project_vertex>', `
+      sh.vertexShader = 'uniform vec4 uHit[4];\nvarying float vNetD;\n' + sh.vertexShader.replace('#include <project_vertex>', `
         vec4 wq = modelMatrix * vec4(transformed, 1.0); float dz = 0.0;
         for (int i = 0; i < 4; i++) { vec4 h = uHit[i]; vec2 d = wq.xy - h.xy; dz += h.z * exp(-dot(d, d) / 0.9) * exp(-h.w * 3.0) * cos(h.w * 14.0); }
         wq.z -= dz * smoothstep(-0.2, -0.6, wq.z);
-        vec4 mvPosition = viewMatrix * wq; gl_Position = projectionMatrix * mvPosition;`);
+        vec4 mvPosition = viewMatrix * wq; gl_Position = projectionMatrix * mvPosition; vNetD = -mvPosition.z;`);
+      // нити тоньше пикселя издалека «искрят»: чем дальше сетка, тем она прозрачнее (вблизи — как была)
+      sh.fragmentShader = 'varying float vNetD;\n' + sh.fragmentShader.replace('#include <alphatest_fragment>', `
+        diffuseColor.a *= mix(1.0, ${LOOK.net.far.toFixed(2)}, smoothstep(${LOOK.net.fadeFrom.toFixed(1)}, ${LOOK.net.fadeTo.toFixed(1)}, vNetD));
+        #include <alphatest_fragment>`);
     };
   });
   scene.add(g);
@@ -466,7 +470,7 @@ function resetShot() {
   keeper.holder.position.set(MODE === 'fk' ? Math.sign(spot.x || 1) * 0.7 : 0, 0, -0.25); keeper.holder.rotation.set(0, 0, 0);
   play(keeper, 'gk_idle', { loop: true, fade: 0.3, t: Math.random() * 2, lock: keeper.holder.localToWorld(new THREE.Vector3(0, 0, 0)) });
   wall.forEach((w, i) => play(w, 'idle', { loop: true, fade: 0.3, t: 1 + i * 1.7, speed: 0.8, lock: w.holder.localToWorld(new THREE.Vector3(0, 0, 0)) }));
-  aimCam(); if (state === 'load') { camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); } // после placeShooter — игрок уже стоит
+  aimCam(); camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); // новая попытка — сразу на месте // после placeShooter — игрок уже стоит
   state = 'aim'; shot = null; kick = null; setTimeout(sfx.whistle, 500); sfx.level(MODE === 'pen' ? 0.6 : 0.4); celebrate = -1; slow = 1; msg.className = 'msg';
   $('#hint').style.opacity = n === 0 ? 1 : 0;
   dots();
@@ -653,6 +657,7 @@ function end() {
   $('#end').classList.add('on');
 }
 $('#again').addEventListener('click', () => { $('#end').classList.remove('on'); n = 0; results = []; resetShot(); });
+document.querySelectorAll('[data-m]').forEach((b) => b.classList.toggle('on', b.dataset.m === MODE)); // ?mode=run — сразу подсвечена «1 на 1»
 document.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click', () => {
   MODE = b.dataset.m; document.querySelectorAll('[data-m]').forEach((x) => x.classList.toggle('on', x === b)); n = 0; results = []; resetShot();
 }));
@@ -779,7 +784,7 @@ function resetRun() {
   resetSpheres(keeper); resetSpheres(shooter);
   run = { P, charge: -1, fin: false, kv: new THREE.Vector3(), strike: null, fire: false, shotT: 0, slowT: 0, t0: simT, lastPost: null, wasStopping: false };
   runCam(camAim);
-  if (state === 'load') { camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); }
+  camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); // новая попытка — сразу на месте (без пролёта камеры через всё поле)
   state = 'play'; celebrate = -1; dots();
   // подсказка — только при первом запуске «1 на 1» на этом телефоне
   let seen = false; try { seen = localStorage.getItem('shot.run.hint') === '1'; localStorage.setItem('shot.run.hint', '1'); } catch (e) { /* без памяти — покажем */ }
@@ -1006,7 +1011,7 @@ function frame() {
     camNow.l.lerp(tmpB, 1 - Math.exp(-raw * 4));
   } else { camNow.p.lerp(camAim.p, 1 - Math.exp(-raw * 4)); camNow.l.lerp(camAim.l, 1 - Math.exp(-raw * 4)); }
   cam.position.copy(camNow.p);
-  if (shake > 0) { shake = Math.max(0, shake - raw); cam.position.x += (Math.random() - 0.5) * shake * 0.4; cam.position.y += (Math.random() - 0.5) * shake * 0.4; }
+  if (shake > 0) { shake = Math.max(0, shake - raw); cam.position.x += Math.sin(clock * 47) * shake * 0.2; cam.position.y += Math.sin(clock * 61 + 1) * shake * 0.2; } // плавная дрожь, без случайных скачков каждый кадр
   cam.lookAt(camNow.l);
   if (camPunch > 0 || cam.fov !== fov()) { camPunch = Math.max(0, camPunch - raw * 2.5); cam.fov = fov() - 4 * camPunch * camPunch; cam.updateProjectionMatrix(); } // камера чуть вздрагивает от удара
   // тень солнца — на активную зону: в «1 на 1» от игрока к воротам, в штрафном и пенальти — от мяча до ворот
@@ -1015,7 +1020,14 @@ function frame() {
   // для сравнения кадров (скриншоты до/после): window.__cam = { p: [x, y, z], l: [x, y, z], fov } — камера стоит ровно там
   if (window.__cam) { cam.position.fromArray(window.__cam.p); cam.lookAt(tmpA.fromArray(window.__cam.l)); if (window.__cam.fov) { cam.fov = window.__cam.fov; cam.updateProjectionMatrix(); } }
   ren.render(scene, cam);
+  // ?trace=1 — покадровая запись для проверки движения (мяч на экране и в физике, игрок, камера, поза); в обычной игре выключено
+  if (TRACE && run) {
+    let gk = 9; for (const q of keeper.sph || []) gk = Math.min(gk, Math.hypot(q.x - B.p.x, q.y - B.p.y, q.z - B.p.z) - q.r - R);
+    TRACE.push({ t: +clock.toFixed(4), st: state, bs: B.state, b: ball.position.toArray(), bp: B.p.toArray(), p: [run.P.p.x, run.P.p.z], v: Math.hypot(run.P.v.x, run.P.v.z), yaw: run.P.yaw,
+      cam: cam.position.toArray(), an: shooter.name, at: !!B.strikeAt, gk, q: QL });
+  }
 }
+const TRACE = Q.get('trace') === '1' ? (window.__trace = []) : null;
 
 // ---------- старт ----------
 (async () => {

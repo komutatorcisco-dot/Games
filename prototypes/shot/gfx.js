@@ -49,7 +49,7 @@ export const LOOK = {
   },
   ball: { white: { color: '#f4f4f0', rough: 0.4 }, black: { color: '#1a1b1f', rough: 0.45 }, env: 0.6 },
   posts: { color: '#f3f4f1', rough: 0.38, env: 0.5 },   // окрашенный металл: краска, не хром
-  net: { color: '#e8ebe6', rough: 0.9, opacity: 0.72 },
+  net: { color: '#e8ebe6', rough: 0.9, opacity: 0.72, fadeFrom: 9, fadeTo: 28, far: 0.35 }, // издалека сетка прозрачнее — меньше мерцания нитей
   led: { brightness: 0.82, speed: 0.015 },             // рекламные щиты днём не ярче всего кадра, бегут медленно
   vignette: 0.22,
 };

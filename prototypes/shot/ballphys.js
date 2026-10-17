@@ -278,8 +278,10 @@ export function playerStep(P, inp, h, withBall) {
   const wx = inp.x * max, wz = -inp.y * max, want = Math.hypot(wx, wz), sp0 = Math.hypot(P.v.x, P.v.z);
   const k = 1 - Math.exp(-h * (want > sp0 ? C.accel : C.decel));
   P.v.x += (wx - P.v.x) * k; P.v.z += (wz - P.v.z) * k;
-  P.p.x = Math.max(-C.bounds.x, Math.min(C.bounds.x, P.p.x + P.v.x * h));
-  P.p.z = Math.max(C.bounds.zMin, Math.min(C.bounds.zMax, P.p.z + P.v.z * h));
+  const nx = P.p.x + P.v.x * h, nz = P.p.z + P.v.z * h;
+  P.p.x = Math.max(-C.bounds.x, Math.min(C.bounds.x, nx));
+  P.p.z = Math.max(C.bounds.zMin, Math.min(C.bounds.zMax, nz));
+  if (P.p.x !== nx) P.v.x = 0; if (P.p.z !== nz) P.v.z = 0; // упёрся в край поля — остановился (иначе мяч у ноги «уезжал» дальше)
   const sp = Math.hypot(P.v.x, P.v.z);
   P.acc = (sp - sp0) / h;
   P.stopping = want < 0.3 && sp > 0.4;

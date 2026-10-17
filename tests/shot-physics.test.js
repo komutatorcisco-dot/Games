@@ -178,3 +178,9 @@ test('подкрутка уводит мяч плавно и умеренно', 
   const curl = Math.abs(a.x - b.x);
   assert.ok(curl > 0.4 && curl < 3.5, `подкрутка увела на ${curl} м`);
 });
+test('край поля у ворот: игрок останавливается, мяч у ноги не уезжает за линию', () => {
+  const { CFG } = M, P = M.newPlayer({ x: 4, z: 6 }, Math.PI), b = M.newBall(M.controlPoint(P, null)); M.capture(b, P, 'me'); b.trapDur = 0;
+  for (let t = 0; t < 4; t += CFG.dt) { P.sprint = true; M.playerStep(P, { x: 0, y: 1 }, CFG.dt, true); if (b.touchCd <= 0) M.touch(b, P); M.controlStep(b, P, CFG.dt); }
+  assert.equal(P.p.z, CFG.player.bounds.zMin); assert.equal(P.v.z, 0, 'упёрся — скорость к воротам ноль');
+  assert.ok(b.p.z > 0.2, `мяч ушёл за линию ворот: z=${b.p.z}`); assert.equal(b.state, 'owned');
+});
