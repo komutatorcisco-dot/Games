@@ -44,7 +44,7 @@ test('1. стоит — мяч спокойно у ноги, без дрожан
 test('2–3. медленный бег и длинный рывок — мяч под контролем, игрок не убегает от мяча', () => {
   const slow = dribble(() => ({ x: 0, y: 0.5 }), 4);
   const fast = dribble(() => ({ x: 0, y: 1, sprint: true }), 4, { start: { x: 0, z: 40 } });
-  for (const s of [slow, fast]) { assert.equal(s.lost, 0); assert.ok(s.minBody > 0.25, 'не сквозь ноги'); }
+  for (const s of [slow, fast]) { assert.equal(s.lost, 0); assert.ok(s.minBody >= M.CFG.control.bodyR - 0.005, 'не сквозь ноги'); }
   assert.ok(slow.maxErr < 0.35, `на медленном беге мяч дальше ${slow.maxErr}`);
   assert.ok(fast.maxErr < 0.7, `на рывке мяч дальше ${fast.maxErr}`);
   assert.ok(fast.P.p.z < 40 - 20, 'игрок действительно бежал');
@@ -60,7 +60,7 @@ test('5. повороты на 90° и 180° — без телепортаций
   const t90 = dribble((t) => (t < 1.5 ? { x: 0, y: 1 } : { x: 1, y: 0 }), 3);
   const t180 = dribble((t) => (t < 1.5 ? { x: 0, y: 1 } : { x: 0, y: -1 }), 3.5, { start: { x: 0, z: 25 } });
   for (const s of [t90, t180]) {
-    assert.equal(s.lost, 0); assert.ok(s.minBody >= 0.25, `мяч прошёл у центра игрока: ${s.minBody}`);
+    assert.equal(s.lost, 0); assert.ok(s.minBody >= M.CFG.control.bodyR - 0.005, `мяч прошёл у центра игрока: ${s.minBody}`);
     assert.ok(s.maxJump < 13, `скачок скорости мяча ${s.maxJump} м/с`);
   }
   assert.ok(t180.maxErr < 0.9, `при развороте мяч описал большой круг: ${t180.maxErr}`);

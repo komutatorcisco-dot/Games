@@ -38,10 +38,23 @@ export const CFG = {
   },
   post: { r: 0.06, e: 0.6, friction: 0.18, spinKeep: 0.35 },     // штанги и перекладина: металл, упругий удар с трением
   net: { k: 900, c: 16, maxPen: 0.5, maxBack: 1.2, friction: 4 }, // сетка: пружина, вязкость, предел прогиба, «обратно не выталкивает»
-  keeper: {
+  keeper: {               // вратарь средней сложности; всё ниже можно подкрутить
     catchHands: 21,     // поймать двумя руками можно мяч не быстрее, м/с (относительно рук)
     catchChest: 15,     // принять на корпус — не быстрее, м/с
     twoHands: 0.24,     // «двумя руками» — обе кисти не дальше этого от поверхности мяча, м
+    reaction: 0.2,      // реакция после удара, с (он не знает направление до удара)…
+    reactionJitter: 0.1,// … плюс до стольких секунд случайно
+    readError: 0.16,    // ошибка в оценке, куда летит мяч: м на каждые 10 м/с скорости мяча
+    nearReach: 0.65,    // руками без прыжка достаёт вбок, м
+    diveReach: 2.7,     // в полном прыжке руки уходят вбок на столько, м (от центра)
+    diveTime: 0.55,     // от толчка до полного вытяжения, с
+    hopeless: 1.1,      // если не хватает больше этого, м, — не прыгает впустую
+    lateral: 3.0, forward: 4.6, back: 2.6, rush: 5.8, accel: 9, // скорости перемещения, м/с; разгон, м/с²
+    maxOut: 5.5, outStart: 24,   // насколько выходит из ворот и с какого расстояния начинает сокращать угол
+    rushBox: { x: 18, z: 16 },   // выходит на свободный мяч только в штрафной
+    rushMargin: 0.85,            // … и только если успевает раньше соперника с запасом
+    smother: 1.5,                // в ноги бросается с такого расстояния, м
+    getUp: 1.1,                  // лежит после прыжка, с (потом встаёт — повторного прыжка не бывает)
   },
   body: { e: 0.3, friction: 0.4 },    // мяч о тело игрока (ноги, корпус) — мягко
   hands: { e: 0.35, friction: 0.3 },  // отбивание руками вратаря
@@ -56,18 +69,24 @@ export const CFG = {
     bounds: { x: 30, zMin: 1.2, zMax: 42 },
   },
   control: {
-    reach: 0.38,            // мяч перед стопой, м (от центра игрока)
-    reachPerSpeed: 0.035,   // на бегу — чуть дальше, с на м/с
-    side: 0.09,             // смещение к ведущей (правой) ноге, м
+    // точка ведения подобрана по замеру расстояния от поверхности мяча до носка (tests + ?trace=1):
+    // стоя ноги широко — мяч у правой стопы; на бегу правый носок выходит на 0,33 м перед тазом — мяч чуть дальше
+    reach: 0.27,            // мяч перед игроком стоя, м (от центра) — было 0,38
+    reachPerSpeed: 0.03,    // на бегу дальше: бег 3,6 м/с → 0,38, рывок 6,1 → 0,45
+    side: 0.19,             // смещение к правой ноге стоя, м (было 0,09)
+    sidePerSpeed: 0.012,    // на бегу ноги уже — смещение меньше…
+    sideMin: 0.12,          // … но не меньше этого
     gain: 9,                // как быстро мяч догоняет точку контроля, 1/с
     maxCorr: 5.5,           // но не быстрее этой добавки к скорости игрока, м/с — пружина не бесконечная
     resp: 22,               // инерция мяча: скорость меняется не мгновенно, 1/с
-    touchPush: 0.1,         // касание: мяч отходит вперёд на столько…
-    touchPushPerSpeed: 0.04,// … плюс столько на каждый м/с (на рывке — дальше)
-    pushDecay: 5,           // как быстро касание «гаснет», 1/с
+    touchPush: 0.04,        // касание: мяч отходит вперёд на столько…
+    touchPushPerSpeed: 0.032,// … плюс столько на каждый м/с (бег — 0,16, рывок — 0,24)
+    pushDecay: 4,           // как быстро касание «гаснет», 1/с
+    rollTime: 0.12,         // после касания мяч столько секунд катится почти сам…
+    rollGain: 0.4,          // … контроль в это время слабее (видно касание и короткое свободное качение)
     touchMin: 0.3,          // касания не чаще, с
     touchMax: 0.6,          // и не реже (если нога в анимации не дотянулась)
-    bodyR: 0.27,            // ближе к центру игрока мяч не проходит (сквозь ноги)
+    bodyR: 0.22,            // ближе к центру игрока мяч не проходит (сквозь ноги)
     loseDist: 1.3,          // мяч оттеснили от точки контроля дальше этого (соперник) — владение потеряно
     captureR: 0.6,          // принять мяч можно в этом радиусе от точки контроля…
     captureH: 0.32,         // … если мяч не выше (ногой с земли высокий мяч не взять)
@@ -299,10 +318,10 @@ export function controlPoint(P, b, out = vec()) {
   const C = CFG.control, f = fwd(P), sp = Math.hypot(P.v.x, P.v.z);
   // во время замаха мяч ведётся туда, где окажется ударная стопа в момент касания (b.strikeAt — из анимации удара)
   if (b && b.strikeAt) { const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw); return set(out, P.p.x + f.x * b.strikeAt.f + rx * b.strikeAt.s, CFG.R, P.p.z + f.z * b.strikeAt.f + rz * b.strikeAt.s); }
-  const reach = C.reach + C.reachPerSpeed * sp + (b ? b.push : 0);
+  const reach = C.reach + C.reachPerSpeed * sp + (b ? b.push : 0), side = Math.max(C.sideMin ?? C.side, C.side - (C.sidePerSpeed || 0) * sp);
   // правая сторона: при взгляде вдоль +z правая рука — это −x, т. е. вектор (−cos yaw, 0, sin yaw)
   const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw);
-  return set(out, P.p.x + f.x * reach + rx * C.side, CFG.R, P.p.z + f.z * reach + rz * C.side);
+  return set(out, P.p.x + f.x * reach + rx * side, CFG.R, P.p.z + f.z * reach + rz * side);
 }
 
 // ---------- владение ----------
@@ -329,7 +348,7 @@ export function updateClear(b, P, who) {
 // касание при ведении: мяч отходит вперёд (на рывке дальше)
 export function touch(b, P) {
   const C = CFG.control, sp = Math.hypot(P.v.x, P.v.z);
-  b.push = C.touchPush + C.touchPushPerSpeed * sp;
+  b.push = C.touchPush + C.touchPushPerSpeed * sp; b.roll = C.rollTime || 0;
   b.touchCd = Math.max(C.touchMin, Math.min(C.touchMax, 0.62 - sp * 0.045));
 }
 // шаг ведения: мяч мягко следует за точкой контроля (демпфированная «пружина» с ограничением), без телепортаций.
@@ -339,12 +358,13 @@ export function controlStep(b, P, h, obstacles) {
   const C = CFG.control, R = CFG.R;
   b.touchCd -= h;
   b.push *= Math.exp(-h * C.pushDecay * (P.stopping ? 3 : 1)); // остановка: касание сразу гасится
-  b.trapT += h;
+  b.trapT += h; if (b.roll > 0) b.roll -= h;
   const trapK = b.trapDur > 0 ? Math.min(1, b.trapT / b.trapDur) : 1, ease = trapK * trapK * (3 - 2 * trapK);
   const cp = controlPoint(P, b, cpTmp);
   let ex = cp.x - b.p.x, ez = cp.z - b.p.z;
   // желаемая скорость = скорость игрока + ограниченная поправка к точке контроля
-  let cx = ex * C.gain * (P.stopping ? C.stopTrap : 1), cz = ez * C.gain * (P.stopping ? C.stopTrap : 1);
+  const g = C.gain * (P.stopping ? C.stopTrap : 1) * (b.roll > 0 && !P.stopping ? (C.rollGain ?? 1) : 1); // сразу после касания мяч катится почти сам
+  let cx = ex * g, cz = ez * g;
   const cl = Math.hypot(cx, cz); if (cl > C.maxCorr) { cx *= C.maxCorr / cl; cz *= C.maxCorr / cl; }
   const dvx = P.v.x + cx, dvz = P.v.z + cz;
   // приём: сначала мяч живёт своей скоростью, контроль включается плавно (сильный прилёт гасится дольше)

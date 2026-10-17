@@ -27,6 +27,7 @@
   .sb-d { gap: 5px; padding-right: 20px !important; }
   .sb-d i { width: 9px; height: 9px; transform: skewX(-14deg); background: rgba(255,255,255,.2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
   .sb-d i.g { background: #3ce17a; box-shadow: none; } .sb-d i.m { background: #ff4f5e; box-shadow: none; }
+  .sb-d i.new { animation: dotIn .6s ease-out; } @keyframes dotIn { 0% { transform: skewX(-14deg) scale(2.2); } 100% { transform: skewX(-14deg) scale(1); } }
   /* режимы справа сверху */
   .modes { position: fixed; right: calc(var(--sr) + 14px); top: calc(var(--st) + 12px); z-index: 3; display: flex; padding: 3px; border-radius: 10px; gap: 2px; }
   .modes button { padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: rgba(255,255,255,.75); font: italic 800 14px/1 var(--f); letter-spacing: .03em; text-transform: uppercase; }
