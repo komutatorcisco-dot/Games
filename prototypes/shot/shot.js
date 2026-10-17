@@ -26,8 +26,9 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 // ---------- рендер ----------
 // на экранах с плотными пикселями сглаживание почти не видно, а стоит дорого — выключаем
-const ren = new THREE.WebGLRenderer({ antialias: devicePixelRatio < 1.5, powerPreference: 'high-performance' });
-ren.setPixelRatio(Math.min(LOW ? 1 : 1.25, devicePixelRatio)); ren.setSize(innerWidth, innerHeight);
+// мерцание («рябь») на телефоне было от выключенного сглаживания и низкого разрешения — возвращаем оба
+const ren = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+ren.setPixelRatio(Math.min(LOW ? 1 : 1.5, devicePixelRatio)); ren.setSize(innerWidth, innerHeight);
 ren.outputColorSpace = THREE.SRGBColorSpace; ren.toneMapping = THREE.ACESFilmicToneMapping; ren.toneMappingExposure = 1.15;
 ren.shadowMap.enabled = false; // вместо карты теней — мягкие пятна под игроками и мячом (вдвое меньше работы видеокарте)
 document.body.prepend(ren.domElement);
@@ -69,7 +70,17 @@ function pitch() {
   g.beginPath(); g.arc(px(0), pz(11), 0.2 * S, 0, 7); g.fillStyle = '#fff'; g.fill();
   g.beginPath(); g.arc(px(0), pz(11), 9.15 * S, Math.asin(5.5 / 9.15), Math.PI - Math.asin(5.5 / 9.15)); g.stroke();
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = ren.capabilities.getMaxAnisotropy();
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(X1 - X0, Z1 - Z0), new THREE.MeshStandardMaterial({ map: t, roughness: 0.95 }));
+  // настоящая трава (ambientCG Grass001, CC0): мелкий рисунок и рельеф поверх полос стрижки
+  const tl = new THREE.TextureLoader(), rep = new THREE.Vector2((X1 - X0) / 2.2, (Z1 - Z0) / 2.2);
+  const gN = tl.load('assets/grass_n.webp'), gC = tl.load('assets/grass.webp');
+  for (const x of [gN, gC]) { x.wrapS = x.wrapT = THREE.RepeatWrapping; x.repeat.copy(rep); x.anisotropy = 8; }
+  gC.colorSpace = THREE.SRGBColorSpace;
+  const pm = new THREE.MeshStandardMaterial({ map: t, roughness: 0.95, normalMap: gN, normalScale: new THREE.Vector2(0.7, 0.7) });
+  pm.onBeforeCompile = (sh) => {
+    sh.uniforms.grassC = { value: gC };
+    sh.fragmentShader = 'uniform sampler2D grassC;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  diffuseColor.rgb *= texture2D(grassC, vNormalMapUv).rgb * 2.7;');
+  };
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(X1 - X0, Z1 - Z0), pm);
   m.rotation.x = -Math.PI / 2; m.position.set((X0 + X1) / 2, 0, (Z0 + Z1) / 2); m.receiveShadow = true; scene.add(m);
   const run = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: '#2a6a27', roughness: 1 }));
   run.rotation.x = -Math.PI / 2; run.position.y = -0.01; scene.add(run);
@@ -82,25 +93,29 @@ function goal() {
   const add = (geo, x, y, z, rz = 0) => { const m = new THREE.Mesh(geo, W); m.position.set(x, y, z); m.rotation.z = rz; m.castShadow = true; scene.add(m); };
   add(new THREE.CylinderGeometry(r, r, GH + r, 20), -GW, (GH + r) / 2, 0); add(new THREE.CylinderGeometry(r, r, GH + r, 20), GW, (GH + r) / 2, 0);
   add(new THREE.CylinderGeometry(r, r, GW * 2 + 2 * r, 20), 0, GH, 0, Math.PI / 2);
-  const pts = [], st = 0.2, D = NET_D, top = D * 0.55;
-  const back = (y) => -D + (D - top) * (y / GH);
-  for (let x = -GW; x <= GW + 1e-6; x += st) { pts.push(x, 0, -D, x, GH, -top); pts.push(x, GH, 0, x, GH, -top); }
-  for (let y = 0; y <= GH + 1e-6; y += st) pts.push(-GW, y, back(y), GW, y, back(y));
-  for (let z = 0; z >= -top; z -= st) pts.push(-GW, GH, z, GW, GH, z);
-  for (const s of [-1, 1]) {
-    for (let y = 0; y <= GH + 1e-6; y += st) pts.push(s * GW, y, 0, s * GW, y, back(y));
-    for (let z = 0; z >= -D; z -= st) { const zt = Math.max(z, -top); pts.push(s * GW, 0, z, s * GW, GH, zt); }
-  }
-  // дробим отрезки, чтобы сетка гнулась плавно
-  const seg = [];
-  for (let i = 0; i < pts.length; i += 6) {
-    const a = new THREE.Vector3(pts[i], pts[i + 1], pts[i + 2]), b = new THREE.Vector3(pts[i + 3], pts[i + 4], pts[i + 5]);
-    const n = Math.max(1, Math.ceil(a.distanceTo(b) / 0.2));
-    for (let k = 0; k < n; k++) { const p = a.clone().lerp(b, k / n), q = a.clone().lerp(b, (k + 1) / n); seg.push(p.x, p.y, p.z, q.x, q.y, q.z); }
-  }
-  net.geo = new THREE.BufferGeometry(); net.geo.setAttribute('position', new THREE.Float32BufferAttribute(seg, 3));
-  net.pos = net.geo.attributes.position; net.base = Float32Array.from(seg);
-  scene.add(new THREE.LineSegments(net.geo, new THREE.LineBasicMaterial({ color: '#f2f6ff', transparent: true, opacity: 0.6 })));
+  // сетка: полотна с текстурой ячеек (с мип-картами — не рябит вдали), вершины в координатах мира, чтобы сетка гнулась
+  const D = NET_D, top = D * 0.55, CELL = 0.12;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 5; g.strokeRect(0, 0, 64, 64);
+  const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 4;
+  const P = [], UV = [], I = [];
+  // полотно по четырём углам (a — низ-лево, b — низ-право, c — верх-право, d — верх-лево), nu×nv клеток
+  const panel = (A, B, C, Dd, nu, nv) => {
+    const o = P.length / 3, wU = A.distanceTo(B), wV = A.distanceTo(Dd);
+    for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
+      const u = i / nu, v = j / nv, p = A.clone().lerp(B, u).lerp(Dd.clone().lerp(C, u), v);
+      P.push(p.x, p.y, p.z); UV.push((u * wU) / CELL, (v * wV) / CELL);
+    }
+    for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const k = o + j * (nu + 1) + i; I.push(k, k + 1, k + nu + 2, k, k + nu + 2, k + nu + 1); }
+  };
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  panel(V(-GW, 0, -D), V(GW, 0, -D), V(GW, GH, -top), V(-GW, GH, -top), 40, 14); // задник
+  panel(V(-GW, GH, -top), V(GW, GH, -top), V(GW, GH, 0), V(-GW, GH, 0), 40, 4); // крыша
+  for (const sx of [-1, 1]) panel(V(sx * GW, 0, 0), V(sx * GW, 0, -D), V(sx * GW, GH, -top), V(sx * GW, GH, 0), 8, 14); // бока
+  net.geo = new THREE.BufferGeometry(); net.geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); net.geo.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); net.geo.setIndex(I);
+  net.pos = net.geo.attributes.position; net.base = Float32Array.from(P);
+  const nm = new THREE.Mesh(net.geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
+  nm.frustumCulled = false; scene.add(nm);
 }
 function netTick(dt) {
   if (!net.hits.length) return;
@@ -121,7 +136,7 @@ function stadium() {
   const c = document.createElement('canvas'); c.width = 64; c.height = 96; const g = c.getContext('2d');
   g.fillStyle = '#fff'; g.beginPath(); g.arc(32, 26, 15, 0, 7); g.fill(); g.beginPath(); g.ellipse(32, 92, 28, 46, 0, Math.PI, 0); g.fill();
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5 }); // без расчёта света — тысячам людей он не нужен
+  const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, alphaToCoverage: true }); // без расчёта света — тысячам людей он не нужен
   const U = { uTime: { value: 0 }, uJump: { value: 0 } };
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
@@ -424,10 +439,13 @@ function launch() {
 function keeperDive() {
   kick.dived = true;
   const dx = kick.cx - kick.x0, far = Math.abs(dx) > 0.9, left = kick.T - kick.react;
-  if (!far) { play(keeper, kick.cy > 0.55 ? 'gk_catch' : 'gk_block', { t: 0.25, fade: 0.12, root: true, speed: 1.4 }); return; }
-  // прыжок: зеркалим запись, если она в другую сторону; растягиваем вбок до точки мяча (или не долетает — гол)
+  if (!far) { play(keeper, kick.cy > 0.55 ? 'gk_catch' : 'gk_block', { t: 0.25, fade: 0.12, root: true, speed: 1.4, hold: 1.6, fix: (r) => { r.x = 0; r.z *= 0.3; } }); return; }
+  // прыжок: зеркалим запись, если она в другую сторону; растягиваем вбок до точки мяча (или не долетает — гол).
+  // Вперёд из ворот почти не выходим, к высокому мячу — приподнимаемся; после падения остаёмся лежать (не встаём).
   const want = kick.save ? Math.abs(dx) - 0.85 : Math.min(Math.abs(dx) * 0.55, 1.8);
-  play(keeper, 'gk_dive', { t: Math.max(0, DIVE.tk - left), fade: 0.12, mirror: Math.sign(dx) !== DIVE.side, rootX: Math.max(0.4, Math.min(1.8, want / DIVE.reach)), root: true });
+  const t0 = Math.max(0, DIVE.tk - left), lift = Math.max(0, Math.min(1.1, kick.cy - 0.7));
+  play(keeper, 'gk_dive', { t: t0, fade: 0.12, mirror: Math.sign(dx) !== DIVE.side, rootX: Math.max(0.4, Math.min(1.8, want / DIVE.reach)), root: true, hold: DIVE.tk + 0.6,
+    fix: (r, t) => { r.z *= 0.25; r.y += lift * Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, (t - t0) / (DIVE.tk + 0.35 - t0))))); } });
 }
 function finish(ok, text, cls) {
   if (state === 'over') return; state = 'over';
@@ -451,17 +469,18 @@ document.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click',
 // У каждого игрока: текущее движение, время в нём и плавный переход из прошлой позы (0,25 с).
 let A = null, KICK = null, DIVE = null;
 const tmpPose = newPose();
-function play(pl, clip, { t = 0, loop = false, mirror = false, fade = 0.25, speed = 1, rootX = 1, root = true } = {}) {
+function play(pl, clip, { t = 0, loop = false, mirror = false, fade = 0.25, speed = 1, rootX = 1, root = true, hold = Infinity, fix = null } = {}) {
   pl.from = pl.pose ? JSON.parse(JSON.stringify({ q: Object.fromEntries(Object.entries(pl.pose.q).map(([k, v]) => [k, v.toArray()])), root: pl.pose.root.toArray() })) : null;
   if (pl.from) { const f = newPose(); for (const k in f.q) f.q[k].fromArray(pl.from.q[k]); f.root.fromArray(pl.from.root); pl.from = f; }
-  Object.assign(pl, { clip, t, loop, mirror, fade, fadeT: 0, speed, rootX, root });
+  Object.assign(pl, { clip, t, loop, mirror, fade, fadeT: 0, speed, rootX, root, hold, fix });
 }
 function tickPlayer(pl, dt, rootFix) {
   if (!A || !pl.clip) return;
-  pl.t += dt * pl.speed; pl.fadeT += dt;
+  pl.t = Math.min(pl.hold, pl.t + dt * pl.speed); pl.fadeT += dt;
   pl.pose = pl.pose || newPose();
   sample(A, pl.clip, pl.t, pl.pose, { loop: pl.loop, mirror: pl.mirror });
   pl.pose.root.x *= pl.rootX;
+  if (pl.fix) pl.fix(pl.pose.root, pl.t);
   if (rootFix) rootFix(pl.pose.root);
   if (pl.from && pl.fadeT < pl.fade) mix(pl.from, pl.pose, ease(pl.fadeT / pl.fade), tmpPose), apply(pl.rig, tmpPose, { rootMove: pl.root });
   else apply(pl.rig, pl.pose, { rootMove: pl.root });
@@ -520,7 +539,7 @@ function frame() {
   if (slowT > 0) { slowT -= raw; if (slowT <= 0) slow = 1; }
   const dt = raw * slow; clock += dt;
   // сам подстраивается: если кадры долгие, уменьшаем разрешение картинки (один раз)
-  if (!autoLow) { autoN++; autoT += raw; if (autoN === 90) { if (autoT / autoN > 0.024) { ren.setPixelRatio(1); autoLow = true; } autoN = 0; autoT = 0; } }
+  if (!autoLow) { autoN++; autoT += raw; if (autoN === 90) { if (autoT / autoN > 0.024) { ren.setPixelRatio(Math.min(1.25, devicePixelRatio)); autoLow = true; } autoN = 0; autoT = 0; } }
   if (fpsEl) { fpsN++; fpsT += raw; fpsWorst = Math.max(fpsWorst, raw); if (fpsT > 1) { fpsEl.textContent = `${Math.round(fpsN / fpsT)} к/с · худший кадр ${Math.round(fpsWorst * 1000)} мс`; fpsN = 0; fpsT = 0; fpsWorst = 0; } }
   if (crowd) { crowd.userData.U.uTime.value = now; crowd.userData.led.offset.x = (now * 0.04) % 1; }
   drawSwipe(raw);
@@ -530,8 +549,8 @@ function frame() {
     tickPlayer(shooter, dt);
     if (shooter.t >= KICK.tc) launch();
   } else if (state === 'fly' || state === 'over') {
+    if (shooter.clip === 'kick' && shooter.t >= A.kick.dur - 0.05) { const end = shooter.pose.root.clone(); play(shooter, 'idle', { loop: true, fade: 0.5, fix: (r) => { r.x = end.x; r.z = end.z; } }); }
     tickPlayer(shooter, dt);
-    if (celebrate >= 0) { celebrate += dt; celebrateArms(celebrate); }
     const prev = ball.position.clone();
     const steps = 6, h = dt / steps;
     for (let i = 0; i < steps; i++) {
@@ -595,6 +614,9 @@ function frame() {
   let done = 0; all.forEach((p) => p.then(() => { done++; if (bar) bar.style.width = (done / all.length) * 100 + '%'; }));
   const got = await Promise.all(all);
   [shooter, keeper] = got; wall.push(...got.slice(2)); blob(ball, 0.45);
+  // мяч: модель LeMon74 (Sketchfab, CC BY 4.0), облегчена gltfpack до 3,5 тыс. треугольников
+  try { const bm = (await loader.loadAsync('assets/ball.glb')).scene, bb = new THREE.Box3().setFromObject(bm), sz = bb.getSize(new THREE.Vector3()).x;
+    bm.scale.setScalar((R * 2) / sz); bm.position.copy(bb.getCenter(new THREE.Vector3()).multiplyScalar(-(R * 2) / sz)); ball.add(bm); ball.material.visible = false; } catch (e) { /* остаётся простой мяч */ }
   A = await animsReady; prepKick();
   resetShot();
   // шейдеры собираем заранее, иначе первый гол и первое конфетти подтормаживают
