@@ -2,11 +2,10 @@
 # Запуск: <python с модулем bpy> build_player.py <персонаж.fbx> <папка с движениями> <выход.glb>
 # Текстуры уменьшаются до 1024, у костей убирается приставка mixamorig, пальцы в движениях не храним (меньше файл).
 import bpy, sys, re, os
-char, adir, dst = sys.argv[-3:]
-CLIPS = { 'kick': 'soccer penalty kick', 'kick2': 'kick soccerball', 'idle': 'offensive idle', 'jog': 'jog forward',
-  'gk_idle': 'goalkeeper idle', 'gk_dive': 'goalkeeper diving save', 'gk_dive2': 'goalkeeper diving save (2)',
-  'gk_catch': 'goalkeeper catch', 'gk_block': 'goalkeeper body block', 'gk_miss': 'goalkeeper miss', 'gk_step': 'goalkeeper sidestep',
-  'header': 'header soccerball', 'header2': 'header soccerball (2)', 'receive': 'receive soccerball', 'gk_dir': 'goalkeeper directing' }
+args = [a for a in sys.argv[1:] if not a.startswith('--')]; char, adir, dst = args[-3:]
+# все движения из папки: ключ — имя файла без .fbx (пробелы и скобки → _), например «goalkeeper diving save (2)» → goalkeeper_diving_save_2
+NOANIM = '--noanim' in sys.argv
+CLIPS = {} if NOANIM else {re.sub(r'[^a-z0-9]+', '_', f[:-4].lower()).strip('_'): f[:-4] for f in sorted(os.listdir(adir)) if f.lower().endswith('.fbx') and 'bot' not in f.lower()}
 strip = lambda n: re.sub(r'^mixamorig\d*:', '', n)
 FINGER = re.compile(r'(Thumb|Index|Middle|Ring|Pinky)\d|_End')
 bpy.ops.wm.read_factory_settings(use_empty=True)

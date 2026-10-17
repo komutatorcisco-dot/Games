@@ -3,8 +3,8 @@
 // Характеристика «Удар» карточки (?st=85) меняет точность: чем выше, тем меньше разброс.
 // Игроки — персонаж Mixamo «Ch38» со скелетом Mixamo и записанными движениями (assets/player.glb, tools/anim).
 // Форма перекрашивается по частям: футболка, шорты, гетры (?kit=футболка.шорты.гетры).
-// Стадион: ночное небо, ярусы трибун с болельщиками (один InstancedMesh, движение в шейдере), прожекторы.
-// Параметры: ?name=МЕССИ&num=10&kit=75aadb.ffffff.ffffff.16192a&st=93&mode=pen&face=img/players/<id>.webp&low=1
+// Стадион: дневное небо (?night=1 — ночь), ярусы трибун с болельщиками (один InstancedMesh, движение в шейдере), прожекторы.
+// Режимы: штрафной, пенальти, «1 на 1» (джойстик + кнопки, ?mode=run). Параметры: ?name=МЕССИ&num=10&kit=75aadb.ffffff.ffffff.16192a&st=93&mode=pen&face=img/players/<id>.webp&low=1
 import * as THREE from 'three';
 import { GLTFLoader } from '../balotelli/vendor/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from '../balotelli/vendor/meshopt_decoder.module.js';
@@ -13,7 +13,8 @@ import { clone as cloneSkinned } from '../balotelli/vendor/utils/SkeletonUtils.j
 const Q = new URLSearchParams(location.search);
 const ST = Math.max(40, Math.min(99, Number(Q.get('st')) || 82));
 const NAME = (Q.get('name') || 'ИГРОК').toUpperCase().slice(0, 14);
-let MODE = Q.get('mode') === 'pen' ? 'pen' : 'fk';
+let MODE = ['pen', 'run'].includes(Q.get('mode')) ? Q.get('mode') : 'fk';
+const NIGHT = Q.get('night') === '1'; // по умолчанию — дневной матч
 const SHOTS = 5, G = 9.81, R = 0.11, GW = 3.66, GH = 2.44, NET_D = 1.9;
 const LOW = Q.get('low') === '1' || (navigator.hardwareConcurrency || 4) <= 2; // слабый телефон: без теней, меньше людей
 const $ = (s) => document.querySelector(s);
@@ -30,24 +31,31 @@ ren.outputColorSpace = THREE.SRGBColorSpace; ren.toneMapping = THREE.ACESFilmicT
 ren.shadowMap.enabled = false; // вместо карты теней — мягкие пятна под игроками и мячом (вдвое меньше работы видеокарте)
 document.body.prepend(ren.domElement);
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog('#0d1530', 60, 140);
-const cam = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 300);
+scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#bcd3ea', 90, 220);
+const cam = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 400);
 addEventListener('resize', () => { ren.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); fitSwipe(); });
 
-// свет: прожекторы стадиона (основной с тенью) + небо
-scene.add(new THREE.HemisphereLight('#b9c8ff', '#2d5a24', 0.9));
-const key = new THREE.DirectionalLight('#fff6e6', 2.6); key.position.set(-18, 30, 22); 
+// свет: днём — солнце и небо (освещение берём из самой картинки неба), ночью — прожекторы
+scene.add(new THREE.HemisphereLight(NIGHT ? '#b9c8ff' : '#cfe4ff', NIGHT ? '#2d5a24' : '#3d6b2c', NIGHT ? 0.9 : 0.7));
+const key = new THREE.DirectionalLight(NIGHT ? '#fff6e6' : '#fff2dc', NIGHT ? 2.6 : 3.0); key.position.set(-18, 30, 22);
 key.target.position.set(0, 0, 10); scene.add(key, key.target);
-const fill = new THREE.DirectionalLight('#cfe0ff', 0.9); fill.position.set(20, 18, 30); scene.add(fill);
+const fill = new THREE.DirectionalLight('#cfe0ff', NIGHT ? 0.9 : 0.6); fill.position.set(20, 18, 30); scene.add(fill);
 const rim = new THREE.DirectionalLight('#ffffff', 0.7); rim.position.set(0, 14, -30); scene.add(rim);
 
 // ---------- небо ----------
-{
+if (NIGHT) {
   const c = document.createElement('canvas'); c.width = 16; c.height = 256; const g = c.getContext('2d');
   const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#04060f'); gr.addColorStop(0.55, '#0e1838'); gr.addColorStop(1, '#2a3a74');
   g.fillStyle = gr; g.fillRect(0, 0, 16, 256);
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   scene.add(new THREE.Mesh(new THREE.SphereGeometry(200, 32, 16), new THREE.MeshBasicMaterial({ map: t, side: THREE.BackSide, fog: false })));
+} else {
+  // дневное небо: ambientCG DaySkyHDRI069B (CC0) — и фон, и мягкий отражённый свет на игроках и газоне
+  new THREE.TextureLoader().load('assets/sky.webp', (t) => {
+    t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace;
+    scene.background = t;
+    const pm = new THREE.PMREMGenerator(ren); scene.environment = pm.fromEquirectangular(t).texture; scene.environmentIntensity = 0.55; pm.dispose();
+  });
 }
 
 // ---------- газон ----------
@@ -156,7 +164,7 @@ function stadium() {
   const seats = [];
   // ярусы: за воротами (широкий) и по бокам — ступени
   const tiers = [{ x: 0, w: 92, rot: 0 }, { x: -44, w: 70, rot: Math.PI / 2 }, { x: 44, w: 70, rot: -Math.PI / 2 }];
-  const conc = new THREE.MeshStandardMaterial({ color: '#1b2340', roughness: 0.9 });
+  const conc = new THREE.MeshStandardMaterial({ color: NIGHT ? '#1b2340' : '#7d8597', roughness: 0.9 });
   const rowsN = LOW ? 8 : 13, step = 0.9, rise = 0.55;
   let lampY = 0, lampZ = 0;
   for (const T of tiers) {
@@ -167,7 +175,7 @@ function stadium() {
       const st = new THREE.Mesh(new THREE.BoxGeometry(T.w, rise, step), conc); st.position.set(0, y - rise / 2, z); grp.add(st);
       for (let x = -T.w / 2 + 0.4; x < T.w / 2 - 0.4; x += 0.8) { if (Math.random() < 0.12) continue; seats.push({ grp, p: new THREE.Vector3(x + (Math.random() - 0.5) * 0.15, y + 0.33, z + 0.1) }); }
     }
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(T.w, 0.5, 14), new THREE.MeshStandardMaterial({ color: '#0d1226', roughness: 0.6 }));
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(T.w, 0.5, 14), new THREE.MeshStandardMaterial({ color: NIGHT ? '#0d1226' : '#d9dee6', roughness: 0.6 }));
     roof.position.set(0, 0.9 + rowsN * rise + 8, -rowsN * step * 0.65); roof.rotation.x = -0.12; grp.add(roof);
     const lamp = { position: new THREE.Vector3(0, roof.position.y - 0.6, roof.position.z + 7) };
     grp.rotation.y = T.rot;
@@ -179,7 +187,7 @@ function stadium() {
   const rg = gg.createRadialGradient(64, 64, 0, 64, 64, 64); rg.addColorStop(0, 'rgba(255,250,235,1)'); rg.addColorStop(0.25, 'rgba(255,240,210,.45)'); rg.addColorStop(1, 'rgba(255,240,210,0)');
   gg.fillStyle = rg; gg.fillRect(0, 0, 128, 128);
   const gt = new THREE.CanvasTexture(gc);
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < (NIGHT ? 9 : 0); i++) {
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: gt, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false }));
     s.position.set(-36 + i * 9, lampY, lampZ + 0.5); s.scale.setScalar(9); scene.add(s);
   }
@@ -337,7 +345,7 @@ function setSpot(n) {
     const side = new THREE.Vector3(-d.z, 0, d.x);
     wallX = [-1.5, -0.5, 0.5, 1.5].map((k) => c.x + side.x * k * 0.6);
   }
-  wall.forEach((w, i) => { w.holder.visible = MODE === 'fk'; if (MODE === 'fk') { w.holder.position.set(wallX[i], 0, wallZ); w.holder.rotation.y = wallFace + Math.PI; } });
+  wall.forEach((w, i) => { w.holder.visible = MODE === 'fk'; if (MODE === 'fk') { w.holder.position.set(wallX[i], 0, wallZ); w.holder.rotation.y = wallFace; } }); // лицом к мячу (раньше было +180° — стояли спиной)
 }
 
 // ---------- состояние ----------
@@ -352,6 +360,8 @@ function aimCam() { // камера за спиной: в кадре и мяч, 
   camAim.l.set(spot.x * 0.15, 1.0, 0);
 }
 function resetShot() {
+  $('#pad').hidden = MODE !== 'run'; $('#hint').hidden = MODE === 'run';
+  if (MODE === 'run') return resetRun();
   setSpot(n);
   ball.position.copy(spot); vel.set(0, 0, 0); spin.set(0, 0, 0); ball.rotation.set(0, 0, 0); trail.pts.length = 0;
   placeShooter(); shooter.holder.position.y = 0;
@@ -375,7 +385,7 @@ function fitSwipe() { const d = Math.min(2, devicePixelRatio); sw.width = innerW
 fitSwipe();
 let path = [], fade = 0, drawn = [];
 const scr = (e) => ({ x: e.clientX, y: e.clientY, t: performance.now() });
-addEventListener('pointerdown', (e) => { if (state !== 'aim' || e.target.closest('button')) return; path = [scr(e)]; drawn = path; fade = 1; });
+addEventListener('pointerdown', (e) => { if (state !== 'aim' || MODE === 'run' || e.target.closest('button, .joy')) return; path = [scr(e)]; drawn = path; fade = 1; });
 addEventListener('pointermove', (e) => { if (path.length) { path.push(scr(e)); drawn = path; } });
 addEventListener('pointerup', (e) => {
   if (!path.length || state !== 'aim') return; path.push(scr(e));
@@ -424,9 +434,9 @@ function stepBall(p, v, w, h) { // один шаг (полунеявный Эй�
   v.addScaledVector(accel(v, w, tmpV), h); p.addScaledVector(v, h); w.multiplyScalar(1 - 0.35 * h);
 }
 // где и когда мяч пересечёт линию ворот (без стенки и вратаря)
-function predict(p0, v0, w0) {
+function predict(p0, v0, w0, zp = 0) {
   const p = p0.clone(), v = v0.clone(), w = w0.clone(); let t = 0;
-  while (p.z > 0 && t < 3) { stepBall(p, v, w, 1 / 120); t += 1 / 120; if (p.y < R) { p.y = R; v.y = Math.abs(v.y) * 0.5; } }
+  while (p.z > zp && t < 3) { stepBall(p, v, w, 1 / 120); t += 1 / 120; if (p.y < R) { p.y = R; v.y = Math.abs(v.y) * 0.5; } }
   return { p, t };
 }
 // подбираем начальную скорость так, чтобы мяч пришёл туда, куда отпустили палец (с учётом дуги и сопротивления)
@@ -448,17 +458,19 @@ function launch() {
   // подкрутка: вращение вокруг вертикали (изогнул линию влево — мяч уходит влево по дуге); сильный удар — чуть верхнего вращения (мяч «ныряет»)
   spin.set(-Math.min(speed, 30) * 0.06, -shot.curve * 55, 0);
   vel.copy(aimVelocity(new THREE.Vector3(tx, ty, 0), speed, spin)); shot.ax = 0;
-  // заранее: где и когда мяч пересечёт линию ворот — по этому прыгает вратарь
-  const { p, t } = predict(spot, vel, spin);
+  // заранее: где и когда мяч долетит до вратаря (он может выйти из ворот) — по этому он прыгает
+  const kz = Math.max(0, keeper.holder.position.z - 0.2), { p, t } = predict(spot, vel, spin, kz);
   const react = 0.2 + Math.random() * 0.12, kx = keeper.holder.position.x;
   const need = Math.max(0, Math.abs(p.x - kx) - 0.75), topCorner = p.y > 1.9 && Math.abs(p.x) > 2.6;
-  const can = need <= 6.2 * Math.max(0, t - react) * (topCorner ? 0.55 : 1) && Math.abs(p.x) < GW + 0.3 && p.y < 2.6;
-  kick = { t: 0, T: t, cx: p.x, cy: p.y, react, save: can && Math.random() < (ST > 90 ? 0.72 : 0.86), dir: Math.sign(p.x - kx) || 1, done: false, x0: kx };
+  const goalBound = Math.abs(predict(spot, vel, spin).p.x) < GW + 0.3;
+  const can = need <= 6.2 * Math.max(0, t - react) * (topCorner ? 0.55 : 1) && goalBound && p.y < 2.6;
+  const lp = keeper.holder.worldToLocal(new THREE.Vector3(p.x, p.y, kz)); // точка мяча глазами вратаря (он может стоять под углом)
+  kick = { t: 0, T: t, cx: p.x, cy: p.y, lx: lp.x, kz, react, save: can && Math.random() < (ST > 90 ? 0.72 : 0.86), dir: Math.sign(p.x - kx) || 1, done: false, x0: kx };
   state = 'fly'; shake = 0.12;
 }
 function keeperDive() {
   kick.dived = true;
-  const dx = kick.cx - kick.x0, far = Math.abs(dx) > 0.9, left = kick.T - kick.react;
+  const dx = kick.lx, far = Math.abs(dx) > 0.9, left = kick.T - kick.react;
   if (!far) { play(keeper, kick.cy > 0.55 ? 'gk_catch' : 'gk_block', { t: 0.25, fade: 0.12, speed: 1.4, hold: 1.6, fz: 0.3, lock: keeper.holder.localToWorld(new THREE.Vector3(0, 0, 0)) }); return; }
   // прыжок в нужную сторону; растягиваем вбок до точки мяча (или не долетает — гол), вперёд из ворот почти не выходим,
   // к высокому мячу приподнимаемся; после падения остаёмся лежать (запись дальше — вставание — не играем)
@@ -488,7 +500,12 @@ document.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click',
 // Движения — записанные с людей (Mixamo, «Soccer Game Pack»). Каждый игрок — свой проигрыватель (AnimationMixer),
 // смена движения — плавный переход. Растяжка прыжка вратаря — копия записи с изменённым смещением таза.
 let KICK = null, DIVE = null;
-const clipOf = (name) => base.animations.find((c) => c.name === name);
+// короткие имена → движения из набора (все 54 лежат в player.glb под именами файлов Mixamo)
+const ALIAS = { kick: 'soccer_penalty_kick', kick2: 'kick_soccerball', strike: 'strike_foward_jog', idle: 'offensive_idle', jog: 'jog_forward',
+  gk_idle: 'goalkeeper_idle', gk_idle2: 'goalkeeper_idle_2', gk_dive: 'goalkeeper_diving_save', gk_dive2: 'goalkeeper_diving_save_2',
+  gk_catch: 'goalkeeper_catch', gk_block: 'goalkeeper_body_block', gk_miss: 'goalkeeper_miss', gk_step: 'goalkeeper_sidestep', gk_scoop: 'goalkeeper_scoop',
+  header: 'header_soccerball', header2: 'header_soccerball_2' };
+const clipOf = (name) => base.animations.find((c) => c.name === (ALIAS[name] || name));
 const variants = new Map();
 // копия движения: смещение таза по сторонам (fx) и вперёд (fz) умножено — вратарь долетает ровно до мяча и не выбегает из ворот
 function variant(name, fx = 1, fz = 1) {
@@ -498,11 +515,11 @@ function variant(name, fx = 1, fz = 1) {
   if (tr && (fx !== 1 || fz !== 1)) { const v = tr.values, x0 = v[0], y0 = v[1]; for (let i = 0; i < v.length; i += 3) { v[i] = x0 + (v[i] - x0) * fx; v[i + 1] = y0 + (v[i + 1] - y0) * fz; } }
   variants.set(key, c); return c;
 }
-function play(pl, name, { t = 0, loop = false, fade = 0.25, speed = 1, hold = Infinity, fx = 1, fz = 1, lock = null, lift = 0 } = {}) {
+function play(pl, name, { t = 0, loop = false, fade = 0.25, speed = 1, hold = Infinity, fx = 1, fz = 1, lock = null, lift = 0, follow = false } = {}) {
   const a = pl.mixer.clipAction(variant(name, fx, fz));
   a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); a.clampWhenFinished = true; a.timeScale = speed; a.time = t;
   if (pl.act && pl.act !== a && fade > 0) a.crossFadeFrom(pl.act, fade, false); else if (pl.act && pl.act !== a) pl.act.stop();
-  a.play(); Object.assign(pl, { act: a, name, hold, lock, lift, t0: t });
+  a.play(); Object.assign(pl, { act: a, name, hold, lock, lift, t0: t, follow });
 }
 // таз в мировых координатах ↔ в координатах скелета (у скелета Mixamo свой поворот и масштаб 0,01)
 function tickPlayer(pl, dt) {
@@ -510,10 +527,11 @@ function tickPlayer(pl, dt) {
   pl.mixer.update(dt);
   if (pl.act.time >= pl.hold) { pl.act.time = pl.hold; pl.act.paused = true; }
   pl.t = pl.act.time;
-  if (pl.lock || pl.lift) {
-    pl.model.updateMatrixWorld(true);
+  if (pl.lock || pl.lift || pl.follow) {
+    pl.holder.updateMatrixWorld(true);
     const par = pl.hips.parent, w = pl.hips.getWorldPosition(v3);
-    if (pl.lock) { w.x = pl.lock.x; w.z = pl.lock.z; }
+    if (pl.follow) { w.x = pl.holder.position.x; w.z = pl.holder.position.z; } // бег/стойка на месте: двигаем игрока сами
+    else if (pl.lock) { w.x = pl.lock.x; w.z = pl.lock.z; }
     if (pl.lift) w.y += pl.lift(pl.t);
     pl.hips.position.copy(par.worldToLocal(w));
   }
@@ -557,6 +575,104 @@ function wallTick(w, i, dt) { // стенка: стоят, при ударе т�
   w.holder.position.y = kick ? 0.45 * wallJump(kick.t - i * 0.03) : 0;
 }
 
+// ---------- 1 на 1: бежишь сам и бьёшь (джойстик + кнопки, как в FC Mobile) ----------
+let STRIKE = null, run = null;
+const joy = { x: 0, y: 0, id: null }, keys = {}, btn = { shot: false, fin: false, sprint: false };
+const GOAL_C = new THREE.Vector3(0, 0, 0);
+function resetRun() {
+  wall.forEach((w) => (w.holder.visible = false));
+  const sx = (Math.random() * 2 - 1) * 7;
+  shooter.holder.position.set(sx, 0, 30); shooter.holder.rotation.set(0, Math.PI, 0);
+  ball.position.set(sx, R, 29.3); vel.set(0, 0, 0); spin.set(0, 0, 0); ball.rotation.set(0, 0, 0); trail.pts.length = 0;
+  play(shooter, 'idle', { loop: true, fade: 0.2, follow: true });
+  keeper.holder.position.set(0, 0, 0.4); keeper.holder.rotation.set(0, 0, 0);
+  play(keeper, 'gk_idle', { loop: true, fade: 0.3, follow: true });
+  run = { v: new THREE.Vector3(), charge: -1, fin: false, kv: new THREE.Vector3() };
+  const hp = shooter.holder.position; camAim.p.set(hp.x * 0.8, 3.4, hp.z + 7.4); camAim.l.set(hp.x * 0.55, 0.9, hp.z - 9);
+  if (state === 'load') { camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); }
+  state = 'play'; shot = null; kick = null; celebrate = -1; slow = 1; msg.className = 'msg'; dots();
+}
+// ввод: джойстик (палец), кнопки, клавиатура (WASD/стрелки, пробел — удар, E — подкрутка, Shift — рывок)
+const joyEl = $('#joy'), stick = $('#stick');
+function joySet(e) { const r = joyEl.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, R0 = r.width / 2;
+  let x = (e.clientX - cx) / R0, y = (cy - e.clientY) / R0; const L = Math.hypot(x, y); if (L > 1) { x /= L; y /= L; }
+  joy.x = x; joy.y = y; stick.style.transform = `translate(${x * R0 * 0.55}px, ${-y * R0 * 0.55}px)`; }
+joyEl.addEventListener('pointerdown', (e) => { joy.id = e.pointerId; joyEl.setPointerCapture(e.pointerId); joySet(e); });
+joyEl.addEventListener('pointermove', (e) => { if (e.pointerId === joy.id) joySet(e); });
+const joyEnd = (e) => { if (e.pointerId !== joy.id) return; joy.id = null; joy.x = joy.y = 0; stick.style.transform = ''; };
+joyEl.addEventListener('pointerup', joyEnd); joyEl.addEventListener('pointercancel', joyEnd);
+const hold = (id, k) => { const b = $(id);
+  b.addEventListener('pointerdown', (e) => { e.preventDefault(); btn[k] = true; b.classList.add('on'); if (k !== 'sprint') startCharge(k === 'fin'); });
+  const up = () => { if (!btn[k]) return; btn[k] = false; b.classList.remove('on'); if (k !== 'sprint') releaseCharge(); };
+  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up); };
+hold('#b-shot', 'shot'); hold('#b-fin', 'fin'); hold('#b-run', 'sprint');
+addEventListener('keydown', (e) => { if (e.code === 'Space') e.preventDefault(); if (keys[e.code]) return; keys[e.code] = true; /* пробел не нажимает кнопки режима */ if (e.code === 'Space') startCharge(false); if (e.code === 'KeyE') startCharge(true); });
+addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'Space' || e.code === 'KeyE') releaseCharge(); });
+function input() {
+  let x = joy.x, y = joy.y;
+  if (keys.KeyA || keys.ArrowLeft) x -= 1; if (keys.KeyD || keys.ArrowRight) x += 1; if (keys.KeyW || keys.ArrowUp) y += 1; if (keys.KeyS || keys.ArrowDown) y -= 1;
+  const L = Math.hypot(x, y); return L > 1 ? { x: x / L, y: y / L } : { x, y };
+}
+// держишь «Удар» — копится сила (полоска), отпустил — удар; «Подкрутка» — удар щёчкой с закруткой в дальний угол
+function startCharge(fin) { if (MODE !== 'run' || state !== 'play' || !run || run.charge >= 0) return; if (ball.position.distanceTo(shooter.holder.position) > 1.6) return; run.charge = 0; run.fin = fin; $('#power').classList.add('on'); }
+function releaseCharge() { if (!run || run.charge < 0 || state !== 'play') return; const pw = Math.min(1, run.charge / 0.9); run.charge = -1; $('#power').classList.remove('on'); strike(pw, run.fin); }
+function strike(pw, fin) {
+  const inp = input(), bp = ball.position;
+  // куда: джойстик вбок — в тот угол; без джойстика — в дальний угол от игрока
+  let tx = Math.abs(inp.x) > 0.2 ? inp.x * 3.3 : -Math.sign(bp.x || 1) * 2.4;
+  let ty = 0.25 + pw * 2.3 + (pw > 0.95 ? 0.7 : 0); // перебрал силу — над перекладиной
+  let speed = 15 + pw * 17, curve = 0;
+  if (fin) { speed *= 0.82; curve = -Math.sign(tx - bp.x) * 0.9; ty = Math.min(ty, 2.1); }
+  const dist = bp.length(), sig = (0.12 + (100 - ST) * 0.028) * Math.max(0.6, dist / 18), gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 0.8;
+  tx += gauss() * sig; ty = Math.max(0.1, ty + gauss() * sig * 0.7);
+  shot = { tx, ty, speed, curve, ax: 0 };
+  run.v.multiplyScalar(0.3);
+  play(shooter, 'strike', { t: Math.max(0, STRIKE.tc - 0.35), fade: 0.12, follow: true });
+  state = 'runup'; t0 = clock;
+}
+function dribble(dt, k = 1) { // мяч у ноги: чуть впереди по ходу, катится
+  const h = shooter.holder, f = tmpA.set(Math.sin(h.rotation.y), 0, Math.cos(h.rotation.y)), sp = run.v.length();
+  const tgt = tmpB.copy(h.position).addScaledVector(f, 0.55 + sp * 0.09); tgt.y = R;
+  const before = ball.position.clone(); ball.position.lerp(tgt, 1 - Math.exp(-dt * 7 * k));
+  const d = ball.position.clone().sub(before); if (d.lengthSq() > 1e-8) { tmpV.set(d.z, 0, -d.x).normalize(); ball.rotateOnWorldAxis(tmpV, -d.length() / R); }
+}
+function runTick(dt) {
+  const inp = input(), max = (btn.sprint || keys.ShiftLeft || keys.ShiftRight) ? 6.6 : 3.9;
+  run.v.lerp(tmpA.set(inp.x, 0, -inp.y).multiplyScalar(max), 1 - Math.exp(-dt * 6));
+  const h = shooter.holder, sp = run.v.length();
+  h.position.addScaledVector(run.v, dt); h.position.x = Math.max(-30, Math.min(30, h.position.x)); h.position.z = Math.max(1.2, Math.min(42, h.position.z));
+  if (sp > 0.3) { const yaw = Math.atan2(run.v.x, run.v.z); let d = yaw - h.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); h.rotation.y += d * (1 - Math.exp(-dt * 9)); }
+  const want = sp > 0.6 ? 'jog' : 'idle';
+  if (shooter.name !== want) play(shooter, want, { loop: true, fade: 0.25, follow: true });
+  if (want === 'jog') shooter.act.timeScale = Math.max(0.7, sp / 3.6);
+  tickPlayer(shooter, dt);
+  dribble(dt);
+  if (run.charge >= 0) { run.charge += dt; $('#power i').style.width = Math.min(100, (run.charge / 0.9) * 100) + '%'; if (run.charge > 1.2) releaseCharge(); }
+  // вратарь: стоит на линии мяч — центр ворот и выходит навстречу, когда игрок близко
+  const bp = ball.position, k = keeper.holder, dist = bp.length();
+  const out = Math.max(0.4, Math.min(5.5, (22 - dist) * 0.24, dist - 1.6));
+  const kt = tmpA.copy(bp).setY(0).normalize().multiplyScalar(out); kt.z = Math.max(0.3, kt.z);
+  const kd = kt.sub(k.position); const kl = kd.length(), ksp = Math.min(4.4, kl * 3);
+  run.kv.lerp(kl > 0.02 ? kd.normalize().multiplyScalar(ksp) : tmpB.set(0, 0, 0), 1 - Math.exp(-dt * 5));
+  k.position.addScaledVector(run.kv, dt);
+  k.rotation.y = Math.atan2(bp.x - k.position.x, bp.z - k.position.z);
+  const kWant = run.kv.length() > 1.2 ? 'jog' : 'gk_idle';
+  if (keeper.name !== kWant && keeper.name !== 'gk_scoop') play(keeper, kWant, { loop: true, fade: 0.3, follow: true });
+  // вратарь успел к мячу — забирает
+  if (bp.distanceTo(k.position) < 1.15 && run.charge < 0) {
+    play(keeper, 'gk_scoop', { fade: 0.15, follow: true, speed: 1.3 });
+    vel.set(0, 0, 0); state = 'fly'; kick = { t: 0, T: 9, react: 99, dived: true, kz: 0 }; shot = { curve: 0 };
+    finish(false, 'Вратарь забрал', 'miss');
+  }
+}
+function prepStrike() { // когда в ударе на ходу нога бьёт по мячу
+  const a = shooter.mixer.clipAction(clipOf('strike')); a.reset().play();
+  const fp = (n) => { shooter.model.updateMatrixWorld(true); return shooter.model.getObjectByName(n).getWorldPosition(new THREE.Vector3()); };
+  let best = 0, tc = 0.6, prev = {};
+  for (let t = 0; t <= a.getClip().duration - 0.02; t += 1 / 60) { shooter.mixer.setTime(t); for (const n of ['LeftFoot', 'RightFoot']) { const q = fp(n); if (prev[n] && t > 0.2) { const v = q.distanceTo(prev[n]) * 60; if (v > best) { best = v; tc = t; } } prev[n] = q; } }
+  a.stop(); STRIKE = { tc };
+}
+
 // ---------- кадр ----------
 let last = performance.now() / 1000;
 const fpsEl = Q.get('fps') === '1' ? Object.assign(document.createElement('div'), { style: 'position:fixed;left:8px;bottom:8px;z-index:9;font:700 12px monospace;color:#0f0;background:#000a;padding:3px 6px;border-radius:6px' }) : null;
@@ -575,11 +691,13 @@ function frame() {
   drawSwipe(raw);
   if (state === 'load') return;
 
-  if (state === 'runup') {
+  if (state === 'play') runTick(dt);
+  else if (state === 'runup') {
     tickPlayer(shooter, dt);
-    if (shooter.t >= KICK.tc) launch();
+    if (MODE === 'run') dribble(dt, 0.2);
+    if (shooter.t >= (MODE === 'run' ? STRIKE.tc : KICK.tc)) { if (MODE === 'run') spot.copy(ball.position); launch(); }
   } else if (state === 'fly' || state === 'over') {
-    if (shooter.name === 'kick' && shooter.t >= clipOf('kick').duration - 0.05) { const end = shooter.holder.localToWorld(hipsAt(shooter)); play(shooter, 'idle', { loop: true, fade: 0.5, lock: end }); }
+    if ((shooter.name === 'kick' || shooter.name === 'strike') && shooter.t >= clipOf(shooter.name).duration - 0.05) { const end = shooter.holder.localToWorld(hipsAt(shooter)); play(shooter, 'idle', { loop: true, fade: 0.5, lock: end }); }
     tickPlayer(shooter, dt);
     const prev = ball.position.clone();
     const steps = Math.max(2, Math.ceil(dt * 120)), h = dt / steps, bp = ball.position;
@@ -610,7 +728,7 @@ function frame() {
         const hit = wallX.some((x) => Math.abs(p.x - x) < 0.36) && p.y < 1.95 + jumpH;
         if (hit) { vel.set(vel.x * 0.3, 2.5, Math.abs(vel.z) * 0.25); spin.set(0, 0, 0); finish(false, 'В стенку', 'miss'); }
       }
-      if (kick && kick.save && !kick.done && !kick.post && p.z < 0.5) { kick.done = true; vel.set(kick.dir * 3.5, 3.2, 5.5); spin.set(0, 0, 0); finish(false, 'Сейв!', 'miss'); }
+      if (kick && kick.save && !kick.done && !kick.post && p.z < kick.kz + 0.5) { kick.done = true; vel.set(kick.dir * 3.5, 3.2, 5.5); spin.set(0, 0, 0); finish(false, 'Сейв!', 'miss'); }
       if (state === 'fly' && prev.z > 0 && p.z <= 0) {
         if (Math.abs(p.x) < GW - R && p.y < GH - R) finish(true, 'ГОЛ!', 'goal');
         else finish(false, kick && kick.post ? kick.post : 'Мимо', 'miss');
@@ -627,8 +745,11 @@ function frame() {
   trailTick(state === 'fly' || (state === 'over' && vel.lengthSq() > 30));
   netTick(dt); confTick(dt); blobTick();
 
-  // камера: перед ударом — за мячом; в полёте — плавно следует за мячом
-  if (kick && (state === 'fly' || state === 'over')) {
+  // камера: перед ударом — за мячом; в полёте — плавно следует за мячом; в 1 на 1 — за спиной игрока
+  if (MODE === 'run' && (state === 'play' || state === 'runup')) {
+    const hp = shooter.holder.position; camAim.p.set(hp.x * 0.8, 3.4, hp.z + 7.4); camAim.l.set(hp.x * 0.55, 0.9, hp.z - 9);
+    camNow.p.lerp(camAim.p, 1 - Math.exp(-raw * 5)); camNow.l.lerp(camAim.l, 1 - Math.exp(-raw * 5));
+  } else if (kick && (state === 'fly' || state === 'over')) {
     const bp = ball.position, follow = Math.min(1, Math.max(0, (spot.z - Math.max(bp.z, 2)) / spot.z));
     tmpA.set(bp.x * 0.5, 2.1, Math.max(bp.z + 8, 9));
     tmpA.lerpVectors(camAim.p, tmpA, follow * 0.35);
@@ -652,7 +773,7 @@ function frame() {
   // мяч: модель LeMon74 (Sketchfab, CC BY 4.0), облегчена gltfpack до 3,5 тыс. треугольников
   try { const bm = (await loader.loadAsync('assets/ball.glb')).scene, bb = new THREE.Box3().setFromObject(bm), sz = bb.getSize(new THREE.Vector3()).x;
     bm.scale.setScalar((R * 2) / sz); bm.position.copy(bb.getCenter(new THREE.Vector3()).multiplyScalar(-(R * 2) / sz)); ball.add(bm); ball.material.visible = false; } catch (e) { /* остаётся простой мяч */ }
-  prepKick();
+  prepKick(); prepStrike();
 
   resetShot();
   // шейдеры собираем заранее, иначе первый гол и первое конфетти подтормаживают
