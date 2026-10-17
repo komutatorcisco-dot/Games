@@ -24,9 +24,9 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 // ---------- рендер ----------
 const ren = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-ren.setPixelRatio(Math.min(LOW ? 1.5 : 2, devicePixelRatio)); ren.setSize(innerWidth, innerHeight);
+ren.setPixelRatio(Math.min(LOW ? 1 : 1.5, devicePixelRatio)); ren.setSize(innerWidth, innerHeight);
 ren.outputColorSpace = THREE.SRGBColorSpace; ren.toneMapping = THREE.ACESFilmicToneMapping; ren.toneMappingExposure = 1.15;
-ren.shadowMap.enabled = !LOW; ren.shadowMap.type = THREE.PCFSoftShadowMap;
+ren.shadowMap.enabled = false; // вместо карты теней — мягкие пятна под игроками и мячом (вдвое меньше работы видеокарте)
 document.body.prepend(ren.domElement);
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog('#0d1530', 60, 140);
@@ -35,8 +35,7 @@ addEventListener('resize', () => { ren.setSize(innerWidth, innerHeight); cam.asp
 
 // свет: прожекторы стадиона (основной с тенью) + небо
 scene.add(new THREE.HemisphereLight('#b9c8ff', '#2d5a24', 0.9));
-const key = new THREE.DirectionalLight('#fff6e6', 2.6); key.position.set(-18, 30, 22); key.castShadow = !LOW;
-key.shadow.mapSize.set(2048, 2048); Object.assign(key.shadow.camera, { left: -16, right: 16, top: 30, bottom: -8, near: 5, far: 80 }); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+const key = new THREE.DirectionalLight('#fff6e6', 2.6); key.position.set(-18, 30, 22); 
 key.target.position.set(0, 0, 10); scene.add(key, key.target);
 const fill = new THREE.DirectionalLight('#cfe0ff', 0.9); fill.position.set(20, 18, 30); scene.add(fill);
 const rim = new THREE.DirectionalLight('#ffffff', 0.7); rim.position.set(0, 14, -30); scene.add(rim);
@@ -52,7 +51,7 @@ const rim = new THREE.DirectionalLight('#ffffff', 0.7); rim.position.set(0, 14, 
 
 // ---------- газон ----------
 function pitch() {
-  const X0 = -40, X1 = 40, Z0 = -8, Z1 = 56, S = 16, c = document.createElement('canvas');
+  const X0 = -40, X1 = 40, Z0 = -8, Z1 = 56, S = LOW ? 10 : 14, c = document.createElement('canvas');
   c.width = (X1 - X0) * S; c.height = (Z1 - Z0) * S;
   const g = c.getContext('2d'), px = (x) => (x - X0) * S, pz = (z) => (z - Z0) * S;
   for (let i = 0; i * 5.5 < Z1 - Z0; i++) { g.fillStyle = i % 2 ? '#2f7d2c' : '#378f33'; g.fillRect(0, i * 5.5 * S, c.width, 5.5 * S); }
@@ -133,7 +132,7 @@ function stadium() {
   // ярусы: за воротами (широкий) и по бокам — ступени
   const tiers = [{ x: 0, w: 92, rot: 0 }, { x: -44, w: 70, rot: Math.PI / 2 }, { x: 44, w: 70, rot: -Math.PI / 2 }];
   const conc = new THREE.MeshStandardMaterial({ color: '#1b2340', roughness: 0.9 });
-  const rowsN = LOW ? 14 : 22, step = 0.9, rise = 0.55;
+  const rowsN = LOW ? 10 : 16, step = 0.9, rise = 0.55;
   let lampY = 0, lampZ = 0;
   for (const T of tiers) {
     const grp = new THREE.Group();
@@ -141,7 +140,7 @@ function stadium() {
       const ring = r >= rowsN * 0.55 ? 1.6 : 0; // проход между ярусами
       const z = -r * step - ring, y = 0.9 + r * rise + ring * 0.8;
       const st = new THREE.Mesh(new THREE.BoxGeometry(T.w, rise, step), conc); st.position.set(0, y - rise / 2, z); grp.add(st);
-      for (let x = -T.w / 2 + 0.4; x < T.w / 2 - 0.4; x += 0.62) { if (Math.random() < 0.08) continue; seats.push({ grp, p: new THREE.Vector3(x + (Math.random() - 0.5) * 0.15, y + 0.33, z + 0.1) }); }
+      for (let x = -T.w / 2 + 0.4; x < T.w / 2 - 0.4; x += 0.7) { if (Math.random() < 0.1) continue; seats.push({ grp, p: new THREE.Vector3(x + (Math.random() - 0.5) * 0.15, y + 0.33, z + 0.1) }); }
     }
     const roof = new THREE.Mesh(new THREE.BoxGeometry(T.w, 0.5, 14), new THREE.MeshStandardMaterial({ color: '#0d1226', roughness: 0.6 }));
     roof.position.set(0, 0.9 + rowsN * rise + 8, -rowsN * step * 0.65); roof.rotation.x = -0.12; grp.add(roof);
@@ -212,13 +211,15 @@ const trailMesh = new THREE.Mesh(trail.geo, new THREE.ShaderMaterial({
 trailMesh.frustumCulled = false;
 const ball = ballMesh();
 function trailTick(on) {
-  if (on) { trail.pts.unshift(ball.position.clone()); if (trail.pts.length > TRAIL) trail.pts.pop(); } else if (trail.pts.length) trail.pts.pop();
+  if (!on && !trail.pts.length) { if (trail.shown) { trail.geo.attributes.alpha.array.fill(0); trail.geo.attributes.alpha.needsUpdate = true; trail.shown = false; } return; }
+  trail.shown = true;
+  if (on) { const v = trail.pts.length >= TRAIL ? trail.pts.pop() : new THREE.Vector3(); trail.pts.unshift(v.copy(ball.position)); } else trail.pts.pop();
   const P = trail.geo.attributes.position.array, A = trail.geo.attributes.alpha.array, side = new THREE.Vector3(), dir = new THREE.Vector3(), view = new THREE.Vector3();
   for (let i = 0; i < TRAIL; i++) {
     const p = trail.pts[Math.min(i, trail.pts.length - 1)] || ball.position, q = trail.pts[Math.min(i + 1, trail.pts.length - 1)] || p;
     dir.subVectors(p, q); if (dir.lengthSq() < 1e-6) dir.set(0, 0, 1); view.subVectors(cam.position, p);
     side.crossVectors(dir, view).normalize().multiplyScalar(R * 0.9 * (1 - i / TRAIL));
-    P.set([p.x + side.x, p.y + side.y, p.z + side.z, p.x - side.x, p.y - side.y, p.z - side.z], i * 6);
+    const j = i * 6; P[j] = p.x + side.x; P[j + 1] = p.y + side.y; P[j + 2] = p.z + side.z; P[j + 3] = p.x - side.x; P[j + 4] = p.y - side.y; P[j + 5] = p.z - side.z;
     const a = i < trail.pts.length ? Math.pow(1 - i / TRAIL, 1.5) : 0; A[i * 2] = a; A[i * 2 + 1] = a;
   }
   trail.geo.attributes.position.needsUpdate = true; trail.geo.attributes.alpha.needsUpdate = true;
@@ -246,6 +247,20 @@ function confTick(dt) {
   conf.instanceMatrix.needsUpdate = true; if (!alive) conf.visible = false;
 }
 
+// ---------- мягкие тени-пятна ----------
+const blobTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(0,0,0,.55)'); r.addColorStop(0.6, 'rgba(0,0,0,.25)'); r.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+const blobs = [];
+function blob(target, size) {
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.renderOrder = 1; scene.add(m); blobs.push({ m, target, size }); return m;
+}
+function blobTick() {
+  for (const b of blobs) { const t = b.target.position; b.m.position.set(t.x, 0.01, t.z); b.m.visible = b.target.visible !== false;
+    const k = Math.max(0.35, 1 - t.y / 2.5); b.m.scale.setScalar(k); b.m.material.opacity = k; }
+}
+
 // ---------- игроки (модель Балотелли) ----------
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const v3 = new THREE.Vector3(), q1 = new THREE.Quaternion(), q2 = new THREE.Quaternion();
@@ -255,10 +270,10 @@ async function player(kit) {
   const m = g.scene;
   if (kit && kit.whiten) whiten(m); // своя синяя форма модели → белая ткань, чтобы её перекрасил kit.js
   if (kit) await applyKit(m, kit);
-  m.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; o.castShadow = true; } if (o.isSkinnedMesh && o.skeleton) o.skeleton.pose(); });
+  m.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; } if (o.isSkinnedMesh && o.skeleton) o.skeleton.pose(); });
   m.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(m), s = 1.84 / (box.max.y - box.min.y);
-  const holder = new THREE.Group(); m.scale.setScalar(s); m.position.y = -box.min.y * s; holder.add(m); scene.add(holder);
+  const holder = new THREE.Group(); m.scale.setScalar(s); m.position.y = -box.min.y * s; holder.add(m); scene.add(holder); blob(holder, 1.3);
   const rig = createRig(m);
   return { holder, rig };
 }
@@ -278,12 +293,15 @@ function whiten(model) {
     o.material = mt.clone(); o.material.map = t;
   });
 }
+// повернуть кость вокруг оси мира. Поворот родителя считаем по цепочке кватернионов, без пересчёта матриц
+// (раньше каждый поворот пересчитывал все кости ниже — это и давало лаги)
 function turn(rig, n, axis, a) {
   const b = rig.B[n]; if (!b || !a) return;
-  b.parent.getWorldQuaternion(q1); v3.copy(axis).applyQuaternion(q1.invert());
-  b.quaternion.premultiply(q2.setFromAxisAngle(v3, a)); b.updateMatrixWorld(true);
+  q1.identity(); for (let o = b.parent; o; o = o.parent) q1.premultiply(o.quaternion);
+  v3.copy(axis).applyQuaternion(q1.invert());
+  b.quaternion.premultiply(q2.setFromAxisAngle(v3, a));
 }
-function rest(rig) { for (const n in rig.B) { rig.B[n].quaternion.copy(rig.rest[n].q); rig.B[n].position.copy(rig.rest[n].p); } rig.model.updateMatrixWorld(true); }
+function rest(rig) { for (const n in rig.B) { rig.B[n].quaternion.copy(rig.rest[n].q); rig.B[n].position.copy(rig.rest[n].p); } }
 const FACES = ['228838', '239364', '220383', '235018', '251781', '190286'];
 const faceOf = (id) => new URL('../../img/players/' + id + '.webp', location.href).href; // лица игроков из базы игры
 const base = (o) => ({ ink: '#ffffff', num: '', name: '', skin: '', face: '', fp: [0.445, 0.69, 0.117, 0.5], fm: [], ff: [], crest: '', stripes: '', ...o });
@@ -354,9 +372,10 @@ addEventListener('pointerup', (e) => {
   shot = { tx, ty, speed, curve, ax: 0 };
   state = 'runup'; t0 = clock; $('#hint').style.opacity = 0;
 });
+let swipeDirty = false;
 function drawSwipe(dt) {
-  sg.clearRect(0, 0, innerWidth, innerHeight);
-  if (!drawn.length || fade <= 0) return;
+  if (!drawn.length || fade <= 0) { if (swipeDirty) { sg.clearRect(0, 0, innerWidth, innerHeight); swipeDirty = false; } return; }
+  sg.clearRect(0, 0, innerWidth, innerHeight); swipeDirty = true;
   if (!path.length) fade -= dt * 2.2;
   const pts = drawn;
   sg.lineCap = 'round'; sg.lineJoin = 'round';
@@ -403,51 +422,55 @@ document.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click',
 }));
 
 // ---------- позы ----------
+function keeperStance(r, t, w) { // стойка: полуприсед, руки в стороны, переступает с ноги на ногу (w — вес позы)
+  if (w <= 0) return;
+  const s = Math.sin(t * 3.2);
+  turn(r, 'thigh.L', AX, (-0.45 + 0.08 * s) * w); turn(r, 'thigh.R', AX, (-0.45 - 0.08 * s) * w); turn(r, 'shin.L', AX, 0.8 * w); turn(r, 'shin.R', AX, 0.8 * w);
+  turn(r, 'spine', AX, 0.25 * w); turn(r, 'upper_arm.L', AZ, -0.75 * r.sideL * w); turn(r, 'upper_arm.R', AZ, 0.75 * r.sideL * w);
+  turn(r, 'upper_arm.L', AX, -0.35 * w); turn(r, 'upper_arm.R', AX, -0.35 * w);
+}
 function keeperPose(t) {
-  const r = keeper.rig; rest(r);
-  const h = keeper.holder;
-  if (!kick || kick.t < kick.react) {
-    // ожидание: полуприсед, руки в стороны, переступает с ноги на ногу
-    const s = Math.sin(t * 3.2);
-    turn(r, 'thigh.L', AX, -0.45 + 0.08 * s); turn(r, 'thigh.R', AX, -0.45 - 0.08 * s); turn(r, 'shin.L', AX, 0.8); turn(r, 'shin.R', AX, 0.8);
-    turn(r, 'spine', AX, 0.25); turn(r, 'upper_arm.L', AZ, -0.75 * r.sideL); turn(r, 'upper_arm.R', AZ, 0.75 * r.sideL);
-    turn(r, 'upper_arm.L', AX, -0.35); turn(r, 'upper_arm.R', AX, -0.35);
-    h.position.y = 0; h.rotation.z = 0;
-    return;
-  }
-  // прыжок: дуга по высоте, поворот корпуса, руки тянутся к мячу
+  const r = keeper.rig, h = keeper.holder; rest(r);
+  if (!kick || kick.t < kick.react) { keeperStance(r, t, 1); h.position.y = 0; h.rotation.z = 0; return; }
+  // прыжок: дуга по высоте, поворот корпуса, руки тянутся к мячу; стойка уходит за 0,15 с
   const u = Math.min(1, (kick.t - kick.react) / Math.max(0.3, kick.T - kick.react + 0.05));
+  keeperStance(r, t, 1 - ease((kick.t - kick.react) / 0.15));
   const reachX = kick.save ? kick.cx - kick.dir * 0.55 : kick.x0 + kick.dir * Math.min(2.4, Math.abs(kick.cx - kick.x0) * 0.75);
   const far = Math.abs(reachX - kick.x0) > 0.9;
   h.position.x = lerp(kick.x0, reachX, easeOut(u * 1.1));
   const hy = Math.min(1.25, Math.max(0, kick.cy - 0.95));
-  h.position.y = far ? Math.sin(Math.PI * Math.min(1, u)) * (0.25 + hy * 0.7) : hy * 0.6 * Math.sin(Math.PI * Math.min(1, u));
+  h.position.y = (far ? 0.25 + hy * 0.7 : hy * 0.6) * Math.sin(Math.PI * Math.min(1, u));
   h.rotation.z = far ? -kick.dir * 1.35 * easeOut(u * 1.3) : 0;
   const up = easeOut(u * 1.6);
-  turn(r, 'upper_arm.L', AX, -0.4 - 2.3 * up); turn(r, 'upper_arm.R', AX, -0.4 - 2.3 * up);
-  turn(r, 'upper_arm.L', AZ, -0.35 * r.sideL); turn(r, 'upper_arm.R', AZ, 0.35 * r.sideL);
+  turn(r, 'upper_arm.L', AX, -2.3 * up); turn(r, 'upper_arm.R', AX, -2.3 * up);
+  turn(r, 'upper_arm.L', AZ, -0.35 * r.sideL * up); turn(r, 'upper_arm.R', AZ, 0.35 * r.sideL * up);
   turn(r, 'thigh.L', AX, -0.2 * up); turn(r, 'thigh.R', AX, 0.25 * up); turn(r, 'shin.R', AX, 0.5 * up);
 }
 function shooterPose(u) { // 0–0,7 разбег, 0,7–1 замах и удар, после — проводка
   const r = shooter.rig; rest(r);
   if (u < 0.7) {
-    const k = u / 0.7, ph = Math.sin(k * Math.PI * 3), amp = 0.35 + 0.35 * ease(k);
+    const k = u / 0.7, ph = Math.sin(k * Math.PI * 3), amp = 0.7 * ease(k * 4) * (1 - 0.35 * ease((k - 0.75) / 0.25));
     turn(r, 'thigh.L', AX, amp * ph); turn(r, 'thigh.R', AX, -amp * ph);
     turn(r, 'shin.L', AX, -0.9 * Math.max(0, -ph) * amp); turn(r, 'shin.R', AX, -0.9 * Math.max(0, ph) * amp);
     turn(r, 'upper_arm.L', AX, -0.6 * ph * amp); turn(r, 'upper_arm.R', AX, 0.6 * ph * amp);
     turn(r, 'spine', AX, 0.12 * ease(k));
     return;
   }
-  const k = Math.min(1.5, (u - 0.7) / 0.3);
-  const swing = k < 1 ? -1.0 + 1.0 * ease(k) * ease(k) : easeOut((k - 1) * 2) * 1.25;
-  turn(r, 'thigh.R', AX, swing); turn(r, 'shin.R', AX, k < 1 ? -1.4 * (1 - ease(k)) : -0.15);
-  turn(r, 'thigh.L', AX, -0.2); turn(r, 'shin.L', AX, -0.25);
-  turn(r, 'upper_arm.L', AZ, -1.0 * r.sideL); turn(r, 'upper_arm.R', AX, 0.7); turn(r, 'upper_arm.R', AZ, 0.4 * r.sideL);
-  turn(r, 'spine', AX, -0.12 - 0.1 * Math.min(1, k)); turn(r, 'spine', AY, 0.25 * (1 - Math.min(1, k)));
+  kickPose(r, Math.min(1.5, (u - 0.7) / 0.3), 1);
+}
+function kickPose(r, k, w) { // замах (k<1), касание (k=1), проводка (k>1); w — вес позы
+  // замах начинается с той позы, где закончился разбег: сначала ноги сходятся, потом нога уходит назад
+  const swing = k < 1 ? -1.0 * Math.sin(Math.PI * 0.5 * Math.min(1, k * 1.6)) * (1 - ease((k - 0.45) / 0.55)) + 0.15 * ease((k - 0.6) / 0.4) : 0.15 + easeOut((k - 1) * 2) * 1.1;
+  turn(r, 'thigh.R', AX, swing * w); turn(r, 'shin.R', AX, (k < 1 ? -1.4 * Math.sin(Math.PI * Math.min(1, k * 1.1)) : -0.15) * w);
+  turn(r, 'thigh.L', AX, -0.2 * w); turn(r, 'shin.L', AX, -0.25 * w);
+  const a = Math.min(1, k * 1.5) * w;
+  turn(r, 'upper_arm.L', AZ, -1.0 * r.sideL * a); turn(r, 'upper_arm.R', AX, 0.7 * a); turn(r, 'upper_arm.R', AZ, 0.4 * r.sideL * a);
+  turn(r, 'spine', AX, (-0.12 - 0.1 * Math.min(1, k)) * w); turn(r, 'spine', AY, 0.25 * (1 - Math.min(1, k)) * w);
 }
 function celebratePose(t) { // прыжок, кулаки вверх
   const r = shooter.rig; rest(r);
-  const a = easeOut(t * 2.5), jump = Math.max(0, Math.sin(Math.min(Math.PI, t * 5)));
+  kickPose(r, 1.5, 1 - ease(t / 0.35)); // проводка плавно переходит в празднование
+  const a = easeOut(t * 2.5), jump = Math.max(0, Math.sin(Math.min(Math.PI, Math.max(0, t - 0.15) * 5)));
   shooter.holder.position.y = jump * 0.35;
   turn(r, 'upper_arm.L', AX, -2.7 * a); turn(r, 'upper_arm.R', AX, -2.7 * a);
   turn(r, 'upper_arm.L', AZ, -0.45 * r.sideL * a); turn(r, 'upper_arm.R', AZ, 0.45 * r.sideL * a);
@@ -468,12 +491,18 @@ function wallPose(w, i, t) {
 
 // ---------- кадр ----------
 let last = performance.now() / 1000;
+const fpsEl = Q.get('fps') === '1' ? Object.assign(document.createElement('div'), { style: 'position:fixed;left:8px;bottom:8px;z-index:9;font:700 12px monospace;color:#0f0;background:#000a;padding:3px 6px;border-radius:6px' }) : null;
+if (fpsEl) document.body.appendChild(fpsEl);
+let fpsN = 0, fpsT = 0, fpsWorst = 0, autoLow = LOW, autoN = 0, autoT = 0;
 const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3();
 function frame() {
   requestAnimationFrame(frame);
   const now = performance.now() / 1000, raw = Math.min(0.033, now - last); last = now;
   if (slowT > 0) { slowT -= raw; if (slowT <= 0) slow = 1; }
   const dt = raw * slow; clock += dt;
+  // сам подстраивается: если кадры долгие, уменьшаем разрешение картинки (один раз)
+  if (!autoLow) { autoN++; autoT += raw; if (autoN === 90) { if (autoT / autoN > 0.024) { ren.setPixelRatio(1); autoLow = true; } autoN = 0; autoT = 0; } }
+  if (fpsEl) { fpsN++; fpsT += raw; fpsWorst = Math.max(fpsWorst, raw); if (fpsT > 1) { fpsEl.textContent = `${Math.round(fpsN / fpsT)} к/с · худший кадр ${Math.round(fpsWorst * 1000)} мс`; fpsN = 0; fpsT = 0; fpsWorst = 0; } }
   if (crowd) { crowd.userData.U.uTime.value = now; crowd.userData.led.offset.x = (now * 0.04) % 1; }
   drawSwipe(raw);
   if (state === 'load') return;
@@ -524,7 +553,7 @@ function frame() {
   keeperPose(now);
   wall.forEach((w, i) => w.holder.visible && wallPose(w, i, now));
   trailTick(state === 'fly' || (state === 'over' && vel.lengthSq() > 30));
-  netTick(dt); confTick(dt);
+  netTick(dt); confTick(dt); blobTick();
 
   // камера: перед ударом — за мячом; в полёте — плавно следует за мячом
   if (kick && (state === 'fly' || state === 'over')) {
@@ -547,10 +576,12 @@ function frame() {
   const all = [player(myKit), player(gkKit), ...[0, 1, 2, 3].map((i) => player(wallKit(i)))];
   let done = 0; all.forEach((p) => p.then(() => { done++; if (bar) bar.style.width = (done / all.length) * 100 + '%'; }));
   const got = await Promise.all(all);
-  [shooter, keeper] = got; wall.push(...got.slice(2));
-  $('#load').remove();
+  [shooter, keeper] = got; wall.push(...got.slice(2)); blob(ball, 0.45);
   resetShot();
+  // шейдеры собираем заранее, иначе первый гол и первое конфетти подтормаживают
+  conf.visible = true; ren.compile(scene, cam); conf.visible = false;
+  $('#load').remove();
   window.ready = true;
-  window.dbg = () => ({ state, b: ball.position.toArray().map((v) => +v.toFixed(2)) });
+  window.dbg = () => ({ state, b: ball.position.toArray().map((v) => +v.toFixed(2)), calls: ren.info.render.calls, tris: ren.info.render.triangles });
 })().catch((e) => { $('#load').textContent = 'Не получилось загрузить: ' + e.message; });
 frame();
