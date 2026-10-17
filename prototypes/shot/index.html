@@ -11,27 +11,34 @@
 <script type="importmap">{ "imports": { "three": "../balotelli/vendor/three.module.min.js" } }</script>
 <style>
   /* стиль как в FC Mobile: узкий наклонный шрифт, полупрозрачное «стекло», тонкие светлые рамки */
-  :root { --f: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; --acc: #ffd23f; --glass: rgba(14,20,38,.42); --line: rgba(255,255,255,.28);
+  :root { --f: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; --acc: #ffd23f; --glass: rgba(10,16,28,.46); --line: rgba(255,255,255,.16);
     --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); }
   html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; background: #0b1020; font-family: var(--f); color: #fff; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; }
   .vig { position: fixed; inset: 0; pointer-events: none; z-index: 1; background: radial-gradient(ellipse 80% 75% at 50% 48%, transparent 62%, rgba(0,6,20,.22) 100%); /* слабая виньетка: края не тонут в темноте */ }
-  .glass { background: var(--glass); -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3); box-shadow: inset 0 0 0 1px var(--line), 0 6px 18px rgba(0,0,0,.25); }
+  /* единая подложка интерфейса: ровная полупрозрачная, без размытия фона (размытие поверх 3D на телефоне дорогое) */
+  .glass { background: var(--glass); box-shadow: inset 0 0 0 1px var(--line); }
+  body.tv .vig { opacity: .35; } /* вид сверху: виньетка почти не нужна */
   /* табло слева сверху */
-  .sb { position: fixed; left: calc(var(--sl) + 14px); top: calc(var(--st) + 12px); z-index: 3; display: flex; align-items: stretch; height: 34px; pointer-events: none; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+  .sb { position: fixed; left: calc(var(--sl) + 14px); top: calc(var(--st) + 12px); z-index: 3; display: flex; align-items: stretch; height: 30px; pointer-events: none; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
   .sb > * { display: flex; align-items: center; padding: 0 12px; }
-  .sb-n { font: italic 800 17px/1 var(--f); letter-spacing: .04em; text-transform: uppercase; }
-  .sb-n small { margin-left: 8px; font: 600 13px var(--f); color: rgba(255,255,255,.7); font-style: normal; }
+  .sb-n { font: italic 800 15px/1 var(--f); letter-spacing: .04em; text-transform: uppercase; }
+  .sb-n small { margin-left: 8px; font: 600 12px var(--f); color: rgba(255,255,255,.7); font-style: normal; }
   .sb-n small b { color: var(--acc); }
-  .sb-s { min-width: 22px; justify-content: center; background: var(--acc); color: #121624; font: italic 900 22px/1 var(--f); }
+  .sb-s { min-width: 22px; justify-content: center; background: var(--acc); color: #121624; font: italic 900 19px/1 var(--f); }
   .sb-d { gap: 5px; padding-right: 20px !important; }
   .sb-d i { width: 9px; height: 9px; transform: skewX(-14deg); background: rgba(255,255,255,.2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
   .sb-d i.g { background: #3ce17a; box-shadow: none; } .sb-d i.m { background: #ff4f5e; box-shadow: none; }
   .sb-d i.new { animation: dotIn .6s ease-out; } @keyframes dotIn { 0% { transform: skewX(-14deg) scale(2.2); } 100% { transform: skewX(-14deg) scale(1); } }
   /* режимы справа сверху */
-  .modes { position: fixed; right: calc(var(--sr) + 14px); top: calc(var(--st) + 12px); z-index: 3; display: flex; padding: 3px; border-radius: 10px; gap: 2px; }
-  .modes button { padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: rgba(255,255,255,.75); font: italic 800 14px/1 var(--f); letter-spacing: .03em; text-transform: uppercase; }
-  .gfxq { position: fixed; right: calc(var(--sr) + 14px); top: calc(var(--st) + 54px); z-index: 3; padding: 5px 10px; border: 0; border-radius: 8px; color: rgba(255,255,255,.85); font: 600 13px/1 var(--f); letter-spacing: .02em; }
+  .modes { position: fixed; right: calc(var(--sr) + 14px); top: calc(var(--st) + 12px); z-index: 3; display: flex; height: 30px; box-sizing: border-box; padding: 3px; border-radius: 9px; gap: 2px; }
+  .modes button { padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: rgba(255,255,255,.72); font: italic 800 12.5px/1 var(--f); letter-spacing: .03em; text-transform: uppercase; }
+  /* служебные кнопки под вкладками: одна высота и стиль; область нажатия не меньше 34 px */
+  .tools { position: fixed; right: calc(var(--sr) + 14px); top: calc(var(--st) + 50px); z-index: 3; display: flex; gap: 6px; }
+  .tbtn { min-width: 34px; height: 30px; padding: 0 10px; border: 0; border-radius: 9px; color: rgba(255,255,255,.85); font: 700 13px/1 var(--f); letter-spacing: .02em; }
+  .tbtn[hidden] { display: none; }
+  .backnote { position: fixed; left: 50%; top: calc(var(--st) + 52px); transform: translateX(-50%); z-index: 7; padding: 8px 14px; border-radius: 9px; font: 600 14px/1.2 var(--f); color: #fff; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .backnote.on { opacity: 1; }
   .modes button.on { background: rgba(255,255,255,.92); color: #121624; }
   /* надпись «ГОЛ!» */
   .msg { position: fixed; left: 0; right: 0; top: 26%; z-index: 3; text-align: center; font: italic 900 74px/1 var(--f); letter-spacing: .02em; text-transform: uppercase; opacity: 0; transform: translateX(-40px) skewX(-8deg); transition: all .3s cubic-bezier(.2,1.3,.4,1); pointer-events: none; text-shadow: 0 6px 24px rgba(0,0,0,.45); }
@@ -58,12 +65,12 @@
   .joy.on { opacity: 1; transform: none; }
   .joy i { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px; border-radius: 50%; background: rgba(255,255,255,.55); box-shadow: inset 0 0 0 2px rgba(255,255,255,.8), 0 4px 14px rgba(0,0,0,.3); }
   .pbtns { position: absolute; right: calc(var(--sr) + 22px); bottom: calc(var(--sb) + 18px); width: 210px; height: 190px; pointer-events: none; }
-  .pbtns button { position: absolute; display: grid; place-items: center; align-content: center; gap: 1px; border: 0; border-radius: 50%; padding: 0; color: #fff; font: italic 800 12px/1 var(--f); letter-spacing: .05em; text-transform: uppercase;
+  .pbtns button { position: absolute; display: grid; place-items: center; align-content: center; gap: 1px; border: 0; border-radius: 50%; padding: 0; color: #fff; font: italic 800 11.5px/1 var(--f); letter-spacing: .05em; text-transform: uppercase;
     pointer-events: auto; touch-action: none; transition: transform .08s, background .08s;
-    background: rgba(14,20,38,.34); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.5), 0 6px 16px rgba(0,0,0,.2); }
-  .pbtns button svg { width: 44%; height: auto; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    background: rgba(10,16,28,.3); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.5); text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+  .pbtns button svg { width: 40%; height: auto; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .pbtns button.on { transform: scale(.92); background: rgba(255,210,63,.4); }
-  .b-shot { right: 0; bottom: 0; width: 98px; height: 98px; font-size: 15px !important; }
+  .b-shot { right: 0; bottom: 0; width: 96px; height: 96px; font-size: 14px !important; box-shadow: inset 0 0 0 2px rgba(255,255,255,.7) !important; }
   .b-run { right: 14px; bottom: 112px; width: 64px; height: 64px; }
   /* выбранный жестом вариант — маленькая подпись прямо на кнопке */
   .pbtns .gb { position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%); white-space: nowrap; font: italic 800 11px/1 var(--f); color: var(--acc); text-shadow: 0 1px 3px rgba(0,0,0,.6); pointer-events: none; }
@@ -73,8 +80,6 @@
   .duo .b-thru { right: 196px; bottom: 6px; width: 56px; height: 56px; font-size: 10px !important; }
   .pbtns button[hidden] { display: none; }
   .duo .b-swap { right: 112px; bottom: 96px; width: 52px; height: 52px; font-size: 9px !important; }
-  .restart { position: fixed; right: calc(var(--sr) + 14px); top: calc(var(--st) + 88px); z-index: 3; padding: 5px 10px; border: 0; border-radius: 8px; color: rgba(255,255,255,.85); font: 600 13px/1 var(--f); }
-  .restart[hidden] { display: none; }
   /* кольцо силы удара вокруг кнопки «Удар» */
   .pbtns button .ring { position: absolute; inset: -9px; width: calc(100% + 18px); height: calc(100% + 18px); transform: rotate(-90deg); pointer-events: none; opacity: 0; transition: opacity .12s; }
   .pbtns button .ring.on { opacity: 1; }
@@ -95,8 +100,8 @@
 <body>
 <div class="vig"></div>
 <div class="sb glass"><span class="sb-n" id="who">—</span><span class="sb-s" id="score">0</span><span class="sb-d" id="dots"></span></div>
-<button class="gfxq glass" id="gfxq">Графика</button>
-<button class="restart glass" id="restart" hidden>↻ Заново</button>
+<div class="backnote glass" id="backNote">Свайп «назад» ещё раз — выйти из игры</div>
+<div class="tools"><button class="tbtn glass" id="help" title="Как играть">?</button><button class="tbtn glass" id="gfxq">⚙</button><button class="tbtn glass" id="restart" hidden>↻ Заново</button></div>
 <div class="modes glass"><button data-m="fk" class="on">Штрафной</button><button data-m="pen">Пенальти</button><button data-m="run">1 на 1</button><button data-m="duo">2 на 1</button></div>
 <div class="pad" id="pad" hidden><div class="zone" id="zone"></div><div class="joy" id="joy"><i id="stick"></i></div>
   <div class="pbtns">

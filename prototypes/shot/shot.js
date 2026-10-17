@@ -50,14 +50,25 @@ scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#c3d4e6',
 // горизонтальный экран: угол обзора поуже, чтобы ворота не казались далёкими
 // «2 на 1»: камера сбоку и сверху, как в трансляции (?cam=old — прежняя камера за спиной игрока, для сравнения)
 const DUO_OLD = Q.get('cam') === 'old', TV = () => MODE === 'duo' && !DUO_OLD;
-const CAM_TV = { side: 15, h: 14, fov: 34, look: -0.5, ahead: 6, rate: 2.6 }; // ~43° сверху; по глубине видно ±7 м от центра // узкий объектив издалека, как в трансляции: меньше искажений по краям
+// Наклон ~36°: при таком ракурсе «глубина кадра × размер игрока» ≈ 1,8 / tg(наклона) — чем круче камера, тем меньше
+// одно при том же другом. 36° дают ~20 м поля в глубину (бот открывается на 7–9 м) при игроке ~12% высоты кадра.
+const CAM_TV = { side: 21, h: 15.2, fov: 24, look: 0, ahead: 7, rate: 2.6, zMin: 2.5 };
+// для подбора (только с ?trace=1): ?tv=side,h,fov,look — камера, ?sun=высота,азимут — солнце «2 на 1»
+if (Q.get('trace') === '1' && Q.get('tv')) { const [a, b, c, d] = Q.get('tv').split(',').map(Number); Object.assign(CAM_TV, { side: a, h: b, fov: c, look: d }); }
 const fov = () => (innerWidth > innerHeight ? (TV() ? CAM_TV.fov : { pen: 33, fk: 37, run: 44, duo: 44 }[MODE]) : 48);
 const cam = new THREE.PerspectiveCamera(fov(), innerWidth / innerHeight, 0.1, 400);
 addEventListener('resize', () => { ren.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.fov = fov(); cam.updateProjectionMatrix(); fitSwipe(); });
 // Встроенный браузер Telegram/Safari: свайп от левого края — «Назад», на первой странице он закрывает игру.
-// Запретить системный жест страница не может, поэтому держим в истории запасной шаг: свайп назад остаётся внутри игры.
+// Запретить системный жест страница не может; держим в истории один запасной шаг, чтобы случайный свайп не закрыл игру сразу.
 // Плюс страница не прокручивается и не «тянется» (иначе вертикальный свайп может свернуть окно).
-try { history.pushState({ shot: 1 }, ''); addEventListener('popstate', () => history.pushState({ shot: 1 }, '')); } catch (e) { /* без истории */ }
+// Не бесконечная ловушка: первый «Назад» только предупреждает, второй в течение 2 с — выходит как обычно.
+try {
+  history.pushState({ shot: 1 }, ''); let armed = true, t = 0;
+  addEventListener('popstate', () => {
+    if (!armed) return; armed = false; const n = document.getElementById('backNote'); if (n) { n.classList.add('on'); clearTimeout(t); }
+    t = setTimeout(() => { if (n) n.classList.remove('on'); try { history.pushState({ shot: 1 }, ''); armed = true; } catch (e) { /* без истории */ } }, 2000);
+  });
+} catch (e) { /* без истории */ }
 document.addEventListener('touchmove', (e) => { if (e.touches.length) e.preventDefault(); }, { passive: false });
 // в Telegram (мини-приложение) — на весь экран и горизонтально
 addEventListener('load', () => { const tg = window.Telegram && Telegram.WebApp; if (!tg || !tg.initData) return;
@@ -70,8 +81,8 @@ document.getElementById('rotBtn').addEventListener('click', async () => {
 // ---------- свет ----------
 // Днём: одно солнце с тенью (направление совпадает с солнцем на картинке неба) + рассеянный свет и отражения от самого неба
 // (scene.environment). Лишних «заполняющих» ламп нет — они делали картинку плоской. Ночью — прожекторы, как было.
-const SUN = (() => { const e = THREE.MathUtils.degToRad(LOOK.sun.elevation), a = THREE.MathUtils.degToRad(LOOK.sun.azimuth);
-  return new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)).normalize(); })(); // направление НА солнце
+const sunDir = (elev, az) => { const e = THREE.MathUtils.degToRad(elev), a = THREE.MathUtils.degToRad(az); return new THREE.Vector3(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)).normalize(); };
+const SUN = sunDir(LOOK.sun.elevation, LOOK.sun.azimuth); // направление НА солнце
 const key = new THREE.DirectionalLight(NIGHT ? '#fff6e6' : LOOK.sun.color, NIGHT ? 2.6 : LOOK.sun.intensity);
 key.position.copy(SUN).multiplyScalar(70); key.target.position.set(0, 0, 10); scene.add(key, key.target);
 { const sh = key.shadow; sh.bias = LOOK.shadow.bias; sh.normalBias = LOOK.shadow.normalBias; sh.radius = LOOK.shadow.radius;
@@ -85,6 +96,9 @@ if (NIGHT) {
 const shadowFit = { size: 0, c: new THREE.Vector3() };
 const SH_R = new THREE.Vector3(), SH_U = new THREE.Vector3();
 SH_R.crossVectors(AY, SUN).normalize(); SH_U.crossVectors(SUN, SH_R).normalize();
+// солнце для режима: в «2 на 1» камера сбоку — солнце из-за камеры и чуть сбоку (игроки освещены спереди, тени короткие и
+// уходят от зрителя); в остальных режимах — как на картинке неба
+function setSun(elev, az) { SUN.copy(sunDir(elev, az)); SH_R.crossVectors(AY, SUN).normalize(); SH_U.crossVectors(SUN, SH_R).normalize(); shadowFit.size = 0; }
 function fitShadow(cx, cz, radius) {
   if (!key.castShadow) return;
   const L = LOOK.shadow, size = Math.max(L.min, Math.min(L.max, radius * 2 + L.pad * 2)), sc = key.shadow.camera;
@@ -130,6 +144,12 @@ function smoothNoise(n = 128, cells = 8, seed = 7) { // плавный бесш�
   }
   g.putImageData(img, 0, 0); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
 }
+// параметры газона живут в одном объекте: для «2 на 1» (вид сверху) — своя, более спокойная палитра (LOOK.pitchTV)
+const pitchU = {};
+function pitchLook(tv) {
+  if (!pitchU.gp) return; const P = LOOK.pitch, T = tv ? Object.assign({}, P, LOOK.pitchTV) : P;
+  pitchU.stripeA.value.set(T.stripeA); pitchU.stripeB.value.set(T.stripeB); pitchU.gp.value.set(T.stripeWidth, T.macro, T.detail, T.paintDetail);
+}
 function pitch() {
   const P = LOOK.pitch, X0 = -40, X1 = 40, Z0 = -8, Z1 = 56, S = PQ.pitchRes, c = document.createElement('canvas');
   c.width = (X1 - X0) * S; c.height = (Z1 - Z0) * S;
@@ -153,11 +173,12 @@ function pitch() {
   const pm = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: P.roughness, normalMap: gN, normalScale: new THREE.Vector2(P.normal, P.normal) });
   const col = (h) => new THREE.Color(h); // THREE.Color сам переводит sRGB → линейный
   const paint = P.paint.match(/[\d.]+/g).map(Number);
+  Object.assign(pitchU, { grassC: { value: gC }, noiseT: { value: noise }, lineT: { value: lines },
+    stripeA: { value: col(P.stripeA) }, stripeB: { value: col(P.stripeB) }, paintC: { value: col(`rgb(${paint[0]},${paint[1]},${paint[2]})`) },
+    gp: { value: new THREE.Vector4(P.stripeWidth, P.macro, P.detail, P.paintDetail) }, gp2: { value: new THREE.Vector4(P.detailMean, paint[3], 0, 0) },
+    lineBox: { value: new THREE.Vector4(X0, Z0, X1 - X0, Z1 - Z0) } });
   pm.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, { grassC: { value: gC }, noiseT: { value: noise }, lineT: { value: lines },
-      stripeA: { value: col(P.stripeA) }, stripeB: { value: col(P.stripeB) }, paintC: { value: col(`rgb(${paint[0]},${paint[1]},${paint[2]})`) },
-      gp: { value: new THREE.Vector4(P.stripeWidth, P.macro, P.detail, P.paintDetail) }, gp2: { value: new THREE.Vector4(P.detailMean, paint[3], 0, 0) },
-      lineBox: { value: new THREE.Vector4(X0, Z0, X1 - X0, Z1 - Z0) } });
+    Object.assign(sh.uniforms, pitchU);
     sh.vertexShader = 'varying vec3 vW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n  vW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = 'varying vec3 vW;\nuniform sampler2D grassC, noiseT, lineT;\nuniform vec3 stripeA, stripeB, paintC;\nuniform vec4 gp, gp2, lineBox;\n' +
       sh.fragmentShader.replace('#include <map_fragment>', `
@@ -302,11 +323,15 @@ function applyQuality(name) {
   gfxLabel();
 }
 const gfxBtn = document.getElementById('gfxq');
-function gfxLabel() { if (gfxBtn) gfxBtn.textContent = 'Графика: ' + (QCHOICE === 'auto' ? `авто (${PQ.label.toLowerCase()})` : PQ.label.toLowerCase()); }
+// на экране — только значок; название уровня видно при переключении (и всегда — в режиме отладки ?fps=1)
+let gfxShow = 0;
+function gfxLabel() { if (!gfxBtn) return; const t = 'Графика: ' + (QCHOICE === 'auto' ? `авто (${PQ.label.toLowerCase()})` : PQ.label.toLowerCase());
+  gfxBtn.title = t; gfxBtn.textContent = Q.get('fps') === '1' || performance.now() < gfxShow ? t : '⚙'; }
 // кнопка: авто → низкая → средняя → высокая → авто; выбор запоминается
 if (gfxBtn) gfxBtn.addEventListener('click', () => {
   const list = ['auto', ...GFX.ORDER]; QCHOICE = list[(list.indexOf(QCHOICE) + 1) % list.length]; GFX.saveChoice(QCHOICE);
   autoQ = QCHOICE === 'auto' ? new GFX.AutoQuality(QL, applyQuality) : null;
+  gfxShow = performance.now() + 1600; setTimeout(gfxLabel, 1700);
   applyQuality(QCHOICE === 'auto' ? QL : QCHOICE); gfxBtn.blur();
 });
 let autoQ = null;
@@ -483,9 +508,11 @@ function aimCam() { // камера за спиной: в кадре и мяч, 
   camAim.l.set(spot.x * 0.15, 1.0, 0);
 }
 function resetShot() {
+  pitchLook(TV());
+  if (!NIGHT) { const sv = TV() ? (Q.get('trace') === '1' && Q.get('sun') ? Object.fromEntries(Q.get('sun').split(',').map((v, i) => [i ? 'azimuth' : 'elevation', +v])) : LOOK.sunTV) : LOOK.sun; setSun(sv.elevation, sv.azimuth); }
   if (shooter0 && shooter !== shooter0) shooter = shooter0; // после смен в «2 на 1» — исходный игрок снова главный
   if (shooter && shooter.sph) { shooter.sph.forEach((q) => (q.who = 'me')); if (wall[0] && wall[0].sph) wall[0].sph.forEach((q) => (q.who = 'mate')); }
-  $('#pad').hidden = !FREE(); $('#pad').classList.toggle('duo', MODE === 'duo'); $('#b-pass').hidden = $('#b-thru').hidden = $('#b-swap').hidden = $('#restart').hidden = MODE !== 'duo';
+  $('#pad').hidden = !FREE(); $('#pad').classList.toggle('duo', MODE === 'duo'); $('#b-pass').hidden = $('#b-thru').hidden = $('#b-swap').hidden = $('#restart').hidden = MODE !== 'duo'; document.body.classList.toggle('tv', TV());
   cam.fov = fov(); cam.updateProjectionMatrix();
   $('#hint').textContent = MODE === 'duo' ? 'Вы управляете игроком с жёлтым кольцом. «Пас» — передача партнёру, после удара по мячу управление переходит к нему. «Смена» — переключиться вручную, «Заново» — новая попытка.' : FREE() ? 'Слева веди пальцем. Держи «Удар» — сила; потяни палец вбок — подкрутка, вверх — переброс; отпусти — удар. «Рывок»: держи — бег, быстро смахни — финт.' : 'Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.';
   $('#hint').style.opacity = n === 0 ? 1 : 0;
@@ -857,7 +884,9 @@ const tvFocus = new THREE.Vector3();
 function tvCam(out, snap) {
   const m = run && run.mate, a = run ? run.P.p : { x: 0, z: 20 }, b = m ? m.P.p : a, bp = ball.position;
   const fx = bp.x * 0.4 + (a.x + b.x) * 0.3, fz = bp.z * 0.6 + (a.z + b.z) * 0.2; // по глубине — оба игрока в кадре
-  const tx = Math.max(-12, Math.min(12, fx)), tz = Math.max(7, Math.min(34, fz - CAM_TV.ahead)); // чуть вперёд — видно пространство до ворот
+  // у ворот кадр уходит вперёд сильнее: ворота ближе к центру, а не под кнопками у края
+  const ahead = CAM_TV.ahead + Math.max(0, 16 - fz) * 0.5;
+  const tx = Math.max(-12, Math.min(12, fx)), tz = Math.max(CAM_TV.zMin, Math.min(34, fz - ahead)); // чуть вперёд — видно пространство до ворот
   if (snap) tvFocus.set(tx, 0, tz); else { const k = 1 - Math.exp(-lastRaw * CAM_TV.rate); tvFocus.x += (tx - tvFocus.x) * k; tvFocus.z += (tz - tvFocus.z) * k; }
   out.l.set(tvFocus.x + CAM_TV.look, 0.6, tvFocus.z); out.p.set(Math.min(40, tvFocus.x + CAM_TV.look + CAM_TV.side), CAM_TV.h, tvFocus.z); // трибуны начинаются с x = 42
 }
@@ -865,7 +894,7 @@ let lastRaw = 1 / 60;
 // маркер управляемого игрока: тонкое кольцо на газоне вокруг ног (мяч у ноги — внутри кольца)
 let marker = null;
 function markerTick() {
-  if (!marker) { marker = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.72, 48), new THREE.MeshBasicMaterial({ color: '#ffd23f', transparent: true, opacity: 0.9, depthWrite: false }));
+  if (!marker) { marker = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.57, 48), new THREE.MeshBasicMaterial({ color: '#ffd84a', transparent: true, opacity: 0.85, depthWrite: false }));
     marker.rotation.x = -Math.PI / 2; marker.renderOrder = 1; scene.add(marker); }
   marker.visible = MODE === 'duo' && !!run && !!run.mate;
   if (marker.visible) marker.position.set(shooter.holder.position.x, 0.03, shooter.holder.position.z);
@@ -882,7 +911,7 @@ function resetRun() {
   run = { P, charge: -1, kv: new THREE.Vector3(), strike: null, fire: false, shotT: 0, slowT: 0, t0: simT, lastPost: null, wasStopping: false, pass: null, passFire: false, mate: null };
   if (MODE === 'duo') { // партнёр — бот в нашей форме, стартует сбоку и чуть впереди
     const side = sx > 0 ? -1 : 1, M = BP.newPlayer({ x: sx + side * 8, z: 27 }, Math.PI), pl = wall[0];
-    recolor(pl, { shirt: '#17181c', shorts: '#17181c', socks: '#17181c' }); pl.holder.visible = true; // второй атакующий — в чёрной форме pl.holder.position.set(M.p.x, 0, M.p.z); pl.holder.rotation.set(0, Math.PI, 0);
+    recolor(pl, { shirt: '#2c2e35', shorts: '#26282e', socks: '#2c2e35' }); pl.holder.visible = true; // второй атакующий — в чёрной форме pl.holder.position.set(M.p.x, 0, M.p.z); pl.holder.rotation.set(0, Math.PI, 0);
     play(pl, 'idle', { loop: true, fade: 0.2, follow: true }); resetSpheres(pl);
     run.mate = { pl, P: M, side, st: 'support', hold: 0, pass: null, fire: false, plan: null, planT: 0, pick: -1, pickT: 0 };
   }
@@ -931,6 +960,7 @@ gestureButton($('#b-run'), {
 $('#b-thru').addEventListener('pointerdown', (e) => { e.preventDefault(); throughPass(); });
 $('#b-swap').addEventListener('pointerdown', (e) => { e.preventDefault(); swapManual(); });
 $('#restart').addEventListener('click', () => { if (FREE() && run) resetShot(); });
+$('#help').addEventListener('click', () => { const h = $('#hint'); h.style.opacity = 1; clearTimeout(h._t); h._t = setTimeout(() => (h.style.opacity = 0), 7000); });
 addEventListener('keydown', (e) => { if (e.code === 'Space') e.preventDefault(); if (keys[e.code]) return; keys[e.code] = true; /* пробел не нажимает кнопки режима */ if (e.code === 'Space') startCharge('drive'); if (e.code === 'KeyE') startCharge('curl'); if (e.code === 'KeyC') startCharge('chip');
   const fk = { Digit1: 'left', Digit2: 'right', Digit3: 'down', Digit4: 'up' }[e.code]; if (fk) feint(fk); if (e.code === 'KeyQ') passDown(); if (e.code === 'KeyF') throughPass(); if (e.code === 'KeyX') swapManual(); });
 addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'Space' || e.code === 'KeyE' || e.code === 'KeyC') releaseCharge(); if (e.code === 'KeyQ') passUp(); });
@@ -1048,7 +1078,7 @@ function meetPoint(M, speed) {
 // или чуть сзади); точка оценивается по дистанции, границам поля, линии паса (не через вратаря) и тому, не стоит ли
 // она у меня на пути. Выбор пересматривается раз в replan секунд и меняется, только если новая точка заметно лучше.
 const MATE = { minGap: 1.1, replan: 0.45, better: 1.5, near: 8.5, stop: 0.35 };
-const SUPPORT = [[-6, 5.5], [6, 5.5], [-7, 1], [7, 1], [-5, -4.5], [5, -4.5]]; // [вбок, вперёд к воротам], м (вбок — не дальше, чем видно с камеры)
+const SUPPORT = [[-7, 5], [7, 5], [-9, 0.5], [9, 0.5], [-6, -4.5], [6, -4.5]]; // [вбок, вперёд к воротам], м (вбок — не дальше, чем видно с камеры)
 const supportAt = (P, k, out) => { // точка поддержки k относительно игрока P: «вперёд» — к центру ворот
   const gx = -P.p.x * 0.3, gz = -P.p.z, gl = Math.hypot(gx, gz) || 1, fx = gx / gl, fz = gz / gl, [sd, fw] = SUPPORT[k];
   out.x = Math.max(-25, Math.min(25, P.p.x - fz * sd + fx * fw)); out.z = Math.max(Math.max(6.5, keeper.holder.position.z + 4.5), Math.min(42, P.p.z + fz * fw + fx * sd));
