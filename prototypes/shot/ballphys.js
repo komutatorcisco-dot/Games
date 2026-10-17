@@ -97,6 +97,16 @@ export const CFG = {
     clearDist: 1.1,         // … и пока мяч не отойдёт от него хотя бы на столько метров
     stopTrap: 1.8,          // остановка: мяч гасится быстрее во столько раз
   },
+  pass: {
+    arrive: 3.2,          // обычный пас приходит к партнёру со скоростью, м/с (удобно принять)
+    arriveStrong: 7.5,    // сильный (удержание) — так, м/с: быстрее, но труднее принять
+    vMin: 5, vMax: 24,    // пределы скорости паса низом, м/с
+    lead: 1.0,            // пас на ход: насколько учитывать бег партнёра (1 — точно в точку встречи)
+    throughAhead: 4.5, throughPerSpeed: 0.7, // «На ход»: в зону перед получателем на столько м (+ за каждый м/с его бега)
+    loftTime0: 0.55, loftTimePerM: 0.04, loftTimeMin: 0.8, loftTimeMax: 1.9, // верховой: время полёта
+    loftDrag: 1.08,       // запас горизонтальной скорости на сопротивление воздуха
+    loftBackspin: 12,     // обратное вращение верховой передачи, рад/с
+  },
   shot: {
     vMin: 13, vMax: 31,       // скорость мяча при слабом и сильном ударе, м/с (сила 0…1 — линейно)
     runBonus: 0.3,            // скорость бега вдоль удара добавляет столько от себя…
@@ -108,6 +118,9 @@ export const CFG = {
     topspin: 7,               // верхнее вращение сильного удара (мяч «ныряет»), рад/с при силе 1
     finesseSpeed: 0.85,       // удар с подкруткой медленнее
     finesseSpin: 36,          // вращение подкрутки, рад/с (≈ 6 оборотов в секунду)
+    chipSpeed: 0.6, chipMin: 11, // переброс: скорость от обычной и не меньше, м/с
+    chipHeight: 2.15,         // переброс у линии ворот на такой высоте (уже опускается)
+    chipBackspin: 9,          // обратное вращение переброса, рад/с
     contactR: 0.55,           // в момент касания мяч должен быть не дальше этого от ударной точки, иначе нога не достала
     stickAngle: Math.PI / 3,  // джойстик на столько вбок от «вверх» — удар в штангу; дальше — мимо
   },
@@ -407,7 +420,11 @@ export function release(b, who, t, lock = CFG.control.regrab, mustClear = true) 
 // одинаковые действия — одинаковый результат.
 // aim: { x, y } — джойстик в момент удара. Наклонён — удар в сторону ворот по углу джойстика (вверх — в центр,
 // на stickAngle вбок — в штангу); не наклонён — туда, куда смотрит корпус.
-export function shotVelocity(b, P, aim, pw, fin, goal) {
+// kind: 'drive' — обычный удар (как раньше); 'curl' — щёчкой с подкруткой (curlSide: +1 — закрутить влево, −1 — вправо,
+// 0 — к дальней штанге); 'chip' — переброс: медленнее, выше, с обратным вращением (мяч опускается под перекладину)
+export function shotVelocity(b, P, aim, pw, kind, goal, curlSide = 0) {
+  if (kind === true) kind = 'curl'; else if (!kind) kind = 'drive';
+  const fin = kind === 'curl', chip = kind === 'chip';
   const S = CFG.shot, R = CFG.R;
   let dx, dz;
   const L = Math.hypot(aim.x, aim.y);
@@ -421,17 +438,18 @@ export function shotVelocity(b, P, aim, pw, fin, goal) {
   const along = Math.max(0, P.v.x * dx + P.v.z * dz);
   let speed = S.vMin + (S.vMax - S.vMin) * pw + Math.min(S.runBonusMax, along * S.runBonus);
   if (fin) speed *= S.finesseSpeed;
+  if (chip) speed = Math.max(S.chipMin, speed * S.chipSpeed);
   // высота: целимся на height у линии ворот (сопротивление воздуха не учитываем — на деле мяч чуть ниже);
   // перебор силы — выше
-  let hT = (fin ? S.finesseHeight : S.height) + Math.max(0, pw - S.overPower) * S.overLift;
+  let hT = (chip ? S.chipHeight : fin ? S.finesseHeight : S.height) + Math.max(0, pw - S.overPower) * S.overLift;
   const dist = dz < -0.05 ? Math.min(40, b.p.z / -dz) : 20, tt = dist / speed;
   let vy = (hT - R + 0.5 * CFG.g * tt * tt) / tt; vy = Math.max(0.4, Math.min(speed * 0.6, vy));
   const vh = Math.sqrt(Math.max(1, speed * speed - vy * vy));
   const v = vec(dx * vh, vy, dz * vh);
   // вращение: сильный удар — верхнее (ныряет); подкрутка — вокруг вертикали, уводит мяч к центру ворот (плавно, физикой)
-  const top = S.topspin * pw * (fin ? 0.3 : 1);
+  const top = chip ? -S.chipBackspin : S.topspin * pw * (fin ? 0.3 : 1); // у переброса — обратное вращение
   const w = vec(dz * top, 0, -dx * top);
-  if (fin) { const side = Math.abs(b.p.x + dx * dist) > 0.3 ? Math.sign(b.p.x + dx * dist) : 1; w.y = side * S.finesseSpin; }
+  if (fin) { const side = curlSide || (Math.abs(b.p.x + dx * dist) > 0.3 ? Math.sign(b.p.x + dx * dist) : 1); w.y = side * S.finesseSpin; } // w.y > 0 — мяч уходит влево (−x)
   return { v, w, speed };
 }
 // импульс удара — ровно один раз; если мяч далеко от ударной точки — нога не достала (промах)
@@ -442,6 +460,27 @@ export function applyShot(b, shotV, contact, who, t) {
   b.p.y = CFG.R + 0.001;
   release(b, who, t);
   return true;
+}
+
+// ---------- пас ----------
+// Пас низом катится и тормозит о траву ровно по модели ground() (dv/dt = −(a + b·v)), поэтому скорость удара подбирается
+// так, чтобы мяч дошёл до точки с нужной скоростью. Верховой — дуга (без самонаведения: после касания мяч свободен).
+// торможение катящегося мяча — то же, что в ground() и integrate(): трава (a + b·v) плюс воздух (KA·Cd(v)·v²)
+const rollDecel = (v) => CFG.grass.rollConst + CFG.grass.rollLin * v + KA() * cdOf(v) * v * v;
+function rollRun(v0, v1) { let v = v0, x = 0, t = 0; const h = 1 / 240; while (v > v1 && t < 20) { x += v * h; v -= rollDecel(v) * h; t += h; } return { x, t }; }
+export function rollDistance(v0, v1) { return rollRun(v0, v1).x; }
+export function rollTime(v0, v1) { return rollRun(v0, v1).t; }
+export function passSpeedFor(dist, arrive) { let lo = arrive, hi = 45; for (let i = 0; i < 28; i++) { const m = (lo + hi) / 2; if (rollDistance(m, arrive) < dist) lo = m; else hi = m; } return (lo + hi) / 2; }
+// kind: 'ground' — низом в ноги или на ход; 'lofted' — верхом. power 0…1: сильнее — быстрее приходит (труднее принять)
+export function passVelocity(b, target, kind = 'ground', power = 0) {
+  const S = CFG.pass, dx = target.x - b.p.x, dz = target.z - b.p.z, d = Math.max(0.5, Math.hypot(dx, dz)), ux = dx / d, uz = dz / d;
+  if (kind === 'lofted') {
+    const t = Math.min(S.loftTimeMax, Math.max(S.loftTimeMin, S.loftTime0 + d * S.loftTimePerM)), vh = (d / t) * S.loftDrag, vy = 0.5 * CFG.g * t;
+    return { v: vec(ux * vh, vy, uz * vh), w: vec(-uz * S.loftBackspin, 0, ux * S.loftBackspin), speed: Math.hypot(vh, vy), time: t };
+  }
+  const arrive = S.arrive + (S.arriveStrong - S.arrive) * power;
+  const v0 = Math.min(S.vMax, Math.max(S.vMin, passSpeedFor(d, arrive)));
+  return { v: vec(ux * v0, 0, uz * v0), w: vec(uz * v0 / CFG.R, 0, -ux * v0 / CFG.R), speed: v0, time: rollTime(v0, Math.max(0.3, Math.min(arrive, v0 - 0.01))) };
 }
 
 // ---------- фиксированный шаг ----------

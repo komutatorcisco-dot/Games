@@ -184,3 +184,26 @@ test('край поля у ворот: игрок останавливается
   assert.equal(P.p.z, CFG.player.bounds.zMin); assert.equal(P.v.z, 0, 'упёрся — скорость к воротам ноль');
   assert.ok(b.p.z > 0.2, `мяч ушёл за линию ворот: z=${b.p.z}`); assert.equal(b.state, 'owned');
 });
+test('пас низом доходит до цели с нужной скоростью, сильный — быстрее; верховой — по дуге, после паса мяч свободен', () => {
+  const { CFG } = M;
+  const roll = (kind, power, d) => { const b = M.newBall({ x: 0, y: CFG.R, z: 20 }), tgt = { x: d, z: 20 }; const pv = M.passVelocity(b, tgt, kind, power);
+    Object.assign(b.v, pv.v); Object.assign(b.w, pv.w); let t = 0, at = null, maxY = 0;
+    while (t < 6) { M.stepFree(b, CFG.dt, {}); t += CFG.dt; maxY = Math.max(maxY, b.p.y); if (at === null && b.p.x >= d) at = { t, v: Math.hypot(b.v.x, b.v.z) }; }
+    return { pv, at, maxY, end: b.p.x }; };
+  for (const d of [8, 15, 25]) {
+    const n = roll('ground', 0, d), s = roll('ground', 1, d);
+    assert.ok(n.at && Math.abs(n.at.v - CFG.pass.arrive) < 0.6, `пас ${d} м пришёл со скоростью ${n.at && n.at.v}`);
+    assert.ok(s.at.t < n.at.t, 'сильный пас приходит раньше');
+    assert.ok(n.maxY < CFG.R + 0.02, 'пас низом не подпрыгивает');
+  }
+  const l = roll('lofted', 0, 20); assert.ok(l.maxY > 2, `верховой поднимается: ${l.maxY}`); assert.ok(l.end > 17, `верховой долетает: ${l.end}`);
+});
+test('подкрутка по жесту: влево — мяч уходит влево, вправо — вправо; переброс выше и медленнее обычного', () => {
+  const run = (kind, side) => { const P = M.newPlayer({ x: 0, z: 18 }, Math.PI), b = M.newBall(M.controlPoint(P, null)); M.capture(b, P, 'me');
+    const sv = M.shotVelocity(b, P, { x: 0, y: 0 }, 0.6, kind, { w: 3.66, h: 2.44 }, side); const end = M.predict(b.p, sv.v, sv.w).p;
+    let apex = 0; { const q = M.newBall(b.p); Object.assign(q.v, sv.v); Object.assign(q.w, sv.w); for (let t = 0; t < 2.5 && q.p.z > 0; t += M.CFG.dt) { M.stepFree(q, M.CFG.dt, {}); apex = Math.max(apex, q.p.y); } }
+    return { x: end.x - b.p.x, speed: sv.speed, apex }; };
+  const L = run('curl', 1), Rt = run('curl', -1), D = run('drive'), C = run('chip');
+  assert.ok(L.x < -0.4 && Rt.x > 0.4, `подкрутка: влево ${L.x}, вправо ${Rt.x}`);
+  assert.ok(C.speed < D.speed && C.apex > D.apex + 0.5, `переброс: скорость ${C.speed} против ${D.speed}, высота ${C.apex} против ${D.apex}`);
+});
