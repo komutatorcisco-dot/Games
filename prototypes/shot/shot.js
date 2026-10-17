@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from '../balotelli/vendor/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from '../balotelli/vendor/meshopt_decoder.module.js';
+import { clone as cloneSkinned } from '../balotelli/vendor/utils/SkeletonUtils.js';
 import { createRig } from '../balotelli/motion.js';
 import { applyKit, kitFromQuery } from '../player/kit.js';
 
@@ -23,8 +24,9 @@ const easeOut = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
 const lerp = (a, b, t) => a + (b - a) * t;
 
 // ---------- рендер ----------
-const ren = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-ren.setPixelRatio(Math.min(LOW ? 1 : 1.5, devicePixelRatio)); ren.setSize(innerWidth, innerHeight);
+// на экранах с плотными пикселями сглаживание почти не видно, а стоит дорого — выключаем
+const ren = new THREE.WebGLRenderer({ antialias: devicePixelRatio < 1.5, powerPreference: 'high-performance' });
+ren.setPixelRatio(Math.min(LOW ? 1 : 1.25, devicePixelRatio)); ren.setSize(innerWidth, innerHeight);
 ren.outputColorSpace = THREE.SRGBColorSpace; ren.toneMapping = THREE.ACESFilmicToneMapping; ren.toneMappingExposure = 1.15;
 ren.shadowMap.enabled = false; // вместо карты теней — мягкие пятна под игроками и мячом (вдвое меньше работы видеокарте)
 document.body.prepend(ren.domElement);
@@ -118,7 +120,7 @@ function stadium() {
   const c = document.createElement('canvas'); c.width = 64; c.height = 96; const g = c.getContext('2d');
   g.fillStyle = '#fff'; g.beginPath(); g.arc(32, 26, 15, 0, 7); g.fill(); g.beginPath(); g.ellipse(32, 92, 28, 46, 0, Math.PI, 0); g.fill();
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide });
+  const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5 }); // без расчёта света — тысячам людей он не нужен
   const U = { uTime: { value: 0 }, uJump: { value: 0 } };
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
@@ -132,7 +134,7 @@ function stadium() {
   // ярусы: за воротами (широкий) и по бокам — ступени
   const tiers = [{ x: 0, w: 92, rot: 0 }, { x: -44, w: 70, rot: Math.PI / 2 }, { x: 44, w: 70, rot: -Math.PI / 2 }];
   const conc = new THREE.MeshStandardMaterial({ color: '#1b2340', roughness: 0.9 });
-  const rowsN = LOW ? 10 : 16, step = 0.9, rise = 0.55;
+  const rowsN = LOW ? 8 : 13, step = 0.9, rise = 0.55;
   let lampY = 0, lampZ = 0;
   for (const T of tiers) {
     const grp = new THREE.Group();
@@ -140,7 +142,7 @@ function stadium() {
       const ring = r >= rowsN * 0.55 ? 1.6 : 0; // проход между ярусами
       const z = -r * step - ring, y = 0.9 + r * rise + ring * 0.8;
       const st = new THREE.Mesh(new THREE.BoxGeometry(T.w, rise, step), conc); st.position.set(0, y - rise / 2, z); grp.add(st);
-      for (let x = -T.w / 2 + 0.4; x < T.w / 2 - 0.4; x += 0.7) { if (Math.random() < 0.1) continue; seats.push({ grp, p: new THREE.Vector3(x + (Math.random() - 0.5) * 0.15, y + 0.33, z + 0.1) }); }
+      for (let x = -T.w / 2 + 0.4; x < T.w / 2 - 0.4; x += 0.8) { if (Math.random() < 0.12) continue; seats.push({ grp, p: new THREE.Vector3(x + (Math.random() - 0.5) * 0.15, y + 0.33, z + 0.1) }); }
     }
     const roof = new THREE.Mesh(new THREE.BoxGeometry(T.w, 0.5, 14), new THREE.MeshStandardMaterial({ color: '#0d1226', roughness: 0.6 }));
     roof.position.set(0, 0.9 + rowsN * rise + 8, -rowsN * step * 0.65); roof.rotation.x = -0.12; grp.add(roof);
@@ -265,9 +267,19 @@ function blobTick() {
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const v3 = new THREE.Vector3(), q1 = new THREE.Quaternion(), q2 = new THREE.Quaternion();
 const AX = new THREE.Vector3(1, 0, 0), AY = new THREE.Vector3(0, 1, 0), AZ = new THREE.Vector3(0, 0, 1);
-async function player(kit) {
-  const g = await loader.loadAsync('../balotelli/balotelli-mobile.glb');
-  const m = g.scene;
+// модель грузим ОДИН раз; остальные игроки — копии со своим скелетом, но с общими сеткой и текстурами
+// (раньше каждый грузился отдельно: 6 копий текстур в видеопамяти — главная причина лагов на телефоне)
+// вратарь и стенка далеко — им облегчённая сетка (balotelli-lod.glb, 14 тыс. треугольников вместо 50 тыс.,
+// сделана gltfpack -si 0.25), а текстуры те же, что у основной модели
+let baseModel = null, lodModel = null;
+const baseReady = loader.loadAsync('../balotelli/balotelli-mobile.glb').then((g) => (baseModel = g.scene));
+const lodReady = loader.loadAsync('../balotelli/balotelli-lod.glb').then((g) => (lodModel = g.scene)).catch(() => null);
+const meshOf = (root) => { let m = null; root.traverse((o) => { if (!m && o.isSkinnedMesh) m = o; }); return m; };
+async function player(kit, lod = false) {
+  await baseReady; if (lod) await lodReady;
+  const m = cloneSkinned(lod && lodModel ? lodModel : baseModel);
+  const baseMat = meshOf(baseModel).material;
+  m.traverse((o) => { if (o.isMesh && o.material) o.material = (lod && lodModel ? baseMat : o.material).clone(); }); // своя форма — свой материал, текстуры общие
   if (kit && kit.whiten) whiten(m); // своя синяя форма модели → белая ткань, чтобы её перекрасил kit.js
   if (kit) await applyKit(m, kit);
   m.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; } if (o.isSkinnedMesh && o.skeleton) o.skeleton.pose(); });
@@ -573,7 +585,7 @@ function frame() {
 // ---------- старт ----------
 (async () => {
   const bar = $('#loadbar');
-  const all = [player(myKit), player(gkKit), ...[0, 1, 2, 3].map((i) => player(wallKit(i)))];
+  const all = [player(myKit), player(gkKit, true), ...[0, 1, 2, 3].map((i) => player(wallKit(i), true))];
   let done = 0; all.forEach((p) => p.then(() => { done++; if (bar) bar.style.width = (done / all.length) * 100 + '%'; }));
   const got = await Promise.all(all);
   [shooter, keeper] = got; wall.push(...got.slice(2)); blob(ball, 0.45);
