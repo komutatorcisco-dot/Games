@@ -300,6 +300,9 @@ function trailTick(on) {
 }
 
 pitch(); stadium();
+// метка прицела на воротах: видна, пока копишь силу удара (поднимается вместе с силой)
+const aimMark = new THREE.Mesh(new THREE.RingGeometry(0.17, 0.24, 32), new THREE.MeshBasicMaterial({ color: '#ffd23f', transparent: true, opacity: 0.85, depthTest: false, side: THREE.DoubleSide }));
+aimMark.renderOrder = 5; aimMark.visible = false; scene.add(aimMark);
 scene.add(ball, trailMesh);
 
 // ---------- конфетти на гол ----------
@@ -431,6 +434,7 @@ function resetShot() {
   play(keeper, 'gk_idle', { loop: true, fade: 0.3, t: Math.random() * 2, lock: keeper.holder.localToWorld(new THREE.Vector3(0, 0, 0)) });
   wall.forEach((w, i) => play(w, 'idle', { loop: true, fade: 0.3, t: 1 + i * 1.7, speed: 0.8, lock: w.holder.localToWorld(new THREE.Vector3(0, 0, 0)) }));
   aimCam(); if (state === 'load') { camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); } // после placeShooter — игрок уже стоит
+  aimMark.visible = false;
   state = 'aim'; shot = null; kick = null; setTimeout(sfx.whistle, 500); sfx.level(MODE === 'pen' ? 0.6 : 0.4); celebrate = -1; slow = 1; msg.className = 'msg';
   $('#hint').style.opacity = n === 0 ? 1 : 0;
   dots();
@@ -545,6 +549,14 @@ function keeperDive() {
   const t0 = Math.max(0, D.tk - left), up = Math.max(0, Math.min(1.1, kick.cy - 0.7));
   play(keeper, D.name, { t: t0, fade: 0.12, fx: Math.max(0.35, Math.min(1.6, want / D.reach)), fz: 0.25, hold: D.tk + 0.6,
     lift: (t) => up * Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, (t - t0) / (D.tk + 0.35 - t0))))) });
+}
+// перед ударом вратарь чуть смещается — угадывает сторону (чаще верно, если удар не сильный и не в угол)
+function keeperRead(dt) {
+  if (!shot || !keeper.lock) return;
+  if (shot.guess === undefined) { const right = Math.sign(shot.tx - keeper.holder.position.x) || 1; shot.guess = Math.random() < 0.6 ? right : -right; }
+  const target = shot.guess * 0.35, cur = keeper.holder.position.x - (shot.kx0 ?? (shot.kx0 = keeper.holder.position.x));
+  const dx = (target - cur) * (1 - Math.exp(-dt * 3));
+  keeper.holder.position.x += dx; keeper.lock.x += dx;
 }
 // вратарь касается мяча руками или телом: несильный мяч рядом с ним — ловит, остальное — отбивает в сторону (на угловой)
 const kp = new THREE.Vector3(), kq = new THREE.Vector3();
@@ -704,15 +716,27 @@ function input() {
 // держишь «Удар» — копится сила (полоска), отпустил — удар; «Подкрутка» — удар щёчкой с закруткой в дальний угол
 function startCharge(fin) { if (MODE !== 'run' || state !== 'play' || !run || run.charge >= 0) return; if (ball.position.distanceTo(shooter.holder.position) > 2.2) return; run.charge = 0; run.fin = fin; setPower(0); $('#ring').classList.add('on'); hintOff(); }
 function releaseCharge() { if (!run || run.charge < 0 || state !== 'play') return; const pw = Math.min(1, run.charge / 0.9); run.charge = -1; $('#ring').classList.remove('on'); strike(pw, run.fin); }
-function strike(pw, fin) {
-  const inp = input(), bp = ball.position;
-  // куда: джойстик вбок — в тот угол; без джойстика — в дальний угол от игрока
-  let tx = Math.abs(inp.x) > 0.2 ? inp.x * 3.3 : -Math.sign(bp.x || 1) * 2.4;
+// прицел: куда наклонён джойстик — туда и мяч. Вверх — в центр ворот, вверх-влево — в левую половину,
+// до упора вбок (60° и больше) — в штангу и мимо. Без джойстика — чуть в дальнюю сторону. Высота — от силы.
+function aimTarget(pw, fin) {
+  const inp = input(), bp = ball.position, L = Math.hypot(inp.x, inp.y);
+  const tx = L > 0.25 ? Math.max(-1.6, Math.min(1.6, Math.atan2(inp.x, Math.max(inp.y, -0.2)) / (Math.PI / 3))) * (GW - 0.3) : Math.abs(bp.x) > 1 ? -Math.sign(bp.x) * 0.9 : 0;
   let ty = 0.25 + pw * 2.3 + (pw > 0.95 ? 0.7 : 0); // перебрал силу — над перекладиной
+  if (fin) ty = Math.min(ty, 2.1);
+  return { tx, ty };
+}
+function strike(pw, fin) {
+  const bp = ball.position, h = shooter.holder;
+  let { tx, ty } = aimTarget(pw, fin);
   let speed = 15 + pw * 17, curve = 0;
-  if (fin) { speed *= 0.82; curve = -Math.sign(tx - bp.x) * 0.9; ty = Math.min(ty, 2.1); }
-  const dist = bp.length(), sig = (0.12 + (100 - ST) * 0.028) * Math.max(0.6, dist / 18), gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 0.8;
+  if (fin) { speed *= 0.82; curve = -Math.sign(tx - bp.x) * 0.9; }
+  // точность: дальше, быстрее бежишь, сильнее бьёшь и чем сильнее надо развернуться к цели — тем больше разброс
+  const toT = Math.atan2(tx - bp.x, -bp.z), turn = Math.abs(Math.atan2(Math.sin(toT - h.rotation.y), Math.cos(toT - h.rotation.y)));
+  const sp = run.v.length(), worse = (1 + (sp / 6.6) * 0.7) * (1 + Math.max(0, turn - 0.5) * 0.9) * (1 + Math.max(0, pw - 0.8) * 1.5);
+  speed *= 1 - Math.min(0.25, Math.max(0, turn - 0.8) * 0.3); // бьёшь «с разворота» — слабее
+  const dist = bp.length(), sig = (0.12 + (100 - ST) * 0.028) * Math.max(0.6, dist / 18) * worse, gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 0.8;
   tx += gauss() * sig; ty = Math.max(0.1, ty + gauss() * sig * 0.7);
+  aimMark.visible = false;
   shot = { tx, ty, speed, curve, ax: 0 };
   run.v.multiplyScalar(0.5);
   play(shooter, 'strike', { t: Math.max(0, STRIKE.tc - 0.35), fade: 0.12, follow: true });
@@ -745,28 +769,38 @@ function dribble(dt, settle = false) {
   const d = tmpB.copy(bp).sub(before); if (d.lengthSq() > 1e-8) { tmpV.set(d.z, 0, -d.x).normalize(); ball.rotateOnWorldAxis(tmpV, -d.length() / R); }
 }
 function runMove(dt) { // бег игрока по джойстику (и с мячом, и после удара)
-  const inp = input(), max = (btn.sprint || keys.ShiftLeft || keys.ShiftRight) ? 6.6 : 3.9;
-  run.v.lerp(tmpA.set(inp.x, 0, -inp.y).multiplyScalar(max), 1 - Math.exp(-dt * 6));
+  const inp = input(), max = ((btn.sprint || keys.ShiftLeft || keys.ShiftRight) ? 6.6 : 3.9) * (run.charge >= 0 ? 0.55 : 1); // копишь удар — джойстик целится, бег замедляется
+  // разгон плавнее торможения — у игрока есть вес
+  const want = tmpA.set(inp.x, 0, -inp.y).multiplyScalar(max), sp0 = run.v.length();
+  run.v.lerp(want, 1 - Math.exp(-dt * (want.length() > sp0 ? 3.2 : 5.5)));
   const h = shooter.holder, sp = run.v.length();
   h.position.addScaledVector(run.v, dt); h.position.x = Math.max(-30, Math.min(30, h.position.x)); h.position.z = Math.max(1.2, Math.min(42, h.position.z));
-  if (sp > 0.3) { const yaw = Math.atan2(run.v.x, run.v.z); let d = yaw - h.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); h.rotation.y += d * (1 - Math.exp(-dt * 9)); }
+  let yawRate = 0;
+  if (sp > 0.3) { const yaw = Math.atan2(run.v.x, run.v.z); let d = yaw - h.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); const step = d * (1 - Math.exp(-dt * 9)); h.rotation.y += step; yawRate = step / Math.max(dt, 1e-3); }
+  // наклон: на повороте — внутрь поворота, при разгоне — вперёд
+  const lean = Math.max(-0.26, Math.min(0.26, -yawRate * sp * 0.035)), pitch = Math.max(-0.08, Math.min(0.14, ((sp - sp0) / Math.max(dt, 1e-3)) * 0.025));
+  const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
   // движение ног: стоит / бежит; во время удара не перебиваем запись удара до момента после касания
   const busy = shooter.name === 'strike' && shooter.t < STRIKE.tc + 0.3;
-  const want = sp > 0.6 ? 'jog' : 'idle';
-  if (!busy && shooter.name !== want) play(shooter, want, { loop: true, fade: 0.3, follow: true });
+  const anim = sp > 0.6 ? 'jog' : 'idle';
+  if (!busy && shooter.name !== anim) play(shooter, anim, { loop: true, fade: 0.3, follow: true });
   if (shooter.name === 'jog') shooter.act.timeScale = Math.max(0.7, sp / 3.6);
   tickPlayer(shooter, dt);
 }
 function runTick(dt) {
   runMove(dt);
   dribble(dt);
-  if (run.charge >= 0) { run.charge += dt; setPower(Math.min(1, run.charge / 0.9)); if (run.charge > 1.2) releaseCharge(); }
+  if (run.charge >= 0) {
+    run.charge += dt; const pw = Math.min(1, run.charge / 0.9); setPower(pw);
+    const a = aimTarget(pw, run.fin); aimMark.position.set(a.tx, Math.min(a.ty, GH + 0.6), 0.05); aimMark.visible = true; aimMark.scale.setScalar(Math.max(1, ball.position.length() / 11) * (1 + Math.sin(clock * 12) * 0.06)); // издалека метка крупнее, чтобы было видно
+    if (run.charge > 1.2) releaseCharge();
+  } else aimMark.visible = false;
   if ((crowdT -= dt) < 0) { crowdT = 0.4; sfx.level(Math.max(0, Math.min(1, (30 - ball.position.length()) / 20))); } // ближе к воротам — громче трибуны
   // вратарь: стоит на линии мяч — центр ворот и выходит навстречу, когда игрок близко
   const bp = ball.position, k = keeper.holder, dist = bp.length();
   const out = Math.max(0.4, Math.min(5.5, (22 - dist) * 0.24, dist - 1.6));
   const kt = tmpA.copy(bp).setY(0).normalize().multiplyScalar(out); kt.z = Math.max(0.3, kt.z);
-  const kd = kt.sub(k.position); const kl = kd.length(), ksp = Math.min(4.4, kl * 3);
+  const kd = kt.sub(k.position); const kl = kd.length(), ksp = Math.min(4.4, kl * 3) * (run.charge >= 0 ? 0.3 : 1); // замахнулся — вратарь встаёт в стойку
   run.kv.lerp(kl > 0.02 ? kd.normalize().multiplyScalar(ksp) : tmpB.set(0, 0, 0), 1 - Math.exp(-dt * 5));
   k.position.addScaledVector(run.kv, dt);
   k.rotation.y = Math.atan2(bp.x - k.position.x, bp.z - k.position.z);
@@ -822,7 +856,7 @@ function frame() {
 
   if (state === 'play') runTick(dt);
   else if (state === 'runup') {
-    if (MODE === 'run') { runMove(dt); dribble(dt, true); } else tickPlayer(shooter, dt);
+    if (MODE === 'run') { runMove(dt); dribble(dt, true); } else { tickPlayer(shooter, dt); keeperRead(dt); }
     if (shooter.t >= (MODE === 'run' ? STRIKE.tc : KICK.tc)) { if (MODE === 'run') spot.copy(ball.position); launch(); }
   } else if (state === 'fly' || state === 'over') {
     if (MODE === 'run') runMove(dt);
@@ -911,7 +945,7 @@ function frame() {
   conf.visible = true; ren.compile(scene, cam); conf.visible = false;
   $('#load').remove();
   window.ready = true;
-  window.dbg2 = () => [shooter.holder.position.toArray().map((v) => +v.toFixed(2)), ball.position.toArray().map((v) => +v.toFixed(2)), shooter.name, +run.v.length().toFixed(2), run.bv.toArray().map((v) => +v.toFixed(1))];
+  window.dbg2 = () => [shot && [+shot.tx.toFixed(2), +shot.ty.toFixed(2)], +shooter.holder.rotation.z.toFixed(2), shooter.holder.position.toArray().map((v) => +v.toFixed(2)), ball.position.toArray().map((v) => +v.toFixed(2)), shooter.name, +run.v.length().toFixed(2), run.bv.toArray().map((v) => +v.toFixed(1))];
   window.dbg = () => ({ state, sh: shooter.name, st: +shooter.t.toFixed(2), tc: STRIKE.tc, b: ball.position.toArray().map((v) => +v.toFixed(2)), calls: ren.info.render.calls, tris: ren.info.render.triangles });
 })().catch((e) => { $('#load').textContent = 'Не получилось загрузить: ' + e.message; });
 frame();
