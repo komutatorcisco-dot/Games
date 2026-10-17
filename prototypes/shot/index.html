@@ -72,6 +72,9 @@
   .duo .b-pass { right: 112px; bottom: 2px; width: 74px; height: 74px; }
   .duo .b-thru { right: 196px; bottom: 6px; width: 56px; height: 56px; font-size: 10px !important; }
   .pbtns button[hidden] { display: none; }
+  .duo .b-swap { right: 112px; bottom: 96px; width: 52px; height: 52px; font-size: 9px !important; }
+  .restart { position: fixed; right: calc(var(--sr) + 14px); top: calc(var(--st) + 88px); z-index: 3; padding: 5px 10px; border: 0; border-radius: 8px; color: rgba(255,255,255,.85); font: 600 13px/1 var(--f); }
+  .restart[hidden] { display: none; }
   /* кольцо силы удара вокруг кнопки «Удар» */
   .pbtns button .ring { position: absolute; inset: -9px; width: calc(100% + 18px); height: calc(100% + 18px); transform: rotate(-90deg); pointer-events: none; opacity: 0; transition: opacity .12s; }
   .pbtns button .ring.on { opacity: 1; }
@@ -93,6 +96,7 @@
 <div class="vig"></div>
 <div class="sb glass"><span class="sb-n" id="who">—</span><span class="sb-s" id="score">0</span><span class="sb-d" id="dots"></span></div>
 <button class="gfxq glass" id="gfxq">Графика</button>
+<button class="restart glass" id="restart" hidden>↻ Заново</button>
 <div class="modes glass"><button data-m="fk" class="on">Штрафной</button><button data-m="pen">Пенальти</button><button data-m="run">1 на 1</button><button data-m="duo">2 на 1</button></div>
 <div class="pad" id="pad" hidden><div class="zone" id="zone"></div><div class="joy" id="joy"><i id="stick"></i></div>
   <div class="pbtns">
@@ -100,6 +104,7 @@
       <svg class="ring" id="ring" viewBox="0 0 40 40"><circle class="bg" cx="20" cy="20" r="17" pathLength="100"/><circle class="fg" id="ringFg" cx="20" cy="20" r="17" pathLength="100"/></svg></button>
     <button class="b-pass" id="b-pass" hidden><svg viewBox="0 0 24 24"><path d="M4 12h13"/><path d="M13 7l5 5-5 5"/><circle cx="4" cy="12" r="1.6"/></svg>Пас<span class="gb" id="pass-g"></span></button>
     <button class="b-thru" id="b-thru" hidden><svg viewBox="0 0 24 24"><path d="M5 19L17 7"/><path d="M10 6h8v8"/></svg>На ход</button>
+    <button class="b-swap" id="b-swap" hidden><svg viewBox="0 0 24 24"><path d="M5 9h12l-3-3M19 15H7l3 3"/></svg>Смена</button>
     <button class="b-run" id="b-run"><svg viewBox="0 0 24 24"><path d="M5 6l6 6-6 6M13 6l6 6-6 6"/></svg>Рывок</button>
   </div></div>
 <div class="msg" id="msg"></div>
