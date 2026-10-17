@@ -11,6 +11,7 @@ import { MeshoptDecoder } from '../balotelli/vendor/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from '../balotelli/vendor/utils/SkeletonUtils.js';
 import { createRig } from '../balotelli/motion.js';
 import { applyKit, kitFromQuery } from '../player/kit.js';
+import { loadAnims, sample, mix, apply, newPose } from './anim.js';
 
 const Q = new URLSearchParams(location.search);
 const ST = Math.max(40, Math.min(99, Number(Q.get('st')) || 82));
@@ -253,13 +254,13 @@ function confTick(dt) {
 const blobTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
   const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(0,0,0,.55)'); r.addColorStop(0.6, 'rgba(0,0,0,.25)'); r.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
-const blobs = [];
+const blobs = [], blobV = new THREE.Vector3();
 function blob(target, size) {
   const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }));
   m.rotation.x = -Math.PI / 2; m.renderOrder = 1; scene.add(m); blobs.push({ m, target, size }); return m;
 }
 function blobTick() {
-  for (const b of blobs) { const t = b.target.position; b.m.position.set(t.x, 0.01, t.z); b.m.visible = b.target.visible !== false;
+  for (const b of blobs) { const t = b.bone ? b.bone.getWorldPosition(blobV) : b.target.position; b.m.position.set(t.x, 0.01, t.z); b.m.visible = b.target.visible !== false;
     const k = Math.max(0.35, 1 - t.y / 2.5); b.m.scale.setScalar(k); b.m.material.opacity = k; }
 }
 
@@ -272,6 +273,7 @@ const AX = new THREE.Vector3(1, 0, 0), AY = new THREE.Vector3(0, 1, 0), AZ = new
 // вратарь и стенка далеко — им облегчённая сетка (balotelli-lod.glb, 14 тыс. треугольников вместо 50 тыс.,
 // сделана gltfpack -si 0.25), а текстуры те же, что у основной модели
 let baseModel = null, lodModel = null;
+const animsReady = loadAnims('anims.json');
 const baseReady = loader.loadAsync('../balotelli/balotelli-mobile.glb').then((g) => (baseModel = g.scene));
 const lodReady = loader.loadAsync('../balotelli/balotelli-lod.glb').then((g) => (lodModel = g.scene)).catch(() => null);
 const meshOf = (root) => { let m = null; root.traverse((o) => { if (!m && o.isSkinnedMesh) m = o; }); return m; };
@@ -285,8 +287,9 @@ async function player(kit, lod = false) {
   m.traverse((o) => { if (o.isMesh) { o.frustumCulled = false; } if (o.isSkinnedMesh && o.skeleton) o.skeleton.pose(); });
   m.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(m), s = 1.84 / (box.max.y - box.min.y);
-  const holder = new THREE.Group(); m.scale.setScalar(s); m.position.y = -box.min.y * s; holder.add(m); scene.add(holder); blob(holder, 1.3);
+  const holder = new THREE.Group(); m.scale.setScalar(s); m.position.y = -box.min.y * s; holder.add(m); scene.add(holder); const bl = blob(holder, 1.3);
   const rig = createRig(m);
+  blobs.find((x) => x.m === bl).bone = rig.B.pelvis; // тень идёт за тазом: записанные движения двигают игрока сами
   return { holder, rig };
 }
 // синие места текстуры (форма сборной Италии у модели) делаем белыми: kit.js красит только белую ткань
@@ -348,8 +351,9 @@ function aimCam() {
 function resetShot() {
   setSpot(n);
   ball.position.copy(spot); vel.set(0, 0, 0); ball.rotation.set(0, 0, 0); trail.pts.length = 0;
-  shooter.holder.position.set(spot.x - 0.9, 0, spot.z + 1.8); shooter.holder.rotation.y = Math.PI + 0.25; rest(shooter.rig);
+  placeShooter(); shooter.holder.position.y = 0; play(shooter, 'idle', { loop: true, fade: 0, t: Math.random() * 3, root: true });
   keeper.holder.position.set(MODE === 'fk' ? Math.sign(spot.x || 1) * 0.7 : 0, 0, -0.25); keeper.holder.rotation.set(0, 0, 0);
+  play(keeper, 'gk_idle', { loop: true, fade: 0.3, t: Math.random() * 2, root: false });
   aimCam(); if (state === 'load') { camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); }
   state = 'aim'; shot = null; kick = null; celebrate = -1; slow = 1; msg.className = 'msg';
   $('#hint').style.opacity = n === 0 ? 1 : 0;
@@ -383,6 +387,7 @@ addEventListener('pointerup', (e) => {
   tx += gauss() * sig; ty = Math.max(0.1, ty + gauss() * sig * 0.7);
   shot = { tx, ty, speed, curve, ax: 0 };
   state = 'runup'; t0 = clock; $('#hint').style.opacity = 0;
+  play(shooter, 'kick', { t: 0.05, fade: 0.3 });
 });
 let swipeDirty = false;
 function drawSwipe(dt) {
@@ -416,6 +421,14 @@ function launch() {
   kick = { t: 0, T: t, cx: p.x, cy: p.y, react, save: can && Math.random() < (ST > 90 ? 0.72 : 0.86), dir: Math.sign(p.x - kx) || 1, done: false, x0: kx };
   state = 'fly'; shake = 0.12;
 }
+function keeperDive() {
+  kick.dived = true;
+  const dx = kick.cx - kick.x0, far = Math.abs(dx) > 0.9, left = kick.T - kick.react;
+  if (!far) { play(keeper, kick.cy > 0.55 ? 'gk_catch' : 'gk_block', { t: 0.25, fade: 0.12, root: true, speed: 1.4 }); return; }
+  // прыжок: зеркалим запись, если она в другую сторону; растягиваем вбок до точки мяча (или не долетает — гол)
+  const want = kick.save ? Math.abs(dx) - 0.85 : Math.min(Math.abs(dx) * 0.55, 1.8);
+  play(keeper, 'gk_dive', { t: Math.max(0, DIVE.tk - left), fade: 0.12, mirror: Math.sign(dx) !== DIVE.side, rootX: Math.max(0.4, Math.min(1.8, want / DIVE.reach)), root: true });
+}
 function finish(ok, text, cls) {
   if (state === 'over') return; state = 'over';
   results[n] = ok; msg.textContent = text; msg.className = 'msg on ' + cls; dots();
@@ -434,61 +447,55 @@ document.querySelectorAll('[data-m]').forEach((b) => b.addEventListener('click',
 }));
 
 // ---------- позы ----------
-function keeperStance(r, t, w) { // стойка: полуприсед, руки в стороны, переступает с ноги на ногу (w — вес позы)
-  if (w <= 0) return;
-  const s = Math.sin(t * 3.2);
-  turn(r, 'thigh.L', AX, (-0.45 + 0.08 * s) * w); turn(r, 'thigh.R', AX, (-0.45 - 0.08 * s) * w); turn(r, 'shin.L', AX, 0.8 * w); turn(r, 'shin.R', AX, 0.8 * w);
-  turn(r, 'spine', AX, 0.25 * w); turn(r, 'upper_arm.L', AZ, -0.75 * r.sideL * w); turn(r, 'upper_arm.R', AZ, 0.75 * r.sideL * w);
-  turn(r, 'upper_arm.L', AX, -0.35 * w); turn(r, 'upper_arm.R', AX, -0.35 * w);
+// Движения — записанные с людей (Mixamo, «Soccer Game Pack»), перенесённые на скелет Балотелли (anims.json).
+// У каждого игрока: текущее движение, время в нём и плавный переход из прошлой позы (0,25 с).
+let A = null, KICK = null, DIVE = null;
+const tmpPose = newPose();
+function play(pl, clip, { t = 0, loop = false, mirror = false, fade = 0.25, speed = 1, rootX = 1, root = true } = {}) {
+  pl.from = pl.pose ? JSON.parse(JSON.stringify({ q: Object.fromEntries(Object.entries(pl.pose.q).map(([k, v]) => [k, v.toArray()])), root: pl.pose.root.toArray() })) : null;
+  if (pl.from) { const f = newPose(); for (const k in f.q) f.q[k].fromArray(pl.from.q[k]); f.root.fromArray(pl.from.root); pl.from = f; }
+  Object.assign(pl, { clip, t, loop, mirror, fade, fadeT: 0, speed, rootX, root });
 }
-function keeperPose(t) {
-  const r = keeper.rig, h = keeper.holder; rest(r);
-  if (!kick || kick.t < kick.react) { keeperStance(r, t, 1); h.position.y = 0; h.rotation.z = 0; return; }
-  // прыжок: дуга по высоте, поворот корпуса, руки тянутся к мячу; стойка уходит за 0,15 с
-  const u = Math.min(1, (kick.t - kick.react) / Math.max(0.3, kick.T - kick.react + 0.05));
-  keeperStance(r, t, 1 - ease((kick.t - kick.react) / 0.15));
-  const reachX = kick.save ? kick.cx - kick.dir * 0.55 : kick.x0 + kick.dir * Math.min(2.4, Math.abs(kick.cx - kick.x0) * 0.75);
-  const far = Math.abs(reachX - kick.x0) > 0.9;
-  h.position.x = lerp(kick.x0, reachX, easeOut(u * 1.1));
-  const hy = Math.min(1.25, Math.max(0, kick.cy - 0.95));
-  h.position.y = (far ? 0.25 + hy * 0.7 : hy * 0.6) * Math.sin(Math.PI * Math.min(1, u));
-  h.rotation.z = far ? -kick.dir * 1.35 * easeOut(u * 1.3) : 0;
-  const up = easeOut(u * 1.6);
-  turn(r, 'upper_arm.L', AX, -2.3 * up); turn(r, 'upper_arm.R', AX, -2.3 * up);
-  turn(r, 'upper_arm.L', AZ, -0.35 * r.sideL * up); turn(r, 'upper_arm.R', AZ, 0.35 * r.sideL * up);
-  turn(r, 'thigh.L', AX, -0.2 * up); turn(r, 'thigh.R', AX, 0.25 * up); turn(r, 'shin.R', AX, 0.5 * up);
+function tickPlayer(pl, dt, rootFix) {
+  if (!A || !pl.clip) return;
+  pl.t += dt * pl.speed; pl.fadeT += dt;
+  pl.pose = pl.pose || newPose();
+  sample(A, pl.clip, pl.t, pl.pose, { loop: pl.loop, mirror: pl.mirror });
+  pl.pose.root.x *= pl.rootX;
+  if (rootFix) rootFix(pl.pose.root);
+  if (pl.from && pl.fadeT < pl.fade) mix(pl.from, pl.pose, ease(pl.fadeT / pl.fade), tmpPose), apply(pl.rig, tmpPose, { rootMove: pl.root });
+  else apply(pl.rig, pl.pose, { rootMove: pl.root });
 }
-function shooterPose(u) { // 0–0,7 разбег, 0,7–1 замах и удар, после — проводка
-  const r = shooter.rig; rest(r);
-  if (u < 0.7) {
-    const k = u / 0.7, ph = Math.sin(k * Math.PI * 3), amp = 0.7 * ease(k * 4) * (1 - 0.35 * ease((k - 0.75) / 0.25));
-    turn(r, 'thigh.L', AX, amp * ph); turn(r, 'thigh.R', AX, -amp * ph);
-    turn(r, 'shin.L', AX, -0.9 * Math.max(0, -ph) * amp); turn(r, 'shin.R', AX, -0.9 * Math.max(0, ph) * amp);
-    turn(r, 'upper_arm.L', AX, -0.6 * ph * amp); turn(r, 'upper_arm.R', AX, 0.6 * ph * amp);
-    turn(r, 'spine', AX, 0.12 * ease(k));
-    return;
+// заранее: в какой момент удара нога касается мяча и где в этот момент стопа (чтобы поставить игрока к мячу)
+function prepKick() {
+  const c = A.kick, h = shooter.holder, keep = [h.position.clone(), h.rotation.y];
+  h.position.set(0, 0, 0); h.rotation.y = 0; h.updateMatrixWorld(true);
+  const pose = newPose(); let best = 0, tc = 0.9, foot = 'foot.R', prev = {};
+  const fp = (n) => h.worldToLocal(shooter.rig.B[n].getWorldPosition(new THREE.Vector3()));
+  for (let t = 0; t <= c.dur; t += 1 / 60) {
+    sample(A, 'kick', t, pose); apply(shooter.rig, pose); h.updateMatrixWorld(true);
+    for (const n of ['foot.L', 'foot.R']) { const q = fp(n); if (prev[n] && t > 0.3) { const v = q.distanceTo(prev[n]) * 60; if (v > best) { best = v; tc = t; foot = n; } } prev[n] = q; }
   }
-  kickPose(r, Math.min(1.5, (u - 0.7) / 0.3), 1);
+  sample(A, 'kick', tc, pose); apply(shooter.rig, pose); h.updateMatrixWorld(true);
+  const atContact = fp(foot);
+  sample(A, 'kick', 0, pose); const root0 = pose.root.clone();
+  h.position.copy(keep[0]); h.rotation.y = keep[1];
+  KICK = { tc, foot, atContact, root0 };
+  // прыжок вратаря: когда он дальше всего вбок и в какую сторону летит по записи
+  const d = A.gk_dive; let mx = 0, tk = 1, sx = 1; const pp = newPose();
+  for (let t = 0; t <= d.dur; t += 1 / 30) { sample(A, 'gk_dive', t, pp); if (Math.abs(pp.root.x) > mx) { mx = Math.abs(pp.root.x); tk = t; sx = Math.sign(pp.root.x); } }
+  DIVE = { tk, reach: mx, side: sx };
 }
-function kickPose(r, k, w) { // замах (k<1), касание (k=1), проводка (k>1); w — вес позы
-  // замах начинается с той позы, где закончился разбег: сначала ноги сходятся, потом нога уходит назад
-  const swing = k < 1 ? -1.0 * Math.sin(Math.PI * 0.5 * Math.min(1, k * 1.6)) * (1 - ease((k - 0.45) / 0.55)) + 0.15 * ease((k - 0.6) / 0.4) : 0.15 + easeOut((k - 1) * 2) * 1.1;
-  turn(r, 'thigh.R', AX, swing * w); turn(r, 'shin.R', AX, (k < 1 ? -1.4 * Math.sin(Math.PI * Math.min(1, k * 1.1)) : -0.15) * w);
-  turn(r, 'thigh.L', AX, -0.2 * w); turn(r, 'shin.L', AX, -0.25 * w);
-  const a = Math.min(1, k * 1.5) * w;
-  turn(r, 'upper_arm.L', AZ, -1.0 * r.sideL * a); turn(r, 'upper_arm.R', AX, 0.7 * a); turn(r, 'upper_arm.R', AZ, 0.4 * r.sideL * a);
-  turn(r, 'spine', AX, (-0.12 - 0.1 * Math.min(1, k)) * w); turn(r, 'spine', AY, 0.25 * (1 - Math.min(1, k)) * w);
+function placeShooter() { // встаём так, чтобы в момент касания стопа оказалась у мяча
+  const dir = new THREE.Vector3(-spot.x, 0, -spot.z).normalize(), yaw = Math.atan2(dir.x, dir.z);
+  const h = shooter.holder; h.rotation.set(0, yaw, 0);
+  const off = KICK.atContact.clone().applyAxisAngle(AY, yaw); off.y = 0;
+  h.position.copy(spot).addScaledVector(dir, -0.14).sub(off); h.position.y = 0;
 }
-function celebratePose(t) { // прыжок, кулаки вверх
-  const r = shooter.rig; rest(r);
-  kickPose(r, 1.5, 1 - ease(t / 0.35)); // проводка плавно переходит в празднование
-  const a = easeOut(t * 2.5), jump = Math.max(0, Math.sin(Math.min(Math.PI, Math.max(0, t - 0.15) * 5)));
-  shooter.holder.position.y = jump * 0.35;
-  turn(r, 'upper_arm.L', AX, -2.7 * a); turn(r, 'upper_arm.R', AX, -2.7 * a);
-  turn(r, 'upper_arm.L', AZ, -0.45 * r.sideL * a); turn(r, 'upper_arm.R', AZ, 0.45 * r.sideL * a);
-  turn(r, 'forearm.L', AX, -0.6 * a); turn(r, 'forearm.R', AX, -0.6 * a);
-  turn(r, 'thigh.R', AX, 0.5 * jump); turn(r, 'shin.R', AX, -0.9 * jump);
-  turn(r, 'spine', AX, -0.18 * a);
+function celebrateArms(t) { // кулаки вверх поверх записанного движения
+  const r = shooter.rig, a = easeOut(t * 2.5);
+  turn(r, 'upper_arm.L', AX, -2.4 * a); turn(r, 'upper_arm.R', AX, -2.4 * a);
+  turn(r, 'forearm.L', AX, -0.5 * a); turn(r, 'forearm.R', AX, -0.5 * a);
 }
 function wallPose(w, i, t) {
   const r = w.rig; rest(r);
@@ -520,14 +527,11 @@ function frame() {
   if (state === 'load') return;
 
   if (state === 'runup') {
-    const u = (clock - t0) / 0.8;
-    tmpA.set(spot.x - 0.9, 0, spot.z + 1.8); tmpB.set(spot.x - 0.32, 0, spot.z + 0.5);
-    shooter.holder.position.lerpVectors(tmpA, tmpB, ease(Math.min(1, u / 0.72)));
-    shooterPose(u);
-    if (u >= 1) launch();
+    tickPlayer(shooter, dt);
+    if (shooter.t >= KICK.tc) launch();
   } else if (state === 'fly' || state === 'over') {
-    if (celebrate >= 0) { celebrate += dt; celebratePose(celebrate); }
-    else if (kick) shooterPose(Math.min(1.45, 1 + (clock - t0 - 0.8) / 0.3 * 0.45));
+    tickPlayer(shooter, dt);
+    if (celebrate >= 0) { celebrate += dt; celebrateArms(celebrate); }
     const prev = ball.position.clone();
     const steps = 6, h = dt / steps;
     for (let i = 0; i < steps; i++) {
@@ -562,7 +566,9 @@ function frame() {
       if (p.z < -4 || p.z > 40 || Math.abs(p.x) > 30) finish(false, 'Мимо', 'miss');
     }
   }
-  keeperPose(now);
+  if (state === 'aim') tickPlayer(shooter, dt, (r) => { r.x = KICK.root0.x; r.z = KICK.root0.z; });
+  tickPlayer(keeper, dt);
+  if (kick && !kick.dived && kick.t >= kick.react) keeperDive();
   wall.forEach((w, i) => w.holder.visible && wallPose(w, i, now));
   trailTick(state === 'fly' || (state === 'over' && vel.lengthSq() > 30));
   netTick(dt); confTick(dt); blobTick();
@@ -589,6 +595,7 @@ function frame() {
   let done = 0; all.forEach((p) => p.then(() => { done++; if (bar) bar.style.width = (done / all.length) * 100 + '%'; }));
   const got = await Promise.all(all);
   [shooter, keeper] = got; wall.push(...got.slice(2)); blob(ball, 0.45);
+  A = await animsReady; prepKick();
   resetShot();
   // шейдеры собираем заранее, иначе первый гол и первое конфетти подтормаживают
   conf.visible = true; ren.compile(scene, cam); conf.visible = false;
