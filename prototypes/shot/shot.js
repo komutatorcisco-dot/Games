@@ -67,7 +67,7 @@ function pitch() {
   const rect = (x0, z0, x1, z1) => g.strokeRect(px(x0), pz(z0), px(x1) - px(x0), pz(z1) - pz(z0));
   g.beginPath(); g.moveTo(px(X0), pz(0)); g.lineTo(px(X1), pz(0)); g.stroke();
   rect(-20.16, 0, 20.16, 16.5); rect(-9.16, 0, 9.16, 5.5);
-  g.beginPath(); g.arc(px(0), pz(11), 0.2 * S, 0, 7); g.fillStyle = '#fff'; g.fill();
+  g.beginPath(); g.arc(px(0), pz(11), 0.11 * S, 0, 7); g.fillStyle = '#fff'; g.fill(); // точка пенальти — 22 см, как настоящая
   g.beginPath(); g.arc(px(0), pz(11), 9.15 * S, Math.asin(5.5 / 9.15), Math.PI - Math.asin(5.5 / 9.15)); g.stroke();
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = ren.capabilities.getMaxAnisotropy();
   // настоящая трава (ambientCG Grass001, CC0): мелкий рисунок и рельеф поверх полос стрижки
@@ -78,7 +78,7 @@ function pitch() {
   const pm = new THREE.MeshStandardMaterial({ map: t, roughness: 0.95, normalMap: gN, normalScale: new THREE.Vector2(0.7, 0.7) });
   pm.onBeforeCompile = (sh) => {
     sh.uniforms.grassC = { value: gC };
-    sh.fragmentShader = 'uniform sampler2D grassC;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  diffuseColor.rgb *= texture2D(grassC, vNormalMapUv).rgb * 2.7;');
+    sh.fragmentShader = 'uniform sampler2D grassC;\n' + sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n  float ln = smoothstep(0.45, 0.75, min(diffuseColor.r, min(diffuseColor.g, diffuseColor.b)));\n  diffuseColor.rgb *= mix(texture2D(grassC, vNormalMapUv).rgb * 2.7, vec3(1.0), ln); // разметку (белое) травой не красим');
   };
   const m = new THREE.Mesh(new THREE.PlaneGeometry(X1 - X0, Z1 - Z0), pm);
   m.rotation.x = -Math.PI / 2; m.position.set((X0 + X1) / 2, 0, (Z0 + Z1) / 2); m.receiveShadow = true; scene.add(m);
@@ -267,11 +267,12 @@ function confTick(dt) {
 
 // ---------- мягкие тени-пятна ----------
 const blobTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
-  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(0,0,0,.55)'); r.addColorStop(0.6, 'rgba(0,0,0,.25)'); r.addColorStop(1, 'rgba(0,0,0,0)');
+  const r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgb(140,140,140)'); r.addColorStop(0.6, 'rgb(64,64,64)'); r.addColorStop(1, 'rgb(0,0,0)'); // яркость = прозрачность (alphaMap)
   g.fillStyle = r; g.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
 const blobs = [], blobV = new THREE.Vector3();
+// тень всегда чёрная (alphaMap): раньше пятно на телефоне светилось белым
 function blob(target, size) {
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false }));
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshBasicMaterial({ color: '#000000', alphaMap: blobTex, transparent: true, depthWrite: false }));
   m.rotation.x = -Math.PI / 2; m.renderOrder = 1; scene.add(m); blobs.push({ m, target, size }); return m;
 }
 function blobTick() {
