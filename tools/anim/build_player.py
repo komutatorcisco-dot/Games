@@ -1,6 +1,6 @@
 # Сборка игрока для «Удара»: персонаж Mixamo (FBX с кожей) + движения Mixamo (FBX без кожи) → один GLB.
 # Запуск: <python с модулем bpy> build_player.py <персонаж.fbx> <папка с движениями> <выход.glb>
-# Текстуры уменьшаются до 1024, у костей убирается приставка mixamorig, пальцы в движениях не храним (меньше файл).
+# Текстуры уменьшаются до 1024 (или --tex=2048), у костей убирается приставка mixamorig, пальцы в движениях не храним (меньше файл).
 import bpy, sys, re, os
 args = [a for a in sys.argv[1:] if not a.startswith('--')]; char, adir, dst = args[-3:]
 # все движения из папки: ключ — имя файла без .fbx (пробелы и скобки → _), например «goalkeeper diving save (2)» → goalkeeper_diving_save_2
@@ -12,8 +12,9 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.import_scene.fbx(filepath=char)
 arm = next(o for o in bpy.context.scene.objects if o.type == 'ARMATURE')
 for b in arm.data.bones: b.name = strip(b.name)
+TEX = int(next((a[6:] for a in sys.argv if a.startswith('--tex=')), 1024))  # --tex=2048 — текстуры почти как в оригинале
 for im in bpy.data.images:
-    if im.size[0] > 1024: im.scale(1024, 1024)
+    if im.size[0] > TEX: im.scale(TEX, TEX)
 arm.animation_data_create()
 for key, name in CLIPS.items():
     f = os.path.join(adir, name + '.fbx')
