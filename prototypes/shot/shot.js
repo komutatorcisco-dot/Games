@@ -90,24 +90,34 @@ function goal() {
   const add = (geo, x, y, z, rz = 0) => { const m = new THREE.Mesh(geo, W); m.position.set(x, y, z); m.rotation.z = rz; m.castShadow = true; scene.add(m); };
   add(new THREE.CylinderGeometry(r, r, GH + r, 20), -GW, (GH + r) / 2, 0); add(new THREE.CylinderGeometry(r, r, GH + r, 20), GW, (GH + r) / 2, 0);
   add(new THREE.CylinderGeometry(r, r, GW * 2 + 2 * r, 20), 0, GH, 0, Math.PI / 2);
+  // опорная рама сзади: от перекладины назад и вниз к земле, внизу — перемычка (как у настоящих ворот)
+  const frame = new THREE.MeshStandardMaterial({ color: '#e9edf2', roughness: 0.4 }), fr = 0.028, DD = NET_D, TT = NET_D * 0.55;
+  for (const sx of [-1, 1]) {
+    const c = new THREE.CatmullRomCurve3([new THREE.Vector3(sx * GW, GH, -0.02), new THREE.Vector3(sx * GW, GH - 0.05, -TT * 0.9), new THREE.Vector3(sx * GW, GH * 0.55, -DD * 0.9), new THREE.Vector3(sx * GW, 0.02, -DD)], false, 'catmullrom', 0.2);
+    scene.add(new THREE.Mesh(new THREE.TubeGeometry(c, 24, fr, 8), frame));
+  }
+  const gb = new THREE.Mesh(new THREE.CylinderGeometry(fr, fr, GW * 2, 8), frame); gb.rotation.z = Math.PI / 2; gb.position.set(0, fr, -DD); scene.add(gb);
+  // тень ворот на газоне
+  const gs = new THREE.Mesh(new THREE.PlaneGeometry(GW * 2 + 0.6, NET_D + 0.5), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false }));
+  gs.rotation.x = -Math.PI / 2; gs.position.set(0, 0.006, -NET_D / 2); scene.add(gs);
   // сетка: полотна с текстурой ячеек (с мип-картами — не рябит вдали), вершины в координатах мира, чтобы сетка гнулась
-  const D = NET_D, top = D * 0.55, CELL = 0.12;
+  const D = NET_D, top = D * 0.55, CELL = 0.1;
   const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
-  g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 5; g.strokeRect(0, 0, 64, 64);
+  g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 3.5; g.strokeRect(0, 0, 64, 64); g.fillStyle = '#fff'; [[0, 0], [64, 0], [0, 64], [64, 64]].forEach(([x, y]) => g.fillRect(x - 3, y - 3, 6, 6)); // нити и узлы
   const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 4;
   const P = [], UV = [], I = [];
   // полотно по четырём углам (a — низ-лево, b — низ-право, c — верх-право, d — верх-лево), nu×nv клеток
-  const panel = (A, B, C, Dd, nu, nv) => {
+  const panel = (A, B, C, Dd, nu, nv, sag = 0) => {
     const o = P.length / 3, wU = A.distanceTo(B), wV = A.distanceTo(Dd);
     for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
-      const u = i / nu, v = j / nv, p = A.clone().lerp(B, u).lerp(Dd.clone().lerp(C, u), v);
+      const u = i / nu, v = j / nv, p = A.clone().lerp(B, u).lerp(Dd.clone().lerp(C, u), v); p.z -= sag * Math.sin(Math.PI * u) * Math.sin(Math.PI * Math.min(1, v * 1.1)); p.y -= sag * 0.5 * Math.sin(Math.PI * u) * (v > 0.95 ? 1 : 0); // провисание
       P.push(p.x, p.y, p.z); UV.push((u * wU) / CELL, (v * wV) / CELL);
     }
     for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const k = o + j * (nu + 1) + i; I.push(k, k + 1, k + nu + 2, k, k + nu + 2, k + nu + 1); }
   };
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  panel(V(-GW, 0, -D), V(GW, 0, -D), V(GW, GH, -top), V(-GW, GH, -top), 40, 14); // задник
-  panel(V(-GW, GH, -top), V(GW, GH, -top), V(GW, GH, 0), V(-GW, GH, 0), 40, 4); // крыша
+  panel(V(-GW, 0, -D), V(GW, 0, -D), V(GW, GH, -top), V(-GW, GH, -top), 40, 14, 0.12); // задник
+  panel(V(-GW, GH, -top), V(GW, GH, -top), V(GW, GH, 0), V(-GW, GH, 0), 40, 4, 0.06); // крыша
   for (const sx of [-1, 1]) panel(V(sx * GW, 0, 0), V(sx * GW, 0, -D), V(sx * GW, GH, -top), V(sx * GW, GH, 0), 8, 14); // бока
   net.geo = new THREE.BufferGeometry(); net.geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); net.geo.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); net.geo.setIndex(I);
   net.pos = net.geo.attributes.position; net.base = Float32Array.from(P);
@@ -343,11 +353,12 @@ function aimCam() { // камера за спиной: в кадре и мяч, 
 }
 function resetShot() {
   setSpot(n);
-  ball.position.copy(spot); vel.set(0, 0, 0); ball.rotation.set(0, 0, 0); trail.pts.length = 0;
+  ball.position.copy(spot); vel.set(0, 0, 0); spin.set(0, 0, 0); ball.rotation.set(0, 0, 0); trail.pts.length = 0;
   placeShooter(); shooter.holder.position.y = 0;
   play(shooter, 'idle', { loop: true, fade: 0.2, t: Math.random() * 3, lock: shooter.holder.localToWorld(KICK.root0.clone()) }); // стоит там, откуда начнёт разбег
   keeper.holder.position.set(MODE === 'fk' ? Math.sign(spot.x || 1) * 0.7 : 0, 0, -0.25); keeper.holder.rotation.set(0, 0, 0);
   play(keeper, 'gk_idle', { loop: true, fade: 0.3, t: Math.random() * 2, lock: keeper.holder.localToWorld(new THREE.Vector3(0, 0, 0)) });
+  wall.forEach((w, i) => play(w, 'idle', { loop: true, fade: 0.3, t: 1 + i * 1.7, speed: 0.8, lock: w.holder.localToWorld(new THREE.Vector3(0, 0, 0)) }));
   aimCam(); if (state === 'load') { camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); } // после placeShooter — игрок уже стоит
   state = 'aim'; shot = null; kick = null; celebrate = -1; slow = 1; msg.className = 'msg';
   $('#hint').style.opacity = n === 0 ? 1 : 0;
@@ -400,15 +411,45 @@ function drawSwipe(dt) {
   }
 }
 
+// ---------- физика мяча ----------
+// Сопротивление воздуха (растёт с квадратом скорости), эффект Магнуса от вращения (подкрутка — мяч уходит по дуге,
+// и сильнее, чем быстрее летит), вращение понемногу гаснет. Отскоки от газона, штанг и перекладины — по нормали.
+const KD = 0.013, KM = 0.0062, E_POST = 0.55, R_POST = 0.06;
+const spin = new THREE.Vector3(), tmpV = new THREE.Vector3(), tmpA2 = new THREE.Vector3();
+function accel(v, w, out) { // ускорение мяча при скорости v и вращении w
+  const sp = v.length();
+  return out.set(0, -G, 0).addScaledVector(v, -KD * sp).add(tmpA2.crossVectors(w, v).multiplyScalar(KM));
+}
+function stepBall(p, v, w, h) { // один шаг (полунеявный Эйлер — устойчиво при 120 шагах в секунду)
+  v.addScaledVector(accel(v, w, tmpV), h); p.addScaledVector(v, h); w.multiplyScalar(1 - 0.35 * h);
+}
+// где и когда мяч пересечёт линию ворот (без стенки и вратаря)
+function predict(p0, v0, w0) {
+  const p = p0.clone(), v = v0.clone(), w = w0.clone(); let t = 0;
+  while (p.z > 0 && t < 3) { stepBall(p, v, w, 1 / 120); t += 1 / 120; if (p.y < R) { p.y = R; v.y = Math.abs(v.y) * 0.5; } }
+  return { p, t };
+}
+// подбираем начальную скорость так, чтобы мяч пришёл туда, куда отпустили палец (с учётом дуги и сопротивления)
+function aimVelocity(target, speed, w) {
+  const v = target.clone().sub(spot).normalize().multiplyScalar(speed); v.y += 0.5 * G * (spot.distanceTo(target) / speed);
+  for (let i = 0; i < 8; i++) { const r = predict(spot, v, w); if (r.t <= 0) break; v.x += (target.x - r.p.x) / r.t; v.y += (target.y - r.p.y) / r.t; }
+  return v;
+}
+function collidePost(p, v, cx, cy, cz, axis) { // штанга (axis 'y') или перекладина (axis 'x'): отскок от цилиндра
+  const d = axis === 'y' ? tmpV.set(p.x - cx, 0, p.z - cz) : tmpV.set(0, p.y - cy, p.z - cz);
+  const L = d.length(); if (L > R + R_POST || L < 1e-6) return false;
+  d.multiplyScalar(1 / L); const vn = v.dot(d); if (vn >= 0) return false;
+  v.addScaledVector(d, -(1 + E_POST) * vn); p.addScaledVector(d, R + R_POST - L); spin.multiplyScalar(0.4); return true;
+}
+
 // ---------- удар ----------
 function launch() {
-  const { tx, ty, speed } = shot, D = spot.z, T = D / (speed * 0.92);
-  // подкрутка: насколько мяч отклонится по дуге (до 2,4 м), не зависит от силы удара
-  const ax = shot.ax = (shot.curve * 2.4 * 2) / (T * T);
-  vel.set((tx - spot.x - 0.5 * ax * T * T) / T, (ty - spot.y + 0.5 * G * T * T) / T, -D / T);
+  const { tx, ty, speed } = shot;
+  // подкрутка: вращение вокруг вертикали (изогнул линию влево — мяч уходит влево по дуге); сильный удар — чуть верхнего вращения (мяч «ныряет»)
+  spin.set(-Math.min(speed, 30) * 0.06, -shot.curve * 55, 0);
+  vel.copy(aimVelocity(new THREE.Vector3(tx, ty, 0), speed, spin)); shot.ax = 0;
   // заранее: где и когда мяч пересечёт линию ворот — по этому прыгает вратарь
-  const p = spot.clone(), v = vel.clone(); let t = 0;
-  while (p.z > 0 && t < 3) { v.x += ax * 0.01; v.y -= G * 0.01; p.addScaledVector(v, 0.01); t += 0.01; }
+  const { p, t } = predict(spot, vel, spin);
   const react = 0.2 + Math.random() * 0.12, kx = keeper.holder.position.x;
   const need = Math.max(0, Math.abs(p.x - kx) - 0.75), topCorner = p.y > 1.9 && Math.abs(p.x) > 2.6;
   const can = need <= 6.2 * Math.max(0, t - react) * (topCorner ? 0.55 : 1) && Math.abs(p.x) < GW + 0.3 && p.y < 2.6;
@@ -508,10 +549,12 @@ function placeShooter() { // встаём так, чтобы в момент к�
   const off = KICK.atContact.clone().applyAxisAngle(AY, yaw); off.y = 0;
   h.position.copy(spot).addScaledVector(dir, -0.14).sub(off); h.position.y = 0;
 }
-function wallTick(w, i, dt) { // стенка: стоят, при ударе подпрыгивают
+const wallJump = (t) => { const u = (t - 0.12) / 0.55; return u <= 0 || u >= 1 ? 0 : Math.sin(Math.PI * u) ** 0.8; }; // подскок стенки, 0..1
+function wallTick(w, i, dt) { // стенка: стоят, при ударе тянутся к мячу (запись «удар головой») и подпрыгивают
+  if (kick && !w.jumped) { w.jumped = true; play(w, i % 2 ? 'header2' : 'header', { t: 0.35 + i * 0.05, fade: 0.2, speed: 1.15 }); }
+  if (!kick) w.jumped = false;
   tickPlayer(w, dt);
-  const j = kick ? Math.max(0, Math.sin(Math.min(Math.PI, Math.max(0, kick.t - 0.08 - i * 0.03) * 4.2))) : 0;
-  w.holder.position.y = j * 0.42;
+  w.holder.position.y = kick ? 0.45 * wallJump(kick.t - i * 0.03) : 0;
 }
 
 // ---------- кадр ----------
@@ -539,37 +582,42 @@ function frame() {
     if (shooter.name === 'kick' && shooter.t >= clipOf('kick').duration - 0.05) { const end = shooter.holder.localToWorld(hipsAt(shooter)); play(shooter, 'idle', { loop: true, fade: 0.5, lock: end }); }
     tickPlayer(shooter, dt);
     const prev = ball.position.clone();
-    const steps = 6, h = dt / steps;
+    const steps = Math.max(2, Math.ceil(dt * 120)), h = dt / steps, bp = ball.position;
     for (let i = 0; i < steps; i++) {
-      if (state === 'fly') vel.x += shot.ax * h;
-      vel.y -= G * h; vel.multiplyScalar(1 - 0.02 * h);
-      ball.position.addScaledVector(vel, h);
-      if (ball.position.y < R) { ball.position.y = R; vel.y = Math.abs(vel.y) * 0.45; vel.x *= 0.9; vel.z *= 0.9; }
+      stepBall(bp, vel, spin, h);
+      if (bp.y < R) { bp.y = R; if (vel.y < 0) vel.y = -vel.y * 0.5; vel.x *= 0.86; vel.z *= 0.86; spin.multiplyScalar(0.6); } // газон
+      if (bp.y <= R + 0.001 && Math.abs(vel.y) < 0.4) { vel.y = 0; vel.x *= 1 - 1.2 * h; vel.z *= 1 - 1.2 * h; } // катится
+      // штанги и перекладина
+      if (Math.abs(bp.z) < 0.4) {
+        let hit = bp.y < GH + R && (collidePost(bp, vel, -GW, 0, 0, 'y') || collidePost(bp, vel, GW, 0, 0, 'y'));
+        if (!hit && Math.abs(bp.x) < GW + R) hit = collidePost(bp, vel, 0, GH, 0, 'x');
+        if (hit && kick && !kick.post) { kick.post = Math.abs(bp.y - GH) < R + R_POST + 0.02 ? 'Перекладина!' : 'Штанга!'; shake = 0.25; }
+      }
       // сетка: мяч вязнет, сетка выгибается
-      const bz = -NET_D + (NET_D * 0.45) * (ball.position.y / GH);
-      if (ball.position.z < bz + R && ball.position.z < -0.2 && Math.abs(ball.position.x) < GW && ball.position.y < GH) {
-        if (vel.z < -2) net.hits.push({ x: ball.position.x, y: ball.position.y, t: 0, a: Math.min(0.55, -vel.z * 0.025) });
-        ball.position.z = bz + R; vel.z = Math.abs(vel.z) * 0.08; vel.x *= 0.4; vel.y *= 0.6;
+      const bz = -NET_D + (NET_D * 0.45) * (bp.y / GH);
+      if (bp.z < bz + R && bp.z < -0.2 && Math.abs(bp.x) < GW && bp.y < GH) {
+        if (vel.z < -2) net.hits.push({ x: bp.x, y: bp.y, t: 0, a: Math.min(0.55, -vel.z * 0.025) });
+        bp.z = bz + R; vel.z = Math.abs(vel.z) * 0.08; vel.x *= 0.4; vel.y *= 0.5; spin.set(0, 0, 0);
       }
     }
-    if (shot) { ball.rotation.x -= vel.z * dt * 7; ball.rotation.z += vel.x * dt * 7 + shot.curve * dt * 25; }
+    // вращение мяча: катится по направлению полёта + своё вращение (подкрутка)
+    if (shot) { const sp = vel.length(); if (sp > 0.05) { tmpV.set(-vel.z, 0, vel.x).normalize(); ball.rotateOnWorldAxis(tmpV, (sp / R) * dt * 0.5); } ball.rotateOnWorldAxis(AY, spin.y * dt); }
     if (kick) kick.t += dt;
     const p = ball.position;
     if (state === 'fly') {
       if (MODE === 'fk' && prev.z > wallZ && p.z <= wallZ) {
-        const jumpH = 0.42 * Math.max(0, Math.sin(Math.min(Math.PI, kick.t * 4.2)));
+        const jumpH = 0.45 * wallJump(kick.t);
         const hit = wallX.some((x) => Math.abs(p.x - x) < 0.36) && p.y < 1.95 + jumpH;
-        if (hit) { vel.set(vel.x * 0.3, 2.5, Math.abs(vel.z) * 0.25); shot.ax = 0; finish(false, 'В стенку', 'miss'); }
+        if (hit) { vel.set(vel.x * 0.3, 2.5, Math.abs(vel.z) * 0.25); spin.set(0, 0, 0); finish(false, 'В стенку', 'miss'); }
       }
-      if (kick && kick.save && !kick.done && p.z < 0.5) { kick.done = true; vel.set(kick.dir * 3.5, 3.2, 5.5); shot.ax = 0; finish(false, 'Сейв!', 'miss'); }
+      if (kick && kick.save && !kick.done && !kick.post && p.z < 0.5) { kick.done = true; vel.set(kick.dir * 3.5, 3.2, 5.5); spin.set(0, 0, 0); finish(false, 'Сейв!', 'miss'); }
       if (state === 'fly' && prev.z > 0 && p.z <= 0) {
-        const ax = Math.abs(p.x);
-        if (Math.abs(ax - GW) < R + 0.06 && p.y < GH + R) { vel.set(-vel.x * 0.4, vel.y * 0.5, Math.abs(vel.z) * 0.5); shot.ax = 0; shake = 0.25; finish(false, 'Штанга!', 'miss'); }
-        else if (Math.abs(p.y - GH) < R + 0.06 && ax < GW) { vel.set(vel.x * 0.5, Math.abs(vel.y) * 0.5 + 1, Math.abs(vel.z) * 0.5); shot.ax = 0; shake = 0.25; finish(false, 'Перекладина!', 'miss'); }
-        else if (ax < GW - R && p.y < GH - R) finish(true, 'ГОЛ!', 'goal');
-        else finish(false, 'Мимо', 'miss');
+        if (Math.abs(p.x) < GW - R && p.y < GH - R) finish(true, 'ГОЛ!', 'goal');
+        else finish(false, kick && kick.post ? kick.post : 'Мимо', 'miss');
       }
-      if (p.z < -4 || p.z > 40 || Math.abs(p.x) > 30) finish(false, 'Мимо', 'miss');
+      // отскочил от штанги обратно в поле
+      if (state === 'fly' && kick && kick.post && vel.z > 0 && p.z > 0.8) finish(false, kick.post, 'miss');
+      if (state === 'fly' && (p.z > 40 || Math.abs(p.x) > 30 || (kick && kick.t > 4))) finish(false, 'Мимо', 'miss');
     }
   }
   if (state === 'aim') tickPlayer(shooter, dt);
@@ -605,7 +653,7 @@ function frame() {
   try { const bm = (await loader.loadAsync('assets/ball.glb')).scene, bb = new THREE.Box3().setFromObject(bm), sz = bb.getSize(new THREE.Vector3()).x;
     bm.scale.setScalar((R * 2) / sz); bm.position.copy(bb.getCenter(new THREE.Vector3()).multiplyScalar(-(R * 2) / sz)); ball.add(bm); ball.material.visible = false; } catch (e) { /* остаётся простой мяч */ }
   prepKick();
-  wall.forEach((w, i) => play(w, 'gk_idle', { loop: true, fade: 0, t: i * 0.7, speed: 0.6 }));
+
   resetShot();
   // шейдеры собираем заранее, иначе первый гол и первое конфетти подтормаживают
   conf.visible = true; ren.compile(scene, cam); conf.visible = false;
