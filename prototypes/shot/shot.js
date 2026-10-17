@@ -298,6 +298,10 @@ async function player(kit, useLod = false) {
     if (!o.isMesh) return;
     o.frustumCulled = false;
     o.material = (baseMats[o.name] || o.material).clone(); // свой материал (цвет формы), текстуры общие
+    // матовая ткань и кожа: при переводе модели материал получил «металл» 0,5 и двойной блеск — выглядело мокрым пластиком
+    const mt = o.material; mt.metalness = 0; mt.metalnessMap = null; mt.roughnessMap = null; mt.roughness = o.name === 'Ch38_Hair' ? 0.7 : 0.88;
+    if ('specularIntensity' in mt) { mt.specularIntensity = 0.25; mt.specularIntensityMap = null; mt.specularColorMap = null; mt.specularColor && mt.specularColor.set('#ffffff'); }
+    if (mt.normalScale) mt.normalScale.set(0.8, 0.8);
     const part = kit && PART[o.name]; if (part && kit[part]) o.material.color.set(kit[part]);
   });
   const holder = new THREE.Group(); holder.add(m); scene.add(holder);
