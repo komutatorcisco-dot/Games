@@ -55,6 +55,7 @@ export const CFG = {
     rushMargin: 0.85,            // … и только если успевает раньше соперника с запасом
     smother: 1.5,                // в ноги бросается с такого расстояния, м
     getUp: 1.1,                  // лежит после прыжка, с (потом встаёт — повторного прыжка не бывает)
+    bite: 0.4,                   // «покупается» на ложный замах с такой вероятностью
   },
   body: { e: 0.3, friction: 0.4 },    // мяч о тело игрока (ноги, корпус) — мягко
   hands: { e: 0.35, friction: 0.3 },  // отбивание руками вратаря
@@ -137,7 +138,7 @@ export function newBall(p = vec(0, CFG.R, 0)) {
 }
 export function resetBall(b, p) {
   set(b.p, p.x, p.y, p.z); set(b.v, 0, 0, 0); set(b.w, 0, 0, 0);
-  Object.assign(b, { state: 'free', owner: null, lockOwner: null, lockUntil: 0, mustClear: false, push: 0, touchCd: 0, trapT: 1, trapDur: 0, inGoal: false, goal: false, stopped: false, strikeAt: null });
+  Object.assign(b, { state: 'free', owner: null, lockOwner: null, lockUntil: 0, mustClear: false, push: 0, touchCd: 0, trapT: 1, trapDur: 0, inGoal: false, goal: false, stopped: false, strikeAt: null, feintOff: null });
 }
 
 // ---------- полёт ----------
@@ -318,6 +319,7 @@ export function playerStep(P, inp, h, withBall) {
   P.acc = (sp - sp0) / h;
   P.stopping = want < 0.3 && sp > 0.4;
   P.yawRate = 0;
+  if (P.lockYaw > 0) { P.lockYaw -= h; return P; } // финт: корпус не разворачивается за скоростью (шаг вбок)
   if (sp > 0.3) {
     let d = Math.atan2(P.v.x, P.v.z) - P.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
     const rate = C.turn * (1 - (1 - C.turnAtSprint) * Math.min(1, sp / C.sprint)), step = d * (1 - Math.exp(-h * rate));
@@ -333,8 +335,8 @@ export function controlPoint(P, b, out = vec()) {
   if (b && b.strikeAt) { const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw); return set(out, P.p.x + f.x * b.strikeAt.f + rx * b.strikeAt.s, CFG.R, P.p.z + f.z * b.strikeAt.f + rz * b.strikeAt.s); }
   const reach = C.reach + C.reachPerSpeed * sp + (b ? b.push : 0), side = Math.max(C.sideMin ?? C.side, C.side - (C.sidePerSpeed || 0) * sp);
   // правая сторона: при взгляде вдоль +z правая рука — это −x, т. е. вектор (−cos yaw, 0, sin yaw)
-  const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw);
-  return set(out, P.p.x + f.x * reach + rx * side, CFG.R, P.p.z + f.z * reach + rz * side);
+  const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw), fo = b && b.feintOff; // финт: стопа уводит мяч в сторону (плавно, без телепорта)
+  return set(out, P.p.x + f.x * reach + rx * side + (fo ? fo.x : 0), CFG.R, P.p.z + f.z * reach + rz * side + (fo ? fo.z : 0));
 }
 
 // ---------- владение ----------
@@ -412,7 +414,7 @@ export function controlStep(b, P, h, obstacles) {
 // отпустить мяч (удар, потеря); lock — сколько секунд бывший владелец не может его снова взять
 export function release(b, who, t, lock = CFG.control.regrab, mustClear = true) {
   b.lockOwner = who ?? b.owner; b.lockUntil = t + lock; b.mustClear = mustClear;
-  b.state = 'free'; b.owner = null; b.push = 0; b.stopped = false; b.trapT = 1; b.strikeAt = null;
+  b.state = 'free'; b.owner = null; b.push = 0; b.stopped = false; b.trapT = 1; b.strikeAt = null; b.feintOff = null;
 }
 
 // ---------- удар ----------

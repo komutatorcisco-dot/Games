@@ -17,7 +17,8 @@ if (new URLSearchParams(location.search).get('cfg') === 'baseline') for (const k
   if (k === 'keeper') Object.assign(BP.CFG.keeper, BASELINE.keeper); else BP.CFG[k] = JSON.parse(JSON.stringify(BASELINE[k]));
 }
 import * as GFX from './gfx.js';
-import { buildStadium } from './stadium.js'; // чаша стадиона, трибуны, болельщики, щиты // профили качества и внешний вид сцены (свет, газон, материалы) // физика мяча, ведение, удар — единый конфиг BP.CFG
+import { buildStadium } from './stadium.js';
+import { gestureButton } from './controls.js'; // кнопки с жестами (нажал / держишь / оттянул палец) // чаша стадиона, трибуны, болельщики, щиты // профили качества и внешний вид сцены (свет, газон, материалы) // физика мяча, ведение, удар — единый конфиг BP.CFG
 
 const Q = new URLSearchParams(location.search);
 const ST = Math.max(40, Math.min(99, Number(Q.get('st')) || 82));
@@ -179,27 +180,16 @@ function pitch() {
 const net = { pos: null, base: null, geo: null, hits: [] };
 // ворота как на больших стадионах: тонкие белые штанги, сетка «коробкой» — ровная крыша назад и наклонный задник,
 // ячейки — соты; сзади держится на тонких трубах
-function goalSimple() { // запасные ворота, если модель не загрузилась
-  NET_D = 1.9;
-  const W = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.3, metalness: 0, envMapIntensity: 0.6 }), r = 0.06;
-  const add = (geo, x, y, z, rz = 0) => { const m = new THREE.Mesh(geo, W); m.position.set(x, y, z); m.rotation.z = rz; scene.add(m); };
-  add(new THREE.CylinderGeometry(r, r, GH + r, 24), -GW, (GH + r) / 2, 0); add(new THREE.CylinderGeometry(r, r, GH + r, 24), GW, (GH + r) / 2, 0);
-  add(new THREE.CylinderGeometry(r, r, GW * 2 + 2 * r, 24), 0, GH, 0, Math.PI / 2);
-  // опоры сетки: от перекладины прямо назад, потом вниз к земле, внизу — перемычка
-  const frame = new THREE.MeshStandardMaterial({ color: '#d5dbe3', roughness: 0.5 }), fr = 0.022, D = NET_D, T = NET_TOP;
-  const tube = (A, B) => { const L = A.distanceTo(B), m = new THREE.Mesh(new THREE.CylinderGeometry(fr, fr, L, 8), frame);
-    m.position.addVectors(A, B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(AY, B.clone().sub(A).normalize()); scene.add(m); };
-  const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  for (const sx of [-1, 1]) { tube(V(sx * GW, GH, 0), V(sx * GW, GH, -T)); tube(V(sx * GW, GH, -T), V(sx * GW, 0, -D)); tube(V(sx * GW, fr, 0), V(sx * GW, fr, -D)); }
-  tube(V(-GW, GH, -T), V(GW, GH, -T)); tube(V(-GW, fr, -D), V(GW, fr, -D));
+// сетка-полотно с узором сот (фильтруемая текстура с мипмапами — не рябит издалека). far — только для дальней дистанции
+function netPanels(D, T, far) {
   // ячейки-соты: рисуем узор, он повторяется без швов
   const a = 16, h = Math.sqrt(3) * a, c = document.createElement('canvas'); c.width = 3 * a * 2; c.height = Math.round(h * 2);
-  const g = c.getContext('2d'); g.scale(2, c.height / h); g.strokeStyle = '#fff'; g.lineWidth = 1.6; g.lineJoin = 'round';
+  const g = c.getContext('2d'); g.scale(2, c.height / h); g.strokeStyle = '#fff'; g.lineWidth = 2.8; g.lineJoin = 'round';
   const hex = (cx, cy) => { g.beginPath(); for (let k = 0; k <= 6; k++) { const an = (k * Math.PI) / 3; g.lineTo(cx + a * Math.cos(an), cy + a * Math.sin(an)); } g.stroke(); };
   for (const [cx, cy] of [[0, 0], [3 * a, 0], [0, h], [3 * a, h], [1.5 * a, h / 2], [1.5 * a, -h / 2], [1.5 * a, 1.5 * h]]) hex(cx, cy);
   const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
   const CU = 0.27, CV = CU * (h / (3 * a)); // размер узора в метрах: соты ~9 см
-  const P = [], UV = [], I = [];
+  const P = [], UV = [], I = [], V = (x, y, z) => new THREE.Vector3(x, y, z);
   // полотно по четырём углам (A — низ-лево, B — низ-право, C — верх-право, Dd — верх-лево), nu×nv клеток; sag — провисание внутрь
   const panel = (A, B, C, Dd, nu, nv, sag = 0) => {
     const o = P.length / 3, wU = A.distanceTo(B), wV = A.distanceTo(Dd);
@@ -219,8 +209,29 @@ function goalSimple() { // запасные ворота, если модель 
   }
   net.geo = new THREE.BufferGeometry(); net.geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); net.geo.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); net.geo.setIndex(I);
   net.pos = net.geo.attributes.position; net.base = Float32Array.from(P);
-  const nm = new THREE.Mesh(net.geo, new THREE.MeshBasicMaterial({ map: tex, color: '#eef2f6', transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
-  nm.frustumCulled = false; scene.add(nm);
+  const mat = new THREE.MeshBasicMaterial({ map: tex, color: LOOK.net.color, transparent: true, opacity: LOOK.net.panelOpacity, side: THREE.DoubleSide, depthWrite: false });
+  mat.forceSinglePass = true;
+  if (far) mat.onBeforeCompile = (sh) => { // дальняя сетка проявляется там, где ближняя (объёмная) исчезает
+    sh.vertexShader = 'varying float vNetD;\n' + sh.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\n  vNetD = -mvPosition.z;');
+    sh.fragmentShader = 'varying float vNetD;\n' + sh.fragmentShader.replace('#include <alphatest_fragment>', `diffuseColor.a *= smoothstep(${LOOK.net.fadeFrom.toFixed(1)}, ${LOOK.net.fadeTo.toFixed(1)}, vNetD);\n#include <alphatest_fragment>`);
+  };
+  const nm = new THREE.Mesh(net.geo, mat);
+  nm.frustumCulled = false; nm.renderOrder = 2; scene.add(nm); return nm;
+}
+function goalSimple() { // запасные ворота, если модель не загрузилась
+  NET_D = 1.9;
+  const W = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.3, metalness: 0, envMapIntensity: 0.6 }), r = 0.06;
+  const add = (geo, x, y, z, rz = 0) => { const m = new THREE.Mesh(geo, W); m.position.set(x, y, z); m.rotation.z = rz; scene.add(m); };
+  add(new THREE.CylinderGeometry(r, r, GH + r, 24), -GW, (GH + r) / 2, 0); add(new THREE.CylinderGeometry(r, r, GH + r, 24), GW, (GH + r) / 2, 0);
+  add(new THREE.CylinderGeometry(r, r, GW * 2 + 2 * r, 24), 0, GH, 0, Math.PI / 2);
+  // опоры сетки: от перекладины прямо назад, потом вниз к земле, внизу — перемычка
+  const frame = new THREE.MeshStandardMaterial({ color: '#d5dbe3', roughness: 0.5 }), fr = 0.022, D = NET_D, T = NET_TOP;
+  const tube = (A, B) => { const L = A.distanceTo(B), m = new THREE.Mesh(new THREE.CylinderGeometry(fr, fr, L, 8), frame);
+    m.position.addVectors(A, B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(AY, B.clone().sub(A).normalize()); scene.add(m); };
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  for (const sx of [-1, 1]) { tube(V(sx * GW, GH, 0), V(sx * GW, GH, -T)); tube(V(sx * GW, GH, -T), V(sx * GW, 0, -D)); tube(V(sx * GW, fr, 0), V(sx * GW, fr, -D)); }
+  tube(V(-GW, GH, -T), V(GW, GH, -T)); tube(V(-GW, fr, -D), V(GW, fr, -D));
+  netPanels(D, T, false);
 }
 // ворота — модель romullus (Sketchfab, CC BY-SA 4.0), сетка облегчена gltfpack; колышется в шейдере от удара мяча
 const netU = { uHit: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 0, 9)) } };
@@ -242,21 +253,20 @@ async function goalModel() {
         vec4 mvPosition = viewMatrix * wq; gl_Position = projectionMatrix * mvPosition; vNetD = -mvPosition.z;`);
       // нити тоньше пикселя издалека «искрят»: чем дальше сетка, тем она прозрачнее (вблизи — как была)
       sh.fragmentShader = 'varying float vNetD;\n' + sh.fragmentShader.replace('#include <alphatest_fragment>', `
-        diffuseColor.a *= mix(1.0, ${LOOK.net.far.toFixed(2)}, smoothstep(${LOOK.net.fadeFrom.toFixed(1)}, ${LOOK.net.fadeTo.toFixed(1)}, vNetD));
+        diffuseColor.a *= 1.0 - smoothstep(${LOOK.net.fadeFrom.toFixed(1)}, ${LOOK.net.fadeTo.toFixed(1)}, vNetD); // вблизи — объёмные нити, вдали — полотно
         #include <alphatest_fragment>`);
     };
   });
   scene.add(g);
+  netPanels(NET_D, NET_TOP, true); // дальняя сетка того же размера, что у модели (коробка 1,5 м)
 }
 function netTick(dt) {
   if (!net.hits.length) return;
-  if (!net.pos) { // модель: передаём удары в шейдер
-    net.hits.forEach((h) => (h.t += dt)); net.hits = net.hits.filter((h) => h.t < 1.6).slice(-4);
-    netU.uHit.value.forEach((v, i) => { const h = net.hits[i]; if (h) v.set(h.x, h.y, h.a, h.t); else v.set(0, 0, 0, 9); });
-    return;
-  }
+  // удары: объёмной сетке — в шейдер, полотну — сдвигом вершин (одинаковая волна: колебание затухает от места попадания)
+  net.hits.forEach((h) => (h.t += dt)); net.hits = net.hits.filter((h) => h.t < 1.6).slice(-4);
+  netU.uHit.value.forEach((v, i) => { const h = net.hits[i]; if (h) v.set(h.x, h.y, h.a, h.t); else v.set(0, 0, 0, 9); });
+  if (!net.pos) return;
   const a = net.pos.array, b = net.base;
-  net.hits.forEach((h) => (h.t += dt)); net.hits = net.hits.filter((h) => h.t < 1.6);
   for (let i = 0; i < a.length; i += 3) {
     let dz = 0;
     for (const h of net.hits) { const dx = b[i] - h.x, dy = b[i + 1] - h.y, w = Math.exp(-(dx * dx + dy * dy) / 0.9); dz += h.a * w * Math.exp(-h.t * 3) * Math.cos(h.t * 14); }
@@ -467,7 +477,7 @@ function aimCam() { // камера за спиной: в кадре и мяч, 
 function resetShot() {
   $('#pad').hidden = !FREE(); $('#pad').classList.toggle('duo', MODE === 'duo'); $('#b-pass').hidden = $('#b-thru').hidden = MODE !== 'duo';
   cam.fov = fov(); cam.updateProjectionMatrix();
-  $('#hint').textContent = MODE === 'duo' ? 'Справа партнёр. «Пас» — отдать ему (удержание — сильнее). Мяч у партнёра — «Пас» попросит обратно: беги вперёд — отдаст на ход.' : FREE() ? 'Слева веди пальцем — бежишь с мячом. Держи «Удар» — сила, наклони джойстик — куда бить, отпусти — удар. Без джойстика бьёт туда, куда смотрит.' : 'Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.';
+  $('#hint').textContent = MODE === 'duo' ? 'Справа партнёр. «Пас» — в ноги (держи — сильнее, вверх — верхом), «На ход» — в свободную зону. Мяч у партнёра — «Пас» попросит обратно: беги вперёд — отдаст на ход.' : FREE() ? 'Слева веди пальцем. Держи «Удар» — сила; потяни палец вбок — подкрутка, вверх — переброс; отпусти — удар. «Рывок»: держи — бег, быстро смахни — финт.' : 'Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.';
   $('#hint').style.opacity = n === 0 ? 1 : 0;
   msg.className = 'msg'; clearTimeout(toastT); kick = null; shot = null; slow = 1; slowT = 0;
   recolor(wall[0], wallKit()); // в «2 на 1» он партнёр в нашей форме — в штрафном снова в стенке
@@ -813,7 +823,7 @@ function wallTick(w, i, dt) { // стенка: стоят, при ударе т�
 // Игрок и мяч считаются в ballphys.js фиксированными шагами: runPhys — движение, ведение, приём, удар, вратарь;
 // runAnim — каждый кадр: позы, касания ногой, наклоны.
 let STRIKE = null, PASS = null, run = null, crowdT = 0;
-const joy = { x: 0, y: 0, id: null, cx: 0, cy: 0 }, keys = {}, btn = { shot: false, fin: false, sprint: false };
+const joy = { x: 0, y: 0, id: null, cx: 0, cy: 0 }, keys = {}, btn = { shot: false, sprint: false };
 // камера «1 на 1»: за спиной игрока по линии на ворота, игрок — в нижней трети кадра, ворота видны впереди
 const CAM_RUN = { back: 6.3, height: 2.9, ahead: 8, lookH: 0.9 };
 function runCam(out) {
@@ -830,7 +840,7 @@ function resetRun() {
   keeper.holder.position.set(0, 0, 0.4); keeper.holder.rotation.set(0, 0, 0); keeperReset();
   play(keeper, 'gk_idle', { loop: true, fade: 0.3, follow: true });
   resetSpheres(keeper); resetSpheres(shooter);
-  run = { P, charge: -1, fin: false, kv: new THREE.Vector3(), strike: null, fire: false, shotT: 0, slowT: 0, t0: simT, lastPost: null, wasStopping: false, pass: null, passFire: false, mate: null };
+  run = { P, charge: -1, kv: new THREE.Vector3(), strike: null, fire: false, shotT: 0, slowT: 0, t0: simT, lastPost: null, wasStopping: false, pass: null, passFire: false, mate: null };
   if (MODE === 'duo') { // партнёр — бот в нашей форме, стартует сбоку и чуть впереди
     const side = sx > 0 ? -1 : 1, M = BP.newPlayer({ x: sx + side * 8, z: 27 }, Math.PI), pl = wall[0];
     recolor(pl, myKit || { shirt: '#ffffff', shorts: '#ffffff', socks: '#ffffff' }); pl.holder.visible = true; pl.holder.position.set(M.p.x, 0, M.p.z); pl.holder.rotation.set(0, Math.PI, 0);
@@ -840,8 +850,9 @@ function resetRun() {
   runCam(camAim);
   camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); // новая попытка — сразу на месте (без пролёта камеры через всё поле)
   state = 'play'; celebrate = -1; dots();
-  // подсказка — только при первом запуске «1 на 1» на этом телефоне
-  let seen = false; try { seen = localStorage.getItem('shot.run.hint') === '1'; localStorage.setItem('shot.run.hint', '1'); } catch (e) { /* без памяти — покажем */ }
+  // подсказка — только при первом запуске режима на этом телефоне (новые ключи — новое управление жестами)
+  const HINT_KEY = () => MODE === 'duo' ? 'shot.duo.hint2' : 'shot.run.hint2';
+  let seen = false; try { seen = localStorage.getItem(HINT_KEY()) === '1'; localStorage.setItem(HINT_KEY(), '1'); } catch (e) { /* без памяти — покажем */ }
   $('#hint').style.opacity = seen ? 0 : 1;
 }
 // ввод: джойстик (палец), кнопки, клавиатура (WASD/стрелки, пробел — удар, E — подкрутка, Shift — рывок)
@@ -858,43 +869,61 @@ const hintOff = () => { if (FREE()) $('#hint').style.opacity = 0; };
 // сила удара — кольцо вокруг кнопки «Удар»
 const ringFg = $('#ringFg');
 function setPower(p) { ringFg.style.strokeDashoffset = 100 - p * 100; ringFg.style.stroke = p > 0.92 ? '#ff4f5e' : ''; }
-const hold = (id, k) => { const b = $(id);
-  b.addEventListener('pointerdown', (e) => { e.preventDefault(); btn[k] = true; b.classList.add('on'); if (k !== 'sprint') startCharge(k === 'fin'); });
-  const up = () => { if (!btn[k]) return; btn[k] = false; b.classList.remove('on'); if (k !== 'sprint') releaseCharge(); };
-  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up); };
-hold('#b-shot', 'shot'); hold('#b-fin', 'fin'); hold('#b-run', 'sprint');
+// Кнопки с жестами (controls.js). Направления — по экрану, как у джойстика, и не зависят от ракурса камеры.
+// «Удар»: держишь — сила, отпустил — удар; оттянул палец влево/вправо — подкрутка в эту сторону, вверх — переброс.
+gestureButton($('#b-shot'), {
+  onDown: () => startCharge('drive'),
+  onGesture: (dir) => { if (!run || run.charge < 0) return; if (dir === 'left' || dir === 'right') { run.kind = 'curl'; run.side = dir === 'left' ? 1 : -1; } else if (dir === 'up') { run.kind = 'chip'; run.side = 0; } shotBadge(); },
+  onUp: (mode, held, cancel) => { if (cancel) cancelCharge(); else releaseCharge(); },
+});
+// «Пас»: коротко — в ноги (или на ход, если партнёр бежит), удержание — сильнее, вверх — верховая; мяч у партнёра — просьба вернуть
+gestureButton($('#b-pass'), {
+  onDown: () => passDown(),
+  onGesture: (dir) => { const el = $('#pass-g'); if (el) el.textContent = dir === 'up' && passIn.down >= 0 ? '⌒ верхом' : ''; },
+  onUp: (mode, held, cancel) => { const el = $('#pass-g'); if (el) el.textContent = ''; if (cancel) { passIn.down = -1; return; } passUp(mode === 'up' ? 'lofted' : 'ground'); },
+});
+// «Рывок»: держишь без жеста — ускорение; короткий резкий жест — финт (один раз за жест)
+gestureButton($('#b-run'), {
+  threshold: 30, flick: 0.28,
+  onDown: () => { btn.sprint = true; },
+  onGesture: (dir, quick) => { if (quick) feint(dir); },
+  onUp: () => { btn.sprint = false; },
+});
 $('#b-thru').addEventListener('pointerdown', (e) => { e.preventDefault(); throughPass(); });
-{ const b = $('#b-pass'), up = () => { if (!b.classList.contains('on')) return; b.classList.remove('on'); passUp(); };
-  b.addEventListener('pointerdown', (e) => { e.preventDefault(); b.setPointerCapture(e.pointerId); b.classList.add('on'); passDown(); });
-  b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); }
-addEventListener('keydown', (e) => { if (e.code === 'Space') e.preventDefault(); if (keys[e.code]) return; keys[e.code] = true; /* пробел не нажимает кнопки режима */ if (e.code === 'Space') startCharge(false); if (e.code === 'KeyE') startCharge(true); if (e.code === 'KeyQ') passDown(); if (e.code === 'KeyF') throughPass(); });
-addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'Space' || e.code === 'KeyE') releaseCharge(); if (e.code === 'KeyQ') passUp(); });
+addEventListener('keydown', (e) => { if (e.code === 'Space') e.preventDefault(); if (keys[e.code]) return; keys[e.code] = true; /* пробел не нажимает кнопки режима */ if (e.code === 'Space') startCharge('drive'); if (e.code === 'KeyE') startCharge('curl'); if (e.code === 'KeyC') startCharge('chip');
+  const fk = { Digit1: 'left', Digit2: 'right', Digit3: 'down', Digit4: 'up' }[e.code]; if (fk) feint(fk); if (e.code === 'KeyQ') passDown(); if (e.code === 'KeyF') throughPass(); });
+addEventListener('keyup', (e) => { keys[e.code] = false; if (e.code === 'Space' || e.code === 'KeyE' || e.code === 'KeyC') releaseCharge(); if (e.code === 'KeyQ') passUp(); });
 function input() {
   let x = joy.x, y = joy.y;
   if (keys.KeyA || keys.ArrowLeft) x -= 1; if (keys.KeyD || keys.ArrowRight) x += 1; if (keys.KeyW || keys.ArrowUp) y += 1; if (keys.KeyS || keys.ArrowDown) y -= 1;
   const L = Math.hypot(x, y); return L > 1 ? { x: x / L, y: y / L } : { x, y };
 }
-// держишь «Удар» — копится сила (кольцо), отпустил — удар; «Крутить» — удар щёчкой с подкруткой.
+// держишь «Удар» — копится сила (кольцо), отпустил — удар; жест на кнопке выбирает подкрутку или переброс.
 // Копить можно только с мячом у ноги; во время удара второе нажатие ничего не делает.
-function startCharge(fin) {
-  if (!FREE() || state !== 'play' || !run || run.charge >= 0 || run.strike || run.pass || B.state !== 'owned' || B.owner !== 'me') return;
-  run.charge = performance.now(); run.fin = fin; setPower(0); $('#ring').classList.add('on'); hintOff();
+// kind: 'drive' — обычный удар, 'curl' — подкрутка (side: +1 влево, −1 вправо), 'chip' — переброс
+function startCharge(kind = 'drive') {
+  if (kind === true) kind = 'curl'; else if (kind === false) kind = 'drive';
+  if (!FREE() || state !== 'play' || !run || run.charge >= 0 || run.strike || run.pass || run.feint || B.state !== 'owned' || B.owner !== 'me') return;
+  run.charge = performance.now(); run.kind = kind; run.side = 0; setPower(0); $('#ring').classList.add('on'); hintOff(); shotBadge();
 }
+function cancelCharge() { if (!run || run.charge < 0) return; run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true); }
+// на кнопке «Удар» — компактная подпись выбранного удара (на поле ничего не рисуем)
+function shotBadge(clear) { const el = $('#shot-g'); if (!el) return; el.textContent = clear || !run || run.charge < 0 ? '' : run.kind === 'curl' ? (run.side > 0 ? '↶ крутить' : run.side < 0 ? 'крутить ↷' : 'крутить') : run.kind === 'chip' ? '⌒ переброс' : ''; }
 const chargePw = () => Math.min(1, (performance.now() - run.charge) / 900); // сила копится по настоящему времени: 0,9 с — полная
 function releaseCharge() {
   if (!run || run.charge < 0) return;
-  const pw = chargePw(); run.charge = -1; $('#ring').classList.remove('on');
-  if (state !== 'play' || B.state !== 'owned') return;
+  const pw = chargePw(); run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true);
+  if (state !== 'play' || B.state !== 'owned' || B.owner !== 'me') return;
   // замах начинается сразу; мяч остаётся под контролем до касания ноги, импульс — один раз в момент касания (runPhys)
-  run.strike = { pw, fin: run.fin, aim: input() }; B.state = 'strike'; B.strikeAt = STRIKE.at;
+  run.strike = { pw, kind: run.kind || 'drive', side: run.side || 0, aim: input() }; B.state = 'strike'; B.strikeAt = STRIKE.at;
   play(shooter, 'strike', { t: Math.max(0, STRIKE.tc - 0.3), fade: 0.1, speed: 1.25, follow: true });
 }
 function fireStrike() {
   const s = run.strike, P = run.P; run.strike = null;
-  const sv = BP.shotVelocity(B, P, s.aim, s.pw, s.fin, goalDef());
+  const sv = BP.shotVelocity(B, P, s.aim, s.pw, s.kind, goalDef(), s.side);
   if (BP.applyShot(B, sv, BP.controlPoint(P, B), 'me', simT)) {
     B.inGoal = false; B.goal = false; B.netHit = false;
-    shot = { tx: 0, ty: 0, speed: sv.speed, curve: s.fin ? 1 : 0 }; run.shotT = simT; run.lastPost = null;
+    shot = { tx: 0, ty: 0, speed: sv.speed, curve: s.kind === 'curl' ? 1 : 0 }; run.shotT = simT; run.lastPost = null;
     planKeeper(); kicked(s.pw);
   } else sfx.touch(); // нога не достала мяч — промах по мячу, мяч свободен
 }
@@ -985,6 +1014,58 @@ function mateAI(h) {
   M.sprint = sprint; M.charging = false;
   BP.playerStep(M, d > 0.05 ? { x: (dx / d) * k, y: (-dz / d) * k } : { x: 0, y: 0 }, h, mine);
 }
+// ---------- финты ----------
+// Три финта на имеющихся записях (что делает каждая — проверено замером таза и носков):
+//  • влево/вправо — перекат мяча в сторону: стопа уводит мяч вбок (точка ведения плавно смещается), корпус не разворачивается,
+//    игрок шагает следом (записи jog_strafe_left / jog_strafe_right — шаг вбок);
+//  • вниз — ложный замах: начало записи удара, остановка до касания, мяч срезается в сторону; вратарь может «купиться»;
+//  • вверх — смена направления с уходом в сторону (jog_forward_diagonal / _2 — рывок по диагонали).
+// Мяч всё время у ног и в физике: его можно отобрать, сквозь вратаря он не проходит. Один жест — один финт.
+const FEINT = { roll: { dist: 0.75, time: 0.42, step: 3.2 }, fake: { time: 0.62, cut: 0.5 }, cut: { angle: 1.0, speed: 5.2, time: 0.42 } };
+function feint(dir) {
+  if (!FREE() || state !== 'play' || !run || B.state !== 'owned' || B.owner !== 'me' || run.strike || run.pass || run.feint || run.charge >= 0) return;
+  const P = run.P, f3 = cam.getWorldDirection(tmpA); f3.y = 0; f3.normalize();
+  const rX = -f3.z, rZ = f3.x; // «вправо по экрану» на поле (как у джойстика)
+  const bodyRight = (x, z) => -Math.cos(P.yaw) * x + Math.sin(P.yaw) * z; // > 0 — правая сторона игрока
+  if (dir === 'left' || dir === 'right') {
+    const sgn = dir === 'left' ? -1 : 1, dx = rX * sgn, dz = rZ * sgn;
+    run.feint = { kind: 'roll', t: 0, dur: FEINT.roll.time, dx, dz, stepped: false }; P.lockYaw = FEINT.roll.time + 0.1;
+    play(shooter, bodyRight(dx, dz) > 0 ? 'jog_strafe_right' : 'jog_strafe_left', { fade: 0.1, speed: 1.3, follow: true });
+    sfx.touch();
+  } else if (dir === 'down') {
+    const inp = input(), sgn = Math.abs(inp.x) > 0.25 ? Math.sign(inp.x) : (B.p.x > keeper.holder.position.x ? 1 : -1); // срез — по джойстику или от вратаря
+    run.feint = { kind: 'fake', t: 0, dur: FEINT.fake.time, dx: rX * sgn, dz: rZ * sgn, bit: false };
+    play(shooter, 'strike', { t: Math.max(0, STRIKE.tc - 0.42), fade: 0.1, speed: 1.2, hold: STRIKE.tc - 0.1, follow: true });
+  } else if (dir === 'up') {
+    const inp = input(), sgn = Math.abs(inp.x) > 0.25 ? Math.sign(inp.x) : (B.p.x > keeper.holder.position.x ? 1 : -1);
+    const hx = Math.sin(P.yaw), hz = Math.cos(P.yaw), a = FEINT.cut.angle, nx = hx * Math.cos(a) + rX * sgn * Math.sin(a), nz = hz * Math.cos(a) + rZ * sgn * Math.sin(a), nl = Math.hypot(nx, nz);
+    const sp = Math.max(Math.hypot(P.v.x, P.v.z), FEINT.cut.speed); P.v.x = (nx / nl) * sp; P.v.z = (nz / nl) * sp;
+    run.feint = { kind: 'cut', t: 0, dur: FEINT.cut.time };
+    play(shooter, bodyRight(nx, nz) > 0 ? 'jog_forward_diagonal' : 'jog_forward_diagonal_2', { fade: 0.08, speed: 1.2, follow: true });
+    BP.touch(B, P); sfx.touch();
+  }
+}
+function feintTick(h) {
+  const f = run.feint; if (!f) return; f.t += h;
+  if (B.state !== 'owned' || B.owner !== 'me') { run.feint = null; B.feintOff = null; return; } // мяч отобрали — финт прерван
+  const u = Math.min(1, f.t / f.dur), P = run.P;
+  if (f.kind === 'roll') { // мяч уводится стопой вбок и отпускается к ноге, когда игрок шагнул следом
+    const k = Math.sin(Math.min(1, u * 1.7) * (Math.PI / 2)) * (1 - Math.max(0, (u - 0.65) / 0.35));
+    B.feintOff = { x: f.dx * FEINT.roll.dist * k, z: f.dz * FEINT.roll.dist * k };
+    if (!f.stepped && f.t > 0.12) { f.stepped = true; P.v.x += f.dx * FEINT.roll.step; P.v.z += f.dz * FEINT.roll.step; }
+  } else if (f.kind === 'fake') { // замах без касания, потом срез мяча в сторону
+    if (!f.bit && f.t > 0.18) { f.bit = true; keeperBite(); }
+    const k = Math.max(0, Math.min(1, (u - 0.5) / 0.3)) * (1 - Math.max(0, (u - 0.85) / 0.15));
+    B.feintOff = { x: f.dx * FEINT.fake.cut * k, z: f.dz * FEINT.fake.cut * k };
+  }
+  if (f.t >= f.dur) { run.feint = null; B.feintOff = null; }
+}
+// ложный замах: вратарь, стоящий в позиции, может «купиться» и броситься (потом лежит и встаёт — это и даёт момент)
+function keeperBite() {
+  const K = BP.CFG.keeper; if (GKS.st !== 'pos' || kick || Math.hypot(B.p.x, B.p.z) > 22 || Math.random() > K.bite) return;
+  const lp = keeper.holder.worldToLocal(tmpA.set(B.p.x, 0, B.p.z)), name = lp.x > 0 ? 'gk_block' : 'gk_block2', G = GKC[name];
+  play(keeper, name, { t: Math.max(0, G.tc - 0.45), fade: 0.1, fx: 0.55, fz: 0.2, hold: G.tc + 0.6 }); keeper.smother = false; gkSet('smother');
+}
 function runPhys(h) {
   const P = run.P, live = state === 'play';
   P.sprint = btn.sprint || keys.ShiftLeft || keys.ShiftRight; P.charging = run.charge >= 0;
@@ -992,6 +1073,7 @@ function runPhys(h) {
   // с вратарём не сталкиваемся насквозь
   const kh = keeper.holder.position, dx = P.p.x - kh.x, dz = P.p.z - kh.z, dl = Math.hypot(dx, dz);
   if (dl < 0.6 && dl > 1e-4) { P.p.x = kh.x + (dx / dl) * 0.6; P.p.z = kh.z + (dz / dl) * 0.6; }
+  feintTick(h);
   const mate = run.mate, M = mate && mate.P;
   if (M) {
     mateAI(h);
@@ -1117,7 +1199,7 @@ function bodyAnim(pl, P, dt) { // положение, наклон, бег/ст�
   // наклон: на повороте — внутрь, при разгоне — вперёд
   const lean = Math.max(-0.26, Math.min(0.26, -P.yawRate * sp * 0.035)), pitch = Math.max(-0.08, Math.min(0.14, P.acc * 0.025));
   const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
-  const busy = (pl.name === 'strike' && pl.t < STRIKE.tc + 0.3) || (pl.name === 'pass' && pl.t < PASS.tc + 0.22);
+  const busy = (pl.name === 'strike' && pl.t < STRIKE.tc + 0.3) || (pl.name === 'pass' && pl.t < PASS.tc + 0.22) || (pl === shooter && run.feint);
   if (!busy) loco(pl, sp, dt);
   tickPlayer(pl, dt);
   // касания при ведении — в такт шагу: правая нога проходит вперёд на ~62–69% цикла бега (замер записи jog_forward);
