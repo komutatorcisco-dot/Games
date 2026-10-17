@@ -11,7 +11,8 @@ import { MeshoptDecoder } from '../balotelli/vendor/meshopt_decoder.module.js';
 import { clone as cloneSkinned } from '../balotelli/vendor/utils/SkeletonUtils.js';
 import * as sfx from './sfx.js';
 import * as BP from './ballphys.js';
-import * as GFX from './gfx.js'; // профили качества и внешний вид сцены (свет, газон, материалы) // физика мяча, ведение, удар — единый конфиг BP.CFG
+import * as GFX from './gfx.js';
+import { buildStadium } from './stadium.js'; // чаша стадиона, трибуны, болельщики, щиты // профили качества и внешний вид сцены (свет, газон, материалы) // физика мяча, ведение, удар — единый конфиг BP.CFG
 
 const Q = new URLSearchParams(location.search);
 const ST = Math.max(40, Math.min(99, Number(Q.get('st')) || 82));
@@ -225,6 +226,7 @@ async function goalModel() {
     o.castShadow = m.name !== 'rope' || PQ.netShadow; o.receiveShadow = m.name !== 'rope'; if (m.name === 'rope') o.userData.net = true;
     // штанги — окрашенный металл (краска, не хром); сетка — матовая нить
     const L = m.name === 'rope' ? LOOK.net : LOOK.posts; m.color.set(L.color); m.roughness = L.rough; m.metalness = 0; if (L.env) m.envMapIntensity = L.env;
+    if (m.name === 'rope') { m.transparent = true; m.opacity = LOOK.net.opacity; m.depthWrite = false; } // нити тоньше пикселя: полупрозрачность гасит мерцание
     if (m.name === 'rope') m.onBeforeCompile = (sh) => {
       sh.uniforms.uHit = netU.uHit;
       sh.vertexShader = 'uniform vec4 uHit[4];\n' + sh.vertexShader.replace('#include <project_vertex>', `
@@ -253,79 +255,37 @@ function netTick(dt) {
   net.pos.needsUpdate = true;
 }
 
-// ---------- трибуны и болельщики ----------
-let crowd = null;
-function stadium() {
-  // человечек: голова и плечи (белый — цвет даёт instanceColor)
-  const c = document.createElement('canvas'); c.width = 64; c.height = 96; const g = c.getContext('2d');
-  g.fillStyle = '#fff'; g.beginPath(); g.arc(32, 26, 15, 0, 7); g.fill(); g.beginPath(); g.ellipse(32, 92, 28, 46, 0, Math.PI, 0); g.fill();
-  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-  const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, alphaToCoverage: true }); // без расчёта света — тысячам людей он не нужен
-  const U = { uTime: { value: 0 }, uJump: { value: 0 } };
-  mat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, U);
-    sh.vertexShader = 'uniform float uTime; uniform float uJump; attribute float aPh;\n' + sh.vertexShader.replace('#include <begin_vertex>',
-      `#include <begin_vertex>
-      float jb = uJump * abs(sin(uTime * 9.0 + aPh * 6.0)) * 0.45;
-      transformed.y += sin(uTime * (1.2 + fract(aPh * 7.0)) + aPh * 30.0) * 0.04 + jb;
-      transformed.x += sin(uTime * 0.7 + aPh * 11.0) * 0.03;`);
-  };
-  const seats = [];
-  // ярусы: за воротами (широкий) и по бокам — ступени
-  const tiers = [{ x: 0, w: 92, rot: 0 }, { x: -44, w: 70, rot: Math.PI / 2 }, { x: 44, w: 70, rot: -Math.PI / 2 }];
-  const conc = new THREE.MeshStandardMaterial({ color: NIGHT ? '#1b2340' : '#7d8597', roughness: 0.9 });
-  const rowsN = LOW ? 8 : 13, step = 0.9, rise = 0.55;
-  let lampY = 0, lampZ = 0;
-  for (const T of tiers) {
-    const grp = new THREE.Group();
-    for (let r = 0; r < rowsN; r++) {
-      const ring = r >= rowsN * 0.55 ? 1.6 : 0; // проход между ярусами
-      const z = -r * step - ring, y = 0.9 + r * rise + ring * 0.8;
-      const st = new THREE.Mesh(new THREE.BoxGeometry(T.w, rise, step), conc); st.position.set(0, y - rise / 2, z); grp.add(st);
-      for (let x = -T.w / 2 + 0.4; x < T.w / 2 - 0.4; x += 0.8) { if (Math.random() < 0.12) continue; seats.push({ grp, p: new THREE.Vector3(x + (Math.random() - 0.5) * 0.15, y + 0.33, z + 0.1) }); }
-    }
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(T.w, 0.5, 14), new THREE.MeshStandardMaterial({ color: NIGHT ? '#0d1226' : '#d9dee6', roughness: 0.6 }));
-    roof.position.set(0, 0.9 + rowsN * rise + 8, -rowsN * step * 0.65); roof.rotation.x = -0.12; grp.add(roof);
-    const lamp = { position: new THREE.Vector3(0, roof.position.y - 0.6, roof.position.z + 7) };
-    grp.rotation.y = T.rot;
-    if (T.rot === 0) { grp.position.set(0, 0, -12); lampY = lamp.position.y; lampZ = -12 + lamp.position.z; } else grp.position.set(T.x, 0, 18);
-    scene.add(grp); grp.updateMatrixWorld(true);
-  }
-  // свечение прожекторов: мягкие пятна
-  const gc = document.createElement('canvas'); gc.width = gc.height = 128; const gg = gc.getContext('2d');
-  const rg = gg.createRadialGradient(64, 64, 0, 64, 64, 64); rg.addColorStop(0, 'rgba(255,250,235,1)'); rg.addColorStop(0.25, 'rgba(255,240,210,.45)'); rg.addColorStop(1, 'rgba(255,240,210,0)');
-  gg.fillStyle = rg; gg.fillRect(0, 0, 128, 128);
-  const gt = new THREE.CanvasTexture(gc);
-  for (let i = 0; i < (NIGHT ? 9 : 0); i++) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: gt, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false }));
-    s.position.set(-36 + i * 9, lampY, lampZ + 0.5); s.scale.setScalar(9); scene.add(s);
-  }
-  // люди: один InstancedMesh
-  const n = seats.length, geo = new THREE.PlaneGeometry(0.5, 0.75);
-  const ph = new Float32Array(n); for (let i = 0; i < n; i++) ph[i] = Math.random();
-  geo.setAttribute('aPh', new THREE.InstancedBufferAttribute(ph, 1));
-  crowd = new THREE.InstancedMesh(geo, mat, n); crowd.userData.U = U;
-  const cols = ['#e63946', '#f1faee', '#ffd23f', '#3a86ff', '#1b1340', '#e63946', '#ffffff', '#ff9f1c', '#2ec4b6', '#e63946'];
-  const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), sc = new THREE.Vector3(), wp = new THREE.Vector3(), col = new THREE.Color();
-  seats.forEach((s, i) => {
-    wp.copy(s.p).applyMatrix4(s.grp.matrixWorld);
-    s.grp.getWorldQuaternion(qq); sc.setScalar(0.85 + Math.random() * 0.3);
-    m4.compose(wp, qq, sc); crowd.setMatrixAt(i, m4);
-    col.set(cols[(Math.random() * cols.length) | 0]).multiplyScalar(0.55 + Math.random() * 0.45); crowd.setColorAt(i, col);
+// ---------- трибуны и болельщики (stadium.js) ----------
+let crowd = null, STADIUM = null;
+// смена качества на лету: разрешение, тени, «ворс» ткани, число людей, мелкие детали стадиона.
+// (Разрешение разметки газона и анизотропия выбираются при загрузке.)
+function applyQuality(name) {
+  QL = name; PQ = GFX.PROFILES[name];
+  ren.setPixelRatio(Math.min(PQ.pixelRatio, devicePixelRatio)); ren.setSize(innerWidth, innerHeight);
+  const recompile = ren.shadowMap.enabled !== PQ.shadows;
+  ren.shadowMap.enabled = PQ.shadows; key.castShadow = PQ.shadows;
+  if (PQ.shadows && key.shadow.mapSize.x !== PQ.shadowMap) { key.shadow.mapSize.set(PQ.shadowMap, PQ.shadowMap); if (key.shadow.map) { key.shadow.map.dispose(); key.shadow.map = null; } shadowFit.size = 0; }
+  scene.traverse((o) => {
+    if (o.userData.net) o.castShadow = PQ.netShadow;
+    if (!o.isMesh) return;
+    for (const m of [].concat(o.material)) { if (m.userData.cloth) m.sheen = PQ.sheen ? LOOK.mats.cloth.sheen : 0; if (recompile) m.needsUpdate = true; }
   });
-  crowd.frustumCulled = false; scene.add(crowd);
-  // LED-щиты вокруг поля: бегущая надпись
-  const b = document.createElement('canvas'); b.width = 1024; b.height = 64; const bg = b.getContext('2d');
-  for (let i = 0; i < 4; i++) {
-    const gr = bg.createLinearGradient(i * 256, 0, i * 256 + 256, 0); gr.addColorStop(0, i % 2 ? '#2b1a7a' : '#ffcf3a'); gr.addColorStop(1, i % 2 ? '#5a3ad6' : '#ff9f1c');
-    bg.fillStyle = gr; bg.fillRect(i * 256, 0, 256, 64);
-    bg.fillStyle = i % 2 ? '#ffcf3a' : '#1b1340'; bg.font = 'italic 900 40px system-ui'; bg.textAlign = 'center'; bg.fillText(i % 2 ? 'JACKSON' : 'GAMES', i * 256 + 128, 46);
-  }
-  const bt = new THREE.CanvasTexture(b); bt.colorSpace = THREE.SRGBColorSpace; bt.wrapS = THREE.RepeatWrapping; bt.repeat.x = 6;
-  const led = new THREE.MeshBasicMaterial({ map: bt, color: new THREE.Color().setScalar(LOOK.led.brightness) }); // днём не ярче всего кадра
-  const ad = new THREE.Mesh(new THREE.BoxGeometry(84, 0.95, 0.15), led); ad.position.set(0, 0.48, -6.5); scene.add(ad);
-  for (const s of [-1, 1]) { const sd = new THREE.Mesh(new THREE.BoxGeometry(60, 0.95, 0.15), led); sd.rotation.y = Math.PI / 2; sd.position.set(s * 38, 0.48, 22); scene.add(sd); }
-  crowd.userData.led = bt;
+  if (STADIUM) { STADIUM.setCrowd(PQ.crowd); STADIUM.setDetail(PQ.detail); }
+  gfxLabel();
+}
+const gfxBtn = document.getElementById('gfxq');
+function gfxLabel() { if (gfxBtn) gfxBtn.textContent = 'Графика: ' + (QCHOICE === 'auto' ? `авто (${PQ.label.toLowerCase()})` : PQ.label.toLowerCase()); }
+// кнопка: авто → низкая → средняя → высокая → авто; выбор запоминается
+if (gfxBtn) gfxBtn.addEventListener('click', () => {
+  const list = ['auto', ...GFX.ORDER]; QCHOICE = list[(list.indexOf(QCHOICE) + 1) % list.length]; GFX.saveChoice(QCHOICE);
+  autoQ = QCHOICE === 'auto' ? new GFX.AutoQuality(QL, applyQuality) : null;
+  applyQuality(QCHOICE === 'auto' ? QL : QCHOICE); gfxBtn.blur();
+});
+let autoQ = null;
+function stadium() {
+  STADIUM = buildStadium(scene, { aniso: Math.min(PQ.aniso, ren.capabilities.getMaxAnisotropy()), ledBrightness: LOOK.led.brightness, ledSpeed: LOOK.led.speed });
+  crowd = STADIUM.crowd; crowd.userData.U = STADIUM.U;
+  STADIUM.setCrowd(PQ.crowd); STADIUM.setDetail(PQ.detail);
 }
 
 // ---------- мяч ----------
@@ -434,7 +394,7 @@ function playerMaterial(o, kit) {
     roughnessFactor = mix(uRough.x, uRough.y, 1.0 - texture2D(roughnessMap, vRoughnessMapUv).g); // глянец → шероховатость
   #endif`);
     };
-    if (kind === 'cloth' && PQ.sheen && 'sheen' in mt) { mt.sheen = L.sheen; mt.sheenRoughness = 0.75; mt.sheenColor.set('#ffffff'); } // ворс ткани
+    if (kind === 'cloth' && 'sheen' in mt) { mt.userData.cloth = true; mt.sheen = PQ.sheen ? L.sheen : 0; mt.sheenRoughness = 0.75; mt.sheenColor.set('#ffffff'); } // ворс ткани (только «высокое»)
   }
   // форма перекрашивается умножением: складки и швы из текстуры остаются
   const part = kit && PART[o.name]; if (part && kit[part]) mt.color.set(kit[part]);
@@ -980,7 +940,7 @@ function prepStrike() { // когда в ударе на ходу нога бь�
 let last = performance.now() / 1000;
 const fpsEl = Q.get('fps') === '1' ? Object.assign(document.createElement('div'), { style: 'position:fixed;left:8px;bottom:8px;z-index:9;font:700 12px monospace;color:#0f0;background:#000a;padding:3px 6px;border-radius:6px' }) : null;
 if (fpsEl) document.body.appendChild(fpsEl);
-let fpsN = 0, fpsT = 0, fpsWorst = 0, autoLow = LOW, autoN = 0, autoT = 0;
+let fpsN = 0, fpsT = 0, fpsWorst = 0, prevNow = performance.now() / 1000;
 const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3(), tmpC = new THREE.Vector3(), tmpV = new THREE.Vector3();
 // один шаг игры фиксированной длины h — мяч, игрок, вратарь, итог удара
 function gameStep(h) {
@@ -1008,10 +968,11 @@ function frame() {
   const now = performance.now() / 1000, raw = Math.min(BP.CFG.maxFrame, now - last); last = now;
   if (slowT > 0) { slowT -= raw; if (slowT <= 0) slow = 1; }
   const dt = raw * slow; clock += dt;
-  // сам подстраивается: если кадры долгие, уменьшаем разрешение картинки (один раз)
-  if (!autoLow) { autoN++; autoT += raw; if (autoN === 90) { if (autoT / autoN > 0.024) { ren.setPixelRatio(Math.min(1.25, devicePixelRatio)); autoLow = true; } autoN = 0; autoT = 0; } }
-  if (fpsEl) { fpsN++; fpsT += raw; fpsWorst = Math.max(fpsWorst, raw); if (fpsT > 1) { fpsEl.textContent = `${Math.round(fpsN / fpsT)} к/с · худший кадр ${Math.round(fpsWorst * 1000)} мс`; fpsN = 0; fpsT = 0; fpsWorst = 0; } }
-  if (crowd) { crowd.userData.U.uTime.value = now; crowd.userData.led.offset.x = (now * LOOK.led.speed) % 1; }
+  // «Авто»: качество подстраивается по замеру кадров (с задержкой и порогами — gfx.js)
+  if (autoQ && state !== 'load') autoQ.frame(now - prevNow);
+  prevNow = now;
+  if (fpsEl) { fpsN++; fpsT += raw; fpsWorst = Math.max(fpsWorst, raw); if (fpsT > 1) { const i = ren.info.render; fpsEl.textContent = `${Math.round(fpsN / fpsT)} к/с · ${(1000 * fpsT / fpsN).toFixed(1)} мс · худший ${Math.round(fpsWorst * 1000)} мс · ${i.calls} вызовов · ${(i.triangles / 1000).toFixed(0)} тыс. треуг. · ${QL}`; fpsN = 0; fpsT = 0; fpsWorst = 0; } }
+  if (STADIUM) STADIUM.tick(now, raw);
   drawSwipe(raw);
   if (state === 'load') return;
 
@@ -1074,7 +1035,10 @@ function frame() {
   // шейдеры собираем заранее, иначе первый гол и первое конфетти подтормаживают
   conf.visible = true; ren.compile(scene, cam); conf.visible = false;
   $('#load').remove();
+  if (QCHOICE === 'auto') autoQ = new GFX.AutoQuality(QL, applyQuality);
+  gfxLabel();
   window.ready = true;
+  window.gfx = () => ({ q: QL, choice: QCHOICE, pr: ren.getPixelRatio(), shadows: ren.shadowMap.enabled, mem: { ...ren.info.memory }, programs: ren.info.programs.length, crowd: crowd.count, last: autoQ && autoQ.last });
   const r2 = (v) => [+v.x.toFixed(2), +v.y.toFixed(2), +v.z.toFixed(2)];
   window.dbg = () => ({ state, ball: B.state, owner: B.owner, sh: shooter.name, st: +shooter.t.toFixed(2), b: r2(B.p), v: r2(B.v), p: run ? r2(run.P.p) : null,
     d: run ? +Math.hypot(B.p.x - run.P.p.x, B.p.z - run.P.p.z).toFixed(2) : null, msg: msg.textContent, calls: ren.info.render.calls, tris: ren.info.render.triangles });
