@@ -1,9 +1,11 @@
-# Движения игроков (Mixamo → Балотелли)
+# Игрок и движения для «Удара» (Mixamo)
 
-- Источник: Mixamo, набор «Soccer Game Pack» (FBX, Without Skin). По условиям Mixamo движения можно бесплатно
-  использовать в игре, но сами FBX-файлы не распространяем — поэтому в репозитории их нет, только запечённый результат.
-- `retarget.js` — перенос: поворот каждой кости относительно стойки + выравнивание направлений рук и ног
-  (у Mixamo T-поза, у Балотелли руки опущены). Таз двигается вместе с корнем (с поправкой на рост).
-- `bake.js` — запуск: `THREE_DIR=<node_modules/three> node bake.js <папка с FBX>` → `prototypes/shot/anims.json`.
-  Список движений — `CLIPS` в начале файла.
-- Проигрывание в игре — `prototypes/shot/anim.js` (плавный переход между кадрами и между движениями, зеркало для прыжка).
+- Персонаж — Mixamo «Ch38» (FBX с кожей), движения — Mixamo «Soccer Game Pack» (FBX без кожи).
+  По условиям Mixamo их можно бесплатно использовать в игре, но исходные FBX не распространяем — в репозитории их нет.
+- `build_player.py` — Blender (модуль bpy): берёт персонажа, надевает на его скелет движения из списка `CLIPS`,
+  уменьшает текстуры до 1024, убирает приставку mixamorig у костей и пальцы из движений → один GLB.
+  `python build_player.py Ch38_nonPBR.fbx <папка с движениями> player_anim.glb`
+- Затем облегчение (gltfpack 0.22):
+  `gltfpack -i player_anim.glb -o prototypes/shot/assets/player.glb -cc -si 0.6 -af 30 -kn -noq`
+  `gltfpack -i player_anim.glb -o prototypes/shot/assets/player-lod.glb -cc -si 0.22 -kn -noq`
+  (`-kn` сохраняет имена частей: футболка, шорты и гетры перекрашиваются по отдельности).
