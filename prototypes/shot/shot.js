@@ -226,7 +226,7 @@ async function goalModel() {
     o.castShadow = m.name !== 'rope' || PQ.netShadow; o.receiveShadow = m.name !== 'rope'; if (m.name === 'rope') o.userData.net = true;
     // штанги — окрашенный металл (краска, не хром); сетка — матовая нить
     const L = m.name === 'rope' ? LOOK.net : LOOK.posts; m.color.set(L.color); m.roughness = L.rough; m.metalness = 0; if (L.env) m.envMapIntensity = L.env;
-    if (m.name === 'rope') { m.transparent = true; m.opacity = LOOK.net.opacity; m.depthWrite = false; } // нити тоньше пикселя: полупрозрачность гасит мерцание
+    if (m.name === 'rope') { m.transparent = true; m.opacity = LOOK.net.opacity; m.depthWrite = false; m.forceSinglePass = true; } // нити тоньше пикселя: полупрозрачность гасит мерцание
     if (m.name === 'rope') m.onBeforeCompile = (sh) => {
       sh.uniforms.uHit = netU.uHit;
       sh.vertexShader = 'uniform vec4 uHit[4];\n' + sh.vertexShader.replace('#include <project_vertex>', `
