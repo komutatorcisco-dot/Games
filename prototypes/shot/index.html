@@ -4,60 +4,98 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Удар — проба</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,800;1,800;1,900&display=swap" rel="stylesheet">
 <script type="importmap">{ "imports": { "three": "../balotelli/vendor/three.module.min.js" } }</script>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1020; font-family: "Rubik", system-ui, sans-serif; color: #fff; touch-action: none; user-select: none; -webkit-user-select: none; }
+  /* стиль как в FC Mobile: узкий наклонный шрифт, полупрозрачное «стекло», тонкие светлые рамки */
+  :root { --f: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; --acc: #ffd23f; --glass: rgba(14,20,38,.42); --line: rgba(255,255,255,.28);
+    --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1020; font-family: var(--f); color: #fff; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
   canvas { display: block; }
-  .hud { position: fixed; left: 0; right: 0; top: calc(env(safe-area-inset-top) + 10px); display: flex; justify-content: center; gap: 8px; pointer-events: none; }
-  .pill { padding: 6px 14px; border-radius: 99px; background: rgba(8,12,28,.72); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.16); font: 800 15px/1.2 system-ui, sans-serif; }
-  .pill b { color: #ffcf3a; }
-  .dots { display: flex; gap: 6px; align-items: center; }
-  .dots i { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,.18); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.3); }
-  .dots i.g { background: #3fd14a; } .dots i.m { background: #ff4f5e; }
-  .msg { position: fixed; left: 0; right: 0; top: 30%; text-align: center; font: 900 54px/1 system-ui, sans-serif; letter-spacing: .02em; text-shadow: 0 4px 0 #0b1022, 0 0 30px rgba(0,0,0,.5); -webkit-text-stroke: 2px #0b1022; opacity: 0; transform: scale(.6); transition: all .25s cubic-bezier(.2,1.4,.4,1); pointer-events: none; }
-  .msg.on { opacity: 1; transform: none; }
-  .msg.goal { color: #ffcf3a; } .msg.miss { color: #fff; }
-  .hint { position: fixed; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 22px); text-align: center; font: 700 15px/1.4 system-ui, sans-serif; color: rgba(255,255,255,.9); text-shadow: 0 2px 6px rgba(0,0,0,.6); pointer-events: none; }
-  .end { position: fixed; inset: 0; display: none; place-items: center; background: rgba(5,8,18,.7); }
+  .vig { position: fixed; inset: 0; pointer-events: none; z-index: 1; background: radial-gradient(ellipse 75% 70% at 50% 48%, transparent 55%, rgba(0,6,20,.45) 100%); }
+  .glass { background: var(--glass); -webkit-backdrop-filter: blur(10px) saturate(1.3); backdrop-filter: blur(10px) saturate(1.3); box-shadow: inset 0 0 0 1px var(--line), 0 6px 18px rgba(0,0,0,.25); }
+  /* табло слева сверху */
+  .sb { position: fixed; left: calc(var(--sl) + 14px); top: calc(var(--st) + 12px); z-index: 3; display: flex; align-items: stretch; height: 34px; pointer-events: none; clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+  .sb > * { display: flex; align-items: center; padding: 0 12px; }
+  .sb-n { font: italic 800 17px/1 var(--f); letter-spacing: .04em; text-transform: uppercase; }
+  .sb-n small { margin-left: 8px; font: 600 13px var(--f); color: rgba(255,255,255,.7); font-style: normal; }
+  .sb-n small b { color: var(--acc); }
+  .sb-s { min-width: 22px; justify-content: center; background: var(--acc); color: #121624; font: italic 900 22px/1 var(--f); }
+  .sb-d { gap: 5px; padding-right: 20px !important; }
+  .sb-d i { width: 9px; height: 9px; transform: skewX(-14deg); background: rgba(255,255,255,.2); box-shadow: inset 0 0 0 1px rgba(255,255,255,.35); }
+  .sb-d i.g { background: #3ce17a; box-shadow: none; } .sb-d i.m { background: #ff4f5e; box-shadow: none; }
+  /* режимы справа сверху */
+  .modes { position: fixed; right: calc(var(--sr) + 14px); top: calc(var(--st) + 12px); z-index: 3; display: flex; padding: 3px; border-radius: 10px; gap: 2px; }
+  .modes button { padding: 6px 12px; border: 0; border-radius: 8px; background: transparent; color: rgba(255,255,255,.75); font: italic 800 14px/1 var(--f); letter-spacing: .03em; text-transform: uppercase; }
+  .modes button.on { background: rgba(255,255,255,.92); color: #121624; }
+  /* надпись «ГОЛ!» */
+  .msg { position: fixed; left: 0; right: 0; top: 26%; z-index: 3; text-align: center; font: italic 900 74px/1 var(--f); letter-spacing: .02em; text-transform: uppercase; opacity: 0; transform: translateX(-40px) skewX(-8deg); transition: all .3s cubic-bezier(.2,1.3,.4,1); pointer-events: none; text-shadow: 0 6px 24px rgba(0,0,0,.45); }
+  .msg.on { opacity: 1; transform: skewX(-8deg); }
+  .msg.goal { color: var(--acc); font-size: 104px; } .msg.miss { color: #fff; }
+  .msg::after { content: ""; display: block; width: 220px; height: 4px; margin: 8px auto 0; background: currentColor; opacity: .8; }
+  .hint { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--sb) + 18px); z-index: 3; max-width: 86vw; padding: 9px 16px; border-radius: 10px; text-align: center; font: 600 16px/1.3 var(--f); letter-spacing: .02em; color: rgba(255,255,255,.95); pointer-events: none; transition: opacity .4s; }
+  .end { position: fixed; inset: 0; z-index: 6; display: none; place-items: center; background: rgba(5,8,18,.55); }
   .end.on { display: grid; }
-  .card { width: min(320px, 86vw); padding: 22px 18px; border-radius: 22px; background: #1a2029; box-shadow: inset 0 0 0 1.5px rgba(255,207,58,.5); text-align: center; }
-  .card h2 { margin: 0 0 6px; font: 900 26px system-ui, sans-serif; } .card p { margin: 0 0 16px; color: rgba(255,255,255,.8); font: 600 15px system-ui, sans-serif; }
-  .btn { width: 100%; padding: 14px; border: 0; border-radius: 16px; background: #ffcf3a; color: #1b1340; font: 900 17px system-ui, sans-serif; box-shadow: 0 4px 0 #b88a12; }
-  .modes { position: fixed; right: 10px; top: calc(env(safe-area-inset-top) + 52px); display: grid; gap: 6px; }
-  .modes button { padding: 6px 10px; border: 0; border-radius: 12px; background: rgba(8,12,28,.72); color: #fff; font: 800 12px system-ui, sans-serif; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.16); }
-  .modes button.on { background: #ffcf3a; color: #1b1340; }
-  .load { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #24306a, #0b1020 70%); font: 800 16px system-ui, sans-serif; text-align: center; z-index: 5; }
-  .load b { display: block; margin-bottom: 12px; font-size: 20px; }
-  .lb { display: block; width: 220px; height: 10px; border-radius: 9px; background: rgba(255,255,255,.12); overflow: hidden; }
-  .lb i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #ffcf3a, #ff9f1c); transition: width .3s; }
+  .card { width: min(340px, 86vw); padding: 22px 20px; border-radius: 16px; text-align: center; }
+  .card h2 { margin: 0 0 4px; font: italic 900 40px/1 var(--f); text-transform: uppercase; color: var(--acc); } .card p { margin: 0 0 16px; color: rgba(255,255,255,.85); font: 600 18px var(--f); }
+  .btn { width: 100%; padding: 12px; border: 0; border-radius: 10px; background: var(--acc); color: #121624; font: italic 900 20px var(--f); text-transform: uppercase; letter-spacing: .03em; }
+  .credits { display: block; margin-top: 12px; font: 600 12px var(--f); color: rgba(255,255,255,.5); }
+  .load { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #1d2a5a, #070b18 70%); font: 800 16px var(--f); text-align: center; z-index: 8; }
+  .load b { display: block; margin-bottom: 12px; font: italic 900 30px var(--f); text-transform: uppercase; letter-spacing: .03em; }
+  .lb { display: block; width: 240px; height: 6px; background: rgba(255,255,255,.12); overflow: hidden; transform: skewX(-14deg); }
+  .lb i { display: block; width: 0; height: 100%; background: var(--acc); transition: width .3s; }
   .swipe { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; }
-  .hint { transition: opacity .4s; }
-  /* 1 на 1: джойстик и кнопки, как в FC Mobile */
-  .pad { position: fixed; inset: auto 0 0 0; height: 46%; z-index: 3; pointer-events: none; }
-  .joy { position: absolute; left: 18px; bottom: calc(env(safe-area-inset-bottom) + 26px); width: 132px; height: 132px; border-radius: 50%; background: rgba(8,12,28,.35); box-shadow: inset 0 0 0 2px rgba(255,255,255,.25); pointer-events: auto; touch-action: none; }
-  .joy i { position: absolute; left: 50%; top: 50%; width: 58px; height: 58px; margin: -29px; border-radius: 50%; background: rgba(255,255,255,.85); box-shadow: 0 4px 12px rgba(0,0,0,.4); }
-  .pbtns { position: absolute; right: 14px; bottom: calc(env(safe-area-inset-bottom) + 22px); width: 190px; height: 170px; pointer-events: none; }
-  .pbtns button { position: absolute; border: 0; border-radius: 50%; color: #1b1340; font: 900 12px system-ui, sans-serif; pointer-events: auto; touch-action: none; box-shadow: 0 5px 0 rgba(0,0,0,.35), inset 0 -4px 0 rgba(0,0,0,.18); }
-  .pbtns button.on { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,.35); filter: brightness(1.15); }
-  .b-shot { right: 0; bottom: 0; width: 96px; height: 96px; background: #ffcf3a; font-size: 16px !important; }
-  .b-fin { right: 104px; bottom: 6px; width: 70px; height: 70px; background: #7fd8ff; font-size: 10px !important; }
-  .b-run { right: 22px; bottom: 104px; width: 64px; height: 64px; background: #9cf28b; font-size: 11px !important; }
-  .power { position: absolute; right: 20px; bottom: calc(env(safe-area-inset-bottom) + 132px); width: 150px; height: 10px; border-radius: 6px; background: rgba(0,0,0,.45); opacity: 0; transition: opacity .15s; }
-  .power.on { opacity: 1; }
-  .power i { display: block; height: 100%; width: 0; border-radius: 6px; background: linear-gradient(90deg, #3fd14a, #ffcf3a 70%, #ff4f5e); }
-  .credits { display: block; margin-top: 12px; font: 600 10.5px system-ui, sans-serif; color: rgba(255,255,255,.45); }
+  /* 1 на 1: джойстик появляется там, где коснулся пальцем слева; справа — кнопки */
+  .pad { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+  .zone { position: absolute; left: 0; top: 60px; bottom: 0; width: 48%; pointer-events: auto; touch-action: none; }
+  .joy { position: absolute; width: 124px; height: 124px; margin: -62px; border-radius: 50%; opacity: 0; transform: scale(.7); transition: opacity .15s, transform .15s; pointer-events: none;
+    background: radial-gradient(circle, rgba(255,255,255,.05) 40%, rgba(255,255,255,.14) 100%); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.4); }
+  .joy.on { opacity: 1; transform: none; }
+  .joy i { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px; border-radius: 50%; background: rgba(255,255,255,.55); box-shadow: inset 0 0 0 2px rgba(255,255,255,.8), 0 4px 14px rgba(0,0,0,.3); }
+  .pbtns { position: absolute; right: calc(var(--sr) + 22px); bottom: calc(var(--sb) + 18px); width: 210px; height: 190px; pointer-events: none; }
+  .pbtns button { position: absolute; display: grid; place-items: center; align-content: center; gap: 1px; border: 0; border-radius: 50%; padding: 0; color: #fff; font: italic 800 12px/1 var(--f); letter-spacing: .05em; text-transform: uppercase;
+    pointer-events: auto; touch-action: none; transition: transform .08s, background .08s;
+    background: rgba(14,20,38,.34); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.5), 0 6px 16px rgba(0,0,0,.2); }
+  .pbtns button svg { width: 44%; height: auto; fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+  .pbtns button.on { transform: scale(.92); background: rgba(255,210,63,.4); }
+  .b-shot { right: 0; bottom: 0; width: 98px; height: 98px; font-size: 15px !important; }
+  .b-fin { right: 112px; bottom: 2px; width: 70px; height: 70px; }
+  .b-run { right: 14px; bottom: 112px; width: 64px; height: 64px; }
+  /* кольцо силы удара вокруг кнопки «Удар» */
+  .pbtns button .ring { position: absolute; inset: -9px; width: calc(100% + 18px); height: calc(100% + 18px); transform: rotate(-90deg); pointer-events: none; opacity: 0; transition: opacity .12s; }
+  .pbtns button .ring.on { opacity: 1; }
+  .ring circle { fill: none; stroke-width: 6; }
+  .ring .bg { stroke: rgba(0,0,0,.3); } .ring .fg { stroke: var(--acc); stroke-linecap: round; stroke-dasharray: 100 100; stroke-dashoffset: 100; }
+  /* держи телефон горизонтально */
+  .rot { position: fixed; inset: 0; z-index: 9; display: none; place-items: center; text-align: center; background: radial-gradient(circle at 50% 40%, #1d2a5a, #070b18 75%); }
+  .rot b { display: block; margin: 18px 0 6px; font: italic 900 30px var(--f); text-transform: uppercase; }
+  .rot p { margin: 0 0 18px; font: 600 17px var(--f); color: rgba(255,255,255,.75); }
+  .rot svg { width: 86px; animation: tilt 2s ease-in-out infinite; }
+  .rot .btn { width: auto; padding: 11px 22px; }
+  @keyframes tilt { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(-90deg); } }
+  @media (orientation: portrait) and (max-width: 820px) { .rot { display: grid; } }
+  /* низкий экран горизонтального телефона */
+  @media (max-height: 430px) { .msg { font-size: 58px; top: 22%; } .msg.goal { font-size: 84px; } .pbtns { transform: scale(.9); transform-origin: right bottom; } }
 </style>
 </head>
 <body>
-<div class="hud"><span class="pill" id="who">—</span><span class="pill dots" id="dots"></span></div>
-<div class="modes"><button data-m="fk" class="on">Штрафной</button><button data-m="pen">Пенальти</button><button data-m="run">1 на 1</button></div>
-<div class="pad" id="pad" hidden><div class="joy" id="joy"><i id="stick"></i></div>
-  <div class="pbtns"><button class="b-shot" id="b-shot">УДАР</button><button class="b-fin" id="b-fin">ПОДКРУТКА</button><button class="b-run" id="b-run">РЫВОК</button></div>
-  <div class="power" id="power"><i></i></div></div>
+<div class="vig"></div>
+<div class="sb glass"><span class="sb-n" id="who">—</span><span class="sb-s" id="score">0</span><span class="sb-d" id="dots"></span></div>
+<div class="modes glass"><button data-m="fk" class="on">Штрафной</button><button data-m="pen">Пенальти</button><button data-m="run">1 на 1</button></div>
+<div class="pad" id="pad" hidden><div class="zone" id="zone"></div><div class="joy" id="joy"><i id="stick"></i></div>
+  <div class="pbtns">
+    <button class="b-shot" id="b-shot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5l4.2 3-1.6 5h-5.2l-1.6-5z"/></svg>Удар
+      <svg class="ring" id="ring" viewBox="0 0 40 40"><circle class="bg" cx="20" cy="20" r="17" pathLength="100"/><circle class="fg" id="ringFg" cx="20" cy="20" r="17" pathLength="100"/></svg></button>
+    <button class="b-fin" id="b-fin"><svg viewBox="0 0 24 24"><path d="M4 18c2-8 8-12 16-12"/><path d="M15 3l5 3-3 5"/></svg>Крутить</button>
+    <button class="b-run" id="b-run"><svg viewBox="0 0 24 24"><path d="M5 6l6 6-6 6M13 6l6 6-6 6"/></svg>Рывок</button>
+  </div></div>
 <div class="msg" id="msg"></div>
-<div class="hint" id="hint">Проведи пальцем от мяча к воротам.<br>Быстрее — сильнее, изогни линию — мяч закрутится.</div>
-<div class="end" id="end"><div class="card"><h2 id="endT"></h2><p id="endP"></p><button class="btn" id="again">Ещё серия</button><small class="credits">Мяч: LeMon74, CC BY 4.0 · трава и небо: ambientCG, CC0 · игрок и движения: Mixamo</small></div></div>
-<div class="load" id="load"><div><b>Выходим на поле…</b><span class="lb"><i id="loadbar"></i></span></div></div>
+<div class="hint glass" id="hint">Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.</div>
+<div class="end" id="end"><div class="card glass"><h2 id="endT"></h2><p id="endP"></p><button class="btn" id="again">Ещё серия</button><small class="credits">Мяч: LeMon74, CC BY 4.0 · трава и небо: ambientCG, CC0 · игрок и движения: Mixamo</small></div></div>
+<div class="rot" id="rot"><div><svg viewBox="0 0 48 80" fill="none" stroke="#fff" stroke-width="3"><rect x="4" y="4" width="40" height="72" rx="7"/><path d="M19 68h10"/></svg>
+  <b>Поверни телефон</b><p>Играем горизонтально</p><button class="btn" id="rotBtn">Во весь экран</button></div></div>
+<div class="load" id="load"><div><b>Выходим на поле</b><span class="lb"><i id="loadbar"></i></span></div></div>
 <script type="module" src="shot.js"></script>
 </body>
 </html>

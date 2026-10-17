@@ -21,6 +21,7 @@ const $ = (s) => document.querySelector(s);
 const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 const easeOut = (x) => 1 - Math.pow(1 - Math.min(1, Math.max(0, x)), 3);
 const lerp = (a, b, t) => a + (b - a) * t;
+const AY = new THREE.Vector3(0, 1, 0);
 
 // ---------- рендер ----------
 // на экранах с плотными пикселями сглаживание почти не видно, а стоит дорого — выключаем
@@ -32,8 +33,14 @@ ren.shadowMap.enabled = false; // вместо карты теней — мяг�
 document.body.prepend(ren.domElement);
 const scene = new THREE.Scene();
 scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#bcd3ea', 90, 220);
-const cam = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 400);
-addEventListener('resize', () => { ren.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); fitSwipe(); });
+// горизонтальный экран: угол обзора поуже, чтобы ворота не казались далёкими
+const fov = () => (innerWidth > innerHeight ? { pen: 33, fk: 37, run: 42 }[MODE] : 48);
+const cam = new THREE.PerspectiveCamera(fov(), innerWidth / innerHeight, 0.1, 400);
+addEventListener('resize', () => { ren.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.fov = fov(); cam.updateProjectionMatrix(); fitSwipe(); });
+// «Во весь экран»: на Android ещё и закрепляем горизонтальный поворот (на iPhone — просто поверни телефон)
+document.getElementById('rotBtn').addEventListener('click', async () => {
+  try { await document.documentElement.requestFullscreen(); await screen.orientation.lock('landscape'); } catch (e) { /* не везде можно */ }
+});
 
 // свет: днём — солнце и небо (освещение берём из самой картинки неба), ночью — прожекторы
 scene.add(new THREE.HemisphereLight(NIGHT ? '#b9c8ff' : '#cfe4ff', NIGHT ? '#2d5a24' : '#3d6b2c', NIGHT ? 0.9 : 0.7));
@@ -93,43 +100,49 @@ function pitch() {
 
 // ---------- ворота и сетка (сетка колышется от мяча) ----------
 const net = { pos: null, base: null, geo: null, hits: [] };
+// ворота как на больших стадионах: тонкие белые штанги, сетка «коробкой» — ровная крыша назад и наклонный задник,
+// ячейки — соты; сзади держится на тонких трубах
+const NET_TOP = 1.5; // насколько крыша сетки уходит назад от перекладины
 function goal() {
-  const W = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.25, metalness: 0.1 }), r = 0.06;
-  const add = (geo, x, y, z, rz = 0) => { const m = new THREE.Mesh(geo, W); m.position.set(x, y, z); m.rotation.z = rz; m.castShadow = true; scene.add(m); };
-  add(new THREE.CylinderGeometry(r, r, GH + r, 20), -GW, (GH + r) / 2, 0); add(new THREE.CylinderGeometry(r, r, GH + r, 20), GW, (GH + r) / 2, 0);
-  add(new THREE.CylinderGeometry(r, r, GW * 2 + 2 * r, 20), 0, GH, 0, Math.PI / 2);
-  // опорная рама сзади: от перекладины назад и вниз к земле, внизу — перемычка (как у настоящих ворот)
-  const frame = new THREE.MeshStandardMaterial({ color: '#e9edf2', roughness: 0.4 }), fr = 0.028, DD = NET_D, TT = NET_D * 0.55;
-  for (const sx of [-1, 1]) {
-    const c = new THREE.CatmullRomCurve3([new THREE.Vector3(sx * GW, GH, -0.02), new THREE.Vector3(sx * GW, GH - 0.05, -TT * 0.9), new THREE.Vector3(sx * GW, GH * 0.55, -DD * 0.9), new THREE.Vector3(sx * GW, 0.02, -DD)], false, 'catmullrom', 0.2);
-    scene.add(new THREE.Mesh(new THREE.TubeGeometry(c, 24, fr, 8), frame));
-  }
-  const gb = new THREE.Mesh(new THREE.CylinderGeometry(fr, fr, GW * 2, 8), frame); gb.rotation.z = Math.PI / 2; gb.position.set(0, fr, -DD); scene.add(gb);
-  // тень ворот на газоне
-  const gs = new THREE.Mesh(new THREE.PlaneGeometry(GW * 2 + 0.6, NET_D + 0.5), new THREE.MeshBasicMaterial({ color: '#000', transparent: true, opacity: 0.18, depthWrite: false }));
-  gs.rotation.x = -Math.PI / 2; gs.position.set(0, 0.006, -NET_D / 2); scene.add(gs);
-  // сетка: полотна с текстурой ячеек (с мип-картами — не рябит вдали), вершины в координатах мира, чтобы сетка гнулась
-  const D = NET_D, top = D * 0.55, CELL = 0.1;
-  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d');
-  g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 3.5; g.strokeRect(0, 0, 64, 64); g.fillStyle = '#fff'; [[0, 0], [64, 0], [0, 64], [64, 64]].forEach(([x, y]) => g.fillRect(x - 3, y - 3, 6, 6)); // нити и узлы
-  const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 4;
+  const W = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.3, metalness: 0, envMapIntensity: 0.6 }), r = 0.06;
+  const add = (geo, x, y, z, rz = 0) => { const m = new THREE.Mesh(geo, W); m.position.set(x, y, z); m.rotation.z = rz; scene.add(m); };
+  add(new THREE.CylinderGeometry(r, r, GH + r, 24), -GW, (GH + r) / 2, 0); add(new THREE.CylinderGeometry(r, r, GH + r, 24), GW, (GH + r) / 2, 0);
+  add(new THREE.CylinderGeometry(r, r, GW * 2 + 2 * r, 24), 0, GH, 0, Math.PI / 2);
+  // опоры сетки: от перекладины прямо назад, потом вниз к земле, внизу — перемычка
+  const frame = new THREE.MeshStandardMaterial({ color: '#d5dbe3', roughness: 0.5 }), fr = 0.022, D = NET_D, T = NET_TOP;
+  const tube = (A, B) => { const L = A.distanceTo(B), m = new THREE.Mesh(new THREE.CylinderGeometry(fr, fr, L, 8), frame);
+    m.position.addVectors(A, B).multiplyScalar(0.5); m.quaternion.setFromUnitVectors(AY, B.clone().sub(A).normalize()); scene.add(m); };
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  for (const sx of [-1, 1]) { tube(V(sx * GW, GH, 0), V(sx * GW, GH, -T)); tube(V(sx * GW, GH, -T), V(sx * GW, 0, -D)); tube(V(sx * GW, fr, 0), V(sx * GW, fr, -D)); }
+  tube(V(-GW, GH, -T), V(GW, GH, -T)); tube(V(-GW, fr, -D), V(GW, fr, -D));
+  // ячейки-соты: рисуем узор, он повторяется без швов
+  const a = 16, h = Math.sqrt(3) * a, c = document.createElement('canvas'); c.width = 3 * a * 2; c.height = Math.round(h * 2);
+  const g = c.getContext('2d'); g.scale(2, c.height / h); g.strokeStyle = '#fff'; g.lineWidth = 1.6; g.lineJoin = 'round';
+  const hex = (cx, cy) => { g.beginPath(); for (let k = 0; k <= 6; k++) { const an = (k * Math.PI) / 3; g.lineTo(cx + a * Math.cos(an), cy + a * Math.sin(an)); } g.stroke(); };
+  for (const [cx, cy] of [[0, 0], [3 * a, 0], [0, h], [3 * a, h], [1.5 * a, h / 2], [1.5 * a, -h / 2], [1.5 * a, 1.5 * h]]) hex(cx, cy);
+  const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; tex.anisotropy = 8;
+  const CU = 0.27, CV = CU * (h / (3 * a)); // размер узора в метрах: соты ~9 см
   const P = [], UV = [], I = [];
-  // полотно по четырём углам (a — низ-лево, b — низ-право, c — верх-право, d — верх-лево), nu×nv клеток
+  // полотно по четырём углам (A — низ-лево, B — низ-право, C — верх-право, Dd — верх-лево), nu×nv клеток; sag — провисание внутрь
   const panel = (A, B, C, Dd, nu, nv, sag = 0) => {
     const o = P.length / 3, wU = A.distanceTo(B), wV = A.distanceTo(Dd);
     for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) {
-      const u = i / nu, v = j / nv, p = A.clone().lerp(B, u).lerp(Dd.clone().lerp(C, u), v); p.z -= sag * Math.sin(Math.PI * u) * Math.sin(Math.PI * Math.min(1, v * 1.1)); p.y -= sag * 0.5 * Math.sin(Math.PI * u) * (v > 0.95 ? 1 : 0); // провисание
-      P.push(p.x, p.y, p.z); UV.push((u * wU) / CELL, (v * wV) / CELL);
+      const u = i / nu, v = j / nv, p = A.clone().lerp(B, u).lerp(Dd.clone().lerp(C, u), v);
+      p.z += sag * Math.sin(Math.PI * u) * Math.sin(Math.PI * v); // чуть провисает к центру
+      P.push(p.x, p.y, p.z); UV.push((u * wU) / CU, (v * wV) / CV);
     }
     for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const k = o + j * (nu + 1) + i; I.push(k, k + 1, k + nu + 2, k, k + nu + 2, k + nu + 1); }
   };
-  const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  panel(V(-GW, 0, -D), V(GW, 0, -D), V(GW, GH, -top), V(-GW, GH, -top), 40, 14, 0.12); // задник
-  panel(V(-GW, GH, -top), V(GW, GH, -top), V(GW, GH, 0), V(-GW, GH, 0), 40, 4, 0.06); // крыша
-  for (const sx of [-1, 1]) panel(V(sx * GW, 0, 0), V(sx * GW, 0, -D), V(sx * GW, GH, -top), V(sx * GW, GH, 0), 8, 14); // бока
+  panel(V(-GW, 0, -D), V(GW, 0, -D), V(GW, GH, -T), V(-GW, GH, -T), 40, 14, 0.08); // задник
+  panel(V(-GW, GH, -T), V(GW, GH, -T), V(GW, GH, 0), V(-GW, GH, 0), 40, 8); // крыша
+  for (const sx of [-1, 1]) { // бока: трапеции (сверху крыша короче низа)
+    const o = P.length / 3, nu = 10, nv = 14;
+    for (let j = 0; j <= nv; j++) for (let i = 0; i <= nu; i++) { const u = i / nu, v = j / nv, z = -u * lerp(D, T, v), y = v * GH; P.push(sx * GW, y, z); UV.push((-z) / CU, y / CV); }
+    for (let j = 0; j < nv; j++) for (let i = 0; i < nu; i++) { const k = o + j * (nu + 1) + i; I.push(k, k + 1, k + nu + 2, k, k + nu + 2, k + nu + 1); }
+  }
   net.geo = new THREE.BufferGeometry(); net.geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); net.geo.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); net.geo.setIndex(I);
   net.pos = net.geo.attributes.position; net.base = Float32Array.from(P);
-  const nm = new THREE.Mesh(net.geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
+  const nm = new THREE.Mesh(net.geo, new THREE.MeshBasicMaterial({ map: tex, color: '#eef2f6', transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
   nm.frustumCulled = false; scene.add(nm);
 }
 function netTick(dt) {
@@ -214,7 +227,7 @@ function stadium() {
   }
   const bt = new THREE.CanvasTexture(b); bt.colorSpace = THREE.SRGBColorSpace; bt.wrapS = THREE.RepeatWrapping; bt.repeat.x = 6;
   const led = new THREE.MeshBasicMaterial({ map: bt, toneMapped: false });
-  const ad = new THREE.Mesh(new THREE.BoxGeometry(84, 0.95, 0.15), led); ad.position.set(0, 0.48, -5); scene.add(ad);
+  const ad = new THREE.Mesh(new THREE.BoxGeometry(84, 0.95, 0.15), led); ad.position.set(0, 0.48, -6.5); scene.add(ad);
   for (const s of [-1, 1]) { const sd = new THREE.Mesh(new THREE.BoxGeometry(60, 0.95, 0.15), led); sd.rotation.y = Math.PI / 2; sd.position.set(s * 38, 0.48, 22); scene.add(sd); }
   crowd.userData.led = bt;
 }
@@ -302,7 +315,6 @@ function blobTick() {
 // Форма: футболка, шорты и гетры — отдельные части, их белый цвет умножаем на цвета команды.
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const v3 = new THREE.Vector3();
-const AY = new THREE.Vector3(0, 1, 0);
 let base = null, lod = null;
 const baseReady = loader.loadAsync('assets/player.glb').then((g) => (base = g));
 const lodReady = loader.loadAsync('assets/player-lod.glb').then((g) => (lod = g)).catch(() => null);
@@ -326,7 +338,8 @@ async function player(kit, useLod = false) {
   const bl = blob(holder, 1.3);
   const hips = m.getObjectByName('Hips');
   blobs.find((x) => x.m === bl).bone = hips; // тень идёт за тазом: записанные движения двигают игрока сами
-  return { holder, model: m, mixer: new THREE.AnimationMixer(m), hips, hipsRest: hips.position.clone(), act: null, t: 0 };
+  const body = ['LeftHand', 'RightHand', 'Spine2', 'Head'].map((n) => m.getObjectByName(n)); // чем вратарь касается мяча
+  return { holder, model: m, mixer: new THREE.AnimationMixer(m), hips, hipsRest: hips.position.clone(), body, act: null, t: 0 };
 }
 const hexKit = (q) => { const k = (q || '').split('.').filter((c) => /^[0-9a-f]{6}$/i.test(c)); return k.length ? { shirt: '#' + k[0], shorts: '#' + (k[1] || k[0]), socks: '#' + (k[2] || k[1] || k[0]) } : null; };
 const myKit = hexKit(Q.get('kit')); // без ?kit= — своя белая форма модели
@@ -360,7 +373,10 @@ function aimCam() { // камера за спиной: в кадре и мяч, 
   camAim.l.set(spot.x * 0.15, 1.0, 0);
 }
 function resetShot() {
-  $('#pad').hidden = MODE !== 'run'; $('#hint').hidden = MODE === 'run';
+  $('#pad').hidden = MODE !== 'run';
+  cam.fov = fov(); cam.updateProjectionMatrix();
+  $('#hint').textContent = MODE === 'run' ? 'Слева веди пальцем — бежишь. Справа держи «Удар» — копишь силу, отпустил — бьёшь.' : 'Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.';
+  $('#hint').style.opacity = n === 0 ? 1 : 0;
   if (MODE === 'run') return resetRun();
   setSpot(n);
   ball.position.copy(spot); vel.set(0, 0, 0); spin.set(0, 0, 0); ball.rotation.set(0, 0, 0); trail.pts.length = 0;
@@ -376,7 +392,8 @@ function resetShot() {
 }
 function dots() {
   $('#dots').innerHTML = Array.from({ length: SHOTS }, (_, i) => `<i class="${results[i] === undefined ? '' : results[i] ? 'g' : 'm'}"></i>`).join('');
-  $('#who').innerHTML = `${NAME} · удар <b>${ST}</b>`;
+  $('#who').innerHTML = `${NAME}<small>удар <b>${ST}</b></small>`;
+  $('#score').textContent = results.filter(Boolean).length;
 }
 
 // ---------- свайп: светящаяся линия за пальцем ----------
@@ -479,6 +496,20 @@ function keeperDive() {
   play(keeper, D.name, { t: t0, fade: 0.12, fx: Math.max(0.35, Math.min(1.6, want / D.reach)), fz: 0.25, hold: D.tk + 0.6,
     lift: (t) => up * Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, (t - t0) / (D.tk + 0.35 - t0))))) });
 }
+// вратарь касается мяча руками или телом: несильный мяч рядом с ним — ловит, остальное — отбивает в сторону (на угловой)
+const kp = new THREE.Vector3(), kq = new THREE.Vector3();
+function handsAt(out) { keeper.body[0].getWorldPosition(kp); keeper.body[1].getWorldPosition(kq); return out.addVectors(kp, kq).multiplyScalar(0.5); }
+function keeperTouch(p) {
+  kick.done = true;
+  let dmin = 9; for (const b of keeper.body) dmin = Math.min(dmin, b.getWorldPosition(kp).distanceTo(p));
+  if (dmin > 1.0) return; // не дотянулся — мяч летит дальше
+  const sp = vel.length(), side = Math.sign(p.x - keeper.holder.position.x) || kick.dir;
+  if (sp < 22 && Math.abs(kick.lx) < 1.3 && p.y < 2.0) { kick.held = true; shake = 0.12; return finish(false, 'Поймал!', 'miss'); }
+  // отбил: мяч теряет скорость и уходит вбок от ворот; высокий — переводит через перекладину
+  const high = p.y > 1.75;
+  vel.set(side * (2.5 + sp * 0.14 + Math.random()), high ? 4 + Math.random() * 1.5 : 1 + Math.random() * 2, Math.abs(vel.z) * 0.12 + 0.8 + Math.random());
+  spin.set(0, 0, 0); shake = 0.2; finish(false, 'Отбил!', 'miss');
+}
 function finish(ok, text, cls) {
   if (state === 'over') return; state = 'over';
   results[n] = ok; msg.textContent = text; msg.className = 'msg on ' + cls; dots();
@@ -519,7 +550,7 @@ function play(pl, name, { t = 0, loop = false, fade = 0.25, speed = 1, hold = In
   const a = pl.mixer.clipAction(variant(name, fx, fz));
   a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); a.clampWhenFinished = true; a.timeScale = speed; a.time = t;
   if (pl.act && pl.act !== a && fade > 0) a.crossFadeFrom(pl.act, fade, false); else if (pl.act && pl.act !== a) pl.act.stop();
-  a.play(); Object.assign(pl, { act: a, name, hold, lock, lift, t0: t, follow });
+  a.play(); Object.assign(pl, { act: a, name, hold, lock, lift, t0: t, t, follow });
 }
 // таз в мировых координатах ↔ в координатах скелета (у скелета Mixamo свой поворот и масштаб 0,01)
 function tickPlayer(pl, dt) {
@@ -577,7 +608,7 @@ function wallTick(w, i, dt) { // стенка: стоят, при ударе т�
 
 // ---------- 1 на 1: бежишь сам и бьёшь (джойстик + кнопки, как в FC Mobile) ----------
 let STRIKE = null, run = null;
-const joy = { x: 0, y: 0, id: null }, keys = {}, btn = { shot: false, fin: false, sprint: false };
+const joy = { x: 0, y: 0, id: null, cx: 0, cy: 0 }, keys = {}, btn = { shot: false, fin: false, sprint: false };
 const GOAL_C = new THREE.Vector3(0, 0, 0);
 function resetRun() {
   wall.forEach((w) => (w.holder.visible = false));
@@ -593,14 +624,19 @@ function resetRun() {
   state = 'play'; shot = null; kick = null; celebrate = -1; slow = 1; msg.className = 'msg'; dots();
 }
 // ввод: джойстик (палец), кнопки, клавиатура (WASD/стрелки, пробел — удар, E — подкрутка, Shift — рывок)
-const joyEl = $('#joy'), stick = $('#stick');
-function joySet(e) { const r = joyEl.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2, R0 = r.width / 2;
-  let x = (e.clientX - cx) / R0, y = (cy - e.clientY) / R0; const L = Math.hypot(x, y); if (L > 1) { x /= L; y /= L; }
-  joy.x = x; joy.y = y; stick.style.transform = `translate(${x * R0 * 0.55}px, ${-y * R0 * 0.55}px)`; }
-joyEl.addEventListener('pointerdown', (e) => { joy.id = e.pointerId; joyEl.setPointerCapture(e.pointerId); joySet(e); });
-joyEl.addEventListener('pointermove', (e) => { if (e.pointerId === joy.id) joySet(e); });
-const joyEnd = (e) => { if (e.pointerId !== joy.id) return; joy.id = null; joy.x = joy.y = 0; stick.style.transform = ''; };
-joyEl.addEventListener('pointerup', joyEnd); joyEl.addEventListener('pointercancel', joyEnd);
+// джойстик «плавающий»: появляется там, где палец коснулся левой половины экрана, и исчезает, когда отпустил
+const joyEl = $('#joy'), stick = $('#stick'), zone = $('#zone'), JR = 62;
+function joySet(e) { let x = (e.clientX - joy.cx) / JR, y = (joy.cy - e.clientY) / JR; const L = Math.hypot(x, y); if (L > 1) { x /= L; y /= L; }
+  joy.x = x; joy.y = y; stick.style.transform = `translate(${x * JR * 0.6}px, ${-y * JR * 0.6}px)`; }
+zone.addEventListener('pointerdown', (e) => { if (joy.id !== null) return; joy.id = e.pointerId; zone.setPointerCapture(e.pointerId);
+  joy.cx = e.clientX; joy.cy = e.clientY; joyEl.style.left = joy.cx + 'px'; joyEl.style.top = joy.cy + 'px'; joyEl.classList.add('on'); joySet(e); hintOff(); });
+zone.addEventListener('pointermove', (e) => { if (e.pointerId === joy.id) joySet(e); });
+const joyEnd = (e) => { if (e.pointerId !== joy.id) return; joy.id = null; joy.x = joy.y = 0; stick.style.transform = ''; joyEl.classList.remove('on'); };
+zone.addEventListener('pointerup', joyEnd); zone.addEventListener('pointercancel', joyEnd);
+const hintOff = () => { if (MODE === 'run') $('#hint').style.opacity = 0; };
+// сила удара — кольцо вокруг кнопки «Удар»
+const ringFg = $('#ringFg');
+function setPower(p) { ringFg.style.strokeDashoffset = 100 - p * 100; ringFg.style.stroke = p > 0.92 ? '#ff4f5e' : ''; }
 const hold = (id, k) => { const b = $(id);
   b.addEventListener('pointerdown', (e) => { e.preventDefault(); btn[k] = true; b.classList.add('on'); if (k !== 'sprint') startCharge(k === 'fin'); });
   const up = () => { if (!btn[k]) return; btn[k] = false; b.classList.remove('on'); if (k !== 'sprint') releaseCharge(); };
@@ -614,8 +650,8 @@ function input() {
   const L = Math.hypot(x, y); return L > 1 ? { x: x / L, y: y / L } : { x, y };
 }
 // держишь «Удар» — копится сила (полоска), отпустил — удар; «Подкрутка» — удар щёчкой с закруткой в дальний угол
-function startCharge(fin) { if (MODE !== 'run' || state !== 'play' || !run || run.charge >= 0) return; if (ball.position.distanceTo(shooter.holder.position) > 1.6) return; run.charge = 0; run.fin = fin; $('#power').classList.add('on'); }
-function releaseCharge() { if (!run || run.charge < 0 || state !== 'play') return; const pw = Math.min(1, run.charge / 0.9); run.charge = -1; $('#power').classList.remove('on'); strike(pw, run.fin); }
+function startCharge(fin) { if (MODE !== 'run' || state !== 'play' || !run || run.charge >= 0) return; if (ball.position.distanceTo(shooter.holder.position) > 1.6) return; run.charge = 0; run.fin = fin; setPower(0); $('#ring').classList.add('on'); hintOff(); }
+function releaseCharge() { if (!run || run.charge < 0 || state !== 'play') return; const pw = Math.min(1, run.charge / 0.9); run.charge = -1; $('#ring').classList.remove('on'); strike(pw, run.fin); }
 function strike(pw, fin) {
   const inp = input(), bp = ball.position;
   // куда: джойстик вбок — в тот угол; без джойстика — в дальний угол от игрока
@@ -626,7 +662,7 @@ function strike(pw, fin) {
   const dist = bp.length(), sig = (0.12 + (100 - ST) * 0.028) * Math.max(0.6, dist / 18), gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 0.8;
   tx += gauss() * sig; ty = Math.max(0.1, ty + gauss() * sig * 0.7);
   shot = { tx, ty, speed, curve, ax: 0 };
-  run.v.multiplyScalar(0.3);
+  run.v.multiplyScalar(0.5);
   play(shooter, 'strike', { t: Math.max(0, STRIKE.tc - 0.35), fade: 0.12, follow: true });
   state = 'runup'; t0 = clock;
 }
@@ -636,18 +672,23 @@ function dribble(dt, k = 1) { // мяч у ноги: чуть впереди п�
   const before = ball.position.clone(); ball.position.lerp(tgt, 1 - Math.exp(-dt * 7 * k));
   const d = ball.position.clone().sub(before); if (d.lengthSq() > 1e-8) { tmpV.set(d.z, 0, -d.x).normalize(); ball.rotateOnWorldAxis(tmpV, -d.length() / R); }
 }
-function runTick(dt) {
+function runMove(dt) { // бег игрока по джойстику (и с мячом, и после удара)
   const inp = input(), max = (btn.sprint || keys.ShiftLeft || keys.ShiftRight) ? 6.6 : 3.9;
   run.v.lerp(tmpA.set(inp.x, 0, -inp.y).multiplyScalar(max), 1 - Math.exp(-dt * 6));
   const h = shooter.holder, sp = run.v.length();
   h.position.addScaledVector(run.v, dt); h.position.x = Math.max(-30, Math.min(30, h.position.x)); h.position.z = Math.max(1.2, Math.min(42, h.position.z));
   if (sp > 0.3) { const yaw = Math.atan2(run.v.x, run.v.z); let d = yaw - h.rotation.y; d = Math.atan2(Math.sin(d), Math.cos(d)); h.rotation.y += d * (1 - Math.exp(-dt * 9)); }
+  // движение ног: стоит / бежит; во время удара не перебиваем запись удара до момента после касания
+  const busy = shooter.name === 'strike' && shooter.t < STRIKE.tc + 0.3;
   const want = sp > 0.6 ? 'jog' : 'idle';
-  if (shooter.name !== want) play(shooter, want, { loop: true, fade: 0.25, follow: true });
-  if (want === 'jog') shooter.act.timeScale = Math.max(0.7, sp / 3.6);
+  if (!busy && shooter.name !== want) play(shooter, want, { loop: true, fade: 0.3, follow: true });
+  if (shooter.name === 'jog') shooter.act.timeScale = Math.max(0.7, sp / 3.6);
   tickPlayer(shooter, dt);
+}
+function runTick(dt) {
+  runMove(dt);
   dribble(dt);
-  if (run.charge >= 0) { run.charge += dt; $('#power i').style.width = Math.min(100, (run.charge / 0.9) * 100) + '%'; if (run.charge > 1.2) releaseCharge(); }
+  if (run.charge >= 0) { run.charge += dt; setPower(Math.min(1, run.charge / 0.9)); if (run.charge > 1.2) releaseCharge(); }
   // вратарь: стоит на линии мяч — центр ворот и выходит навстречу, когда игрок близко
   const bp = ball.position, k = keeper.holder, dist = bp.length();
   const out = Math.max(0.4, Math.min(5.5, (22 - dist) * 0.24, dist - 1.6));
@@ -664,6 +705,21 @@ function runTick(dt) {
     vel.set(0, 0, 0); state = 'fly'; kick = { t: 0, T: 9, react: 99, dived: true, kz: 0 }; shot = { curve: 0 };
     finish(false, 'Вратарь забрал', 'miss');
   }
+}
+// после удара игрок не замирает: пробегает по инерции пару шагов к воротам и останавливается
+function afterKick(dt) {
+  const h = shooter.holder;
+  if (shooter.name === 'kick' && shooter.t >= KICK.tc + 0.42) {
+    const w = shooter.hips.getWorldPosition(new THREE.Vector3()); h.position.set(w.x, 0, w.z);
+    play(shooter, 'jog', { loop: true, fade: 0.35, follow: true }); shooter.coast = 3.4;
+  }
+  if (shooter.name === 'jog' && shooter.coast > 0) {
+    shooter.coast = Math.max(0, shooter.coast - dt * 1.7);
+    h.position.x += Math.sin(h.rotation.y) * shooter.coast * dt; h.position.z += Math.cos(h.rotation.y) * shooter.coast * dt;
+    shooter.act.timeScale = Math.max(0.6, shooter.coast / 3.4);
+    if (shooter.coast < 0.9) play(shooter, 'idle', { loop: true, fade: 0.5, follow: true });
+  }
+  tickPlayer(shooter, dt);
 }
 function prepStrike() { // когда в ударе на ходу нога бьёт по мячу
   const a = shooter.mixer.clipAction(clipOf('strike')); a.reset().play();
@@ -693,12 +749,11 @@ function frame() {
 
   if (state === 'play') runTick(dt);
   else if (state === 'runup') {
-    tickPlayer(shooter, dt);
-    if (MODE === 'run') dribble(dt, 0.2);
+    if (MODE === 'run') { runMove(dt); dribble(dt, 0.2); } else tickPlayer(shooter, dt);
     if (shooter.t >= (MODE === 'run' ? STRIKE.tc : KICK.tc)) { if (MODE === 'run') spot.copy(ball.position); launch(); }
   } else if (state === 'fly' || state === 'over') {
-    if ((shooter.name === 'kick' || shooter.name === 'strike') && shooter.t >= clipOf(shooter.name).duration - 0.05) { const end = shooter.holder.localToWorld(hipsAt(shooter)); play(shooter, 'idle', { loop: true, fade: 0.5, lock: end }); }
-    tickPlayer(shooter, dt);
+    if (MODE === 'run') runMove(dt);
+    else afterKick(dt);
     const prev = ball.position.clone();
     const steps = Math.max(2, Math.ceil(dt * 120)), h = dt / steps, bp = ball.position;
     for (let i = 0; i < steps; i++) {
@@ -712,7 +767,7 @@ function frame() {
         if (hit && kick && !kick.post) { kick.post = Math.abs(bp.y - GH) < R + R_POST + 0.02 ? 'Перекладина!' : 'Штанга!'; shake = 0.25; }
       }
       // сетка: мяч вязнет, сетка выгибается
-      const bz = -NET_D + (NET_D * 0.45) * (bp.y / GH);
+      const bz = -NET_D + (NET_D - NET_TOP) * (bp.y / GH); // наклонный задник сетки
       if (bp.z < bz + R && bp.z < -0.2 && Math.abs(bp.x) < GW && bp.y < GH) {
         if (vel.z < -2) net.hits.push({ x: bp.x, y: bp.y, t: 0, a: Math.min(0.55, -vel.z * 0.025) });
         bp.z = bz + R; vel.z = Math.abs(vel.z) * 0.08; vel.x *= 0.4; vel.y *= 0.5; spin.set(0, 0, 0);
@@ -720,6 +775,7 @@ function frame() {
     }
     // вращение мяча: катится по направлению полёта + своё вращение (подкрутка)
     if (shot) { const sp = vel.length(); if (sp > 0.05) { tmpV.set(-vel.z, 0, vel.x).normalize(); ball.rotateOnWorldAxis(tmpV, (sp / R) * dt * 0.5); } ball.rotateOnWorldAxis(AY, spin.y * dt); }
+    if (kick && kick.held) { handsAt(ball.position); vel.set(0, 0, 0); spin.set(0, 0, 0); } // мяч в руках у вратаря
     if (kick) kick.t += dt;
     const p = ball.position;
     if (state === 'fly') {
@@ -728,7 +784,7 @@ function frame() {
         const hit = wallX.some((x) => Math.abs(p.x - x) < 0.36) && p.y < 1.95 + jumpH;
         if (hit) { vel.set(vel.x * 0.3, 2.5, Math.abs(vel.z) * 0.25); spin.set(0, 0, 0); finish(false, 'В стенку', 'miss'); }
       }
-      if (kick && kick.save && !kick.done && !kick.post && p.z < kick.kz + 0.5) { kick.done = true; vel.set(kick.dir * 3.5, 3.2, 5.5); spin.set(0, 0, 0); finish(false, 'Сейв!', 'miss'); }
+      if (kick && kick.save && !kick.done && !kick.post && p.z < kick.kz + 0.35) keeperTouch(p);
       if (state === 'fly' && prev.z > 0 && p.z <= 0) {
         if (Math.abs(p.x) < GW - R && p.y < GH - R) finish(true, 'ГОЛ!', 'goal');
         else finish(false, kick && kick.post ? kick.post : 'Мимо', 'miss');
@@ -780,6 +836,6 @@ function frame() {
   conf.visible = true; ren.compile(scene, cam); conf.visible = false;
   $('#load').remove();
   window.ready = true;
-  window.dbg = () => ({ state, b: ball.position.toArray().map((v) => +v.toFixed(2)), calls: ren.info.render.calls, tris: ren.info.render.triangles });
+  window.dbg = () => ({ state, sh: shooter.name, st: +shooter.t.toFixed(2), tc: STRIKE.tc, b: ball.position.toArray().map((v) => +v.toFixed(2)), calls: ren.info.render.calls, tris: ren.info.render.triangles });
 })().catch((e) => { $('#load').textContent = 'Не получилось загрузить: ' + e.message; });
 frame();
