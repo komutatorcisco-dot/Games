@@ -17,7 +17,7 @@ if (new URLSearchParams(location.search).get('cfg') === 'baseline') for (const k
   if (k === 'keeper') Object.assign(BP.CFG.keeper, BASELINE.keeper); else BP.CFG[k] = JSON.parse(JSON.stringify(BASELINE[k]));
 }
 import * as GFX from './gfx.js';
-import { buildStadium } from './stadium.js';
+import { buildStadium } from './stadium-lite.js'; // лёгкий стадион: чаша с текстурой болельщиков (прежний stadium.js не загружается)
 import { gestureButton } from './controls.js'; // кнопки с жестами (нажал / держишь / оттянул палец) // чаша стадиона, трибуны, болельщики, щиты // профили качества и внешний вид сцены (свет, газон, материалы) // физика мяча, ведение, удар — единый конфиг BP.CFG
 
 const Q = new URLSearchParams(location.search);
@@ -50,9 +50,9 @@ scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#c3d4e6',
 // горизонтальный экран: угол обзора поуже, чтобы ворота не казались далёкими
 // «2 на 1»: камера сбоку и сверху, как в трансляции (?cam=old — прежняя камера за спиной игрока, для сравнения)
 const DUO_OLD = Q.get('cam') === 'old', TV = () => MODE === 'duo' && !DUO_OLD;
-// Наклон ~36°: при таком ракурсе «глубина кадра × размер игрока» ≈ 1,8 / tg(наклона) — чем круче камера, тем меньше
-// одно при том же другом. 36° дают ~20 м поля в глубину (бот открывается на 7–9 м) при игроке ~12% высоты кадра.
-const CAM_TV = { side: 21, h: 15.2, fov: 24, look: 0, ahead: 7, rate: 2.6, zMin: 2.5 };
+// Камера «с трибуны»: ~42° сверху, ~66 м до центра кадра, узкий объектив (почти без перспективного растяжения).
+// При таком ракурсе «глубина кадра × размер игрока» ≈ 1,8 / tg(наклона): ~24 м поля в глубину и ~35 м в ширину, игрок ~8% высоты кадра.
+const CAM_TV = { side: 48.8, h: 44, fov: 14, look: 0, ahead: 7, rate: 2.6, zMin: 1 }; // ~66 м, ~42°: над трибуной; узкий угол — линии поля почти не сходятся
 // для подбора (только с ?trace=1): ?tv=side,h,fov,look — камера, ?sun=высота,азимут — солнце «2 на 1»
 if (Q.get('trace') === '1' && Q.get('tv')) { const [a, b, c, d] = Q.get('tv').split(',').map(Number); Object.assign(CAM_TV, { side: a, h: b, fov: c, look: d }); }
 const fov = () => (innerWidth > innerHeight ? (TV() ? CAM_TV.fov : { pen: 33, fk: 37, run: 44, duo: 44 }[MODE]) : 48);
@@ -151,19 +151,25 @@ function pitchLook(tv) {
   pitchU.stripeA.value.set(T.stripeA); pitchU.stripeB.value.set(T.stripeB); pitchU.gp.value.set(T.stripeWidth, T.macro, T.detail, T.paintDetail);
 }
 function pitch() {
-  const P = LOOK.pitch, X0 = -40, X1 = 40, Z0 = -8, Z1 = 56, S = PQ.pitchRes, c = document.createElement('canvas');
+  // полное поле 105×68 м: от линии наших ворот (z = 0) до дальней (z = 105), бровки x = ±34; одна система координат для всей разметки
+  const P = LOOK.pitch, X0 = -40, X1 = 40, Z0 = -8, Z1 = 113, S = PQ.pitchRes, c = document.createElement('canvas');
   c.width = (X1 - X0) * S; c.height = (Z1 - Z0) * S;
   const g = c.getContext('2d'), px = (x) => (x - X0) * S, pz = (z) => (z - Z0) * S;
   g.fillStyle = '#000'; g.fillRect(0, 0, c.width, c.height);
   g.strokeStyle = g.fillStyle = '#fff'; g.lineWidth = 0.12 * S; // линии 12 см, как на настоящем поле
   const rect = (x0, z0, x1, z1) => g.strokeRect(px(x0), pz(z0), px(x1) - px(x0), pz(z1) - pz(z0));
-  g.beginPath(); g.moveTo(px(X0), pz(0)); g.lineTo(px(X1), pz(0)); g.stroke();
-  rect(-20.16, 0, 20.16, 16.5); rect(-9.16, 0, 9.16, 5.5);
-  g.beginPath(); g.arc(px(0), pz(11), 0.11 * S, 0, 7); g.fill(); // точка пенальти — 22 см
-  g.beginPath(); g.arc(px(0), pz(11), 9.15 * S, Math.asin(5.5 / 9.15), Math.PI - Math.asin(5.5 / 9.15)); g.stroke();
-  for (const sx of [-1, 1]) { g.beginPath(); g.arc(px(sx * 34), pz(0), 1 * S, sx < 0 ? 0 : Math.PI / 2, sx < 0 ? Math.PI / 2 : Math.PI); g.stroke(); } // угловые дуги
-  g.beginPath(); g.moveTo(px(-34), pz(0)); g.lineTo(px(-34), pz(52.5)); g.moveTo(px(34), pz(0)); g.lineTo(px(34), pz(52.5)); g.stroke(); // боковые линии
-  g.beginPath(); g.moveTo(px(-34), pz(52.5)); g.lineTo(px(34), pz(52.5)); g.stroke(); g.beginPath(); g.arc(px(0), pz(52.5), 9.15 * S, Math.PI, 2 * Math.PI); g.stroke(); // середина поля
+  const L = 105, HW = 34, ends = [[0, 1], [L, -1]]; // каждая половина: линия ворот и направление в поле
+  for (const [gz, dir] of ends) {
+    const z = (d) => gz + dir * d;
+    g.beginPath(); g.moveTo(px(-HW), pz(gz)); g.lineTo(px(HW), pz(gz)); g.stroke(); // линия ворот — только между угловыми флажками
+    rect(-20.16, Math.min(z(0), z(16.5)), 20.16, Math.max(z(0), z(16.5))); rect(-9.16, Math.min(z(0), z(5.5)), 9.16, Math.max(z(0), z(5.5))); // штрафная и вратарская
+    g.beginPath(); g.arc(px(0), pz(z(11)), 0.11 * S, 0, 7); g.fill(); // точка пенальти — 22 см
+    const a = Math.asin(5.5 / 9.15); g.beginPath(); if (dir > 0) g.arc(px(0), pz(z(11)), 9.15 * S, a, Math.PI - a); else g.arc(px(0), pz(z(11)), 9.15 * S, Math.PI + a, 2 * Math.PI - a); g.stroke(); // дуга штрафной
+    for (const sx of [-1, 1]) { const a0 = Math.atan2(dir, -sx); g.beginPath(); g.arc(px(sx * HW), pz(gz), 1 * S, a0 - Math.PI / 4, a0 + Math.PI / 4); g.stroke(); } // угловые дуги (внутрь поля)
+  }
+  g.beginPath(); g.moveTo(px(-HW), pz(0)); g.lineTo(px(-HW), pz(L)); g.moveTo(px(HW), pz(0)); g.lineTo(px(HW), pz(L)); g.stroke(); // боковые линии
+  g.beginPath(); g.moveTo(px(-HW), pz(L / 2)); g.lineTo(px(HW), pz(L / 2)); g.stroke(); // средняя линия
+  g.beginPath(); g.arc(px(0), pz(L / 2), 9.15 * S, 0, 2 * Math.PI); g.stroke(); g.beginPath(); g.arc(px(0), pz(L / 2), 0.15 * S, 0, 7); g.fill(); // центральный круг и точка
   const lines = new THREE.CanvasTexture(c); lines.anisotropy = ren.capabilities.getMaxAnisotropy(); // маска: данные, без перевода цвета
   const tl = new THREE.TextureLoader();
   const gN = tl.load('assets/grass_n.webp'), gC = tl.load('assets/grass.webp'), noise = smoothNoise();
@@ -304,7 +310,7 @@ function netTick(dt) {
   net.pos.needsUpdate = true;
 }
 
-// ---------- трибуны и болельщики (stadium.js) ----------
+// ---------- трибуны (stadium-lite.js) ----------
 let crowd = null, STADIUM = null;
 // смена качества на лету: разрешение, тени, «ворс» ткани, число людей, мелкие детали стадиона.
 // (Разрешение разметки газона и анизотропия выбираются при загрузке.)
@@ -885,10 +891,10 @@ function tvCam(out, snap) {
   const m = run && run.mate, a = run ? run.P.p : { x: 0, z: 20 }, b = m ? m.P.p : a, bp = ball.position;
   const fx = bp.x * 0.4 + (a.x + b.x) * 0.3, fz = bp.z * 0.6 + (a.z + b.z) * 0.2; // по глубине — оба игрока в кадре
   // у ворот кадр уходит вперёд сильнее: ворота ближе к центру, а не под кнопками у края
-  const ahead = CAM_TV.ahead + Math.max(0, 16 - fz) * 0.5;
+  const ahead = CAM_TV.ahead + Math.max(0, 16 - fz) * 0.8;
   const tx = Math.max(-12, Math.min(12, fx)), tz = Math.max(CAM_TV.zMin, Math.min(34, fz - ahead)); // чуть вперёд — видно пространство до ворот
   if (snap) tvFocus.set(tx, 0, tz); else { const k = 1 - Math.exp(-lastRaw * CAM_TV.rate); tvFocus.x += (tx - tvFocus.x) * k; tvFocus.z += (tz - tvFocus.z) * k; }
-  out.l.set(tvFocus.x + CAM_TV.look, 0.6, tvFocus.z); out.p.set(Math.min(40, tvFocus.x + CAM_TV.look + CAM_TV.side), CAM_TV.h, tvFocus.z); // трибуны начинаются с x = 42
+  out.l.set(tvFocus.x + CAM_TV.look, 0.6, tvFocus.z); out.p.set(tvFocus.x + CAM_TV.look + CAM_TV.side, CAM_TV.h, tvFocus.z); // камера над боковой трибуной (с трибуны)
 }
 let lastRaw = 1 / 60;
 // маркер управляемого игрока: тонкое кольцо на газоне вокруг ног (мяч у ноги — внутри кольца)
@@ -1100,9 +1106,9 @@ function mateAI(h) {
   const m = run.mate, M = m.P, P = run.P, bp = B.p; let tx = M.p.x, tz = M.p.z, sprint = false;
   const mine = B.owner === 'mate' && (B.state === 'owned' || B.state === 'strike');
   const dMe = Math.hypot(bp.x - P.p.x, bp.z - P.p.z), dBot = Math.hypot(bp.x - M.p.x, bp.z - M.p.z), bsp = Math.hypot(B.v.x, B.v.z);
-  // свободный мяч — его, только если он заметно ближе и мяч не уходит от него после его же паса (подбор — моё дело)
   const away = bsp > 3 && (B.v.x * (bp.x - M.p.x) + B.v.z * (bp.z - M.p.z)) > 0;
-  const loose = B.state === 'free' && bp.y < 1.2 && !(B.lockOwner === 'mate' && (simT < B.lockUntil || B.mustClear)) && dBot + 2 < dMe && !(away && dBot < 3);
+  const loose = !run.chase && dBot < 2.5 && B.state === 'free' && bp.y < 1.2 && // на свободный мяч — только если он рядом с ним: подбор — дело активного игрока
+     !(B.lockOwner === 'mate' && (simT < B.lockUntil || B.mustClear)) && dBot + 2 < dMe && !(away && dBot < 3);
   if (mine) { // мяч у бота (я переключился): спокойно держит, без удара и паса
     m.st = 'hold'; m.hold += h;
   } else if (loose) { // отскок ближе к нему: бежит к точке встречи
@@ -1174,17 +1180,45 @@ function keeperBite() {
   const lp = keeper.holder.worldToLocal(tmpA.set(B.p.x, 0, B.p.z)), name = lp.x > 0 ? 'gk_block' : 'gk_block2', G = GKC[name];
   play(keeper, name, { t: Math.max(0, G.tc - 0.45), fade: 0.1, fx: 0.55, fz: 0.2, hold: G.tc + 0.6 }); keeper.smother = false; gkSet('smother');
 }
+// ---------- преследование свободного мяча (активный игрок) ----------
+// Свободный мяч в игре (отскок от вратаря, штанги, потеря, пас мне) — активный игрок сам бежит к точке перехвата:
+// где мяч будет, когда игрок успеет туда добежать (по полёту мяча — приземление, высокий мяч ногой в воздухе не берётся).
+// Мяч к игроку не тянется: взять его можно только касанием (canCapture), дальше — обычное ведение.
+// Джойстик отпущен — автоматика ведёт сама; джойстик в сторону мяча — подправляет направление; явно в другую сторону —
+// преследование выключается (порог включения/выключения разный, чтобы не дёргалось). У мяча скорость подстраивается под
+// мяч: игрок не пробегает мимо и не кружит.
+const CHASE = { neutral: 0.25, off: 0.45, cosOn: Math.cos(1.0), cosOff: Math.cos(1.45), plan: 0.1, near: 2.4, close: 2.6, assist: 0.65 };
+function chaseInput(P, inp, h) {
+  const ok = (FREE() && state === 'play' && B.state === 'free' && !B.inGoal && Math.abs(B.p.x) < 33 && B.p.z > -0.3 && B.p.z < 46)
+    && !(shooter.name === 'strike' && shooter.t < Math.min(STRIKE.tc + 0.3, STRIKE.dur - 0.05)) && simT - (run.shotT || -9) > 0.3; // после своего удара — сначала доиграть замах
+  if (!ok) { run.chase = false; run.chasePlan = null; return inp; }
+  if ((run.chasePlanT = (run.chasePlanT || 0) - h) <= 0 || !run.chasePlan) { run.chasePlan = meetPoint(P, BP.CFG.player.sprint * 0.92); run.chasePlanT = CHASE.plan; }
+  const mp = run.chasePlan, tx = mp.x - P.p.x, tz = mp.z - P.p.z, dl = Math.hypot(tx, tz) || 1e-6, ux = tx / dl, uz = tz / dl;
+  const mag = Math.hypot(inp.x, inp.y), ix = mag > 1e-3 ? inp.x / mag : 0, iz = mag > 1e-3 ? -inp.y / mag : 0, cosA = ix * ux + iz * uz;
+  if (TRACE) run.chDbg = [+mag.toFixed(2), +cosA.toFixed(2), +mp.x.toFixed(1), +mp.z.toFixed(1)];
+  if (run.chase) { if (mag > CHASE.off && cosA < CHASE.cosOff) run.chase = false; } // явно увожу в сторону — отпускаем
+  else if (mag < CHASE.neutral || cosA > CHASE.cosOn) run.chase = true;
+  if (!run.chase) return inp;
+  const C = BP.CFG.player, bx = B.p.x - P.p.x, bz = B.p.z - P.p.z, dBall = Math.hypot(bx, bz);
+  let vx, vz;
+  if (dBall < CHASE.near && B.p.y < 0.5) { // у мяча: скорость мяча плюс мягкое сближение — без проскока и кружения
+    const px = bx + B.v.x * 0.12, pz = bz + B.v.z * 0.12, pl = Math.hypot(px, pz) || 1e-6, cl = Math.min(CHASE.close, pl * 2.2);
+    vx = B.v.x + (px / pl) * cl; vz = B.v.z + (pz / pl) * cl;
+  } else { const sp = Math.min(C.sprint, Math.max(1.4, dl * 1.8)); vx = ux * sp; vz = uz * sp; } // к точке перехвата, перед ней — тормозит
+  let sp = Math.hypot(vx, vz);
+  if (mag >= CHASE.neutral) { // подправка ввода: направление тянем к мячу, темп — мой (у самого мяча — автоматический)
+    const mx = ix + (vx / (sp || 1) - ix) * CHASE.assist, mz = iz + (vz / (sp || 1) - iz) * CHASE.assist, ml = Math.hypot(mx, mz) || 1;
+    const want = dBall < CHASE.near ? sp : mag * (P.sprint ? C.sprint : C.jog); vx = (mx / ml) * want; vz = (mz / ml) * want; sp = want;
+  }
+  if (sp > C.jog * 1.02) P.sprint = true; // далеко — бежит на рывке сам
+  const max = P.sprint ? C.sprint : C.jog, k = Math.min(1, sp / max);
+  return sp > 1e-3 ? { x: (vx / sp) * k, y: (-vz / sp) * k } : { x: 0, y: 0 };
+}
 function runPhys(h) {
-  if (run.swapNow) { swapControl(); run.recvT = simT + 3; run.recvPlanT = 0; } // пас ушёл — управляю получателем
+  if (run.swapNow) { swapControl(); run.chasePlan = null; } // пас ушёл — управляю получателем (он сразу выходит на мяч)
   const P = run.P, live = state === 'play';
   P.sprint = btn.sprint || keys.ShiftLeft || keys.ShiftRight; P.charging = run.charge >= 0;
-  let inp = live ? input() : { x: 0, y: 0 };
-  // мягкая помощь при приёме паса: джойстик отпущен — получатель сам идёт к точке встречи с мячом (любой ввод её отменяет)
-  if (run.recvT > simT && B.state === 'free' && live && Math.hypot(inp.x, inp.y) < 0.2) {
-    if ((run.recvPlanT -= h) <= 0) { run.recvPlan = meetPoint(P, 5); run.recvPlanT = 0.1; }
-    const dx = run.recvPlan.x - P.p.x, dz = run.recvPlan.z - P.p.z, d = Math.hypot(dx, dz), k = Math.min(1, d / 1.2);
-    if (d > 0.15) inp = { x: (dx / d) * k, y: (-dz / d) * k };
-  } else if (B.state !== 'free') run.recvT = 0;
+  const inp = live ? chaseInput(P, input(), h) : { x: 0, y: 0 };
   BP.playerStep(P, inp, h, (B.state === 'owned' || B.state === 'strike') && B.owner === 'me');
   // с вратарём не сталкиваемся насквозь
   const kh = keeper.holder.position, dx = P.p.x - kh.x, dz = P.p.z - kh.z, dl = Math.hypot(dx, dz);
@@ -1469,7 +1503,7 @@ function frame() {
     const toe = Math.min(shooter.toeL.getWorldPosition(tmpB).distanceTo(B.p), shooter.toeR.getWorldPosition(tmpB).distanceTo(B.p)) - R;
     const mt = run.mate; TRACE.push({ ow: B.owner, mp: mt ? [mt.P.p.x, mt.P.p.z] : null, mst: mt ? mt.st : null, man: mt ? mt.pl.name : null, toe, push: B.push, gst: GKS.st, gan: keeper.name, gp: [keeper.holder.position.x, keeper.holder.position.z], ev: lastEvent, t: +clock.toFixed(4), st: state, bs: B.state, b: ball.position.toArray(), bp: B.p.toArray(), p: [run.P.p.x, run.P.p.z], v: Math.hypot(run.P.v.x, run.P.v.z), yaw: run.P.yaw,
       cam: cam.position.toArray(), an: shooter.name, at: !!B.strikeAt, gk, q: QL,
-      lo: shooter.loco ? [shooter.loco.idle, shooter.loco.jog].map((a) => [+a.getEffectiveWeight().toFixed(2), +a.time.toFixed(2), a.enabled, a.isRunning()]) : null, aw: shooter.act ? +shooter.act.getEffectiveWeight().toFixed(2) : 0, ctl: shooter === shooter0 ? 'A' : 'B', pick: mt ? mt.pick : null, mv: mt ? Math.hypot(mt.P.v.x, mt.P.v.z) : 0, man2: mt ? mt.pl.name : null });
+      lo: shooter.loco ? [shooter.loco.idle, shooter.loco.jog].map((a) => [+a.getEffectiveWeight().toFixed(2), +a.time.toFixed(2), a.enabled, a.isRunning()]) : null, aw: shooter.act ? +shooter.act.getEffectiveWeight().toFixed(2) : 0, ctl: shooter === shooter0 ? 'A' : 'B', ch: !!run.chase, chd: run.chDbg, pick: mt ? mt.pick : null, mv: mt ? Math.hypot(mt.P.v.x, mt.P.v.z) : 0, man2: mt ? mt.pl.name : null });
   }
 }
 const TRACE = Q.get('trace') === '1' ? (window.__trace = []) : null;
