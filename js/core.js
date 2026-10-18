@@ -181,16 +181,18 @@ const Cloud = (() => {
     if (again) { again = false; push(); }
   }
   // копия на сервер: сервер сам не даст перезаписать её копией с меньшим числом трофеев
-  let srvLast = '';
+  let srvLast = '', srvWait = ''; // srvLast — что сервер точно принял (ответ ok), srvWait — что сейчас в пути
   function pushSrv(beacon) {
     if (!srvOn()) return;
     const data = JSON.stringify(Store.d, (k, v) => (k === 'ts' || k === 'ui' || k === 'social' ? undefined : v)); // social uses a separate versioned endpoint
-    if (data === srvLast) return; // не изменилось — не пишем в базу
-    srvLast = data;
+    if (data === srvLast || data === srvWait) return; // не изменилось или уже отправляется — не пишем в базу
     const body = JSON.stringify({ initData: TG.initData, data: JSON.stringify(Store.d, (k, v) => k === 'social' ? undefined : v) });
     try {
       if (beacon && navigator.sendBeacon && navigator.sendBeacon((CONFIG.api || CONFIG.donateApi) + '/save', body)) return;
-      fetch((CONFIG.api || CONFIG.donateApi) + '/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body, keepalive: body.length < 60000 }).catch(() => {});
+      const req = fetch((CONFIG.api || CONFIG.donateApi) + '/save', { method: 'POST', headers: { 'content-type': 'application/json' }, body, keepalive: body.length < 60000 });
+      srvWait = data;
+      // метку «уже на сервере» ставим только после ответа ok; при сбое сети повторим при следующем сохранении
+      req.then((r) => { if (r && r.ok) srvLast = data; }, () => {}).then(() => { if (srvWait === data) srvWait = ''; });
     } catch (e) { /* нет сети */ }
   }
   // облако Telegram — не чаще раза в 3 секунды, сервер — раз в 2 минуты (и при сворачивании)
