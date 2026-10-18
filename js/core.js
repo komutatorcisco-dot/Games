@@ -77,8 +77,10 @@ function swallowNextClick(ms = 600) {
   document.addEventListener('click', stop, true);
 }
 // Ссылка на игры в боте: открывает Mini App прямо в Telegram. start — экран, который откроется сразу (как #daily).
-const APP_LINK = 'https://t.me/JacksonGamesbot/games';
-const appLink = (start) => APP_LINK + (start ? `?startapp=${start}` : '');
+// Тестовая версия (CONFIG.stage) зовёт в тестовый Mini App /preview, обычная — в /games.
+// config.js грузится после core.js, поэтому версию смотрим в момент вызова, а не при загрузке.
+const APP_LINK = { games: 'https://t.me/JacksonGamesbot/games', preview: 'https://t.me/JacksonGamesbot/preview' };
+const appLink = (start) => (typeof CONFIG !== 'undefined' && CONFIG.stage ? APP_LINK.preview : APP_LINK.games) + (start ? `?startapp=${start}` : '');
 
 function haptic(kind) {
   try {
