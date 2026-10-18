@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Старики Джексоны</title>
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<script src="https://telegram.org/js/telegram-web-app.js?59"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,800;1,800;1,900&display=swap" rel="stylesheet">
+<style>
+  /* Главное меню «Старики Джексоны»: светлый градиент «поле и небо», разметка поля рисунком, без 3D-сцены */
+  :root { --f: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; --acc: #3fe0a8; --ink: #0e1a14;
+    --sl: env(safe-area-inset-left, 0px); --sr: env(safe-area-inset-right, 0px); --st: env(safe-area-inset-top, 0px); --sb: env(safe-area-inset-bottom, 0px); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; font-family: var(--f); color: #fff; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+  body { background: linear-gradient(170deg, #8fd3ff 0%, #5fb7e8 26%, #3f9a5a 52%, #2f7d46 74%, #235f37 100%); }
+  /* полосы стрижки и разметка — один рисунок под интерфейсом */
+  .field { position: fixed; inset: 0; pointer-events: none; }
+  .field::before { content: ""; position: absolute; left: -10%; right: -10%; top: 46%; bottom: -10%;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 48px, rgba(0,0,0,.04) 48px 96px); transform: perspective(500px) rotateX(38deg); transform-origin: top; }
+  .field svg { position: absolute; left: 50%; bottom: -6vh; width: min(1100px, 160vw); transform: translateX(-50%); opacity: .55; }
+  .wrap { position: relative; z-index: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2.2vh;
+    padding: calc(var(--st) + 56px) calc(var(--sr) + 18px) calc(var(--sb) + 18px) calc(var(--sl) + 18px); }
+  .me { position: fixed; z-index: 2; left: calc(var(--sl) + 14px); top: calc(var(--st) + 12px); display: flex; align-items: center; gap: 9px; padding: 5px 14px 5px 5px; border-radius: 22px;
+    background: rgba(8,22,16,.38); box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); font: 800 17px/1 var(--f); letter-spacing: .02em; max-width: 60vw; }
+  .me .ava { width: 32px; height: 32px; border-radius: 50%; flex: none; display: grid; place-items: center; overflow: hidden; background: #f0c43a; color: #1b1340; font: italic 900 16px/1 var(--f); }
+  .me .ava img { width: 100%; height: 100%; object-fit: cover; }
+  .me span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  h1 { margin: 0; text-align: center; font: italic 900 clamp(40px, 9.5vmin, 76px)/.92 var(--f); letter-spacing: .01em; text-transform: uppercase;
+    text-shadow: 0 3px 0 #1b5a33, 0 10px 28px rgba(0,30,10,.35); }
+  h1 small { display: block; margin-top: 8px; font: 800 clamp(14px, 2.6vmin, 18px)/1 var(--f); letter-spacing: .22em; color: rgba(255,255,255,.88); text-shadow: none; }
+  .menu { display: flex; flex-direction: column; gap: 10px; width: min(360px, 88vw); }
+  .menu button, .back { appearance: none; border: 0; border-radius: 14px; padding: 15px 18px; font: italic 900 22px/1 var(--f); text-transform: uppercase; letter-spacing: .04em; color: var(--ink);
+    background: #fff; box-shadow: 0 4px 0 rgba(0,40,20,.28), 0 10px 22px rgba(0,30,10,.22); display: flex; align-items: center; justify-content: space-between; transition: transform .08s; }
+  .menu button:active, .back:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,40,20,.28); }
+  .menu button.main { background: linear-gradient(180deg, #ffe066, #f6c23a); font-size: 28px; padding: 18px; }
+  .menu button small { font: 700 14px/1 var(--f); letter-spacing: .03em; text-transform: none; color: rgba(14,26,20,.62); font-style: normal; }
+  .menu button.ghost { background: rgba(8,22,16,.38); color: #fff; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.45); }
+  .menu button.ghost small { color: rgba(255,255,255,.75); }
+  .screen { display: none; } .screen.on { display: contents; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 12px; background: rgba(8,22,16,.38); font: 800 19px var(--f); }
+  .row button { min-width: 132px; padding: 10px 12px; border: 0; border-radius: 9px; background: #fff; color: var(--ink); font: italic 900 17px var(--f); text-transform: uppercase; box-shadow: 0 3px 0 rgba(0,40,20,.25); justify-content: center; }
+  .menu button { white-space: nowrap; gap: 10px; }
+  .menu .back { background: rgba(8,22,16,.38); color: #fff; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.45); justify-content: center; font-size: 19px; padding: 12px; }
+  .note { margin: 0; text-align: center; font: 600 15px/1.25 var(--f); color: rgba(255,255,255,.85); }
+  /* горизонтальный телефон: заголовок слева, кнопки справа */
+  @media (orientation: landscape) and (max-height: 520px) {
+    .wrap { flex-direction: row; gap: 6vw; padding-top: calc(var(--st) + 50px); }
+    h1 { font-size: clamp(36px, 9vh, 64px); text-align: left; }
+    .menu { gap: 8px; width: min(340px, 46vw); }
+    .menu button { padding: 11px 16px; font-size: 19px; } .menu button.main { font-size: 24px; padding: 13px 16px; }
+    .row { padding: 7px 12px; font-size: 17px; } .row button { padding: 8px 10px; font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+<div class="field"><svg viewBox="0 0 1000 300" fill="none" stroke="#fff" stroke-width="3"><path d="M40 290L120 40h760l80 250z"/><path d="M500 40v250"/><ellipse cx="500" cy="150" rx="95" ry="48"/><path d="M80 170l25-80h120l-20 80zM920 170l-25-80H775l20 80z"/></svg></div>
+<div class="me" id="me"><div class="ava" id="ava">⚽</div><span id="nick">Гость</span></div>
+<div class="wrap">
+  <h1>Старики<br>Джексоны<small>футбол 3 на 3</small></h1>
+  <div class="menu">
+    <div class="screen on" id="scrMain">
+      <button class="main" id="bPlay">Играть <small>матч 3 на 3</small></button>
+      <button id="bTrain">Тренировка <small>4 режима</small></button>
+      <button id="bSets">Настройки</button>
+      <button class="ghost" id="bChannel">Наш канал <small>Telegram</small></button>
+      <button class="ghost" id="bHub">Все игры <small>канала</small></button>
+    </div>
+    <div class="screen" id="scrTrain">
+      <button data-mode="fk">Штрафной</button>
+      <button data-mode="pen">Пенальти</button>
+      <button data-mode="run">1 на 1 <small>с вратарём</small></button>
+      <button data-mode="duo">2 на 1 <small>с партнёром</small></button>
+      <button class="back" data-back>Назад</button>
+    </div>
+    <div class="screen" id="scrSets">
+      <div class="row"><span>Звук</span><button id="sSound"></button></div>
+      <div class="row"><span>Вибрация</span><button id="sVibro"></button></div>
+      <div class="row"><span>Графика</span><button id="sGfx"></button></div>
+      <div class="row"><span>Камера в матче</span><button id="sCam"></button></div>
+      <button class="back" data-back>Назад</button>
+    </div>
+  </div>
+</div>
+<script>
+// Меню без 3D: сама игра — отдельная страница (index.html?mode=…). Переход туда — обычная ссылка, «Назад» и «Выйти в меню»
+// возвращают сюда; страница игры при этом выгружается целиком (цикл, звук, обработчики — ничего не остаётся).
+(function () {
+  var CHANNEL = 'https://t.me/oldjacksons'; // канал «Старики Джексоны» (тот же адрес — в js/gate.js и server/worker.js)
+  var $ = function (s) { return document.querySelector(s); };
+  var store = { get: function (k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: function (k, v) { try { localStorage.setItem(k, v); } catch (e) { /* без памяти */ } } };
+  var tg = window.Telegram && Telegram.WebApp && Telegram.WebApp.initData ? Telegram.WebApp : null;
+  if (tg) { try { tg.ready(); tg.expand(); if (tg.disableVerticalSwipes) tg.disableVerticalSwipes(); if (tg.setHeaderColor) tg.setHeaderColor('#5fb7e8'); } catch (e) { /* старый Telegram */ } }
+
+  // игрок: имя и фото из Telegram (только для показа; на сервер ничего не отправляем), в браузере — «Гость»
+  var u = tg && tg.initDataUnsafe && tg.initDataUnsafe.user, name = 'Гость';
+  if (u) {
+    name = (u.first_name || u.username || 'Игрок').slice(0, 24);
+    var ava = $('#ava'); ava.textContent = name.charAt(0).toUpperCase();
+    if (u.photo_url && /^https:\/\//.test(u.photo_url)) { var img = new Image(); img.alt = ''; img.referrerPolicy = 'no-referrer'; img.onload = function () { ava.textContent = ''; ava.appendChild(img); }; img.src = u.photo_url; }
+  }
+  $('#nick').textContent = name;
+
+  // экраны: главный → «Тренировка» / «Настройки». «Назад» в Telegram — его кнопка (только на вложенных экранах)
+  var cur = 'scrMain';
+  function show(id) {
+    document.querySelectorAll('.screen').forEach(function (s) { s.classList.toggle('on', s.id === id); }); cur = id;
+    if (tg && tg.BackButton) { try { if (id === 'scrMain') tg.BackButton.hide(); else tg.BackButton.show(); } catch (e) { /* старый Telegram */ } }
+    if (id === 'scrSets') fill();
+  }
+  if (tg && tg.BackButton) { try { tg.BackButton.onClick(function () { if (cur !== 'scrMain') show('scrMain'); }); } catch (e) { /* старый Telegram */ } }
+  document.querySelectorAll('[data-back]').forEach(function (b) { b.addEventListener('click', function () { show('scrMain'); }); });
+
+  function go(mode) {
+    var q = 'mode=' + mode + '&from=menu';
+    if (u && name) q += '&name=' + encodeURIComponent(name.slice(0, 14));
+    location.href = 'index.html?' + q;
+  }
+  $('#bPlay').addEventListener('click', function () { go('match'); });
+  // прежний набор игр (Jackson Hub) — остаётся как был; на тестовой версии туда — только по этой кнопке
+  $('#bHub').addEventListener('click', function () { try { sessionStorage.setItem('sj.hub', '1'); } catch (e) { /* без памяти */ } location.href = '../../index.html?hub=1'; });
+  $('#bTrain').addEventListener('click', function () { show('scrTrain'); });
+  $('#bSets').addEventListener('click', function () { show('scrSets'); });
+  document.querySelectorAll('[data-mode]').forEach(function (b) { b.addEventListener('click', function () { go(b.dataset.mode); }); });
+  $('#bChannel').addEventListener('click', function () {
+    if (tg && tg.openTelegramLink) { try { tg.openTelegramLink(CHANNEL); return; } catch (e) { /* ниже — обычная ссылка */ } }
+    window.open(CHANNEL, '_blank', 'noopener');
+  });
+
+  // настройки — те же ключи, что читает игра (sfx.js, gfx.js, камера матча)
+  var GFX = [['auto', 'Авто'], ['low', 'Низкая'], ['medium', 'Средняя'], ['high', 'Высокая']], CAMS = [['side', 'Сбоку'], ['behind', 'Сверху'], ['diag', 'Диагональ']];
+  var on = function (k) { return store.get(k) !== '0'; };
+  var pick = function (list, v) { for (var i = 0; i < list.length; i++) if (list[i][0] === v) return i; return 0; };
+  function fill() {
+    $('#sSound').textContent = on('sj.sound') ? 'Вкл' : 'Выкл'; $('#sVibro').textContent = on('sj.vibro') ? 'Вкл' : 'Выкл';
+    $('#sGfx').textContent = GFX[pick(GFX, store.get('shot.gfx') || 'auto')][1]; $('#sCam').textContent = CAMS[pick(CAMS, store.get('shot.match.cam') || 'side')][1];
+  }
+  $('#sSound').addEventListener('click', function () { store.set('sj.sound', on('sj.sound') ? '0' : '1'); fill(); });
+  $('#sVibro').addEventListener('click', function () { var v = !on('sj.vibro'); store.set('sj.vibro', v ? '1' : '0'); fill();
+    if (v) { try { if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('light'); else if (navigator.vibrate) navigator.vibrate(15); } catch (e) { /* без вибрации */ } } });
+  $('#sGfx').addEventListener('click', function () { store.set('shot.gfx', GFX[(pick(GFX, store.get('shot.gfx') || 'auto') + 1) % GFX.length][0]); fill(); });
+  $('#sCam').addEventListener('click', function () { store.set('shot.match.cam', CAMS[(pick(CAMS, store.get('shot.match.cam') || 'side') + 1) % CAMS.length][0]); fill(); });
+  // вернулись из игры кнопкой «Назад» браузера (страница из кэша) — снова главный экран
+  addEventListener('pageshow', function () { show('scrMain'); });
+})();
+</script>
+</body>
+</html>

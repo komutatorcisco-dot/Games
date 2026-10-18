@@ -290,6 +290,25 @@ export function sphereBounce(b, s, c, mat = CFG.body) {
   b.w.x *= 0.5; b.w.y *= 0.5; b.w.z *= 0.5;
 }
 
+// ---------- ворота: гол, штанги, сетка (ворота на линии z = 0, сетка в сторону −z) ----------
+function goalStep(b, z0, goal, h, ev, end) {
+  // мяч целиком прошёл линию между штангами и под перекладиной — гол (один раз)
+  if (z0 > 0 && b.p.z <= 0 && Math.abs(b.p.x) < goal.w - CFG.post.r - CFG.R * 0.5 && b.p.y < goal.h) b.inGoal = true;
+  if (b.inGoal && !b.goal && b.p.z < -(CFG.R + CFG.post.r) && Math.abs(b.p.x) < goal.w - CFG.post.r && b.p.y < goal.h - CFG.post.r) { b.goal = true; ev.push({ type: 'goal', end }); }
+  const pst = posts(b, goal); if (pst) ev.push({ type: pst, end });
+  if (b.inGoal) { const nv = netInside(b, goal, h); if (nv) ev.push({ type: 'net', v: nv, end }); }
+  else if (netOutside(b, goal)) ev.push({ type: 'side', end });
+}
+// поворот на 180° вокруг вертикали через середину поля длины L (второй раз — обратно)
+export function flipBall(b, L) {
+  b.p.x = -b.p.x; b.p.z = L - b.p.z; b.v.x = -b.v.x; b.v.z = -b.v.z; b.w.x = -b.w.x; b.w.z = -b.w.z;
+}
+// у каждых ворот свои отметки «в воротах / гол / удар в сетку»
+function swapGoalFlags(b) {
+  const g = b.g2 || (b.g2 = { inGoal: false, goal: false, netHit: false });
+  [b.inGoal, g.inGoal] = [g.inGoal, b.inGoal]; [b.goal, g.goal] = [g.goal, b.goal]; [b.netHit, g.netHit] = [g.netHit, b.netHit];
+}
+export function clearGoalFlags(b) { b.inGoal = false; b.goal = false; b.netHit = false; if (b.g2) { b.g2.inGoal = false; b.g2.goal = false; b.g2.netHit = false; } }
 // ---------- шаг свободного мяча ----------
 // world: { goal, spheres: [...], onSphere(s, contact) → 'bounce' | 'stop' }
 // возвращает события: [{ type: 'bounce', v } | { type: 'post'|'bar' } | { type: 'net', v } | { type: 'goal' } | { type: 'side' } | { type: 'touch', s, c }]
@@ -297,13 +316,14 @@ export function stepFree(b, h, world, ev = []) {
   const goal = world.goal, z0 = b.p.z;
   integrate(b, h);
   const imp = ground(b, h); if (imp > 1.2) ev.push({ type: 'bounce', v: imp });
-  if (goal) {
-    // мяч целиком прошёл линию между штангами и под перекладиной — гол (один раз)
-    if (z0 > 0 && b.p.z <= 0 && Math.abs(b.p.x) < goal.w - CFG.post.r - CFG.R * 0.5 && b.p.y < goal.h) b.inGoal = true;
-    if (b.inGoal && !b.goal && b.p.z < -(CFG.R + CFG.post.r) && Math.abs(b.p.x) < goal.w - CFG.post.r && b.p.y < goal.h - CFG.post.r) { b.goal = true; ev.push({ type: 'goal' }); }
-    const pst = posts(b, goal); if (pst) ev.push({ type: pst });
-    if (b.inGoal) { const nv = netInside(b, goal, h); if (nv) ev.push({ type: 'net', v: nv }); }
-    else if (netOutside(b, goal)) ev.push({ type: 'side' });
+  if (goal) goalStep(b, z0, goal, h, ev, 0);
+  // вторые ворота (матч): на линии z = goal2.L, сетка за ней. Считаются теми же функциями в повёрнутых на 180° координатах
+  // (x → −x, z → L − z — поворот, а не зеркало: подкрутка и отскоки ведут себя так же, как у первых ворот)
+  const g2 = world.goal2;
+  if (g2) {
+    flipBall(b, g2.L); swapGoalFlags(b);
+    goalStep(b, g2.L - z0, g2, h, ev, 1);
+    swapGoalFlags(b); flipBall(b, g2.L);
   }
   if (world.spheres) for (const s of world.spheres) {
     const c = sphereHit(b, s); if (!c) continue;

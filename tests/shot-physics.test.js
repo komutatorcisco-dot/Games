@@ -257,3 +257,14 @@ test('первое касание: мяч не сдвигается, прилё�
   for (let i = 0; i < 40; i++) M.controlStep(b2, P, 1 / 240);
   assert.ok(Math.hypot(b2.v.x, b2.v.z) < 1, 'без рывка');
 });
+
+test('вторые ворота (матч): гол, штанга и сетка — так же, как в первых', () => {
+  const L = 48, world = { goal: { w: 3.66, h: 2.44, d: 1.5, top: 1.5 }, goal2: { w: 3.66, h: 2.44, d: 1.5, top: 1.5, L } };
+  const run = (b) => { const ev = []; for (let i = 0; i < 240 * 3; i++) M.stepFree(b, 1 / 240, world, ev); return ev; };
+  const a = M.newBall({ x: 1, y: 0.5, z: 40 }); a.v.z = 15; a.v.y = 1;
+  const ea = run(a); assert.ok(ea.some((e) => e.type === 'goal' && e.end === 1), 'гол во вторые'); assert.ok(a.p.z > L && a.p.z < L + 1.6, 'мяч в сетке');
+  const b = M.newBall({ x: 1, y: 0.5, z: 8 }); b.v.z = -15; b.v.y = 1;
+  const eb = run(b); assert.ok(eb.some((e) => e.type === 'goal' && e.end === 0), 'гол в первые'); assert.ok(!eb.some((e) => e.end === 1));
+  const c = M.newBall({ x: -3.66, y: 0.5, z: 40 }); c.v.z = 15; c.v.y = 0.5; // точно в штангу
+  const ec = run(c); assert.ok(ec.some((e) => e.type === 'post' && e.end === 1), 'штанга вторых'); assert.ok(c.p.z < L, 'отскочил в поле');
+});

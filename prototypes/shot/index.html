@@ -91,6 +91,22 @@
   .pbtns button .ring.on { opacity: 1; }
   .ring circle { fill: none; stroke-width: 6; }
   .ring .bg { stroke: rgba(0,0,0,.3); } .ring .fg { stroke: var(--acc); stroke-linecap: round; stroke-dasharray: 100 100; stroke-dashoffset: 100; }
+  /* матч: время на табло, затемнение при начале с центра, пауза и настройки */
+  .sb-t { font: italic 800 16px/1 var(--f); letter-spacing: .04em; background: rgba(0,0,0,.35); padding: 0 12px 0 10px !important; }
+  .sb-t[hidden] { display: none !important; }
+  body.match .sb-d { padding-right: 12px !important; font: italic 800 15px/1 var(--f); letter-spacing: .04em; text-transform: uppercase; }
+  .fade { position: fixed; inset: 0; z-index: 5; background: #06090f; opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .fade.on { opacity: 1; }
+  .offme { position: fixed; left: 0; top: 0; z-index: 3; display: none; width: 28px; height: 28px; pointer-events: none; }
+  .offme::before { content: ""; position: absolute; inset: 4px; background: #3fe0a8; clip-path: polygon(100% 50%, 0 0, 22% 50%, 0 100%); filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+  .card .btn + .btn { margin-top: 9px; }
+  .btn.sec { background: rgba(255,255,255,.12); color: #fff; box-shadow: inset 0 0 0 1px rgba(255,255,255,.22); }
+  .set { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 9px; font: 700 18px var(--f); }
+  .opt { min-width: 128px; padding: 9px 12px; border: 0; border-radius: 9px; background: rgba(255,255,255,.14); color: #fff; font: italic 800 16px var(--f); text-transform: uppercase; letter-spacing: .03em; }
+  #pause, #confirm, #sets { z-index: 8; }
+  .tools .tbtn[hidden] { display: none; }
+  /* мяч у соперника: «Отбор» и «Прессинг» — другой цвет ободка */
+  .def .b-shot { --rim: #ff5d6c; } .def .b-pass { --rim: #c77dff; font-size: 10.5px !important; letter-spacing: .01em; }
   /* держи телефон горизонтально */
   .rot { position: fixed; inset: 0; z-index: 9; display: none; place-items: center; text-align: center; background: radial-gradient(circle at 50% 40%, #1d2a5a, #070b18 75%); }
   .rot b { display: block; margin: 18px 0 6px; font: italic 900 30px var(--f); text-transform: uppercase; }
@@ -105,9 +121,8 @@
 </head>
 <body>
 <div class="vig"></div>
-<div class="sb glass"><span class="sb-n" id="who">—</span><span class="sb-s" id="score">0</span><span class="sb-d" id="dots"></span></div>
-<div class="backnote glass" id="backNote">Свайп «назад» ещё раз — выйти из игры</div>
-<div class="tools"><button class="tbtn glass" id="help" title="Как играть">?</button><button class="tbtn glass" id="gfxq">⚙</button><button class="tbtn glass" id="camBtn" hidden>🎥 Сверху</button><button class="tbtn glass" id="restart" hidden>↻ Заново</button></div>
+<div class="sb glass"><span class="sb-n" id="who">—</span><span class="sb-s" id="score">0</span><span class="sb-d" id="dots"></span><span class="sb-t" id="mclock" hidden></span></div>
+<div class="tools"><button class="tbtn glass" id="pauseBtn" title="Пауза" hidden>❚❚</button><button class="tbtn glass" id="help" title="Как играть">?</button><button class="tbtn glass" id="gfxq">⚙</button><button class="tbtn glass" id="camBtn" hidden>🎥 Сверху</button><button class="tbtn glass" id="restart" hidden>↻ Заново</button></div>
 <div class="modes glass"><button data-m="fk" class="on">Штрафной</button><button data-m="pen">Пенальти</button><button data-m="run">1 на 1</button><button data-m="duo">2 на 1</button></div>
 <div class="pad" id="pad" hidden><div class="zone" id="zone"></div><div class="joy" id="joy"><i id="stick"></i></div>
   <div class="pbtns">
@@ -120,7 +135,17 @@
   </div></div>
 <div class="msg" id="msg"></div>
 <div class="hint glass" id="hint">Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.</div>
-<div class="end" id="end"><div class="card glass"><h2 id="endT"></h2><p id="endP"></p><button class="btn" id="again">Ещё серия</button><small class="credits">Мяч: LeMon74, CC BY 4.0 · ворота: romullus, CC BY-SA 4.0 · трава и небо: ambientCG, CC0 · игрок и движения: Mixamo</small></div></div>
+<div class="end" id="end"><div class="card glass"><h2 id="endT"></h2><p id="endP"></p><button class="btn" id="again">Ещё серия</button><button class="btn sec" id="toMenu" hidden>В меню</button><small class="credits">Мяч: LeMon74, CC BY 4.0 · ворота: romullus, CC BY-SA 4.0 · трава и небо: ambientCG, CC0 · игрок и движения: Mixamo</small></div></div>
+<div class="fade" id="fade"></div>
+<div class="offme" id="offme"></div>
+<div class="end" id="pause"><div class="card glass"><h2>Пауза</h2><button class="btn" id="pResume">Продолжить</button><button class="btn sec" id="pRestart">Начать заново</button><button class="btn sec" id="pSets">Настройки</button><button class="btn sec" id="pExit">Выйти в меню</button></div></div>
+<div class="end" id="confirm"><div class="card glass"><h2>Выйти?</h2><p>Матч не закончен — счёт не сохранится.</p><button class="btn" id="cStay">Остаться</button><button class="btn sec" id="cExit">Выйти в меню</button></div></div>
+<div class="end" id="sets"><div class="card glass"><h2>Настройки</h2>
+  <div class="set"><span>Звук</span><button class="opt" id="sSound"></button></div>
+  <div class="set"><span>Вибрация</span><button class="opt" id="sVibro"></button></div>
+  <div class="set"><span>Графика</span><button class="opt" id="sGfx"></button></div>
+  <div class="set" id="sCamRow"><span>Камера</span><button class="opt" id="sCam"></button></div>
+  <button class="btn sec" id="sBack">Назад</button></div></div>
 <div class="rot" id="rot"><div><svg viewBox="0 0 48 80" fill="none" stroke="#fff" stroke-width="3"><rect x="4" y="4" width="40" height="72" rx="7"/><path d="M19 68h10"/></svg>
   <b>Поверни телефон</b><p>Играем горизонтально</p><button class="btn" id="rotBtn">Во весь экран</button></div></div>
 <div class="load" id="load"><div><b>Выходим на поле</b><span class="lb"><i id="loadbar"></i></span></div></div>

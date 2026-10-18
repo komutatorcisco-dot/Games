@@ -47,6 +47,8 @@
 @media (prefers-reduced-motion:reduce){#boot .bt-rays,#boot .bt-logo,#boot .bt-fl,#boot .bt-hex::after,#boot .bt-bar i::after{animation:none}}
 </style>
 <script>window.__errs=[];addEventListener("error",function(e){if(window.Oops||!e.message||(!e.filename&&/^Script error/i.test(e.message)))return;__errs.push((e.filename||"").split("/").pop().split("?")[0]+":"+e.lineno+": "+(e.message||"?"))});</script>
+<script>/* только тестовая версия (jackson-games-preview.pages.dev, запуск t.me/JacksonGamesbot/preview): сразу новое меню «Старики Джексоны»; прежний набор игр — ?hub=1 или кнопка «Все игры» в меню. Данные запуска Telegram (#tgWebAppData…) передаются дальше. */
+(function(){try{if(/(^|\.)jackson-games-preview\.pages\.dev$/.test(location.hostname)&&!/[?&]hub=1(&|$)/.test(location.search)&&sessionStorage.getItem("sj.hub")!=="1")location.replace("prototypes/shot/menu.html"+location.hash)}catch(e){}})();</script>
 <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="css/future.css?v=20261010-fs2">
 <link rel="stylesheet" href="css/forgotten.css?v=20261014-m3d2">

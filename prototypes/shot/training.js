@@ -5,7 +5,7 @@ import * as THREE from 'three';
 
 export function buildTraining(scene, opts = {}) {
   const group = new THREE.Group(); group.visible = false; scene.add(group);
-  const X = 38, Z0 = -6.5, Z1 = 111.5, H = 4.2, maxAniso = opts.aniso || 4;
+  const X = opts.X || 38, Z0 = opts.Z0 ?? -6.5, Z1 = opts.Z1 ?? 111.5, H = 4.2, maxAniso = opts.aniso || 4; // ограждение: по умолчанию вокруг полного поля
   // периметр: четыре стороны (по часовой стрелке)
   const sides = [[[-X, Z0], [X, Z0]], [[X, Z0], [X, Z1]], [[X, Z1], [-X, Z1]], [[-X, Z1], [-X, Z0]]];
 
@@ -35,7 +35,7 @@ export function buildTraining(scene, opts = {}) {
   let s = 11; const rnd = () => ((s = (s * 16807) % 2147483647) / 2147483647);
   for (let i = 0; i < 70; i++) { const x = rnd() * 512, r = 14 + rnd() * 22, y = 128 - r * (0.9 + rnd() * 0.8); tg.fillStyle = ['#3d5a2c', '#47663a', '#35502a', '#527040'][(rnd() * 4) | 0]; tg.beginPath(); tg.arc(x, y, r, 0, 7); tg.arc(x - 512, y, r, 0, 7); tg.fill(); tg.fillRect(x - r, y, r * 2, 128 - y); }
   const tt = new THREE.CanvasTexture(t); tt.colorSpace = THREE.SRGBColorSpace; tt.wrapS = THREE.RepeatWrapping;
-  const R = [[-95, -40], [95, -40], [95, 150], [-95, 150]], TP = [], TU = [], TI = [];
+  const [TX, TZ0, TZ1] = opts.trees || [95, -40, 150], R = [[-TX, TZ0], [TX, TZ0], [TX, TZ1], [-TX, TZ1]], TP = [], TU = [], TI = [];
   for (let k = 0; k < 4; k++) { const [ax, az] = R[k], [bx, bz] = R[(k + 1) % 4], L = Math.hypot(bx - ax, bz - az), o = TP.length / 3;
     TP.push(ax, 0, az, bx, 0, bz, bx, 14, bz, ax, 14, az); TU.push(0, 0, L / 40, 0, L / 40, 1, 0, 1); TI.push(o, o + 1, o + 2, o, o + 2, o + 3); }
   const tgeo = new THREE.BufferGeometry(); tgeo.setAttribute('position', new THREE.Float32BufferAttribute(TP, 3)); tgeo.setAttribute('uv', new THREE.Float32BufferAttribute(TU, 2)); tgeo.setIndex(TI);

@@ -1,11 +1,20 @@
 // Звуки «Удара» — без файлов, синтез в WebAudio: удар по мячу, сетка, штанга, руки вратаря, трибуны (гул, «у-у-у», рёв на гол).
 // Звук включается после первого касания экрана (так требуют браузеры).
 let ac = null, master = null, noiseBuf = null, crowd = null;
+// настройки «Звук» и «Вибрация» из меню (общие для всех режимов, хранятся на телефоне)
+const pref = (k) => { try { return localStorage.getItem(k) !== '0'; } catch (e) { return true; } };
+let muted = !pref('sj.sound'), vibro = pref('sj.vibro');
+export function setSound(on) { muted = !on; try { localStorage.setItem('sj.sound', on ? '1' : '0'); } catch (e) { /* без памяти */ } if (master) master.gain.setTargetAtTime(muted ? 0 : 0.9, ac.currentTime, 0.05); }
+export function setVibro(on) { vibro = on; try { localStorage.setItem('sj.vibro', on ? '1' : '0'); } catch (e) { /* без памяти */ } }
+export const soundOn = () => !muted, vibroOn = () => vibro;
+// пауза: весь звук (и гул трибун) замолкает, при продолжении — возвращается
+let held = false;
+export function pause(on) { held = on; if (!ac) return; if (on) ac.suspend(); else ac.resume(); }
 
 function init() {
-  if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+  if (ac) { if (ac.state === 'suspended' && !held) ac.resume(); return; }
   const C = window.AudioContext || window.webkitAudioContext; if (!C) return;
-  ac = new C(); master = ac.createGain(); master.gain.value = 0.9;
+  ac = new C(); master = ac.createGain(); master.gain.value = muted ? 0 : 0.9;
   const comp = ac.createDynamicsCompressor(); master.connect(comp); comp.connect(ac.destination);
   // 2 секунды «розового» шума — из него делаем и трибуны, и шелест
   noiseBuf = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate);
@@ -74,6 +83,7 @@ export function ooh() { // вздох трибун: звук «у» подним
 
 // вибрация: в Telegram — его отдача, на Android — vibrate (iPhone в браузере не умеет)
 export function buzz(kind = 'medium') {
+  if (!vibro) return;
   try {
     const tg = window.Telegram && Telegram.WebApp && Telegram.WebApp.HapticFeedback;
     if (tg && Telegram.WebApp.initData) return tg.impactOccurred(kind);
