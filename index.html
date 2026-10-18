@@ -47,8 +47,6 @@
 @media (prefers-reduced-motion:reduce){#boot .bt-rays,#boot .bt-logo,#boot .bt-fl,#boot .bt-hex::after,#boot .bt-bar i::after{animation:none}}
 </style>
 <script>window.__errs=[];addEventListener("error",function(e){if(window.Oops||!e.message||(!e.filename&&/^Script error/i.test(e.message)))return;__errs.push((e.filename||"").split("/").pop().split("?")[0]+":"+e.lineno+": "+(e.message||"?"))});</script>
-<script>/* только тестовая версия (jackson-games-preview.pages.dev, запуск t.me/JacksonGamesbot/preview): сразу новое меню «Старики Джексоны»; прежний набор игр — ?hub=1 или кнопка «Все игры» в меню. Данные запуска Telegram (#tgWebAppData…) передаются дальше. */
-(function(){try{if(/(^|\.)jackson-games-preview\.pages\.dev$/.test(location.hostname)&&!/[?&]hub=1(&|$)/.test(location.search)&&sessionStorage.getItem("sj.hub")!=="1")location.replace("prototypes/shot/menu.html"+location.hash)}catch(e){}})();</script>
 <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
 <link rel="stylesheet" href="css/future.css?v=20261010-fs2">
 <link rel="stylesheet" href="css/forgotten.css?v=20261014-m3d2">
@@ -610,6 +608,11 @@
     <iframe id="runner-frame" title="Прорыв к воротам" allow="autoplay; fullscreen"></iframe>
   </section>
 
+  <!-- ===== ФУТБОЛ 3 НА 3 (3D, prototypes/shot) ===== -->
+  <section class="screen runner-screen" id="football" hidden>
+    <iframe id="football-frame" title="Футбол 3 на 3" allow="autoplay; fullscreen"></iframe>
+  </section>
+
   <!-- ===== ГОЛОВОЛОМКА С ПОЛКИ ===== -->
   <section class="screen" id="pz" hidden>
     <header class="topbar">
@@ -738,7 +741,7 @@
 <script defer src="js/refs.js?v=20261015-ref1"></script>
 <script defer src="js/shopstars.js?v=20261015-shop1"></script>
 <script defer src="js/coach.js?v=20261016-tut1"></script>
-<script defer src="js/home.js?v=20261016-tut1"></script>
+<script defer src="js/home.js?v=20261019-fb1"></script>
 <script defer src="js/wheel.js?v=20261014a"></script>
 <script defer src="js/pz/shell.js?v=20261014a"></script>
 <script defer src="js/pz/sort.js?v=20261014a"></script>
@@ -785,7 +788,7 @@
 <script defer src="js/release.js?v=20261014a"></script>
 <script defer src="js/board.js?v=20261014-social1"></script>
 <script defer src="js/track.js?v=20261016-trk"></script>
-<script defer src="js/app.js?v=20261016-tut1"></script>
+<script defer src="js/app.js?v=20261019-fb1"></script>
 <script>
 /* Автообновление: Telegram держит старую копию игры. При запуске (и при возврате в игру на главной) сверяем
    версии файлов (?v=…) в свежем index.html с текущими; если вышло обновление — перезагружаем с обходом кэша.

@@ -123,7 +123,7 @@
 <div class="vig"></div>
 <div class="sb glass"><span class="sb-n" id="who">—</span><span class="sb-s" id="score">0</span><span class="sb-d" id="dots"></span><span class="sb-t" id="mclock" hidden></span></div>
 <div class="tools"><button class="tbtn glass" id="pauseBtn" title="Пауза" hidden>❚❚</button><button class="tbtn glass" id="help" title="Как играть">?</button><button class="tbtn glass" id="gfxq">⚙</button><button class="tbtn glass" id="camBtn" hidden>🎥 Сверху</button><button class="tbtn glass" id="restart" hidden>↻ Заново</button></div>
-<div class="modes glass"><button data-m="fk" class="on">Штрафной</button><button data-m="pen">Пенальти</button><button data-m="run">1 на 1</button><button data-m="duo">2 на 1</button></div>
+<div class="modes glass"><button data-m="fk" class="on">Штрафной</button><button data-m="pen">Пенальти</button><button data-m="run">1 на 1</button><button data-m="duo">2 на 1</button><button data-m="match" hidden>Матч 3×3</button></div>
 <div class="pad" id="pad" hidden><div class="zone" id="zone"></div><div class="joy" id="joy"><i id="stick"></i></div>
   <div class="pbtns">
     <button class="b-shot" id="b-shot"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5l4.2 3-1.6 5h-5.2l-1.6-5z"/></svg>Удар<span class="gb" id="shot-g"></span>
@@ -135,11 +135,11 @@
   </div></div>
 <div class="msg" id="msg"></div>
 <div class="hint glass" id="hint">Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.</div>
-<div class="end" id="end"><div class="card glass"><h2 id="endT"></h2><p id="endP"></p><button class="btn" id="again">Ещё серия</button><button class="btn sec" id="toMenu" hidden>В меню</button><small class="credits">Мяч: LeMon74, CC BY 4.0 · ворота: romullus, CC BY-SA 4.0 · трава и небо: ambientCG, CC0 · игрок и движения: Mixamo</small></div></div>
+<div class="end" id="end"><div class="card glass"><h2 id="endT"></h2><p id="endP"></p><button class="btn" id="again">Ещё серия</button><button class="btn sec" id="toMenu" hidden>Выйти</button><small class="credits">Мяч: LeMon74, CC BY 4.0 · ворота: romullus, CC BY-SA 4.0 · трава и небо: ambientCG, CC0 · игрок и движения: Mixamo</small></div></div>
 <div class="fade" id="fade"></div>
 <div class="offme" id="offme"></div>
-<div class="end" id="pause"><div class="card glass"><h2>Пауза</h2><button class="btn" id="pResume">Продолжить</button><button class="btn sec" id="pRestart">Начать заново</button><button class="btn sec" id="pSets">Настройки</button><button class="btn sec" id="pExit">Выйти в меню</button></div></div>
-<div class="end" id="confirm"><div class="card glass"><h2>Выйти?</h2><p>Матч не закончен — счёт не сохранится.</p><button class="btn" id="cStay">Остаться</button><button class="btn sec" id="cExit">Выйти в меню</button></div></div>
+<div class="end" id="pause"><div class="card glass"><h2>Пауза</h2><button class="btn" id="pResume">Продолжить</button><button class="btn sec" id="pRestart">Начать заново</button><button class="btn sec" id="pTrain" hidden>Тренировка</button><button class="btn sec" id="pSets">Настройки</button><button class="btn sec" id="pExit">Выйти</button></div></div>
+<div class="end" id="confirm"><div class="card glass"><h2>Выйти?</h2><p>Матч не закончен — счёт не сохранится.</p><button class="btn" id="cStay">Остаться</button><button class="btn sec" id="cExit">Выйти</button></div></div>
 <div class="end" id="sets"><div class="card glass"><h2>Настройки</h2>
   <div class="set"><span>Звук</span><button class="opt" id="sSound"></button></div>
   <div class="set"><span>Вибрация</span><button class="opt" id="sVibro"></button></div>

@@ -383,6 +383,20 @@ const App = (() => {
   }
 
   // where: вкладка ('games'), раздел игр ('puzzles') или ничего — вернуться туда, где был
+  function openFootball(mode) {
+    const u = Store.d && Store.d.user, q = new URLSearchParams({ mode, embed: '1', snd: Store.d && Store.d.sound ? '1' : '0' });
+    if (u && u.nick) q.set('name', String(u.nick).slice(0, 14));
+    $('#football-frame').src = 'prototypes/shot/index.html?' + q;
+    try { if (TG && TG.unlockOrientation) TG.unlockOrientation(); } catch (e) { /* старый Telegram */ } // игра горизонтальная — экран должен поворачиваться
+    Screens.show('football');
+  }
+  // «Назад» Telegram в футболе: игра сама закрывает свои окна, из идущего матча спрашивает подтверждение, потом просит выйти
+  function footballBack() { const w = $('#football-frame').contentWindow; if (w) w.postMessage({ jg: 'back' }, location.origin); else home(); }
+  addEventListener('message', (e) => {
+    if (e.origin !== location.origin || !e.data || typeof e.data !== 'object') return;
+    if (e.data.jg === 'football-exit' && Screens.current === 'football') home();
+    else if (e.data.jg === 'haptic') haptic(e.data.kind);
+  });
   function home(where) {
     Modal.close();
     PZ.leave();
@@ -480,6 +494,9 @@ const App = (() => {
     // старое меню магазина → теперь отдельная вкладка «Магазин»
     shopmenu: () => Shop.open(),
     remind: () => { const ui = Store.d.ui || (Store.d.ui = {}); ui.noRemind = !ui.noRemind; Store.save(); Track.hello({ remind: !ui.noRemind }); renderProfile(); toast(ui.noRemind ? 'Напоминания выключены' : 'Напоминания включены'); },
+    // футбол 3 на 3: игра во фрейме грузится при входе и выгружается при выходе (как «Прорыв к воротам»);
+    // звук — по настройке хаба, выход и вибрация — сообщениями из фрейма, «Назад» Telegram передаётся игре
+    football: () => openFootball('match'),
     runner: () => {
       const f = $('#runner-frame');
       if (!f.getAttribute('src')) f.src = 'runner.html';
@@ -572,21 +589,22 @@ const App = (() => {
     const orig = Screens.show.bind(Screens);
     Screens.show = (id) => {
       if (Screens.current === 'runner' && id !== 'runner') $('#runner-frame').removeAttribute('src');
+      if (Screens.current === 'football' && id !== 'football') $('#football-frame').removeAttribute('src'); // игра выгружается целиком: цикл, звук, обработчики
       if (Screens.current === 'ng' && id !== 'ng') NG.leave();
       orig(id);
       document.body.dataset.scr = id;
-      document.body.classList.toggle('in-runner', id === 'runner');
+      document.body.classList.toggle('in-runner', id === 'runner' || id === 'football');
       $('#tabbar').hidden = !(id === 'hub' || id === 'profile' || id === 'shop' || id === 'board' || id === 'achievements' || id === 'rewards');
       tabs();
       try { if (TG && TG.BackButton) id === 'hub' ? TG.BackButton.hide() : TG.BackButton.show(); } catch (e) { /* не в Telegram */ }
     };
     try {
-      if (TG && TG.BackButton) TG.BackButton.onClick(() => (typeof Social !== 'undefined' && Social.layerOpen && Social.layerOpen() ? Social.closeLayer() : Screens.current === 'pass-game' ? Pass.openLevels() : home()));
+      if (TG && TG.BackButton) TG.BackButton.onClick(() => (typeof Social !== 'undefined' && Social.layerOpen && Social.layerOpen() ? Social.closeLayer() : Screens.current === 'football' ? footballBack() : Screens.current === 'pass-game' ? Pass.openLevels() : home()));
     } catch (e) { /* не в Telegram */ }
     // Ссылка вида ...#pass открывает игру сразу
     let h = location.hash.replace('#', '');
     try { if (TG && TG.initDataUnsafe && TG.initDataUnsafe.start_param) h = TG.initDataUnsafe.start_param; } catch (e) { /* не в Telegram */ }
-    const deep = { board: 'board', top: 'board', puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop', xdraft: 'xdraft', sbc: 'sbc' };
+    const deep = { board: 'board', top: 'board', puzzles: 'puzzles', pass: 'pass-levels', guess: 'guess-career', duel: 'guess-duel', career: 'career', club: 'club', transfer: 'transfer', hl: 'hl', ttt: 'ttt', auction: 'auction-bot', fc: 'fc', value: 'value', runner: 'runner', football: 'football', nation: 'nation', daily: 'dly', pick: 'pick-duo', legend: 'pick-solo', profile: 'profile', shop: 'shop', xdraft: 'xdraft', sbc: 'sbc' };
     safe('renderHub', renderHub);
     if (Duel.deep(h)) { /* вызов на дуэль или комната */ }
     else if (typeof Online !== 'undefined' && Online.deep(h)) { /* онлайн-комната драфта или козырей */ }
