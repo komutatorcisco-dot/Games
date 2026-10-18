@@ -796,6 +796,19 @@ a { color: var(--danil); }
 .runner-hero b { font-family: var(--font-display); font-weight: 400; font-size: 28px; text-transform: uppercase; line-height: 1; }
 .runner-hero small { color: rgba(255,255,255,.8); font-size: 13px; max-width: 70%; }
 .runner-hero .btn { align-self: flex-start; margin-top: 4px; background: var(--gold); box-shadow: 0 4px 0 #b77f00; }
+/* футбол 3 на 3: выбор состава */
+#fbp { display: flex; flex-direction: column; gap: 12px; padding: 4px 14px 90px; }
+.fbp-slots { display: flex; justify-content: center; gap: 10px; }
+.fbp-slot { display: grid; justify-items: center; gap: 4px; padding: 6px; border: 0; border-radius: 14px; background: rgba(255,255,255,.06); color: inherit; font: inherit; }
+.fbp-slot.sel { box-shadow: 0 0 0 2px #ffcf3a; background: rgba(255,207,58,.12); }
+.fbp-slot b { font-size: 12px; opacity: .85; }
+.fbp-empty { display: grid; place-items: center; width: 96px; height: 134px; border-radius: 10px; border: 1.5px dashed rgba(255,255,255,.35); font-size: 12px; text-align: center; opacity: .8; }
+.fbp-empty small { display: block; font-size: 18px; font-weight: 800; }
+.fbp-h { margin: 4px 0 0; font-weight: 800; opacity: .85; }
+.fbp-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 8px; }
+.fbp-none { grid-column: 1 / -1; margin: 0; opacity: .75; }
+.fbp-go { position: fixed; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; z-index: 5; pointer-events: none; }
+.fbp-go .btn { pointer-events: auto; min-width: 220px; font-size: 20px; }
 .rh-badge { align-self: flex-start; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 12px; background: var(--sasha); color: #fff; }
 
 .ic-crest.n1, .ic-crest.n2, .ic-crest.n3, .ic-crest.n4 { width: 15px; height: 19px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }

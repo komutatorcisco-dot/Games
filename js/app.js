@@ -386,6 +386,7 @@ const App = (() => {
   function openFootball(mode) {
     const u = Store.d && Store.d.user, q = new URLSearchParams({ mode, embed: '1', snd: Store.d && Store.d.sound ? '1' : '0' });
     if (u && u.nick) q.set('name', String(u.nick).slice(0, 14));
+    Football.team().forEach((p, i) => { if (p) q.set('p' + i, p); }); // выбранные карточки: двое полевых и вратарь
     $('#football-frame').src = 'prototypes/shot/index.html?' + q;
     try { if (TG && TG.unlockOrientation) TG.unlockOrientation(); } catch (e) { /* старый Telegram */ } // игра горизонтальная — экран должен поворачиваться
     Screens.show('football');
@@ -496,7 +497,8 @@ const App = (() => {
     remind: () => { const ui = Store.d.ui || (Store.d.ui = {}); ui.noRemind = !ui.noRemind; Store.save(); Track.hello({ remind: !ui.noRemind }); renderProfile(); toast(ui.noRemind ? 'Напоминания выключены' : 'Напоминания включены'); },
     // футбол 3 на 3: игра во фрейме грузится при входе и выгружается при выходе (как «Прорыв к воротам»);
     // звук — по настройке хаба, выход и вибрация — сообщениями из фрейма, «Назад» Telegram передаётся игре
-    football: () => openFootball('match'),
+    football: () => Football.open(), // сначала выбор состава
+    'football-go': () => openFootball('match'),
     runner: () => {
       const f = $('#runner-frame');
       if (!f.getAttribute('src')) f.src = 'runner.html';

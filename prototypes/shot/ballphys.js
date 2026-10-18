@@ -347,7 +347,7 @@ export function newPlayer(p, yaw = Math.PI) { return { p: vec(p.x, 0, p.z), v: v
 // inp: { x, y } — джойстик (вверх — к воротам, т. е. −z)
 export function playerStep(P, inp, h, withBall) {
   const C = CFG.player;
-  const max = (P.sprint ? C.sprint : C.jog) * (withBall ? C.withBall : 1) * (P.charging ? C.charging : 1);
+  const max = (P.sprint ? C.sprint : C.jog) * (withBall ? C.withBall : 1) * (P.charging ? C.charging : 1) * (P.spd || 1); // spd — характеристика «скорость» карточки (матч)
   const wx = inp.x * max, wz = -inp.y * max, want = Math.hypot(wx, wz), sp0 = Math.hypot(P.v.x, P.v.z);
   const k = 1 - Math.exp(-h * (want > sp0 ? C.accel * (P.boost || 1) : C.decel)); // boost — рывок к свободному мячу (автоподбор)
   P.v.x += (wx - P.v.x) * k; P.v.z += (wz - P.v.z) * k;

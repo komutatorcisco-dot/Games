@@ -97,6 +97,7 @@
   body.match .sb-d { padding-right: 12px !important; font: italic 800 15px/1 var(--f); letter-spacing: .04em; text-transform: uppercase; }
   .fade { position: fixed; inset: 0; z-index: 5; background: #06090f; opacity: 0; pointer-events: none; transition: opacity .25s; }
   .fade.on { opacity: 1; }
+  .melbl { position: fixed; left: 0; top: 0; z-index: 3; display: none; padding: 1px 6px; border-radius: 5px; background: rgba(8,12,20,.55); font: italic 800 11px/1.3 var(--f); letter-spacing: .04em; text-transform: uppercase; color: #fff; white-space: nowrap; pointer-events: none; }
   .offme { position: fixed; left: 0; top: 0; z-index: 3; display: none; width: 28px; height: 28px; pointer-events: none; }
   .offme::before { content: ""; position: absolute; inset: 4px; background: #3fe0a8; clip-path: polygon(100% 50%, 0 0, 22% 50%, 0 100%); filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
   .card .btn + .btn { margin-top: 9px; }
@@ -137,7 +138,7 @@
 <div class="hint glass" id="hint">Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.</div>
 <div class="end" id="end"><div class="card glass"><h2 id="endT"></h2><p id="endP"></p><button class="btn" id="again">Ещё серия</button><button class="btn sec" id="toMenu" hidden>Выйти</button><small class="credits">Мяч: LeMon74, CC BY 4.0 · ворота: romullus, CC BY-SA 4.0 · трава и небо: ambientCG, CC0 · игрок и движения: Mixamo</small></div></div>
 <div class="fade" id="fade"></div>
-<div class="offme" id="offme"></div>
+<div class="offme" id="offme"></div><div class="melbl" id="melbl"></div>
 <div class="end" id="pause"><div class="card glass"><h2>Пауза</h2><button class="btn" id="pResume">Продолжить</button><button class="btn sec" id="pRestart">Начать заново</button><button class="btn sec" id="pTrain" hidden>Тренировка</button><button class="btn sec" id="pSets">Настройки</button><button class="btn sec" id="pExit">Выйти</button></div></div>
 <div class="end" id="confirm"><div class="card glass"><h2>Выйти?</h2><p>Матч не закончен — счёт не сохранится.</p><button class="btn" id="cStay">Остаться</button><button class="btn sec" id="cExit">Выйти</button></div></div>
 <div class="end" id="sets"><div class="card glass"><h2>Настройки</h2>

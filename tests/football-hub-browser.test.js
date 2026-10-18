@@ -31,11 +31,17 @@ const tg=()=>{const noop=new Proxy(function(){},{get:(t,k)=>k==='isVisible'?fals
   try {
     const {page,errors}=await open('?stage=1');
     await page.waitForSelector('#home2 [data-act="football"]',{timeout:15000});
-    await page.evaluate(()=>{Store.d.sound=false;});
+    // в коллекции — один вратарь и двое полевых (проверочные карточки; монеты и награды не трогаются)
+    const picked=await page.evaluate(()=>{Store.d.sound=false;const all=Cards.all();const gk=all.find(c=>c.pos==='ВРТ'&&!c.sbcOnly),of=all.filter(c=>c.pos!=='ВРТ'&&!c.sbcOnly).slice(0,2);Cards.add([gk.key,...of.map(c=>c.key)]);return [gk.name,of[0].name];});
     await page.evaluate(()=>document.querySelector('#home2 [data-act="football"]').click()); // приветствие новичка не мешает
+    await page.waitForFunction(()=>document.body.dataset.scr==='fbpick');
+    assert.equal(await page.$$eval('#fbp .fbp-slot .cc',a=>a.length),3,'состав собран сам: двое полевых и вратарь');
+    await page.evaluate(()=>document.querySelector('[data-act="football-go"]').click());
     await page.waitForFunction(()=>document.body.dataset.scr==='football');
     const src=await page.getAttribute('#football-frame','src');
     assert.match(src,/^prototypes\/shot\/index\.html\?mode=match&embed=1&snd=0/,src);
+    const q=new URLSearchParams(src.split('?')[1]);assert.ok(q.get('p0')&&q.get('p1')&&q.get('p2'),'в игру ушли три карточки');
+    assert.equal(q.get('p2').split('|').length,8);
     assert.equal(await page.evaluate(()=>window.__unlocked||0)>0,true,'ориентация не закреплена');
     assert.equal(await page.evaluate(()=>Telegram.WebApp.BackButton.shown),true);
     await page.waitForTimeout(300);
@@ -48,6 +54,6 @@ const tg=()=>{const noop=new Proxy(function(){},{get:(t,k)=>k==='isVisible'?fals
     await prod.page.waitForSelector('#home2',{timeout:15000});
     assert.equal(await prod.page.$('#home2 [data-act="football"]'),null,'на основном сайте кнопки нет');
     await prod.page.close();
-    console.log('Football in hub: stage-only button, framed match, Telegram Back → game, exit unloads frame');
+    console.log('Football in hub: stage-only button, lineup 2+1 from own cards, framed match, Telegram Back → game, exit unloads frame');
   } finally { await browser.close(); }
 })().catch(e=>{console.error(e);process.exit(1);});
