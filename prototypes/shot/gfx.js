@@ -93,3 +93,27 @@ export class AutoQuality {
   }
   set(l) { this.level = l; this.slow = 0; this.fast = 0; this.reset(6); this.onChange(ORDER[l]); }
 }
+
+// Виды «2 на 1» (камера с трибуны). Ориентир — тренировочные кадры мобильного футбола: камера сбоку-сверху ~36°,
+// развёрнута к воротам по диагонали; светлый жёлто-зелёный газон (тон ~80°) с широкими мягкими полосами; яркий
+// рассеянный дневной свет с короткими мягкими тенями; за воротами — сетка тренировочной базы, а не трибуна.
+// a — максимально близко к ориентиру, b — чуть сочнее и контрастнее. ?look=old — прежний вид (стадион, прежние цвета).
+// Меняются только настройки (свет, цвет газона, камера, окружение) — геометрия и модели общие.
+const LOOK_A = {
+  cam: { side: 32.7, h: 23.7, fov: 20, yaw: 25, look: 0 }, // ~36° сверху, ~40 м; разворот к воротам на 25°
+  exposure: 1.16, env: 0.95, hemi: 0.32,                  // больше рассеянного света — мягкие тени, детали в тени формы
+  sun: { elevation: 58, azimuth: 55, color: '#fff4e4', intensity: 2.45 },
+  shadowRadius: 3.5,                                      // мягкий край тени
+  pitch: { stripeA: '#596f30', stripeB: '#6a8039', macro: 0.035, detail: 0.28, paintDetail: 0.12 }, // на экране ≈ ориентиру: #5b7529 / #647c2f
+  paint: 0.97, envKind: 'training',
+};
+export const TV_LOOKS = {
+  a: LOOK_A,
+  b: Object.assign({}, LOOK_A, {
+    exposure: 1.12, env: 0.8, hemi: 0.24,
+    sun: { elevation: 55, azimuth: 55, color: '#ffefd6', intensity: 2.85 },
+    shadowRadius: 3,
+    pitch: { stripeA: '#566e2a', stripeB: '#6b8636', macro: 0.045, detail: 0.32, paintDetail: 0.12 },
+  }),
+};
+

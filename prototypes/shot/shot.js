@@ -17,7 +17,8 @@ if (new URLSearchParams(location.search).get('cfg') === 'baseline') for (const k
   if (k === 'keeper') Object.assign(BP.CFG.keeper, BASELINE.keeper); else BP.CFG[k] = JSON.parse(JSON.stringify(BASELINE[k]));
 }
 import * as GFX from './gfx.js';
-import { buildStadium } from './stadium-lite.js'; // лёгкий стадион: чаша с текстурой болельщиков (прежний stadium.js не загружается)
+import { buildStadium } from './stadium-lite.js';
+import { buildTraining } from './training.js'; // окружение тренировочной базы для вида «2 на 1» // лёгкий стадион: чаша с текстурой болельщиков (прежний stadium.js не загружается)
 import { gestureButton } from './controls.js'; // кнопки с жестами (нажал / держишь / оттянул палец) // чаша стадиона, трибуны, болельщики, щиты // профили качества и внешний вид сцены (свет, газон, материалы) // физика мяча, ведение, удар — единый конфиг BP.CFG
 
 const Q = new URLSearchParams(location.search);
@@ -49,6 +50,8 @@ const scene = new THREE.Scene();
 scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#c3d4e6', 95, 230);
 // горизонтальный экран: угол обзора поуже, чтобы ворота не казались далёкими
 // «2 на 1»: камера сбоку и сверху, как в трансляции (?cam=old — прежняя камера за спиной игрока, для сравнения)
+// вид «2 на 1»: ?look=a (по умолчанию) | b | old (прежний); ?cam=old — прежняя камера за спиной
+const LOOKSEL = ['a', 'b', 'old'].includes(Q.get('look')) ? Q.get('look') : 'a';
 const DUO_OLD = Q.get('cam') === 'old', TV = () => MODE === 'duo' && !DUO_OLD, BALL_TV = 1.45; // мяч на экране крупнее в виде с трибуны
 // Камера «с трибуны»: ~42° сверху, ~66 м до центра кадра, узкий объектив (почти без перспективного растяжения).
 // При таком ракурсе «глубина кадра × размер игрока» ≈ 1,8 / tg(наклона): ~24 м поля в глубину и ~35 м в ширину, игрок ~8% высоты кадра.
@@ -87,10 +90,10 @@ const key = new THREE.DirectionalLight(NIGHT ? '#fff6e6' : LOOK.sun.color, NIGHT
 key.position.copy(SUN).multiplyScalar(70); key.target.position.set(0, 0, 10); scene.add(key, key.target);
 { const sh = key.shadow; sh.bias = LOOK.shadow.bias; sh.normalBias = LOOK.shadow.normalBias; sh.radius = LOOK.shadow.radius;
   sh.camera.near = 20; sh.camera.far = 130; sh.mapSize.set(PQ.shadowMap || 1024, PQ.shadowMap || 1024); key.castShadow = PQ.shadows; }
+const hemi = NIGHT ? new THREE.HemisphereLight('#b9c8ff', '#2d5a24', 0.9) : new THREE.HemisphereLight('#dfe9f5', '#46642f', 0.18); scene.add(hemi); // чуть отражённого от травы снизу
 if (NIGHT) {
-  scene.add(new THREE.HemisphereLight('#b9c8ff', '#2d5a24', 0.9));
   const fill = new THREE.DirectionalLight('#cfe0ff', 0.9); fill.position.set(20, 18, 30); scene.add(fill);
-} else scene.add(new THREE.HemisphereLight('#dfe9f5', '#46642f', 0.18)); // чуть отражённого от травы снизу
+}
 // область карты теней — только активная игровая зона (чем меньше область, тем чётче тени); центр «прилипает» к сетке
 // текселей карты, чтобы края теней не дрожали, когда область едет за игроком
 const shadowFit = { size: 0, c: new THREE.Vector3() };
@@ -147,8 +150,23 @@ function smoothNoise(n = 128, cells = 8, seed = 7) { // плавный бесш�
 // параметры газона живут в одном объекте: для «2 на 1» (вид сверху) — своя, более спокойная палитра (LOOK.pitchTV)
 const pitchU = {};
 function pitchLook(tv) {
-  if (!pitchU.gp) return; const P = LOOK.pitch, T = tv ? Object.assign({}, P, LOOK.pitchTV) : P;
+  if (!pitchU.gp) return; const P = LOOK.pitch, L = tv && TVL(), T = tv ? Object.assign({}, P, LOOK.pitchTV, L ? L.pitch : null) : P;
+  pitchU.gp2.value.y = L ? L.paint : P.paint.match(/[\d.]+/g).map(Number)[3];
   pitchU.stripeA.value.set(T.stripeA); pitchU.stripeB.value.set(T.stripeB); pitchU.gp.value.set(T.stripeWidth, T.macro, T.detail, T.paintDetail);
+}
+// вид «2 на 1» (пресет из gfx.js) или обычный: экспозиция, свет, тени, камера, окружение (тренировочная база / стадион)
+const TVL = () => (TV() && LOOKSEL !== 'old' ? GFX.TV_LOOKS[LOOKSEL] : null);
+const CAM_TV_OLD = {};
+let training = null;
+function tvLook() {
+  const L = TVL();
+  if (!CAM_TV_OLD.side) Object.assign(CAM_TV_OLD, CAM_TV);
+  Object.assign(CAM_TV, CAM_TV_OLD, L ? L.cam : null);
+  ren.toneMappingExposure = L ? L.exposure : LOOK.exposure; scene.environmentIntensity = L ? L.env : LOOK.env; hemi.intensity = NIGHT ? 0.9 : L ? L.hemi : 0.18;
+  if (!NIGHT) { key.color.set(L ? L.sun.color : LOOK.sun.color); key.intensity = L ? L.sun.intensity : LOOK.sun.intensity; }
+  key.shadow.radius = L ? L.shadowRadius : LOOK.shadow.radius;
+  if (!training) training = buildTraining(scene, { aniso: Math.min(PQ.aniso, ren.capabilities.getMaxAnisotropy()) });
+  const tr = !!(L && L.envKind === 'training'); if (training) training.visible = tr; if (STADIUM) STADIUM.group.visible = !tr;
 }
 function pitch() {
   // полное поле 105×68 м: от линии наших ворот (z = 0) до дальней (z = 105), бровки x = ±34; одна система координат для всей разметки
@@ -514,8 +532,8 @@ function aimCam() { // камера за спиной: в кадре и мяч, 
   camAim.l.set(spot.x * 0.15, 1.0, 0);
 }
 function resetShot() {
-  pitchLook(TV()); ball.scale.setScalar(TV() ? BALL_TV : 1);
-  if (!NIGHT) { const sv = TV() ? (Q.get('trace') === '1' && Q.get('sun') ? Object.fromEntries(Q.get('sun').split(',').map((v, i) => [i ? 'azimuth' : 'elevation', +v])) : LOOK.sunTV) : LOOK.sun; setSun(sv.elevation, sv.azimuth); }
+  pitchLook(TV()); ball.scale.setScalar(TV() ? BALL_TV : 1); tvLook();
+  if (!NIGHT) { const sv = TV() && TVL() ? TVL().sun : TV() ? (Q.get('trace') === '1' && Q.get('sun') ? Object.fromEntries(Q.get('sun').split(',').map((v, i) => [i ? 'azimuth' : 'elevation', +v])) : LOOK.sunTV) : LOOK.sun; setSun(sv.elevation, sv.azimuth); }
   if (shooter0 && shooter !== shooter0) shooter = shooter0; // после смен в «2 на 1» — исходный игрок снова главный
   if (shooter && shooter.sph) { shooter.sph.forEach((q) => (q.who = 'me')); if (wall[0] && wall[0].sph) wall[0].sph.forEach((q) => (q.who = 'mate')); }
   $('#pad').hidden = !FREE(); $('#pad').classList.toggle('duo', MODE === 'duo'); $('#b-pass').hidden = $('#b-thru').hidden = $('#b-swap').hidden = $('#restart').hidden = MODE !== 'duo'; document.body.classList.toggle('tv', TV());
@@ -894,9 +912,14 @@ function tvCam(out, snap) {
   const fx = bp.x * 0.4 + (a.x + b.x) * 0.3, fz = bp.z * 0.6 + (a.z + b.z) * 0.2; // по глубине — оба игрока в кадре
   // у ворот кадр уходит вперёд сильнее: ворота ближе к центру, а не под кнопками у края
   const ahead = CAM_TV.ahead + Math.max(0, 16 - fz) * 0.8;
-  const tx = Math.max(-12, Math.min(12, fx)), tz = Math.max(CAM_TV.zMin, Math.min(34, fz - ahead)); // чуть вперёд — видно пространство до ворот
+  // у ворот центр кадра по глубине плавно смещается к створу: с флангов в кадре и игрок, и ворота (не под кнопками и вкладками)
+  const wg = Math.max(0, Math.min(0.6, (22 - fz) / 14)), fxg = fx * (1 - wg);
+  // активный игрок всегда в кадре: к камере видно ~5 м от центра, вглубь ~8 м (верх занят табло и вкладками)
+  const cxp = run ? run.P.p.x : fxg, fxc = Math.max(cxp - 4.5, Math.min(cxp + 8, fxg));
+  const tx = Math.max(-12, Math.min(12, fxc)), tz = Math.max(CAM_TV.zMin, Math.min(34, fz - ahead)); // чуть вперёд — видно пространство до ворот
   if (snap) tvFocus.set(tx, 0, tz); else { const k = 1 - Math.exp(-lastRaw * CAM_TV.rate); tvFocus.x += (tx - tvFocus.x) * k; tvFocus.z += (tz - tvFocus.z) * k; }
-  out.l.set(tvFocus.x + CAM_TV.look, 0.6, tvFocus.z); out.p.set(tvFocus.x + CAM_TV.look + CAM_TV.side, CAM_TV.h, tvFocus.z); // камера над боковой трибуной (с трибуны)
+  const yaw = THREE.MathUtils.degToRad(CAM_TV.yaw || 0), cx = Math.cos(yaw), cz = Math.sin(yaw); // разворот: камера сбоку и чуть из глубины поля — ворота по диагонали
+  out.l.set(tvFocus.x + CAM_TV.look * cx, 0.6, tvFocus.z + CAM_TV.look * cz); out.p.set(out.l.x + CAM_TV.side * cx, CAM_TV.h, out.l.z + CAM_TV.side * cz);
 }
 let lastRaw = 1 / 60;
 // маркер управляемого игрока: тонкое кольцо на газоне вокруг ног (мяч у ноги — внутри кольца)
@@ -904,7 +927,10 @@ let marker = null;
 function markerTick() {
   if (!marker) { marker = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.57, 48), new THREE.MeshBasicMaterial({ color: '#ffd84a', transparent: true, opacity: 0.85, depthWrite: false }));
     marker.rotation.x = -Math.PI / 2; marker.renderOrder = 1; scene.add(marker); }
-  marker.visible = MODE === 'duo' && !!run && !!run.mate;
+  if (!marker.userData.tri) { // небольшой треугольник над головой активного игрока (как в мобильном футболе)
+    const t = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.26, 3), new THREE.MeshBasicMaterial({ color: '#3fe0a8' })); t.rotation.x = Math.PI; scene.add(t); marker.userData.tri = t; }
+  marker.visible = MODE === 'duo' && !!run && !!run.mate; marker.userData.tri.visible = marker.visible;
+  if (marker.visible) marker.userData.tri.position.set(shooter.hips.getWorldPosition(tmpC).x, 2.35, tmpC.z);
   const sb = $('#b-swap'); if (sb) sb.classList.toggle('off', marker.visible && ownBall());
   if (marker.visible) marker.position.set(shooter.holder.position.x, 0.03, shooter.holder.position.z);
 }
