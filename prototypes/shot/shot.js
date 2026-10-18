@@ -161,7 +161,8 @@ let training = null;
 function tvLook() {
   const L = TVL();
   if (!CAM_TV_OLD.side) Object.assign(CAM_TV_OLD, CAM_TV);
-  Object.assign(CAM_TV, CAM_TV_OLD, L ? L.cam : null);
+  Object.assign(CAM_TV, CAM_TV_OLD, TV() ? TV_CAMS[tvCamSel] : null); // камера — по выбору «Камера», не по пресету вида
+  cam.fov = fov(); cam.updateProjectionMatrix();
   ren.toneMappingExposure = L ? L.exposure : LOOK.exposure; scene.environmentIntensity = L ? L.env : LOOK.env; hemi.intensity = NIGHT ? 0.9 : L ? L.hemi : 0.18;
   if (!NIGHT) { key.color.set(L ? L.sun.color : LOOK.sun.color); key.intensity = L ? L.sun.intensity : LOOK.sun.intensity; }
   key.shadow.radius = L ? L.shadowRadius : LOOK.shadow.radius;
@@ -536,7 +537,7 @@ function resetShot() {
   if (!NIGHT) { const sv = TV() && TVL() ? TVL().sun : TV() ? (Q.get('trace') === '1' && Q.get('sun') ? Object.fromEntries(Q.get('sun').split(',').map((v, i) => [i ? 'azimuth' : 'elevation', +v])) : LOOK.sunTV) : LOOK.sun; setSun(sv.elevation, sv.azimuth); }
   if (shooter0 && shooter !== shooter0) shooter = shooter0; // после смен в «2 на 1» — исходный игрок снова главный
   if (shooter && shooter.sph) { shooter.sph.forEach((q) => (q.who = 'me')); if (wall[0] && wall[0].sph) wall[0].sph.forEach((q) => (q.who = 'mate')); }
-  $('#pad').hidden = !FREE(); $('#pad').classList.toggle('duo', MODE === 'duo'); $('#b-pass').hidden = $('#b-thru').hidden = $('#b-swap').hidden = $('#restart').hidden = MODE !== 'duo'; document.body.classList.toggle('tv', TV());
+  $('#pad').hidden = !FREE(); $('#pad').classList.toggle('duo', MODE === 'duo'); $('#b-pass').hidden = $('#b-thru').hidden = $('#b-swap').hidden = $('#restart').hidden = MODE !== 'duo'; $('#camBtn').hidden = !TV(); $('#camBtn').textContent = '🎥 ' + TV_CAMS[tvCamSel].label; document.body.classList.toggle('tv', TV());
   cam.fov = fov(); cam.updateProjectionMatrix();
   $('#hint').textContent = MODE === 'duo' ? 'Вы управляете игроком с жёлтым кольцом. «Пас» — передача партнёру, после удара по мячу управление переходит к нему. «Смена» — переключиться вручную, «Заново» — новая попытка.' : FREE() ? 'Слева веди пальцем. Держи «Удар» — сила; потяни палец вбок — подкрутка, вверх — переброс; отпусти — удар. «Рывок»: держи — бег, быстро смахни — финт.' : 'Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.';
   $('#hint').style.opacity = n === 0 ? 1 : 0;
@@ -907,19 +908,40 @@ function runCam(out) {
 // (без вращения за бегом и без приближения), сдвигается плавно. Ворота справа; точка взгляда чуть ближе к камере,
 // чтобы игровая зона была выше кнопок.
 const tvFocus = new THREE.Vector3();
+// Камеры «2 на 1» (переключаются кнопкой «Камера» или ?tvcam=behind|side|diag; выбор запоминается):
+//  behind — сверху за атакующими, взгляд прямо на ворота (ворота вверху экрана);
+//  side   — высокая телевизионная с длинной стороны поля, атака слева направо;
+//  diag   — прежний диагональный ракурс (для сравнения).
+// Ориентация у каждой постоянная (за игроком не вращается), расстояние постоянное (без зума), сдвиг — плавный.
+// yaw — откуда смотрит камера (0° — с боковой линии +x, 90° — из-за спины атаки, со стороны +z);
+// near/far — сколько метров от центра кадра видно к камере/вглубь (активный игрок всегда в этих пределах).
+const TV_CAMS = {
+  behind: { label: 'Сверху', yaw: 90, side: 24.2, h: 25.1, fov: 26, ahead: 7, zMin: 0.5, near: 7, far: 9, right: 2.5, left: 12 },  // ~46° сверху, ~35 м
+  side: { label: 'Сбоку', yaw: 0, side: 31, h: 26, fov: 20, ahead: 7, zMin: 1, near: 4.5, far: 6.5, right: 4, left: 11 },       // ~40° сверху, ~40 м
+  diag: { label: 'Диагональ', yaw: 25, side: 32.7, h: 23.7, fov: 20, ahead: 7, zMin: 1, near: 4.5, far: 6.5, right: 6, left: 12 },
+};
+const TV_CAM_ORDER = ['behind', 'side', 'diag'];
+let tvCamSel = (() => { const q = Q.get('tvcam'); if (TV_CAMS[q]) return q; try { const v = localStorage.getItem('shot.duo.cam'); if (TV_CAMS[v]) return v; } catch (e) { /* без памяти */ } return 'behind'; })();
 function tvCam(out, snap) {
-  const m = run && run.mate, a = run ? run.P.p : { x: 0, z: 20 }, b = m ? m.P.p : a, bp = ball.position;
-  const fx = bp.x * 0.4 + (a.x + b.x) * 0.3, fz = bp.z * 0.6 + (a.z + b.z) * 0.2; // по глубине — оба игрока в кадре
-  // у ворот кадр уходит вперёд сильнее: ворота ближе к центру, а не под кнопками у края
-  const ahead = CAM_TV.ahead + Math.max(0, 16 - fz) * 0.8;
-  // у ворот центр кадра по глубине плавно смещается к створу: с флангов в кадре и игрок, и ворота (не под кнопками и вкладками)
-  const wg = Math.max(0, Math.min(0.6, (22 - fz) / 14)), fxg = fx * (1 - wg);
-  // активный игрок всегда в кадре: к камере видно ~5 м от центра, вглубь ~8 м (верх занят табло и вкладками)
-  const cxp = run ? run.P.p.x : fxg, fxc = Math.max(cxp - 4.5, Math.min(cxp + 8, fxg));
-  const tx = Math.max(-12, Math.min(12, fxc)), tz = Math.max(CAM_TV.zMin, Math.min(34, fz - ahead)); // чуть вперёд — видно пространство до ворот
-  if (snap) tvFocus.set(tx, 0, tz); else { const k = 1 - Math.exp(-lastRaw * CAM_TV.rate); tvFocus.x += (tx - tvFocus.x) * k; tvFocus.z += (tz - tvFocus.z) * k; }
-  const yaw = THREE.MathUtils.degToRad(CAM_TV.yaw || 0), cx = Math.cos(yaw), cz = Math.sin(yaw); // разворот: камера сбоку и чуть из глубины поля — ворота по диагонали
-  out.l.set(tvFocus.x + CAM_TV.look * cx, 0.6, tvFocus.z + CAM_TV.look * cz); out.p.set(out.l.x + CAM_TV.side * cx, CAM_TV.h, out.l.z + CAM_TV.side * cz);
+  const C = CAM_TV, m = run && run.mate, a = run ? run.P.p : { x: 0, z: 20 }, b = m ? m.P.p : a, bp = ball.position;
+  let fx = bp.x * 0.4 + (a.x + b.x) * 0.3, fz = bp.z * 0.6 + (a.z + b.z) * 0.2; // мяч и оба атакующих
+  // ближе к воротам — кадр уходит вперёд к створу и по ширине тянется к центру ворот (ворота в кадре, а не у края)
+  const ahead = C.ahead + Math.max(0, 16 - fz) * 0.8, wg = Math.max(0, Math.min(0.6, (22 - fz) / 14));
+  fx *= 1 - wg; fz -= ahead;
+  // активный игрок всегда в кадре по глубине кадра (вдоль направления камеры)
+  const yaw = THREE.MathUtils.degToRad(C.yaw || 0), dx = Math.cos(yaw), dz = Math.sin(yaw);
+  if (run) { const d = (a.x - fx) * dx + (a.z - fz) * dz; const sh = d > C.near ? d - C.near : d < -C.far ? d + C.far : 0; fx += dx * sh; fz += dz * sh;
+    // и по ширине кадра: справа — не заходит под кнопки (right), слева места больше (left)
+    const rx = dz, rz = -dx, l = (a.x - fx) * rx + (a.z - fz) * rz, sl = l > C.right ? l - C.right : l < -C.left ? l + C.left : 0; fx += rx * sl; fz += rz * sl; }
+  const tx = Math.max(-12, Math.min(12, fx)), tz = Math.max(C.zMin, Math.min(34, fz));
+  if (snap) tvFocus.set(tx, 0, tz); else { const k = 1 - Math.exp(-lastRaw * C.rate); tvFocus.x += (tx - tvFocus.x) * k; tvFocus.z += (tz - tvFocus.z) * k; }
+  out.l.set(tvFocus.x, 0.6, tvFocus.z); out.p.set(out.l.x + C.side * dx, C.h, out.l.z + C.side * dz);
+}
+function setTvCam(name, snap = true) {
+  tvCamSel = name; try { localStorage.setItem('shot.duo.cam', name); } catch (e) { /* без памяти */ }
+  Object.assign(CAM_TV, TV_CAMS[name]); cam.fov = fov(); cam.updateProjectionMatrix();
+  const b = $('#camBtn'); if (b) b.textContent = '🎥 ' + TV_CAMS[name].label;
+  if (snap && TV() && run) { tvCam(camAim, true); camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); }
 }
 let lastRaw = 1 / 60;
 // маркер управляемого игрока: тонкое кольцо на газоне вокруг ног (мяч у ноги — внутри кольца)
@@ -977,7 +999,7 @@ function setPower(p) { ringFg.style.strokeDashoffset = 100 - p * 100; ringFg.sty
 gestureButton($('#b-shot'), {
   onDown: () => startCharge('drive'),
   onGesture: (dir) => { if (!run || run.charge < 0) return;
-    if (TV()) { // камера сбоку, ворота справа: палец вверх/вниз — мяч закручивается к верху/низу экрана, назад (влево) — переброс
+    if (TV() && TV_CAMS[tvCamSel].yaw < 60) { // камера сбоку, ворота справа: палец вверх/вниз — мяч закручивается к верху/низу экрана, назад (влево) — переброс
       if (dir === 'up' || dir === 'down') { run.kind = 'curl'; run.side = dir === 'up' ? 1 : -1; } else if (dir === 'left') { run.kind = 'chip'; run.side = 0; }
     } else if (dir === 'left' || dir === 'right') { run.kind = 'curl'; run.side = dir === 'left' ? 1 : -1; } else if (dir === 'up') { run.kind = 'chip'; run.side = 0; }
     shotBadge(); },
@@ -999,6 +1021,7 @@ gestureButton($('#b-run'), {
 $('#b-thru').addEventListener('pointerdown', (e) => { e.preventDefault(); throughPass(); });
 $('#b-swap').addEventListener('pointerdown', (e) => { e.preventDefault(); swapManual(); });
 $('#restart').addEventListener('click', () => { if (FREE() && run) resetShot(); });
+$('#camBtn').addEventListener('click', () => { if (!TV()) return; setTvCam(TV_CAM_ORDER[(TV_CAM_ORDER.indexOf(tvCamSel) + 1) % TV_CAM_ORDER.length]); $('#camBtn').blur(); });
 $('#help').addEventListener('click', () => { const h = $('#hint'); h.style.opacity = 1; clearTimeout(h._t); h._t = setTimeout(() => (h.style.opacity = 0), 7000); });
 addEventListener('keydown', (e) => { if (e.code === 'Space') e.preventDefault(); if (keys[e.code]) return; keys[e.code] = true; /* пробел не нажимает кнопки режима */ if (e.code === 'Space') startCharge('drive'); if (e.code === 'KeyE') startCharge('curl'); if (e.code === 'KeyC') startCharge('chip');
   const fk = { Digit1: 'left', Digit2: 'right', Digit3: 'down', Digit4: 'up' }[e.code]; if (fk) feint(fk); if (e.code === 'KeyQ') passDown(); if (e.code === 'KeyF') throughPass(); if (e.code === 'KeyX') swapManual(); });
@@ -1024,7 +1047,7 @@ function startCharge(kind = 'drive') {
 }
 function cancelCharge() { if (!run || run.charge < 0) return; run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true); }
 // на кнопке «Удар» — компактная подпись выбранного удара (на поле ничего не рисуем)
-function shotBadge(clear) { const el = $('#shot-g'); if (!el) return; el.textContent = clear || !run || run.charge < 0 ? '' : run.kind === 'curl' ? (TV() ? (run.side > 0 ? '↑ крутить' : '↓ крутить') : run.side > 0 ? '↶ крутить' : run.side < 0 ? 'крутить ↷' : 'крутить') : run.kind === 'chip' ? '⌒ переброс' : ''; }
+function shotBadge(clear) { const el = $('#shot-g'); if (!el) return; el.textContent = clear || !run || run.charge < 0 ? '' : run.kind === 'curl' ? (TV() && TV_CAMS[tvCamSel].yaw < 60 ? (run.side > 0 ? '↑ крутить' : '↓ крутить') : run.side > 0 ? '↶ крутить' : run.side < 0 ? 'крутить ↷' : 'крутить') : run.kind === 'chip' ? '⌒ переброс' : ''; }
 const chargePw = () => Math.min(1, (performance.now() - run.charge) / 900); // сила копится по настоящему времени: 0,9 с — полная
 function releaseCharge() {
   if (!run || run.charge < 0) return;
