@@ -30,8 +30,9 @@ function standTexture(vOf) {
         const x = k * pw + pw * 0.5; if (Math.abs(x - W * 0.5) < pw * 0.9) continue; // проход-лестница в середине плитки
         if (rand() < 0.14) continue; // свободные места
         const col = PAL[(rand() * PAL.length) | 0], j = (rand() - 0.5) * pw * 0.18;
-        g.fillStyle = col; g.beginPath(); g.ellipse(x + j, ry + rh * 0.62, pw * 0.36, rh * 0.32, 0, 0, 7); g.fill(); // плечи
-        g.fillStyle = rand() < 0.75 ? '#c79a7a' : '#6e4c38'; g.beginPath(); g.arc(x + j, ry + rh * 0.3, Math.min(pw, rh) * 0.2, 0, 7); g.fill(); // голова
+        // фигура сидящего: плечи-корпус (скруглённый прямоугольник) и отдельная небольшая голова — без «капель»
+        g.fillStyle = col; g.beginPath(); if (g.roundRect) g.roundRect(x + j - pw * 0.3, ry + rh * 0.44, pw * 0.6, rh * 0.48, pw * 0.14); else g.rect(x + j - pw * 0.3, ry + rh * 0.44, pw * 0.6, rh * 0.48); g.fill();
+        g.fillStyle = rand() < 0.75 ? '#c49a7c' : '#6e4c38'; g.beginPath(); g.arc(x + j, ry + rh * 0.3, Math.min(pw, rh) * 0.15, 0, 7); g.fill();
       }
     }
     g.fillStyle = '#8a9099'; g.fillRect(W * 0.5 - pw * 0.6, y0, pw * 1.2, y1 - y0); // ступени прохода

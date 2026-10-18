@@ -49,7 +49,7 @@ const scene = new THREE.Scene();
 scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#c3d4e6', 95, 230);
 // горизонтальный экран: угол обзора поуже, чтобы ворота не казались далёкими
 // «2 на 1»: камера сбоку и сверху, как в трансляции (?cam=old — прежняя камера за спиной игрока, для сравнения)
-const DUO_OLD = Q.get('cam') === 'old', TV = () => MODE === 'duo' && !DUO_OLD;
+const DUO_OLD = Q.get('cam') === 'old', TV = () => MODE === 'duo' && !DUO_OLD, BALL_TV = 1.45; // мяч на экране крупнее в виде с трибуны
 // Камера «с трибуны»: ~42° сверху, ~66 м до центра кадра, узкий объектив (почти без перспективного растяжения).
 // При таком ракурсе «глубина кадра × размер игрока» ≈ 1,8 / tg(наклона): ~24 м поля в глубину и ~35 м в ширину, игрок ~8% высоты кадра.
 const CAM_TV = { side: 48.8, h: 44, fov: 14, look: 0, ahead: 7, rate: 2.6, zMin: 1 }; // ~66 м, ~42°: над трибуной; узкий угол — линии поля почти не сходятся
@@ -414,7 +414,7 @@ function blobTick() {
   // «контактная» тень — она показывает, где мяч касается газона
   const contact = !PQ.blobs;
   for (const b of blobs) {
-    if (b.player && contact) { b.m.visible = false; continue; }
+    if (b.player && contact) { const t = b.bone.getWorldPosition(blobV); b.m.position.set(t.x, 0.012, t.z); b.m.visible = b.target.visible !== false; b.m.scale.setScalar(0.55); b.m.material.opacity = 0.32; continue; } // мягкое затемнение у ног — игрок «стоит» на газоне
     const t = b.bone ? b.bone.getWorldPosition(blobV) : b.target.position; b.m.position.set(t.x, 0.01, t.z); b.m.visible = b.target.visible !== false;
     const k = Math.max(0.35, 1 - t.y / 2.5); b.m.scale.setScalar(k * (contact ? 0.55 : 1)); b.m.material.opacity = k * (contact ? 0.45 : 1);
   }
@@ -514,7 +514,7 @@ function aimCam() { // камера за спиной: в кадре и мяч, 
   camAim.l.set(spot.x * 0.15, 1.0, 0);
 }
 function resetShot() {
-  pitchLook(TV());
+  pitchLook(TV()); ball.scale.setScalar(TV() ? BALL_TV : 1);
   if (!NIGHT) { const sv = TV() ? (Q.get('trace') === '1' && Q.get('sun') ? Object.fromEntries(Q.get('sun').split(',').map((v, i) => [i ? 'azimuth' : 'elevation', +v])) : LOOK.sunTV) : LOOK.sun; setSun(sv.elevation, sv.azimuth); }
   if (shooter0 && shooter !== shooter0) shooter = shooter0; // после смен в «2 на 1» — исходный игрок снова главный
   if (shooter && shooter.sph) { shooter.sph.forEach((q) => (q.who = 'me')); if (wall[0] && wall[0].sph) wall[0].sph.forEach((q) => (q.who = 'mate')); }
@@ -711,11 +711,13 @@ function keeperDive() { // сейв (и для штрафного с пенал�
   const K = BP.CFG.keeper, lx = kick.lx, y = kick.cy, ax = Math.abs(lx), left = Math.max(0.05, kick.T - kick.react);
   const here = () => keeper.holder.localToWorld(new THREE.Vector3(0, 0, 0)), follow = FREE();
   const start = (G, speed = 1) => Math.max(0, Math.min(G.tc - 0.12, G.tc - left * speed)); // так, чтобы руки пришли к мячу вовремя (или опоздали)
+  // мало времени — не прыгаем в середину записи, а проигрываем её ускоренно (до 1,6×) почти с начала: движение цельное
+  const fast = (G) => THREE.MathUtils.clamp((G.tc * 0.7) / left, 1, 1.6);
   if (kick.wide) { play(keeper, 'gk_ready', { loop: true, fade: 0.25, follow, lock: follow ? null : here() }); kick.fall = false; return; } // мимо — провожает взглядом
   if (ax < K.nearReach) { // у тела: ловля
     const name = y > 1.75 ? 'gk_catch4' : y > 0.5 ? 'gk_catch2' : (lx > 0 ? 'gk_block' : 'gk_block2'), G = GKC[name];
     const fx = name.startsWith('gk_block') ? Math.max(0.15, (ax + 0.1) / Math.max(0.5, Math.abs(G.hx))) : 1;
-    play(keeper, name, { t: start(G), fade: 0.12, fx, fz: 0.3, hold: G.tc + 0.7, follow: false, lock: name.startsWith('gk_block') ? null : here() });
+    const sp = fast(G); play(keeper, name, { t: start(G, sp), speed: sp, fade: 0.18, fx, fz: 0.3, hold: G.dur - 0.04, follow: false, lock: name.startsWith('gk_block') ? null : here() });
     kick.fall = name.startsWith('gk_block'); return;
   }
   const reachMax = K.diveReach * THREE.MathUtils.clamp((left + 0.15) / K.diveTime, 0.35, 1); // первый выпад вбок — ещё во время реакции
@@ -723,8 +725,8 @@ function keeperDive() { // сейв (и для штрафного с пенал�
   const low = y < 0.45 && ax < 2.3, name = low ? (lx > 0 ? 'gk_block' : 'gk_block2') : (lx > 0 ? DIVE.R.name : DIVE.L.name), G = GKC[name];
   // растягиваем запись вбок, чтобы руки пришли в точку мяча (но не дальше, чем успевает); вперёд из ворот почти не выходим
   const want = Math.min(ax, reachMax), arm = Math.abs(G.hx) - Math.abs(G.px), fx = THREE.MathUtils.clamp((want - arm) / Math.max(0.3, Math.abs(G.px)), 0.2, 1.4);
-  const t0 = start(G), up = low ? 0 : Math.max(0, Math.min(1.2, y - G.hy - 0.15));
-  play(keeper, name, { t: t0, fade: 0.1, fx, fz: 0.25, hold: G.tc + 0.6, follow: false,
+  const sp = fast(G), t0 = start(G, sp), up = low ? 0 : Math.max(0, Math.min(1.2, y - G.hy - 0.15));
+  play(keeper, name, { t: t0, speed: sp, fade: 0.18, fx, fz: 0.25, hold: G.dur - 0.04, follow: false,
     lift: (t) => up * Math.max(0, Math.sin(Math.PI * Math.min(1, Math.max(0, (t - t0) / (G.tc + 0.35 - t0))))) });
   kick.fall = true;
 }
@@ -903,6 +905,7 @@ function markerTick() {
   if (!marker) { marker = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.57, 48), new THREE.MeshBasicMaterial({ color: '#ffd84a', transparent: true, opacity: 0.85, depthWrite: false }));
     marker.rotation.x = -Math.PI / 2; marker.renderOrder = 1; scene.add(marker); }
   marker.visible = MODE === 'duo' && !!run && !!run.mate;
+  const sb = $('#b-swap'); if (sb) sb.classList.toggle('off', marker.visible && ownBall());
   if (marker.visible) marker.position.set(shooter.holder.position.x, 0.03, shooter.holder.position.z);
 }
 function resetRun() {
@@ -947,7 +950,11 @@ function setPower(p) { ringFg.style.strokeDashoffset = 100 - p * 100; ringFg.sty
 // «Удар»: держишь — сила, отпустил — удар; оттянул палец влево/вправо — подкрутка в эту сторону, вверх — переброс.
 gestureButton($('#b-shot'), {
   onDown: () => startCharge('drive'),
-  onGesture: (dir) => { if (!run || run.charge < 0) return; if (dir === 'left' || dir === 'right') { run.kind = 'curl'; run.side = dir === 'left' ? 1 : -1; } else if (dir === 'up') { run.kind = 'chip'; run.side = 0; } shotBadge(); },
+  onGesture: (dir) => { if (!run || run.charge < 0) return;
+    if (TV()) { // камера сбоку, ворота справа: палец вверх/вниз — мяч закручивается к верху/низу экрана, назад (влево) — переброс
+      if (dir === 'up' || dir === 'down') { run.kind = 'curl'; run.side = dir === 'up' ? 1 : -1; } else if (dir === 'left') { run.kind = 'chip'; run.side = 0; }
+    } else if (dir === 'left' || dir === 'right') { run.kind = 'curl'; run.side = dir === 'left' ? 1 : -1; } else if (dir === 'up') { run.kind = 'chip'; run.side = 0; }
+    shotBadge(); },
   onUp: (mode, held, cancel) => { if (cancel) cancelCharge(); else releaseCharge(); },
 });
 // «Пас»: коротко — в ноги (или на ход, если партнёр бежит), удержание — сильнее, вверх — верховая; мяч у партнёра — просьба вернуть
@@ -991,7 +998,7 @@ function startCharge(kind = 'drive') {
 }
 function cancelCharge() { if (!run || run.charge < 0) return; run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true); }
 // на кнопке «Удар» — компактная подпись выбранного удара (на поле ничего не рисуем)
-function shotBadge(clear) { const el = $('#shot-g'); if (!el) return; el.textContent = clear || !run || run.charge < 0 ? '' : run.kind === 'curl' ? (run.side > 0 ? '↶ крутить' : run.side < 0 ? 'крутить ↷' : 'крутить') : run.kind === 'chip' ? '⌒ переброс' : ''; }
+function shotBadge(clear) { const el = $('#shot-g'); if (!el) return; el.textContent = clear || !run || run.charge < 0 ? '' : run.kind === 'curl' ? (TV() ? (run.side > 0 ? '↑ крутить' : '↓ крутить') : run.side > 0 ? '↶ крутить' : run.side < 0 ? 'крутить ↷' : 'крутить') : run.kind === 'chip' ? '⌒ переброс' : ''; }
 const chargePw = () => Math.min(1, (performance.now() - run.charge) / 900); // сила копится по настоящему времени: 0,9 с — полная
 function releaseCharge() {
   if (!run || run.charge < 0) return;
@@ -1067,7 +1074,9 @@ function swapControl() {
   m.P.charging = false; m.pass = null; m.fire = false; m.hold = 0; m.st = 'support'; m.plan = null; m.planT = 0; m.pick = -1; m.pickT = 0;
   run.swapNow = false; return true;
 }
-function swapManual() { if (MODE === 'duo' && state === 'play' && run && run.mate && !run.strike && !run.pass && !(B.state === 'strike')) { swapControl(); sfx.touch(); } }
+const ownBall = () => (B.state === 'owned' || B.state === 'strike') && B.owner === 'me';
+// «Смена» — когда мяч не у меня (с мячом — отдать пас); кнопка в это время приглушена
+function swapManual() { if (MODE === 'duo' && state === 'play' && run && run.mate && !run.strike && !run.pass && B.state !== 'strike' && !ownBall()) { swapControl(); sfx.touch(); } }
 // где перехватить свободный мяч: первая точка его пути, куда игрок успевает добежать (план раз в 0,1 с)
 const planBall = BP.newBall();
 function meetPoint(M, speed) {
@@ -1187,24 +1196,20 @@ function keeperBite() {
 // Джойстик отпущен — автоматика ведёт сама; джойстик в сторону мяча — подправляет направление; явно в другую сторону —
 // преследование выключается (порог включения/выключения разный, чтобы не дёргалось). У мяча скорость подстраивается под
 // мяч: игрок не пробегает мимо и не кружит.
-const CHASE = { neutral: 0.25, off: 0.45, cosOn: Math.cos(1.0), cosOff: Math.cos(1.45), plan: 0.1, near: 2.4, close: 2.6, assist: 0.65 };
+const CHASE = BP.CHASE; // пороги и скорости — в ballphys.js (там же и проверяются тестами)
 function chaseInput(P, inp, h) {
   const ok = (FREE() && state === 'play' && B.state === 'free' && !B.inGoal && Math.abs(B.p.x) < 33 && B.p.z > -0.3 && B.p.z < 46)
     && !(shooter.name === 'strike' && shooter.t < Math.min(STRIKE.tc + 0.3, STRIKE.dur - 0.05)) && simT - (run.shotT || -9) > 0.3; // после своего удара — сначала доиграть замах
+  P.boost = 1;
   if (!ok) { run.chase = false; run.chasePlan = null; return inp; }
   if ((run.chasePlanT = (run.chasePlanT || 0) - h) <= 0 || !run.chasePlan) { run.chasePlan = meetPoint(P, BP.CFG.player.sprint * 0.92); run.chasePlanT = CHASE.plan; }
   const mp = run.chasePlan, tx = mp.x - P.p.x, tz = mp.z - P.p.z, dl = Math.hypot(tx, tz) || 1e-6, ux = tx / dl, uz = tz / dl;
   const mag = Math.hypot(inp.x, inp.y), ix = mag > 1e-3 ? inp.x / mag : 0, iz = mag > 1e-3 ? -inp.y / mag : 0, cosA = ix * ux + iz * uz;
   if (TRACE) run.chDbg = [+mag.toFixed(2), +cosA.toFixed(2), +mp.x.toFixed(1), +mp.z.toFixed(1)];
-  if (run.chase) { if (mag > CHASE.off && cosA < CHASE.cosOff) run.chase = false; } // явно увожу в сторону — отпускаем
-  else if (mag < CHASE.neutral || cosA > CHASE.cosOn) run.chase = true;
+  run.chase = BP.chaseDecide(!!run.chase, mag, cosA); // явно увожу в сторону — отпускаем; отпустил или к мячу — снова веду
   if (!run.chase) return inp;
-  const C = BP.CFG.player, bx = B.p.x - P.p.x, bz = B.p.z - P.p.z, dBall = Math.hypot(bx, bz);
-  let vx, vz;
-  if (dBall < CHASE.near && B.p.y < 0.5) { // у мяча: скорость мяча плюс мягкое сближение — без проскока и кружения
-    const px = bx + B.v.x * 0.12, pz = bz + B.v.z * 0.12, pl = Math.hypot(px, pz) || 1e-6, cl = Math.min(CHASE.close, pl * 2.2);
-    vx = B.v.x + (px / pl) * cl; vz = B.v.z + (pz / pl) * cl;
-  } else { const sp = Math.min(C.sprint, Math.max(1.4, dl * 1.8)); vx = ux * sp; vz = uz * sp; } // к точке перехвата, перед ней — тормозит
+  const C = BP.CFG.player, cv = BP.chaseVel(P, B, mp), dBall = Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z);
+  let vx = cv.x, vz = cv.z; P.boost = cv.boost;
   let sp = Math.hypot(vx, vz);
   if (mag >= CHASE.neutral) { // подправка ввода: направление тянем к мячу, темп — мой (у самого мяча — автоматический)
     const mx = ix + (vx / (sp || 1) - ix) * CHASE.assist, mz = iz + (vz / (sp || 1) - iz) * CHASE.assist, ml = Math.hypot(mx, mz) || 1;
@@ -1291,7 +1296,7 @@ function keeperAI(h) {
     if (keeper.t >= G.tc - 0.1 && hand.distanceTo(B.p) < 0.6) { B.state = 'held'; B.owner = 'gk'; B.v.set(0, 0, 0); B.w.set(0, 0, 0); sfx.hands(true); finish(false, 'Подобрал', 'miss'); return; }
   }
   if (GKS.st === 'smother') { const G = GKC[keeper.name]; if (keeper.t > (G ? G.tc : 0.8) + 0.4) { keeper.smother = false; if (keeper.name === 'gk_scoop') { gkAnchor(); gkSet('pos'); } else gkSet('down'); } return; }
-  if (GKS.st === 'down') { if (GKS.t > K.getUp) { gkAnchor(); play(keeper, 'standing_up', { fade: 0.35, follow: true, speed: 1.3 }); gkSet('getup'); } return; }
+  if (GKS.st === 'down') { if (GKS.t > K.getUp) { gkAnchor(); play(keeper, 'standing_up', { fade: 0.5, follow: true, speed: 1.2 }); gkSet('getup'); } return; }
   if (GKS.st === 'getup') { if (keeper.t > clipOf('standing_up').duration - 0.15) { kick = null; gkSet('pos'); } return; }
   if (kick && !kick.dived) return; // удар уже был — реакция ещё не прошла: стоит
   // соперник для вратаря — тот, кто с мячом; у свободного мяча — ближайший из нападающих
@@ -1303,10 +1308,21 @@ function keeperAI(h) {
   const loose = B.state === 'owned' && (toBall < 2.2 || (Math.hypot(bp.x - P.p.x, bp.z - P.p.z) > 0.55 && toBall < 3.2));
   const freeBall = B.state === 'free' && bp.y < 0.9 && B.v.length() < 12 && Math.abs(bp.x) < K.rushBox.x && bp.z < K.rushBox.z;
   const firstToIt = freeBall && toBall / K.rush < (Math.hypot(bp.x - P.p.x, bp.z - P.p.z) / 6.2) * K.rushMargin + 0.12;
-  if (state === 'play' && (loose || firstToIt) && GKS.st !== 'rush') gkSet('rush');
-  if (GKS.st === 'rush' && !(loose || firstToIt || toBall < K.smother + 0.6)) gkSet('pos');
+  // перехват паса/прострела: катящийся мяч, путь которого идёт через штрафную, — выходит в точку, куда мяч придёт,
+  // если успевает туда раньше атакующих (не во время удара по воротам — там работает сейв)
+  let icp = null;
+  if (!kick && B.state === 'free' && B.v.length() > 3 && bp.y < 1.2) {
+    if ((GKS.ipT = (GKS.ipT || 0) - h) <= 0 || !GKS.ip) { GKS.ipT = 0.1; GKS.ip = meetPoint({ p: k.position }, K.rush); }
+    const q = GKS.ip;
+    if (Math.abs(q.x) < K.rushBox.x && q.z < K.rushBox.z && q.z > 0.3) {
+      const tA = Math.min(...[run.P, M].filter(Boolean).map((A) => Math.hypot(q.x - A.p.x, q.z - A.p.z) / 6.2));
+      if (q.t < tA * K.rushMargin) icp = q;
+    }
+  } else GKS.ip = null;
+  if (state === 'play' && (loose || firstToIt || icp) && GKS.st !== 'rush') gkSet('rush');
+  if (GKS.st === 'rush' && !(loose || firstToIt || icp || toBall < K.smother + 0.6)) gkSet('pos');
   let tx, tz, vmax;
-  if (GKS.st === 'rush') { tx = bp.x + B.v.x * 0.2; tz = bp.z + B.v.z * 0.2; vmax = K.rush; }
+  if (GKS.st === 'rush') { if (icp) { tx = icp.x; tz = icp.z; } else { tx = bp.x + B.v.x * 0.2; tz = bp.z + B.v.z * 0.2; } vmax = K.rush; }
   else if (Math.abs(bp.x) > GW + 1.5 && bp.z < 7) { tx = Math.sign(bp.x) * (GW - 0.45); tz = 0.55; vmax = K.lateral; } // ушёл к лицевой — к ближней штанге
   else { // между мячом и центром ворот; чем ближе мяч — тем дальше выходит (сокращает угол), но не вплотную к сопернику
     const out = THREE.MathUtils.clamp(((K.outStart - dist) / K.outStart) * K.maxOut, 0.4, K.maxOut), o = Math.min(out, Math.max(0.4, dist - 2.4));
@@ -1325,7 +1341,7 @@ function keeperAI(h) {
     const lp = k.worldToLocal(tmpA.set(bp.x + B.v.x * 0.3, 0, bp.z + B.v.z * 0.3)), slow = slowFree;
     const name = slow ? 'gk_scoop' : lp.x > 0 ? 'gk_block' : 'gk_block2', G = GKC[name];
     const fx = name === 'gk_scoop' ? 1 : THREE.MathUtils.clamp((Math.abs(lp.x) + 0.2) / Math.max(0.5, Math.abs(G.hx)), 0.25, 1);
-    play(keeper, name, { t: Math.max(0, G.tc - 0.3), fade: 0.1, fx, fz: name === 'gk_scoop' ? 0.25 : 0.5, hold: G.tc + 0.6 });
+    play(keeper, name, { t: Math.max(0, G.tc - 0.42), speed: 1.25, fade: 0.16, fx, fz: name === 'gk_scoop' ? 0.25 : 0.5, hold: G.dur - 0.04 });
     keeper.smother = true; gkSet('smother'); return;
   }
   // движение к цели с ограничением скорости по направлениям (вбок, вперёд, назад) и разгоном
@@ -1465,6 +1481,7 @@ function frame() {
   // мяч на экране — между двумя последними шагами физики (плавно при любой частоте кадров)
   if (B.state === 'held') { handsAt(B.p); ballPrev.copy(B.p); }
   ball.position.lerpVectors(ballPrev, B.p, fixed.alpha);
+  if (TV()) ball.position.y += R * (BALL_TV - 1); // крупнее только на экране (камера далеко): касается газона, а не тонет в нём
   netTick(dt); confTick(dt); burstTick(dt); blobTick();
 
   // камера: перед ударом — за мячом; в полёте — следует за мячом; в 1 на 1 — за спиной игрока, после удара смотрит на мяч

@@ -62,6 +62,8 @@ export const CFG = {
   },
   body: { e: 0.3, friction: 0.4 },    // мяч о тело игрока (ноги, корпус) — мягко
   hands: { e: 0.35, friction: 0.3 },  // отбивание руками вратаря
+  // вратарь: мах руки/тела передаёт мячу только часть своей скорости (carry) — отбив мягче и предсказуемее, без «выстрела» рукой
+  gkHands: { e: 0.3, friction: 0.35, carry: 0.35 }, gkBody: { e: 0.22, friction: 0.45, carry: 0.4 },
 
   player: {
     jog: 3.9, sprint: 6.6,  // скорость бега и рывка, м/с
@@ -263,12 +265,13 @@ export function sphereHit(b, s) {
   return { n: vec(dx, dy, dz), vn, rel: Math.hypot(rx, ry, rz), L };
 }
 export function sphereBounce(b, s, c, mat = CFG.body) {
-  const { n, vn } = c, R = CFG.R;
-  let rx = b.v.x - (s.vx || 0), ry = b.v.y - (s.vy || 0), rz = b.v.z - (s.vz || 0);
+  const { n } = c, R = CFG.R, k = mat.carry ?? 1, svx = (s.vx || 0) * k, svy = (s.vy || 0) * k, svz = (s.vz || 0) * k;
+  let rx = b.v.x - svx, ry = b.v.y - svy, rz = b.v.z - svz;
+  const vn = Math.min(0, rx * n.x + ry * n.y + rz * n.z); // относительная скорость по нормали (с учётом доли скорости тела)
   rx -= (1 + mat.e) * vn * n.x; ry -= (1 + mat.e) * vn * n.y; rz -= (1 + mat.e) * vn * n.z;
   const vn2 = rx * n.x + ry * n.y + rz * n.z;
   rx -= mat.friction * (rx - vn2 * n.x); ry -= mat.friction * (ry - vn2 * n.y); rz -= mat.friction * (rz - vn2 * n.z);
-  set(b.v, rx + (s.vx || 0), ry + (s.vy || 0), rz + (s.vz || 0));
+  set(b.v, rx + svx, ry + svy, rz + svz);
   const push = R + s.r - c.L; b.p.x += n.x * push; b.p.y += n.y * push; b.p.z += n.z * push;
   b.w.x *= 0.5; b.w.y *= 0.5; b.w.z *= 0.5;
 }
@@ -292,7 +295,7 @@ export function stepFree(b, h, world, ev = []) {
     const c = sphereHit(b, s); if (!c) continue;
     const r = world.onSphere ? world.onSphere(s, c) : 'bounce';
     if (r === 'stop') return ev; // мяч забрал вратарь
-    if (r !== 'pass') { sphereBounce(b, s, c, s.kind === 'hand' ? CFG.hands : CFG.body); ev.push({ type: 'touch', s, c }); }
+    if (r !== 'pass') { sphereBounce(b, s, c, s.who === 'gk' ? (s.kind === 'hand' ? CFG.gkHands : CFG.gkBody) : s.kind === 'hand' ? CFG.hands : CFG.body); ev.push({ type: 'touch', s, c }); }
   }
   return ev;
 }
@@ -312,7 +315,7 @@ export function playerStep(P, inp, h, withBall) {
   const C = CFG.player;
   const max = (P.sprint ? C.sprint : C.jog) * (withBall ? C.withBall : 1) * (P.charging ? C.charging : 1);
   const wx = inp.x * max, wz = -inp.y * max, want = Math.hypot(wx, wz), sp0 = Math.hypot(P.v.x, P.v.z);
-  const k = 1 - Math.exp(-h * (want > sp0 ? C.accel : C.decel));
+  const k = 1 - Math.exp(-h * (want > sp0 ? C.accel * (P.boost || 1) : C.decel)); // boost — рывок к свободному мячу (автоподбор)
   P.v.x += (wx - P.v.x) * k; P.v.z += (wz - P.v.z) * k;
   const nx = P.p.x + P.v.x * h, nz = P.p.z + P.v.z * h;
   P.p.x = Math.max(-C.bounds.x, Math.min(C.bounds.x, nx));
@@ -493,3 +496,24 @@ export function passVelocity(b, target, kind = 'ground', power = 0) {
 export function clockFixed() {
   return { acc: 0, add(dt) { this.acc = Math.min(this.acc + Math.max(0, dt), CFG.maxFrame); let n = 0; while (this.acc >= CFG.dt) { this.acc -= CFG.dt; n++; } return n; }, get alpha() { return this.acc / CFG.dt; } };
 }
+
+// ---------- автоподбор свободного мяча (активный игрок) ----------
+// chaseDecide — включать ли преследование с учётом ввода (гистерезис: включается при отпущенном джойстике или вводе
+// к мячу, выключается только при явном вводе в другую сторону). chaseVel — желаемая скорость игрока, м/с (x, z):
+// далеко — сразу полный рывок к точке перехвата meet; у самой точки — торможение; у мяча — скорость мяча плюс мягкое
+// сближение (не проскакивает и не кружит). boost — во сколько раз быстрее разгон.
+export const CHASE = { plan: 0.1, boost: 2.6, neutral: 0.25, off: 0.45, cosOn: Math.cos(1.0), cosOff: Math.cos(1.45), near: 2.4, close: 2.6, assist: 0.65, brake: 3 };
+export function chaseDecide(on, mag, cosA, C = CHASE) {
+  if (on) return !(mag > C.off && cosA < C.cosOff);
+  return mag < C.neutral || cosA > C.cosOn;
+}
+export function chaseVel(P, b, meet, C = CHASE) {
+  const pl = CFG.player, bx = b.p.x - P.p.x, bz = b.p.z - P.p.z, dBall = Math.hypot(bx, bz);
+  if (dBall < C.near && b.p.y < 0.5) {
+    const px = bx + b.v.x * 0.12, pz = bz + b.v.z * 0.12, l = Math.hypot(px, pz) || 1e-6, cl = Math.min(C.close, l * 2.2);
+    return { x: b.v.x + (px / l) * cl, z: b.v.z + (pz / l) * cl, boost: 1, near: true };
+  }
+  const tx = meet.x - P.p.x, tz = meet.z - P.p.z, d = Math.hypot(tx, tz) || 1e-6, sp = d > C.brake ? pl.sprint : Math.max(2, d * 2.2);
+  return { x: (tx / d) * sp, z: (tz / d) * sp, boost: C.boost, near: false };
+}
+

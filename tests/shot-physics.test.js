@@ -207,3 +207,39 @@ test('подкрутка по жесту: влево — мяч уходит в�
   assert.ok(L.x < -0.4 && Rt.x > 0.4, `подкрутка: влево ${L.x}, вправо ${Rt.x}`);
   assert.ok(C.speed < D.speed && C.apex > D.apex + 0.5, `переброс: скорость ${C.speed} против ${D.speed}, высота ${C.apex} против ${D.apex}`);
 });
+
+// ---------- автоподбор свободного мяча ----------
+test('автоподбор: пороги включения и выключения (гистерезис)', () => {
+  const C = M.CHASE;
+  assert.equal(M.chaseDecide(false, 0, 0), true, 'джойстик отпущен — преследует');
+  assert.equal(M.chaseDecide(false, 1, 0.9), true, 'ввод к мячу — преследует');
+  assert.equal(M.chaseDecide(true, 0.35, -1), true, 'лёгкое движение пальца в сторону — не сбрасывает');
+  assert.equal(M.chaseDecide(true, 1, -0.9), false, 'явно в другую сторону — отпускает');
+  assert.equal(M.chaseDecide(false, 1, 0.3), false, 'между порогами — остаётся выключенным');
+  assert.ok(C.cosOn > C.cosOff && C.off > C.neutral);
+});
+
+test('автоподбор: сразу полная скорость, подбор катящегося мяча без проскока', () => {
+  const C = M.CFG.player, P = M.newPlayer({ x: 0, z: 30 }, Math.PI), b = M.newBall();
+  b.p.x = 1; b.p.y = M.CFG.R; b.p.z = 22; b.v.x = 0.5; b.v.z = -4; b.state = 'free';
+  const h = 1 / 240, plan = M.newBall();
+  const meet = () => { // где мяч будет, когда игрок успеет туда (как в игре)
+    Object.assign(plan.p, b.p); Object.assign(plan.v, b.v); Object.assign(plan.w, b.w); plan.state = 'free';
+    for (let t = 1 / 30; t < 3; t += 1 / 30) { for (let k = 0; k < 4; k++) M.stepFree(plan, 1 / 120, {}); if (Math.hypot(plan.p.x - P.p.x, plan.p.z - P.p.z) - 0.45 <= C.sprint * 0.92 * t) return { x: plan.p.x, z: plan.p.z }; }
+    return { x: plan.p.x, z: plan.p.z };
+  };
+  let mp = meet(), sp06 = 0, caught = -1, minAhead = 9, rel = 0;
+  for (let i = 0; i < 240 * 4; i++) {
+    const t = i * h; if (i % 24 === 0) mp = meet();
+    const v = M.chaseVel(P, b, mp), s = Math.hypot(v.x, v.z); P.boost = v.boost; P.sprint = s > C.jog * 1.02;
+    const k = Math.min(1, s / (P.sprint ? C.sprint : C.jog)); M.playerStep(P, s > 1e-3 ? { x: (v.x / s) * k, y: (-v.z / s) * k } : { x: 0, y: 0 }, h, false);
+    M.stepFree(b, h, {});
+    if (Math.abs(t - 0.6) < h / 2) sp06 = Math.hypot(P.v.x, P.v.z);
+    minAhead = Math.min(minAhead, (P.p.z - b.p.z)); // игрок не должен пробежать мяч (мяч катится к −z, игрок догоняет со стороны +z)
+    if (M.canCapture(b, P, 'me', t)) { caught = t; rel = Math.hypot(b.v.x - P.v.x, b.v.z - P.v.z); break; }
+  }
+  assert.ok(sp06 > C.sprint * 0.8, `через 0,6 с скорость ${sp06.toFixed(2)} — почти полная (${C.sprint})`);
+  assert.ok(caught > 0 && caught < 3.5, `мяч подобран за ${caught.toFixed(2)} с`);
+  assert.ok(rel <= M.CFG.control.captureVrel, `относительная скорость при касании ${rel.toFixed(2)}`);
+  assert.ok(minAhead > -0.6, `не проскочил мяч (${minAhead.toFixed(2)} м)`);
+});
