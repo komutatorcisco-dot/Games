@@ -42,6 +42,12 @@ const tg=()=>{const noop=new Proxy(function(){},{get:(t,k)=>k==='isVisible'?fals
     assert.match(src,/^prototypes\/shot\/index\.html\?mode=match&embed=1&snd=0/,src);
     const q=new URLSearchParams(src.split('?')[1]);assert.ok(q.get('p0')&&q.get('p1')&&q.get('p2'),'в игру ушли три карточки');
     assert.equal(q.get('p2').split('|').length,8);
+    assert.equal(q.get('n'),'3');assert.equal(q.get('diff'),'1');
+    // 11 на 11 (пробный): переключатель формата, выходит «Мой состав»
+    await page.evaluate(()=>{Football.open();document.querySelector('[data-fbfmt="11"]').click();document.querySelector('[data-fbdiff="2"]').click();document.querySelector('[data-act="football-go"]').click();});
+    await page.waitForFunction(()=>/n=11/.test(document.querySelector('#football-frame').getAttribute('src')||''));
+    const q11=new URLSearchParams((await page.getAttribute('#football-frame','src')).split('?')[1]);assert.equal(q11.get('diff'),'2');
+    await page.evaluate(()=>{Football.open();document.querySelector('[data-fbfmt="3"]').click();document.querySelector('[data-fbdiff="1"]').click();document.querySelector('[data-act="football-go"]').click();});
     assert.equal(await page.evaluate(()=>window.__unlocked||0)>0,true,'ориентация не закреплена');
     assert.equal(await page.evaluate(()=>Telegram.WebApp.BackButton.shown),true);
     await page.waitForTimeout(300);

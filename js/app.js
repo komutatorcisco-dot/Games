@@ -386,7 +386,7 @@ const App = (() => {
   function openFootball(mode) {
     const u = Store.d && Store.d.user, q = new URLSearchParams({ mode, embed: '1', snd: Store.d && Store.d.sound ? '1' : '0' });
     if (u && u.nick) q.set('name', String(u.nick).slice(0, 14));
-    Football.team().forEach((p, i) => { if (p) q.set('p' + i, p); }); // выбранные карточки: двое полевых и вратарь
+    for (const [k, v] of Object.entries(Football.params())) q.set(k, v); // состав, размер команды, сложность
     $('#football-frame').src = 'prototypes/shot/index.html?' + q;
     try { if (TG && TG.unlockOrientation) TG.unlockOrientation(); } catch (e) { /* старый Telegram */ } // игра горизонтальная — экран должен поворачиваться
     Screens.show('football');

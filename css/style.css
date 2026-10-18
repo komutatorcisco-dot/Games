@@ -804,6 +804,11 @@ a { color: var(--danil); }
 .fbp-slot b { font-size: 12px; opacity: .85; }
 .fbp-empty { display: grid; place-items: center; width: 96px; height: 134px; border-radius: 10px; border: 1.5px dashed rgba(255,255,255,.35); font-size: 12px; text-align: center; opacity: .8; }
 .fbp-empty small { display: block; font-size: 18px; font-weight: 800; }
+.fbp-seg { display: flex; gap: 6px; align-items: center; justify-content: center; }
+.fbp-seg button { flex: 1; max-width: 160px; padding: 9px 8px; border: 0; border-radius: 10px; background: rgba(255,255,255,.08); color: inherit; font: 800 14px var(--font-body, inherit); }
+.fbp-seg button.on { background: #ffcf3a; color: #1b1240; }
+.fbp-seg.sm button { padding: 6px; font-size: 12.5px; } .fbp-seg.sm span { font-size: 12px; opacity: .75; margin-right: 2px; }
+.fbp-go .btn + .btn { margin-left: 8px; } .fbp-go .btn.ghost { min-width: 0; }
 .fbp-h { margin: 4px 0 0; font-weight: 800; opacity: .85; }
 .fbp-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 8px; }
 .fbp-none { grid-column: 1 / -1; margin: 0; opacity: .75; }
