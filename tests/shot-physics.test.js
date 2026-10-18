@@ -243,3 +243,17 @@ test('автоподбор: сразу полная скорость, подбо
   assert.ok(rel <= M.CFG.control.captureVrel, `относительная скорость при касании ${rel.toFixed(2)}`);
   assert.ok(minAhead > -0.6, `не проскочил мяч (${minAhead.toFixed(2)} м)`);
 });
+
+test('первое касание: мяч не сдвигается, прилёт гасится, мяч уходит по джойстику; без джойстика — у ноги', () => {
+  const P = M.newPlayer({ x: 0, z: 20 }, Math.PI), cp = M.controlPoint(P, null);
+  const b = M.newBall({ x: cp.x, y: M.CFG.R, z: cp.z }); b.v.z = 6; // летит навстречу игроку
+  const x0 = b.p.x, z0 = b.p.z; M.firstTouch(b, P, 'me', { x: 1, z: 0 });
+  assert.equal(b.p.x, x0); assert.equal(b.p.z, z0);
+  assert.ok(b.v.x > 0.8 && Math.abs(b.v.z) < 1e-9, 'уходит вправо по джойстику');
+  assert.ok(Math.hypot(b.v.x, b.v.z) < 3, 'скорость прилёта погашена');
+  const b2 = M.newBall({ x: cp.x, y: M.CFG.R, z: cp.z }); b2.v.z = 6; M.firstTouch(b2, P, 'me', null);
+  assert.ok(Math.hypot(b2.v.x, b2.v.z) < 1, 'подушка: мяч почти остановлен');
+  // дальше мяч сам к ноге не притягивается: за время свободного качения он не ближе, чем докатился бы
+  for (let i = 0; i < 40; i++) M.controlStep(b2, P, 1 / 240);
+  assert.ok(Math.hypot(b2.v.x, b2.v.z) < 1, 'без рывка');
+});

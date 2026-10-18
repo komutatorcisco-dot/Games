@@ -1184,7 +1184,7 @@ function mateAI(h) {
   }
   const dx = tx - M.p.x, dz = tz - M.p.z, d = Math.hypot(dx, dz), k = mine || d < MATE.stop ? 0 : Math.min(1, d / 1.5);
   M.sprint = sprint; M.charging = false;
-  BP.playerStep(M, k > 0 ? { x: (dx / d) * k, y: (-dz / d) * k } : { x: 0, y: 0 }, h, mine);
+  BP.playerStep(M, stepToBall(M, k > 0 ? { x: (dx / d) * k, y: (-dz / d) * k } : { x: 0, y: 0 }, 'mate'), h, mine);
 }
 // ---------- финты ----------
 // Три финта на имеющихся записях (что делает каждая — проверено замером таза и носков):
@@ -1268,11 +1268,27 @@ function chaseInput(P, inp, h) {
   const max = P.sprint ? C.sprint : C.jog, k = Math.min(1, sp / max);
   return sp > 1e-3 ? { x: (vx / sp) * k, y: (-vz / sp) * k } : { x: 0, y: 0 };
 }
+// после первого касания мяч к игроку не тянется — игрок сам подходит к нему (шаг-другой, «помощь при приёме»):
+// без джойстика — спокойно к мячу; с джойстиком в сторону мяча или вбок — сначала к мячу, в темпе джойстика;
+// джойстик явно от мяча — игрок уходит, мяч остаётся (можно потерять)
+function stepToBall(P, inp, who) {
+  if (!(B.state === 'owned' && B.owner === who && B.touchFirst)) return inp;
+  const im = Math.hypot(inp.x, inp.y); if (B.trapT >= BP.CFG.control.turnWindow) B.touchSoft = false;
+  if (B.touchSoft && im > 0.5 && B.trapT < BP.CFG.control.turnWindow && Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z) < 0.75) { // принял мягко и сразу повёл — разворот с мячом
+    BP.firstTouch(B, P, who, { x: inp.x, z: -inp.y }, true); B.touchSoft = false; if (who === 'me') sfx.touch();
+  }
+  const cp = BP.controlPoint(P, null), ex = B.p.x - cp.x, ez = B.p.z - cp.z, e = Math.hypot(ex, ez);
+  const dx = B.p.x - P.p.x, dz = B.p.z - P.p.z, d = Math.hypot(dx, dz) || 1, mag = Math.hypot(inp.x, inp.y);
+  if (e < 0.25 || d < 0.5) return B.touchSoft && mag > 0.5 ? { x: 0, y: 0 } : inp; // мяч у ноги — дальше обычное ведение (после мягкого приёма — ждём разворота)
+  if (!B.touchSoft && mag > 0.2 && (inp.x * dx - inp.y * dz) / (mag * d) < -0.3) return inp;
+  const C = BP.CFG.player, bs = Math.hypot(B.v.x, B.v.z), want = Math.min(mag > 0.2 ? Math.max(C.jog * mag, bs + 1) : C.jog, bs + e * 3), k = Math.min(1, want / C.jog);
+  return { x: (dx / d) * k, y: (-dz / d) * k };
+}
 function runPhys(h) {
   if (run.swapNow) { swapControl(); run.chasePlan = null; } // пас ушёл — управляю получателем (он сразу выходит на мяч)
   const P = run.P, live = state === 'play';
   P.sprint = btn.sprint || keys.ShiftLeft || keys.ShiftRight; P.charging = run.charge >= 0;
-  const inp = live ? chaseInput(P, input(), h) : { x: 0, y: 0 };
+  const inp = live ? stepToBall(P, chaseInput(P, input(), h), 'me') : { x: 0, y: 0 };
   BP.playerStep(P, inp, h, (B.state === 'owned' || B.state === 'strike') && B.owner === 'me');
   // с вратарём не сталкиваемся насквозь
   const kh = keeper.holder.position, dx = P.p.x - kh.x, dz = P.p.z - kh.z, dl = Math.hypot(dx, dz);
@@ -1298,7 +1314,7 @@ function runPhys(h) {
   } else if (B.state === 'free' && live) { // приём: сильный мяч гасится дольше; берёт тот, кто ближе
     const me = BP.canCapture(B, P, 'me', simT), mt = M && BP.canCapture(B, M, 'mate', simT);
     const pick = me && mt ? (Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z) <= Math.hypot(B.p.x - M.p.x, B.p.z - M.p.z) ? 'me' : 'mate') : me ? 'me' : mt ? 'mate' : null;
-    if (pick) { const rel = BP.capture(B, pick === 'me' ? P : M, pick); sfx.touch(); if (pick === 'me' && rel > 5) sfx.buzz('light'); if (pick === 'mate') { mate.hold = 0; mate.pass = null; } }
+    if (pick) { const ji = pick === 'me' ? input() : null, rel = BP.firstTouch(B, pick === 'me' ? P : M, pick, ji && Math.hypot(ji.x, ji.y) > 0.2 ? { x: ji.x, z: -ji.y } : null); sfx.touch(); if (pick === 'me' && rel > 5) sfx.buzz('light'); if (pick === 'mate') { mate.hold = 0; mate.pass = null; } }
   }
   // вратарь в ногах (у того, кто с мячом): руками накрыл — забрал; телом — мяч выбит и свободен (отскакивает от тела)
   if (B.state === 'owned' && keeper.smother) {

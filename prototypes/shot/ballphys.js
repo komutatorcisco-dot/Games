@@ -97,11 +97,25 @@ export const CFG = {
     captureR: 0.6,          // принять мяч можно в этом радиусе от точки контроля…
     captureH: 0.32,         // … если мяч не выше (ногой с земли высокий мяч не взять)
     captureVrel: 9,         // … и летит относительно игрока не быстрее, м/с
+    besideR: 0.55, besideVrel: 3, // или мяч рядом с игроком (не за спиной) и почти с его скоростью — бежит рядом
     trapBase: 0.1,          // приём: сколько секунд мяч «гасится» минимум…
     trapPerV: 0.035,        // … плюс столько на каждый м/с скорости прилёта
     regrab: 0.45,           // после своего удара тот же игрок не берёт мяч столько секунд…
     clearDist: 1.1,         // … и пока мяч не отойдёт от него хотя бы на столько метров
     stopTrap: 1.8,          // остановка: мяч гасится быстрее во столько раз
+    // первое касание при приёме паса (firstTouch): стопа гасит скорость прилёта и направляет мяч дальше — по джойстику,
+    // а без джойстика — туда, куда смотрит корпус (мягкая подушка). Потом мяч катится сам и лишь затем плавно
+    // переходит в ведение — без «магнита» к стопе
+    touchOut: 1.1,          // мяч уходит от стопы быстрее игрока на столько, м/с (при полном джойстике; без него — 40 %)
+    touchSoft: 0.3,         // без джойстика (подушка) — столько, м/с, плюс половина доли прилёта…
+    touchSoftCarry: 0.55,   // … плюс такая доля скорости игрока вперёд (он тормозит — мяч катится с ним, а не остаётся за спиной)
+    turnWindow: 0.7,        // джойстик нажат вскоре после мягкого приёма (за столько секунд, мяч у ноги) — стопа ещё раз уводит мяч туда
+    touchKeep: 0.12,        // плюс такая доля скорости прилёта (сильный пас — «тяжелее» касание, мяч отскакивает дальше)
+    touchFree: 0.2,         // после касания мяч катится сам столько секунд…
+    touchFreePerV: 0.02,    // … плюс столько на каждый м/с прилёта
+    touchDecel: 2.2,        // торможение мяча в это время, м/с² (трение травы)
+    touchBlend: 0.3,        // и ещё столько секунд ведение включается плавно (пружина набирает силу)
+    touchLose: 2.2,         // в это время мяч считается своим, пока он не дальше этого от точки контроля, м
   },
   pass: {
     arrive: 3.2,          // обычный пас приходит к партнёру со скоростью, м/с (удобно принять)
@@ -352,14 +366,33 @@ export function canCapture(b, P, who, t) {
   if (b.lockOwner === who && (t < b.lockUntil || b.mustClear)) return false; // свой удар обратно не берём
   if (b.p.y > C.captureH) return false; // высокий мяч ногой с земли не взять
   const cp = controlPoint(P, null), d = Math.hypot(b.p.x - cp.x, b.p.z - cp.z);
-  if (d > C.captureR) return false;
   const rel = Math.hypot(b.v.x - P.v.x, b.v.z - P.v.z, b.v.y);
+  if (d > C.captureR) { // мяч катится рядом с игроком почти с его скоростью (сбоку, не за спиной) — тоже можно взять
+    const rx = b.p.x - P.p.x, rz = b.p.z - P.p.z;
+    if (!(rel < C.besideVrel && Math.hypot(rx, rz) < C.besideR && rx * Math.sin(P.yaw) + rz * Math.cos(P.yaw) > -0.2)) return false;
+  }
   return rel <= C.captureVrel; // быстрый мяч мимо ноги — не идеальный приём, а рикошет
 }
 export function capture(b, P, who) {
   const C = CFG.control, rel = Math.hypot(b.v.x - P.v.x, b.v.z - P.v.z, b.v.y);
   b.state = 'owned'; b.owner = who; b.trapT = 0; b.trapDur = C.trapBase + C.trapPerV * rel; b.push = 0; b.touchCd = C.touchMin;
-  b.p.y = CFG.R; b.v.y = 0; b.stopped = false;
+  b.p.y = CFG.R; b.v.y = 0; b.stopped = false; b.touchFirst = false;
+  return rel;
+}
+// первое касание при приёме: мяч остаётся там, где его встретила стопа (никаких сдвигов), меняется только скорость —
+// гасится прилёт, мяч уходит в сторону intent (вектор на поле x, z; null — куда смотрит корпус). Сквозь себя мяч не
+// направляется: такой вектор уводится вбок, мяч обходит игрока по касательной.
+export function firstTouch(b, P, who, intent, again = false) {
+  const C = CFG.control, rel = again ? Math.hypot(b.v.x - P.v.x, b.v.z - P.v.z) : capture(b, P, who), il = intent ? Math.hypot(intent.x, intent.z) : 0;
+  let dx = Math.sin(P.yaw), dz = Math.cos(P.yaw);
+  if (il > 0.2) { dx = intent.x / il; dz = intent.z / il; }
+  let rx = b.p.x - P.p.x, rz = b.p.z - P.p.z; const rl = Math.hypot(rx, rz) || 1; rx /= rl; rz /= rl;
+  const into = dx * rx + dz * rz;
+  if (into < -0.2) { dx -= into * rx; dz -= into * rz; const l = Math.hypot(dx, dz); if (l < 1e-3) { dx = -rz; dz = rx; } else { dx /= l; dz /= l; } }
+  // с джойстиком — мяч уходит вперёд по ходу (игрок бежит следом); без него — гасится у ноги (игрок тормозит)
+  const s = il > 0.2 ? Math.max(0, P.v.x * dx + P.v.z * dz) + C.touchOut * Math.min(1, il) + C.touchKeep * rel : Math.max(0, P.v.x * dx + P.v.z * dz) * C.touchSoftCarry + C.touchSoft + C.touchKeep * 0.5 * rel;
+  b.v.x = dx * s; b.v.z = dz * s; b.w.x = b.v.z / CFG.R; b.w.y = 0; b.w.z = -b.v.x / CFG.R;
+  b.trapT = 0; b.trapDur = C.touchFree + C.touchFreePerV * rel; b.touchFirst = true; b.touchSoft = !(il > 0.2);
   return rel;
 }
 // снять «запрет на свой мяч», когда мяч отошёл от игрока
@@ -383,14 +416,27 @@ export function controlStep(b, P, h, obstacles) {
   const trapK = b.trapDur > 0 ? Math.min(1, b.trapT / b.trapDur) : 1, ease = trapK * trapK * (3 - 2 * trapK);
   const cp = controlPoint(P, b, cpTmp);
   let ex = cp.x - b.p.x, ez = cp.z - b.p.z;
-  // желаемая скорость = скорость игрока + ограниченная поправка к точке контроля
-  const g = C.gain * (P.stopping ? C.stopTrap : 1) * (b.roll > 0 && !P.stopping ? (C.rollGain ?? 1) : 1); // сразу после касания мяч катится почти сам
-  let cx = ex * g, cz = ez * g;
-  const cl = Math.hypot(cx, cz); if (cl > C.maxCorr) { cx *= C.maxCorr / cl; cz *= C.maxCorr / cl; }
-  const dvx = P.v.x + cx, dvz = P.v.z + cz;
-  // приём: сначала мяч живёт своей скоростью, контроль включается плавно (сильный прилёт гасится дольше)
-  const k = 1 - Math.exp(-h * C.resp * (0.15 + 0.85 * ease));
-  b.v.x += (dvx - b.v.x) * k; b.v.z += (dvz - b.v.z) * k; b.v.y = 0;
+  // первое касание: сначала мяч катится сам (только трение), потом ведение плавно набирает силу
+  let free = false, blend = 1;
+  if (b.touchFirst) {
+    if (b.trapT < b.trapDur) free = true;
+    else { const u = Math.min(1, (b.trapT - b.trapDur) / C.touchBlend); blend = u * u * (3 - 2 * u);
+      if (u >= 1 && (Math.hypot(ex, ez) < 0.3 || b.trapT > 1.8)) b.touchFirst = false; } // мяч ещё не у ноги — ведение не включается в полную силу
+  }
+  if (free) {
+    const sp = Math.hypot(b.v.x, b.v.z), ns = Math.max(0, sp - C.touchDecel * h), f = sp > 1e-6 ? ns / sp : 0; b.v.x *= f; b.v.z *= f; b.v.y = 0;
+  } else {
+    // желаемая скорость = скорость игрока + ограниченная поправка к точке контроля
+    const g = C.gain * (P.stopping ? C.stopTrap : 1) * (b.roll > 0 && !P.stopping ? (C.rollGain ?? 1) : 1); // сразу после касания мяч катится почти сам
+    let cx = ex * g, cz = ez * g;
+    // после первого касания мяч не «догоняет» игрока издалека: пружина сильна только у самой стопы
+    const far = b.touchFirst ? Math.max(0.15, Math.min(1, 1 - (Math.hypot(ex, ez) - 0.3) / 0.45)) : 1;
+    const mc = C.maxCorr * (0.25 + 0.75 * blend) * far, cl = Math.hypot(cx, cz); if (cl > mc) { cx *= mc / cl; cz *= mc / cl; }
+    const dvx = P.v.x + cx, dvz = P.v.z + cz;
+    // приём: сначала мяч живёт своей скоростью, контроль включается плавно (сильный прилёт гасится дольше)
+    const k = 1 - Math.exp(-h * C.resp * (b.touchFirst ? 0.1 + 0.9 * blend : 0.15 + 0.85 * ease));
+    b.v.x += (dvx - b.v.x) * k; b.v.z += (dvz - b.v.z) * k; b.v.y = 0;
+  }
   b.p.x += b.v.x * h; b.p.z += b.v.z * h; b.p.y = R;
   // не сквозь ноги: мяч не ближе bodyR к центру игрока
   let rx = b.p.x - P.p.x, rz = b.p.z - P.p.z, rl = Math.hypot(rx, rz);
@@ -414,13 +460,13 @@ export function controlStep(b, P, h, obstacles) {
   b.w.x = b.v.z / R; b.w.y = 0; b.w.z = -b.v.x / R;
   // покой у ноги: без микродрожания
   if (Math.hypot(P.v.x, P.v.z) < 0.05 && Math.hypot(ex, ez) < 0.004 && Math.hypot(b.v.x, b.v.z) < 0.05) { b.v.x = 0; b.v.z = 0; b.w.x = 0; b.w.z = 0; }
-  if (Math.hypot(cp.x - b.p.x, cp.z - b.p.z) > C.loseDist) return release(b, null, 0, 0.25), 'lost';
+  if (Math.hypot(cp.x - b.p.x, cp.z - b.p.z) > (b.touchFirst ? C.touchLose : C.loseDist)) return release(b, null, 0, 0.25), 'lost';
   return null;
 }
 // отпустить мяч (удар, потеря); lock — сколько секунд бывший владелец не может его снова взять
 export function release(b, who, t, lock = CFG.control.regrab, mustClear = true) {
   b.lockOwner = who ?? b.owner; b.lockUntil = t + lock; b.mustClear = mustClear;
-  b.state = 'free'; b.owner = null; b.push = 0; b.stopped = false; b.trapT = 1; b.strikeAt = null; b.feintOff = null;
+  b.state = 'free'; b.owner = null; b.push = 0; b.stopped = false; b.trapT = 1; b.strikeAt = null; b.feintOff = null; b.touchFirst = false;
 }
 
 // ---------- удар ----------
