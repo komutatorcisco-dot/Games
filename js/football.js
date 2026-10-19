@@ -136,11 +136,14 @@ const Football = (() => {
   // игрок для игры: «имя|рейтинг|6 характеристик|позиция|x%|y%» (x, y — место на схеме; без карточки — игрок клуба)
   // рост (см) — из базы карточек (Transfermarkt), если нашёлся; иначе игра возьмёт рост по позиции
   const heightOf = (c) => { const f = c && typeof FC_STATS !== 'undefined' && FC_STATS[c.name]; return f && f[9] ? f[9] : ''; };
-  // строка игрока для игры: имя|рейтинг|6 характеристик|позиция|x|y|рост
+  // игровой номер — из базы игроков (js/players.js), если есть
+  let NUMS = null;
+  const numOf = (c) => { if (!NUMS) { NUMS = new Map(); if (typeof PLAYERS !== 'undefined') PLAYERS.forEach((p) => { if (p.num) NUMS.set(p.name, p.num); }); } return (c && NUMS.get(c.name)) || ''; };
+  // строка игрока для игры: имя|рейтинг|6 характеристик|позиция|x|y|рост|номер
   function row(c, sl, pos) {
     const tail = sl ? [sl.pos, sl.x, sl.y] : [pos || '', '', ''];
-    if (!c) return sl ? ['Игрок клуба', 65, ...Array(6).fill(65), ...tail, ''].join('|') : '';
-    return [Cards.surname ? Cards.surname(c.name) : c.name, c.r, ...stats(c), ...tail, heightOf(c)].join('|');
+    if (!c) return sl ? ['Игрок клуба', 65, ...Array(6).fill(65), ...tail, '', ''].join('|') : '';
+    return [Cards.surname ? Cards.surname(c.name) : c.name, c.r, ...stats(c), ...tail, heightOf(c), numOf(c)].join('|');
   }
   function team() {
     const s = S();
