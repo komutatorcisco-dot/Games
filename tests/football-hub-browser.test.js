@@ -47,7 +47,7 @@ const tg=()=>{const noop=new Proxy(function(){},{get:(t,k)=>k==='isVisible'?fals
     const src=await page.getAttribute('#football-frame','src');
     assert.match(src,/^prototypes\/shot\/index\.html\?mode=match&embed=1&snd=0/,src);
     const q=new URLSearchParams(src.split('?')[1]);assert.ok(q.get('p0')&&q.get('p1')&&q.get('p2'),'в игру ушли три карточки');
-    assert.equal(q.get('p2').split('|').length,9);assert.equal(q.get('p2').split('|')[8],'GK','вратарь — на месте вратаря');
+    assert.equal(q.get('p2').split('|').length,12,'имя|рейтинг|6 характеристик|позиция|x|y|рост');assert.equal(q.get('p2').split('|')[8],'GK','вратарь — на месте вратаря');
     assert.equal(q.get('n'),'3');assert.equal(q.get('diff'),'1');
     // 11 на 11 (пробный): схема с местами, карточка ставится на выбранное место «Моего состава»
     await page.evaluate(()=>{Football.open();document.querySelector('[data-fbfmt="11"]').click();document.querySelector('[data-fbdiff="2"]').click();});
@@ -57,7 +57,7 @@ const tg=()=>{const noop=new Proxy(function(){},{get:(t,k)=>k==='isVisible'?fals
     await page.evaluate(()=>document.querySelector('[data-act="football-go"]').click());
     await page.waitForFunction(()=>/n=11/.test(document.querySelector('#football-frame').getAttribute('src')||''));
     const q11=new URLSearchParams((await page.getAttribute('#football-frame','src')).split('?')[1]);assert.equal(q11.get('diff'),'2');
-    assert.equal(q11.get('p0').split('|')[8],'ST','первым — нападающий');assert.equal(q11.get('p10').split('|')[8],'GK');assert.equal(q11.get('p10').split('|').length,11);
+    assert.equal(q11.get('p0').split('|')[8],'ST','первым — нападающий');assert.equal(q11.get('p10').split('|')[8],'GK');assert.equal(q11.get('p10').split('|').length,12);
     await page.evaluate(()=>{Football.open();document.querySelector('[data-fbfmt="3"]').click();document.querySelector('[data-fbdiff="1"]').click();document.querySelector('[data-act="football-go"]').click();});
     assert.equal(await page.evaluate(()=>window.__unlocked||0)>0,true,'ориентация не закреплена');
     assert.equal(await page.evaluate(()=>Telegram.WebApp.isFullscreen),true,'матч — во весь экран Telegram');

@@ -134,10 +134,13 @@ const Football = (() => {
     }, true);
   }
   // игрок для игры: «имя|рейтинг|6 характеристик|позиция|x%|y%» (x, y — место на схеме; без карточки — игрок клуба)
-  function row(c, sl) {
-    const tail = sl ? [sl.pos, sl.x, sl.y] : [];
-    if (!c) return sl ? ['Игрок клуба', 65, ...Array(6).fill(65), ...tail].join('|') : '';
-    return [Cards.surname ? Cards.surname(c.name) : c.name, c.r, ...stats(c), ...tail].join('|');
+  // рост (см) — из базы карточек (Transfermarkt), если нашёлся; иначе игра возьмёт рост по позиции
+  const heightOf = (c) => { const f = c && typeof FC_STATS !== 'undefined' && FC_STATS[c.name]; return f && f[9] ? f[9] : ''; };
+  // строка игрока для игры: имя|рейтинг|6 характеристик|позиция|x|y|рост
+  function row(c, sl, pos) {
+    const tail = sl ? [sl.pos, sl.x, sl.y] : [pos || '', '', ''];
+    if (!c) return sl ? ['Игрок клуба', 65, ...Array(6).fill(65), ...tail, ''].join('|') : '';
+    return [Cards.surname ? Cards.surname(c.name) : c.name, c.r, ...stats(c), ...tail, heightOf(c)].join('|');
   }
   function team() {
     const s = S();
@@ -150,7 +153,7 @@ const Football = (() => {
       const rest = idx.filter((i) => i !== st).sort((a, b) => F.slots[a].y - F.slots[b].y);
       return [st, ...rest, gi].map((i) => row(xi[i], F.slots[i]));
     }
-    return s.xi.map((k, i) => { const c = k && Cards.get(k); return c ? [row(c), ...(i < 2 ? [FIT3[i][0]] : ['GK'])].join('|') : ''; });
+    return s.xi.map((k, i) => { const c = k && Cards.get(k); return c ? row(c, null, i < 2 ? FIT3[i][0] : 'GK') : ''; });
   }
   // параметры игры: состав (p0…, вратарь последний), размер команды, сложность
   function params() {

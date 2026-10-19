@@ -35,10 +35,29 @@ const TEAM = () => MODE === 'duo' || MODE === 'match'; // есть партнё�
 // поле матча: длина (ворота на z = 0 и z = L), половина ширины; время — настоящие секунды
 // состав из хаба (?p0…p(N−2) — полевые, последний — вратарь): «имя|рейтинг|шесть характеристик»; нет — «Игрок клуба» 65
 const NSIDE = MATCH_ON ? Math.max(2, Math.min(11, Number(Q.get('n')) || 3)) : 3; // игроков в команде (с вратарём): 3 — матч 3 на 3, 11 — пробный 11 на 11
-const LINEUP = Array.from({ length: NSIDE }, (_, i) => i).map((i) => { const v = Q.get('p' + i); if (!v) return null; const a = v.split('|'); return { name: a[0].slice(0, 16), r: +a[1] || 65, st: a.slice(2, 8).map((x) => +x || 65), pos: a[8] || '', fx: a[9] !== undefined && a[9] !== '' ? +a[9] : null, fy: a[10] !== undefined && a[10] !== '' ? +a[10] : null }; });
+const LINEUP = Array.from({ length: NSIDE }, (_, i) => i).map((i) => { const v = Q.get('p' + i); if (!v) return null; const a = v.split('|'); return { name: a[0].slice(0, 16), r: +a[1] || 65, st: a.slice(2, 8).map((x) => +x || 65), pos: a[8] || '', fx: a[9] !== undefined && a[9] !== '' ? +a[9] : null, fy: a[10] !== undefined && a[10] !== '' ? +a[10] : null, h: +a[11] || 0 }; });
 // место в схеме из «Моего состава» (x %, y % на схеме хаба: y = 93 — свои ворота, 16 — чужие) → [x м, глубина]
 const hxyOf = (c) => (c && c.fx !== null && c.fy !== null && NSIDE > 3 ? [((c.fx - 50) / 50) * MATCH.HW * 0.8, (100 - c.fy) / 100] : null);
 const k01 = (v) => Math.max(0, Math.min(1, ((v || 65) - 60) / 35)); // характеристика 60…95 → 0…1
+// Характеристики карточки в игре (полевой: скорость, удар, пас, дриблинг, защита, физика). Разница заметная, но без
+// крайностей: у 95 и у 65 — один футбол, просто первый быстрее, точнее и надёжнее.
+function cardStats(pl, st, k = 1) {
+  const s = (i) => k01(st ? st[i] : 65);
+  pl.spd = (0.92 + 0.16 * s(0)) * k;      // скорость бега и рывка: 0,92…1,08
+  pl.accK = 0.88 + 0.24 * s(0);           // разгон
+  pl.shotK = 0.92 + 0.14 * s(1);          // сила удара
+  pl.shotErr = 0.04 * (1 - s(1));         // разброс удара, рад (до ~2,3°)
+  pl.passErr = 0.03 * (1 - s(2));         // разброс паса по направлению, рад (до ~1,7°), и по силе
+  pl.dribK = 1.12 - 0.24 * s(3);          // насколько далеко отпускает мяч при ведении (меньше — мяч ближе к ноге)
+  pl.defK = 0.8 + 0.35 * s(4);            // отбор
+  pl.physK = 1.12 - 0.25 * s(5);          // насколько легко отнять мяч (меньше — крепче держит)
+}
+// Рост (см) — из карточки (база Transfermarkt), иначе по позиции. Обе модели — около 180 см: масштаб = рост / 180.
+const heightOf = (c, pos) => (c && c.h) || (pos === 'GK' ? 189 : pos === 'CB' ? 186 : 180);
+function setHeight(pl, cm) { if (!pl || !pl.model) return; pl.hcm = Math.max(160, Math.min(205, cm || 180)); pl.model.scale.setScalar((pl.own ? HERO.scale : 1) * (pl.hcm / 180)); }
+// разброс: поворот скорости мяча вокруг вертикали (нормальное распределение, sd — рад) и множитель силы
+const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+function spreadShot(sv, sd, pw = 0) { if (!sd) return sv; const a = gauss() * sd, c = Math.cos(a), sn = Math.sin(a), x = sv.v.x, z = sv.v.z; sv.v.x = x * c + z * sn; sv.v.z = -x * sn + z * c; if (pw) { const m = 1 + gauss() * pw; sv.v.x *= m; sv.v.z *= m; } return sv; }
 const MATCH = { L: 105, HW: 34, N: NSIDE, time: Math.max(30, Math.min(900, Number(Q.get('mt')) || (NSIDE > 3 ? 300 : 180))) };
 const NIGHT = Q.get('night') === '1'; // по умолчанию — дневной матч
 const SHOTS = 5, G = 9.81, R = 0.11, GW = 3.66, GH = 2.44;
@@ -1259,7 +1278,7 @@ function releaseCharge() {
 function fireStrike() {
   const s = run.strike, P = run.P; run.strike = null;
   const pw = MATCH_ON ? (s.pw > 0.92 ? s.pw : Math.min(0.92, s.pw * (shooter.shotK || 1))) : s.pw; // матч: «удар» карточки чуть добавляет силы
-  const sv = BP.shotVelocity(B, P, s.aim, pw, s.kind, goalDef(), s.side);
+  const sv = spreadShot(BP.shotVelocity(B, P, s.aim, pw, s.kind, goalDef(), s.side), MATCH_ON ? shooter.shotErr || 0 : 0);
   if (MATCH_ON) MT.kicker = shooter;
   if (BP.applyShot(B, sv, BP.controlPoint(P, B), 'me', simT)) {
     B.inGoal = false; B.goal = false; B.netHit = false;
@@ -1312,7 +1331,8 @@ function passTarget(recv, kind, power, goalZ = 0, loft = false) {
 function firePass(P, who, job, recv) {
   const tgt = passTarget(recv, job.kind, job.power, MATCH_ON ? attackZ(teamOf(who)) : 0, !!job.loft);
   if (MATCH_ON && job.kind === 'lofted') { const tm = teamOf(who); if (depthOf(tm, tgt.z) < 18 && Math.abs(tgt.x) < 20) { const dx = tgt.x - B.p.x, dz = tgt.z - B.p.z, dl = Math.hypot(dx, dz) || 1; tgt.x += (dx / dl) * 2.3; tgt.z += (dz / dl) * 2.3; job.cross = true; } }
-  const pv = BP.passVelocity(B, tgt, job.kind === 'lofted' || job.loft ? 'lofted' : 'ground', job.power);
+  const pa = MATCH_ON && actorOf(who), pe = pa ? pa.pl.passErr || 0 : 0; // точность паса — по карточке
+  const pv = spreadShot(BP.passVelocity(B, tgt, job.kind === 'lofted' || job.loft ? 'lofted' : 'ground', job.power), pe, pe * 0.6);
   if (BP.applyShot(B, pv, BP.controlPoint(P, B), who, simT)) { B.inGoal = false; B.goal = false; B.netHit = false; if (MATCH_ON) { statPass(teamOf(who)); markOffside(who); } if (who === 'me' && TEAM()) run.swapNow = true; sfx.kick(0.1 + job.power * 0.25); run.lastPass = { who, t: simT, tgt }; if (LESSON === 'basics' && who === 'me') LS.passT = simT; return true; }
   sfx.touch(); return false; // нога не достала — мяч свободен
 }
@@ -1992,7 +2012,7 @@ function trySlide(a) {
     hit = true;
     if (own) { // отбор: из-за спины — хуже
       const O = own.P, rx = PP.p.x - O.p.x, rz = PP.p.z - O.p.z, rl = Math.hypot(rx, rz) || 1, front = (Math.sin(O.yaw) * rx + Math.cos(O.yaw) * rz) / rl;
-      if (Math.random() > (front > -0.4 ? 0.9 : 0.6)) return;
+      if (Math.random() > Math.min(0.97, (front > -0.4 ? 0.9 : 0.6) * (a.pl.defK || 1) * (own.pl.physK || 1))) return;
       cancelOwnerAction(own.id); BP.release(B, own.id, simT, 0.7, false); MST().tackles[a.team]++; MT.passPend = null;
       if (Math.random() < 0.7) { play(own.pl, 'soccer_trip', { t: 0.15, fade: 0.1, speed: 1.25, follow: true }); own.pl.once = { name: 'soccer_trip', until: 1.3 }; const oa = own.id === 'me' ? run.meAI : own.ai; if (oa) oa.slowT = 1; }
     }
@@ -2017,7 +2037,7 @@ function tackleTick(a, h) {
       const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), d = Math.hypot(P.p.x + fx * 0.55 - B.p.x, P.p.z + fz * 0.55 - B.p.z), O = own.P;
       const rx = P.p.x - O.p.x, rz = P.p.z - O.p.z, rl = Math.hypot(rx, rz) || 1, front = (Math.sin(O.yaw) * rx + Math.cos(O.yaw) * rz) / rl;
       const shield = segDist(P.p.x, P.p.z, B.p.x, B.p.z, O.p.x, O.p.z) < 0.28; // между ногой и мячом — корпус владельца
-      const p = (d > 1.0 ? 0 : d < 0.45 ? 0.92 : d < 0.75 ? 0.72 : 0.35) * (front > 0.3 ? 1 : front > -0.55 ? 0.78 : 0.45) * (shield ? 0.7 : 1) * (Math.hypot(O.v.x, O.v.z) > 5 ? 0.85 : 1);
+      const p = Math.min(0.97, (d > 1.0 ? 0 : d < 0.45 ? 0.92 : d < 0.75 ? 0.72 : 0.35) * (front > 0.3 ? 1 : front > -0.55 ? 0.78 : 0.45) * (shield ? 0.7 : 1) * (Math.hypot(O.v.x, O.v.z) > 5 ? 0.85 : 1) * (a.pl.defK || 1) * (own.pl.physK || 1));
       if (TRACE) console.log('tackle', JSON.stringify({ id: a.id, d: +d.toFixed(2), front: +front.toFixed(2), shield, p: +p.toFixed(2) }));
       if (Math.random() < p) { // выбил: мяч свободен, катится к ногам отбиравшего
         ok = true; cancelOwnerAction(own.id); BP.release(B, own.id, simT, 0.7, false); MST().tackles[a.team]++; MT.passPend = null;
@@ -2153,7 +2173,7 @@ function botShoot(a, tx, pw) {
 function fireBotStrike(a) {
   const s = a.ai.strike; a.ai.strike = null;
   const shoot = (tx) => { const ang = Math.max(-1.6, Math.min(1.6, tx / GW)) * BP.CFG.shot.stickAngle, aim = { x: Math.sin(ang), y: Math.cos(ang) };
-    const sv = BP.shotVelocity(B, a.P, aim, Math.min(0.92, s.pw * (a.pl.shotK || 1)), 'drive', goalDef(), 0);
+    const sv = spreadShot(BP.shotVelocity(B, a.P, aim, Math.min(0.92, s.pw * (a.pl.shotK || 1)), 'drive', goalDef(), 0), a.pl.shotErr || 0);
     if (BP.applyShot(B, sv, BP.controlPoint(a.P, B), a.id, simT)) { BP.clearGoalFlags(B); planKeeper(); return true; } sfx.touch(); return false; };
   const ok = a.team === 0 ? withGK(0, () => shoot(s.tx)) : withGK(1, () => shoot(-s.tx));
   if (ok) { kicked(s.pw); MT.last = a.team; MT.kicker = a.pl; statShot(a.team); }
@@ -2238,7 +2258,7 @@ function matchChaseOk() {
 function matchPhys(h) {
   if (run.swapNow) { if (run.swapTo === '-') { run.swapNow = false; run.swapTo = null; } else { swapControl(run.swapTo || 'mate'); run.chasePlan = null; holdAfterPass(); } } // пас вратарю — управление остаётся
   const P = run.P, live = state === 'play', A = actors();
-  for (const a of A) a.P.spd = a.pl.spd || 1;
+  for (const a of A) { a.P.spd = a.pl.spd || 1; a.P.accK = a.pl.accK || 1; a.P.dribK = a.pl.dribK || 1; }
   if (state === 'goal') { celebrateStep(h); gkTick(h); matchRules(h); for (const j of [0, 1]) withGK(j, () => keeperAI(h)); return; } // гол: празднование, мяч в сетке
   P.sprint = btn.sprint || keys.ShiftLeft || keys.ShiftRight; P.charging = run.charge >= 0; P.face = null; // управляемый — корпус по ходу
   if (AUTOPLAY) botStep(A[0], h); else {
@@ -2317,13 +2337,15 @@ function matchPhys(h) {
 // Высокий мяч (≈1,2–2,6 м) рядом с игроком: в чужой штрафной — головой по воротам (я — в сторону джойстика, бот — в дальний угол),
 // у своих ворот — вынос вперёд, в остальных местах — скидка партнёру (бот) или приём головой себе под ноги (я).
 function tryHeader() {
-  if (B.p.y < 1.2 || B.p.y > 2.6 || B.v.y > 2.5 || simT - (MT.headT ?? -9) < 0.35) return false;
+  if (B.p.y < 1.2 || B.p.y > 2.85 || B.v.y > 2.5 || simT - (MT.headT ?? -9) < 0.35) return false;
+  // рост: высокий в прыжке достаёт мяч выше (180 см — до 2,56 м) и в борьбе за верховой мяч опережает низкого
   let best = null, bd = 1.05;
   for (const a of actors()) {
     if (B.lockOwner === a.id && (simT < B.lockUntil || B.mustClear)) continue;
     if (MT.restart && MT.restart.kind !== 'kickoff' && MT.restart.taker !== a.id && MT.restart.t < 6) continue;
     if (MT.back && a.team === 0) continue;
-    const d = Math.hypot(B.p.x - a.P.p.x, B.p.z - a.P.p.z); if (d < bd) { bd = d; best = a; }
+    const hm = (a.pl.hcm || 180) / 100; if (B.p.y > hm * 1.42) continue;
+    const d = Math.hypot(B.p.x - a.P.p.x, B.p.z - a.P.p.z) - (hm - 1.8) * 1.2; if (d < bd) { bd = d; best = a; }
   }
   if (!best) return false;
   if (!checkOffside(best)) header(best);
@@ -2514,12 +2536,14 @@ function resetMatch() {
   // места: наши — me (shooter), mate (wall[0]), t2… (wall[1…N−3]); соперники o1… (дальше); наш вратарь — последняя модель
   const N = NSIDE, ourW = wall.slice(0, N - 2), oppW = wall.slice(N - 2, 2 * N - 3), gk2 = wall[wall.length - 1];
   // кто есть кто: имена и характеристики с карточек (у соперников — средние, скорость — по сложности); при смене имя едет с моделью
-  const card = (pl, c, k = 1) => { pl.nick = c ? c.name : 'Игрок клуба'; pl.spd = (0.95 + 0.09 * k01(c ? c.st[0] : 65)) * k; pl.shotK = 0.95 + 0.08 * k01(c ? c.st[1] : 65); };
+  const card = (pl, c, k = 1, pos = '') => { pl.nick = c ? c.name : 'Игрок клуба'; cardStats(pl, c ? c.st : null, k); setHeight(pl, heightOf(c, pos || (c && c.pos))); };
   const bot = (pl, id, home) => ({ id, pl, home, P: BP.newPlayer({ x: 0, z: L / 2 }, 0), st: 'support', hold: 0, pass: null, fire: false, plan: null, planT: 0, pick: -1, pickT: 0, tkCd: 0, slowT: 0 });
   mk(shooter, myKit || KIT_US, 'me'); card(shooter, LINEUP[0]);
+  const GUEST_H = [178, 184, 187, 175, 182, 189, 180, 176, 186, 183]; // рост гостей (своих карточек у них нет)
   const ours = ourW.map((pl, i) => { const id = i === 0 ? 'mate' : 't' + (i + 1); mk(pl, myKit || KIT_US, id); card(pl, LINEUP[i + 1]); const b = bot(pl, id, i); b.hxy = hxyOf(LINEUP[i + 1]); return b; });
-  const opp = oppW.map((pl, i) => { const id = 'o' + (i + 1); mk(pl, KIT_THEM, id); card(pl, { name: 'Гость', st: [76, 74] }, DIFF.spd); return bot(pl, id, i); });
+  const opp = oppW.map((pl, i) => { const id = 'o' + (i + 1); mk(pl, KIT_THEM, id); card(pl, { name: 'Гость', st: [76, 74, 73, 73, 70, 72], h: GUEST_H[i % GUEST_H.length] }, DIFF.spd); return bot(pl, id, i); });
   recolor(gk2, KIT_GK2); gk2.holder.visible = true; gk2.nick = LINEUP[N - 1] ? LINEUP[N - 1].name : 'Игрок клуба';
+  setHeight(gk2, heightOf(LINEUP[N - 1], 'GK')); setHeight(GK[0].pl, 191); // вратари: свой — по карточке, у гостей — 191 см
   for (let k = 2 * N - 2; k < wall.length - 1; k++) wall[k].holder.visible = false;
   // 11 на 11: игроков вне кадра не рисуем (границы — с запасом), тени — только у тех, кто рядом с мячом (lightTick)
   if (N > 3) for (const pl of [shooter, ...ourW, ...oppW]) pl.model.traverse((o) => { if (!o.isSkinnedMesh) return; o.frustumCulled = true; if (!o.boundingSphere) o.computeBoundingSphere(); o.boundingSphere.radius = Math.max(o.boundingSphere.radius, 1.2) * 1.6; });

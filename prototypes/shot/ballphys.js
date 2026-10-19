@@ -32,7 +32,7 @@ export const CFG = {
     muSlide: 0.5,     // трение скольжения по траве
     rollSlip: 0.04,   // разница скорости точки касания, ниже которой мяч считается катящимся, м/с
     rollConst: 0.55,  // сопротивление качению: постоянная часть, м/с²
-    rollLin: 0.32,    // … и часть, растущая со скоростью (трава), 1/с
+    rollLin: 0.2,     // … и часть, растущая со скоростью (трава), 1/с — газон «быстрый»: пас не вылетает и не гаснет резко
     spinDecay: 3,     // вращение вокруг вертикали гаснет о траву, доля в секунду
     restSpeed: 0.06,  // медленнее — мяч останавливается совсем (нет вечного микродвижения)
   },
@@ -118,8 +118,8 @@ export const CFG = {
     touchLose: 2.2,         // в это время мяч считается своим, пока он не дальше этого от точки контроля, м
   },
   pass: {
-    arrive: 3.2,          // обычный пас приходит к партнёру со скоростью, м/с (удобно принять)
-    arriveStrong: 7.5,    // сильный (удержание) — так, м/с: быстрее, но труднее принять
+    arrive: 4.2,          // обычный пас приходит к партнёру со скоростью, м/с (удобно принять, без «умирания» мяча)
+    arriveStrong: 8.5,    // сильный (удержание) — так, м/с: быстрее, но труднее принять
     vMin: 5, vMax: 24,    // пределы скорости паса низом, м/с
     lead: 1.0,            // пас на ход: насколько учитывать бег партнёра (1 — точно в точку встречи)
     throughAhead: 4.5, throughPerSpeed: 0.7, // «На ход»: в зону перед получателем на столько м (+ за каждый м/с его бега)
@@ -351,7 +351,7 @@ export function playerStep(P, inp, h, withBall) {
   const wx = inp.x * max, wz = -inp.y * max, want = Math.hypot(wx, wz), sp0 = Math.hypot(P.v.x, P.v.z);
   P.wx = wx; P.wz = wz; // чего хочет игрок (по нему видно резкий разворот)
   if (P.drive) { P.v.x = P.drive.x; P.v.z = P.drive.z; } // скорость задаёт запись движения (подкат, разворот), джойстик в это время не действует
-  else { const k = 1 - Math.exp(-h * (want > sp0 ? C.accel * (P.boost || 1) : C.decel)); // boost — рывок к свободному мячу (автоподбор)
+  else { const k = 1 - Math.exp(-h * (want > sp0 ? C.accel * (P.boost || 1) * (P.accK || 1) : C.decel)); // boost — рывок к свободному мячу (автоподбор)
     P.v.x += (wx - P.v.x) * k; P.v.z += (wz - P.v.z) * k; }
   const nx = P.p.x + P.v.x * h, nz = P.p.z + P.v.z * h;
   P.p.x = Math.max(-C.bounds.x, Math.min(C.bounds.x, nx));
@@ -426,7 +426,7 @@ export function updateClear(b, P, who) {
 // касание при ведении: мяч отходит вперёд (на рывке дальше)
 export function touch(b, P) {
   const C = CFG.control, sp = Math.hypot(P.v.x, P.v.z);
-  b.push = C.touchPush + C.touchPushPerSpeed * sp; b.roll = C.rollTime || 0;
+  b.push = (C.touchPush + C.touchPushPerSpeed * sp) * (P.dribK || 1); b.roll = C.rollTime || 0; // dribK — дриблинг карточки
   b.touchCd = Math.max(C.touchMin, Math.min(C.touchMax, 0.62 - sp * 0.045));
 }
 // шаг ведения: мяч мягко следует за точкой контроля (демпфированная «пружина» с ограничением), без телепортаций.
