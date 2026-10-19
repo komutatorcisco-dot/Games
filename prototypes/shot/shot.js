@@ -2214,7 +2214,14 @@ function exitToMenu() {
 }
 // хаб передаёт «Назад» Telegram сюда; звук — по настройке хаба; вибрация — через хаб (во фрейме Telegram недоступен)
 if (EMBED) {
-  addEventListener('message', (e) => { if (e.origin === location.origin && e.data && e.data.jg === 'back') onBack(); });
+  addEventListener('message', (e) => {
+    if (e.origin !== location.origin || !e.data) return;
+    if (e.data.jg === 'back') onBack();
+    else if (e.data.jg === 'safe') { // хаб во весь экран Telegram: табло и кнопки не прячутся под кнопками Telegram и вырезом
+      const r = document.documentElement.style, px = (v) => Math.max(0, Math.min(200, +v || 0));
+      [['--st', 'top'], ['--sl', 'left'], ['--sr', 'right'], ['--sb', 'bottom']].forEach(([k, n]) => r.setProperty(k, `max(env(safe-area-inset-${n}, 0px), ${px(e.data[n])}px)`));
+    }
+  });
   if (Q.get('snd') === '0') sfx.setSound(false, false); else if (Q.get('snd') === '1') sfx.setSound(true, false);
   sfx.setBuzz((kind) => { try { parent.postMessage({ jg: 'haptic', kind: kind === 'light' ? 'tap' : 'pop' }, location.origin); } catch (e) { /* без вибрации */ } });
 }

@@ -387,9 +387,21 @@ const App = (() => {
     const u = Store.d && Store.d.user, q = new URLSearchParams({ mode, embed: '1', snd: Store.d && Store.d.sound ? '1' : '0' });
     if (u && u.nick) q.set('name', String(u.nick).slice(0, 14));
     for (const [k, v] of Object.entries(Football.params())) q.set(k, v); // состав, размер команды, сложность
-    $('#football-frame').src = 'prototypes/shot/index.html?' + q;
+    const fr = $('#football-frame'); fr.onload = fbInsets; fr.src = 'prototypes/shot/index.html?' + q;
     try { if (TG && TG.unlockOrientation) TG.unlockOrientation(); } catch (e) { /* старый Telegram */ } // игра горизонтальная — экран должен поворачиваться
+    // на телефоне матч — во весь экран Telegram, без верхней панели; при выходе панель вернётся
+    try { if (TG && TG.requestFullscreen && TG.isFullscreen === false && ['ios', 'android'].includes(TG.platform) && (!TG.isVersionAtLeast || TG.isVersionAtLeast('8.0'))) { TG.requestFullscreen(); fbFull = true; } } catch (e) { /* старый Telegram */ }
     Screens.show('football');
+  }
+  let fbFull = false, fbEv = false;
+  function fbExitFull() { if (!fbFull) return; fbFull = false; try { if (TG.isFullscreen) TG.exitFullscreen(); } catch (e) { /* старый Telegram */ } }
+  // сколько места сверху и по бокам занимают вырез экрана и кнопки Telegram — игра сдвигает туда табло и кнопки
+  function fbInsets() {
+    if (TG && TG.onEvent && !fbEv) { fbEv = true; try { ['safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged', 'viewportChanged'].forEach((ev) => TG.onEvent(ev, fbInsets)); } catch (e) { /* старый Telegram */ } }
+    const w = Screens.current === 'football' && $('#football-frame').contentWindow; if (!w) return;
+    let s = {}, c = {}; try { s = (TG && TG.safeAreaInset) || {}; c = (TG && TG.contentSafeAreaInset) || {}; } catch (e) { /* не в Telegram */ }
+    const k = (n) => (+s[n] || 0) + (+c[n] || 0);
+    w.postMessage({ jg: 'safe', top: k('top'), left: k('left'), right: k('right'), bottom: k('bottom') }, location.origin);
   }
   // «Назад» Telegram в футболе: игра сама закрывает свои окна, из идущего матча спрашивает подтверждение, потом просит выйти
   function footballBack() { const w = $('#football-frame').contentWindow; if (w) w.postMessage({ jg: 'back' }, location.origin); else home(); }
@@ -591,7 +603,7 @@ const App = (() => {
     const orig = Screens.show.bind(Screens);
     Screens.show = (id) => {
       if (Screens.current === 'runner' && id !== 'runner') $('#runner-frame').removeAttribute('src');
-      if (Screens.current === 'football' && id !== 'football') $('#football-frame').removeAttribute('src'); // игра выгружается целиком: цикл, звук, обработчики
+      if (Screens.current === 'football' && id !== 'football') { $('#football-frame').removeAttribute('src'); fbExitFull(); } // игра выгружается целиком: цикл, звук, обработчики
       if (Screens.current === 'ng' && id !== 'ng') NG.leave();
       orig(id);
       document.body.dataset.scr = id;

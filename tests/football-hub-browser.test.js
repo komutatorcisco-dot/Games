@@ -4,12 +4,12 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const {chromium}=require('playwright');
 const STUB=`<!doctype html><meta charset="utf-8"><body>stub<script>
-addEventListener('message',e=>{if(e.data&&e.data.jg==='back'){parent.__backs=(parent.__backs||0)+1;parent.postMessage({jg:'haptic',kind:'tap'},location.origin);parent.postMessage({jg:'football-exit'},location.origin);}});
+addEventListener('message',e=>{if(e.data&&e.data.jg==='safe')parent.__safe=e.data.top;if(e.data&&e.data.jg==='back'){parent.__backs=(parent.__backs||0)+1;parent.postMessage({jg:'haptic',kind:'tap'},location.origin);parent.postMessage({jg:'football-exit'},location.origin);}});
 </script>`;
 const tg=()=>{const noop=new Proxy(function(){},{get:(t,k)=>k==='isVisible'?false:noop,apply:()=>undefined});
   const bb={shown:false,h:null,show(){this.shown=true;},hide(){this.shown=false;},onClick(f){this.h=f;},isVisible:false};
   const base={initData:'query_id=1&user=%7B%22id%22%3A1%7D&hash=0',initDataUnsafe:{user:{id:1}},version:'8.0',platform:'ios',BackButton:bb,
-    unlockOrientation(){window.__unlocked=(window.__unlocked||0)+1;},isVersionAtLeast:()=>true,colorScheme:'dark',themeParams:{},viewportHeight:844,viewportStableHeight:844,
+    unlockOrientation(){window.__unlocked=(window.__unlocked||0)+1;},isFullscreen:false,requestFullscreen(){this.isFullscreen=true;window.__full=(window.__full||0)+1;},exitFullscreen(){this.isFullscreen=false;},contentSafeAreaInset:{top:46,left:0,right:0,bottom:0},isVersionAtLeast:()=>true,colorScheme:'dark',themeParams:{},viewportHeight:844,viewportStableHeight:844,
     CloudStorage:{getItems:(ks,cb)=>setTimeout(()=>cb(null,{}),5),setItem:(k,v,cb)=>cb&&cb(null,true),getItem:(k,cb)=>cb(null,''),removeItem:(k,cb)=>cb&&cb(null,true)}};
   window.Telegram={WebApp:new Proxy(base,{get:(t,k)=>k in t?t[k]:noop})};};
 (async()=>{
@@ -54,12 +54,15 @@ const tg=()=>{const noop=new Proxy(function(){},{get:(t,k)=>k==='isVisible'?fals
     assert.equal(q11.get('p0').split('|')[8],'ST','первым — нападающий');assert.equal(q11.get('p10').split('|')[8],'GK');assert.equal(q11.get('p10').split('|').length,11);
     await page.evaluate(()=>{Football.open();document.querySelector('[data-fbfmt="3"]').click();document.querySelector('[data-fbdiff="1"]').click();document.querySelector('[data-act="football-go"]').click();});
     assert.equal(await page.evaluate(()=>window.__unlocked||0)>0,true,'ориентация не закреплена');
+    assert.equal(await page.evaluate(()=>Telegram.WebApp.isFullscreen),true,'матч — во весь экран Telegram');
+    await page.waitForFunction(()=>window.__safe===46);
     assert.equal(await page.evaluate(()=>Telegram.WebApp.BackButton.shown),true);
     await page.waitForTimeout(300);
     await page.evaluate(()=>Telegram.WebApp.BackButton.h()); // «Назад» → игра → «выйти»
     await page.waitForFunction(()=>document.body.dataset.scr==='hub');
     assert.equal(await page.evaluate(()=>window.__backs),1,'«Назад» передан игре');
     assert.equal(await page.getAttribute('#football-frame','src'),null,'фрейм выгружен');
+    assert.equal(await page.evaluate(()=>Telegram.WebApp.isFullscreen),false,'после матча — обычный вид Telegram');
     assert.deepEqual(errors,[]);await page.close();
     const prod=await open('');await prod.page.waitForTimeout(500);
     await prod.page.waitForSelector('#home2',{timeout:15000});
