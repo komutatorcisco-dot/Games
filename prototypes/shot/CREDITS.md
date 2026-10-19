@@ -9,3 +9,5 @@
 - Модель своей команды (assets/hero.glb) — сделана владельцем проекта в Tripo, скелет — авто-риггинг Mixamo;
   облегчена в Blender (bpy) с 1,94 млн до 24 тыс. треугольников, текстура цвета 2048, нормали 1024 (WEBP).
   Ведение мяча (assets/hero_dribble.glb) — Mixamo «Dribble», записано на этом же скелете. Исходники — в релизе data-1.
+  Движения assets/hero_moves.glb (тот же скелет, Mixamo): Sprint, Fast Run, Run To Stop, Running Turn 180, Soccer Tackle
+  (три варианта), Backward Right Turn, Running To Turn, Turn To Running; только скелет и повороты костей, 30 кадров/с.

@@ -349,8 +349,10 @@ export function playerStep(P, inp, h, withBall) {
   const C = CFG.player;
   const max = (P.sprint ? C.sprint : C.jog) * (withBall ? C.withBall : 1) * (P.charging ? C.charging : 1) * (P.spd || 1); // spd — характеристика «скорость» карточки (матч)
   const wx = inp.x * max, wz = -inp.y * max, want = Math.hypot(wx, wz), sp0 = Math.hypot(P.v.x, P.v.z);
-  const k = 1 - Math.exp(-h * (want > sp0 ? C.accel * (P.boost || 1) : C.decel)); // boost — рывок к свободному мячу (автоподбор)
-  P.v.x += (wx - P.v.x) * k; P.v.z += (wz - P.v.z) * k;
+  P.wx = wx; P.wz = wz; // чего хочет игрок (по нему видно резкий разворот)
+  if (P.drive) { P.v.x = P.drive.x; P.v.z = P.drive.z; } // скорость задаёт запись движения (подкат, разворот), джойстик в это время не действует
+  else { const k = 1 - Math.exp(-h * (want > sp0 ? C.accel * (P.boost || 1) : C.decel)); // boost — рывок к свободному мячу (автоподбор)
+    P.v.x += (wx - P.v.x) * k; P.v.z += (wz - P.v.z) * k; }
   const nx = P.p.x + P.v.x * h, nz = P.p.z + P.v.z * h;
   P.p.x = Math.max(-C.bounds.x, Math.min(C.bounds.x, nx));
   P.p.z = Math.max(C.bounds.zMin, Math.min(C.bounds.zMax, nz));
