@@ -33,7 +33,7 @@ export const LOOK = {
   pitch: {
     stripeA: '#4d7b3b', stripeB: '#56853f', stripeWidth: 5.5,
     paint: 'rgba(238,241,232,0.93)',  // разметка — краска на траве, не чистый белый
-    detailMean: 0.0917,   // средняя яркость (линейная) текстуры травы assets/grass.webp — делим на неё, без «×2,7 на глаз»
+    detailMean: 0.0614,   // средняя яркость (линейная) текстуры травы assets/grass3.webp — делим на неё, без «×2,7 на глаз»
     detail: 0.55,         // насколько видна мелкая текстура травы (0 — гладко)
     paintDetail: 0.3,     // … и сквозь краску разметки
     normal: 0.3,          // мелкий рельеф травы
@@ -104,7 +104,7 @@ const LOOK_A = {
   exposure: 1.16, env: 0.95, hemi: 0.32,                  // больше рассеянного света — мягкие тени, детали в тени формы
   sun: { elevation: 58, azimuth: 55, color: '#fff4e4', intensity: 2.45 },
   shadowRadius: 3.5,                                      // мягкий край тени
-  pitch: { stripeA: '#596f30', stripeB: '#6a8039', macro: 0.035, detail: 0.28, paintDetail: 0.12 }, // на экране ≈ ориентиру: #5b7529 / #647c2f
+  pitch: { stripeA: '#4a7834', stripeB: '#5a893e', stripeWidth: 7.5, macro: 0.035, detail: 0.34, paintDetail: 0.12 }, // как в FC Mobile: сочный зелёный без жёлтого, чёткие полосы
   paint: 0.97, envKind: 'training',
 };
 export const TV_LOOKS = {

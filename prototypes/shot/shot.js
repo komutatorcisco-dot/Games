@@ -198,7 +198,7 @@ function pitch() {
   g.beginPath(); g.arc(px(0), pz(L / 2), F.circle * S, 0, 2 * Math.PI); g.stroke(); g.beginPath(); g.arc(px(0), pz(L / 2), 0.15 * S, 0, 7); g.fill(); // центральный круг и точка
   const lines = new THREE.CanvasTexture(c); lines.anisotropy = ren.capabilities.getMaxAnisotropy(); // маска: данные, без перевода цвета
   const tl = new THREE.TextureLoader();
-  const gN = tl.load('assets/grass_n.webp'), gC = tl.load('assets/grass.webp'), noise = smoothNoise();
+  const gN = tl.load('assets/grass3_n.webp'), gC = tl.load('assets/grass3.webp'), noise = smoothNoise(); // Grass003 (ambientCG, CC0)
   for (const x of [gN, gC]) { x.wrapS = x.wrapT = THREE.RepeatWrapping; x.anisotropy = Math.min(PQ.aniso, ren.capabilities.getMaxAnisotropy()); }
   gC.colorSpace = THREE.SRGBColorSpace; // цвет — sRGB; нормали (gN) — линейные данные
   const W = 220, rep = W / 2.2; gN.repeat.set(rep, rep);
@@ -863,19 +863,31 @@ function play(pl, name, { t = 0, loop = false, fade = 0.25, speed = 1, hold = In
 // Бег и стойка смешиваются плавно по скорости (а не переключаются): вес бега растёт от 0,3 до 1,9 м/с.
 // Ноги крутятся со скоростью перемещения: в записи jog_forward таз проходит 2,155 м за 0,87 с — это 2,48 м/с.
 const JOG_SPEED = 2.48;
-function loco(pl, sp, dt) {
-  const L = pl.loco || (pl.loco = { idle: pl.mixer.clipAction(variant('idle')), jog: pl.mixer.clipAction(variant('jog')), f: 1, prev: null });
+// Бег по направлениям (как «пространство смешивания» в больших играх): вперёд, назад, боком влево/вправо — по скорости
+// в осях корпуса. Все записи бега идут в одной фазе шага (время ставим сами), поэтому ноги не путаются при смешивании.
+// Метров за цикл записи (замер смещения таза): вперёд 2,15, назад 1,90, влево 2,11, вправо 1,76.
+const LOCO_DIRS = [['jog', 2.15], ['jog_back', 1.9], ['jog_strafe_left', 2.11], ['jog_strafe_right', 1.76]];
+function loco(pl, sp, dt, P) {
+  const L = pl.loco || (pl.loco = { idle: pl.mixer.clipAction(variant('idle')), jog: pl.mixer.clipAction(variant('jog')), dirs: null, f: 1, prev: null, ph: 0 });
+  if (MATCH_ON && !L.dirs) L.dirs = LOCO_DIRS.map(([n, m]) => ({ a: n === 'jog' ? L.jog : pl.mixer.clipAction(variant(n)), m }));
+  const all = L.dirs ? [L.idle, ...L.dirs.map((d) => d.a)] : [L.idle, L.jog];
   if (pl.name !== 'loco') {
     L.prev = pl.act; L.f = 0;
-    for (const a of [L.idle, L.jog]) { a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.play(); a.setEffectiveWeight(0); }
+    for (const a of all) { a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.play(); a.setEffectiveWeight(0); }
     Object.assign(pl, { name: 'loco', act: L.jog, hold: Infinity, lock: null, lift: 0, follow: true });
   }
   L.f = Math.min(1, L.f + dt / 0.3);
   const w = THREE.MathUtils.smoothstep(sp, 0.3, 1.9);
-  L.idle.setEffectiveWeight((1 - w) * L.f); L.jog.setEffectiveWeight(w * L.f);
-  if (L.prev && L.prev !== L.idle && L.prev !== L.jog) { L.prev.setEffectiveWeight(1 - L.f); if (L.f >= 1) { L.prev.stop(); L.prev = null; } }
-  // на рывке шаг в жизни длиннее — частоту ног ограничиваем (лёгкое скольжение лучше «семенящих» ног)
-  L.jog.timeScale = THREE.MathUtils.clamp(sp / JOG_SPEED, 0.75, 2.1);
+  L.idle.setEffectiveWeight((1 - w) * L.f);
+  if (L.prev && !all.includes(L.prev)) { L.prev.setEffectiveWeight(1 - L.f); if (L.f >= 1) { L.prev.stop(); L.prev = null; } }
+  if (!L.dirs || !P) { L.jog.setEffectiveWeight(w * L.f); L.jog.timeScale = THREE.MathUtils.clamp(sp / JOG_SPEED, 0.75, 2.1); return; } // на рывке частоту ног ограничиваем
+  // скорость в осях корпуса: вперёд и вправо (правая сторона при взгляде вдоль +z — это −x)
+  const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), vf = sp > 0.05 ? (P.v.x * fx + P.v.z * fz) / sp : 1, vr = sp > 0.05 ? (-P.v.x * fz + P.v.z * fx) / sp : 0;
+  const s = Math.abs(vf) + Math.abs(vr) || 1, ws = [Math.max(0, vf) / s, Math.max(0, -vf) / s, Math.max(0, -vr) / s, Math.max(0, vr) / s];
+  // шагов в секунду — по смеси записей; ограничение то же, что было (не семенить на рывке)
+  let cps = 0; for (let i = 0; i < 4; i++) cps += ws[i] * (sp / L.dirs[i].m); cps = THREE.MathUtils.clamp(cps, 0.75 / 0.87, 2.1 / 0.87);
+  L.ph = (L.ph + cps * dt) % 1;
+  for (let i = 0; i < 4; i++) { const d = L.dirs[i]; d.a.timeScale = 0; d.a.time = L.ph * d.a.getClip().duration; d.a.setEffectiveWeight(w * ws[i] * L.f); }
 }
 // таз в мировых координатах ↔ в координатах скелета (у скелета Mixamo свой поворот и масштаб 0,01)
 function tickPlayer(pl, dt) {
@@ -955,13 +967,14 @@ const tvFocus = new THREE.Vector3();
 // yaw — откуда смотрит камера (0° — с боковой линии +x, 90° — из-за спины атаки, со стороны +z);
 // near/far — сколько метров от центра кадра видно к камере/вглубь (активный игрок всегда в этих пределах).
 const TV_CAMS = {
+  tv: { label: 'Трансляция', yaw: 0, side: 27, h: 16.5, fov: 31, ahead: 7, zMin: 1, near: 6, far: 8, right: 7, left: 14 }, // как в FC Mobile: ~35° сверху, перспектива
   behind: { label: 'Сверху', yaw: 90, side: 22, h: 27.5, fov: 26, ahead: 7, zMin: 0.5, near: 7, far: 9, right: 2.5, left: 12 },  // ~46° сверху, ~35 м
   side: { label: 'Сбоку', yaw: 0, side: 27.5, h: 30.5, fov: 20, ahead: 7, zMin: 1, near: 4.5, far: 6.5, right: 4, left: 11 },       // ~48° сверху, ~41 м
   diag: { label: 'Диагональ', yaw: 25, side: 29.5, h: 28, fov: 20, ahead: 7, zMin: 1, near: 4.5, far: 6.5, right: 6, left: 12 },
 };
-const TV_CAM_ORDER = ['behind', 'side', 'diag'];
-const CAM_KEY = MATCH_ON ? 'shot.match.cam' : 'shot.duo.cam'; // в матче по умолчанию — высокая боковая камера
-let tvCamSel = (() => { const q = Q.get('tvcam'); if (TV_CAMS[q]) return q; try { const v = localStorage.getItem(CAM_KEY); if (TV_CAMS[v]) return v; } catch (e) { /* без памяти */ } return MATCH_ON ? 'side' : 'behind'; })();
+const TV_CAM_ORDER = ['tv', 'behind', 'side', 'diag'];
+const CAM_KEY = MATCH_ON ? 'shot.match.cam2' : 'shot.duo.cam'; // в матче по умолчанию — высокая боковая камера
+let tvCamSel = (() => { const q = Q.get('tvcam'); if (TV_CAMS[q]) return q; try { const v = localStorage.getItem(CAM_KEY); if (TV_CAMS[v]) return v; } catch (e) { /* без памяти */ } return MATCH_ON ? 'tv' : 'behind'; })();
 // матч: в центре кадра — мяч и управляемый игрок (без «ворота справа»), ориентация камеры постоянная, сдвиг плавный
 function matchCam(out, snap) {
   const C = CAM_TV, a = run ? run.P.p : { x: 0, z: MATCH.L / 2 }, celeP = state === 'goal' && MT.cele && MT.stT > 0.8 ? MT.cele.hero.holder.position : null, bp = celeP || ball.position;
@@ -1545,8 +1558,8 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
   const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
   // замах занят до конца движения ноги; запись может закончиться раньше этого запаса — тогда до её конца (иначе поза застывает навсегда)
   const busyTill = (C, extra) => Math.min(C.tc + extra, C.dur - 0.05);
-  const busy = (pl.name === 'strike' && pl.t < busyTill(STRIKE, 0.3)) || (pl.name === 'pass' && pl.t < busyTill(PASS, 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele);
-  if (!busy) loco(pl, sp, dt);
+  const busy = (pl.name === 'strike' && pl.t < busyTill(STRIKE, 0.3)) || (pl.name === 'pass' && pl.t < busyTill(PASS, 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele) || (pl.once && pl.name === pl.once.name && pl.t < pl.once.until);
+  if (!busy) loco(pl, sp, dt, P);
   tickPlayer(pl, dt);
   // касания при ведении — в такт шагу: правая нога проходит вперёд на ~62–69% цикла бега (замер записи jog_forward);
   // на медленном шаге (бег почти не смешан) — когда носок у мяча; и не реже раза в touchMax
@@ -1561,6 +1574,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
   return sp;
 }
 function runAnim(dt) {
+  if (TRACE && window.__freeze) return; // проверка поз: кадр записи стоит
   const P = run.P, sp = bodyAnim(shooter, P, dt);
   if (run.strike && shooter.name === 'strike' && shooter.t >= STRIKE.tc) run.fire = true; // нога дошла до мяча
   if (run.pass && shooter.name === 'pass' && shooter.t >= PASS.tc) run.passFire = true;
@@ -1797,6 +1811,8 @@ function tackleTick(a, h) {
       if (TRACE) console.log('tackle', JSON.stringify({ id: a.id, d: +d.toFixed(2), front: +front.toFixed(2), shield, p: +p.toFixed(2) }));
       if (Math.random() < p) { // выбил: мяч свободен, катится к ногам отбиравшего
         ok = true; cancelOwnerAction(own.id); BP.release(B, own.id, simT, 0.7, false); MST().tackles[a.team]++; MT.passPend = null;
+        // у кого отобрали — спотыкается (запись soccer_trip) и на секунду теряет скорость
+        if (Math.random() < 0.6) { play(own.pl, 'soccer_trip', { t: 0.15, fade: 0.1, speed: 1.25, follow: true }); own.pl.once = { name: 'soccer_trip', until: 1.3 }; const oa = own.id === 'me' ? run.meAI : own.ai; if (oa) oa.slowT = 0.9; }
         B.v.set(fx * 1.2 + P.v.x * 0.45, 0.15, fz * 1.2 + P.v.z * 0.45); B.w.set(0, 0, 0); MT.last = a.team; sfx.touch();
         if (a.id === 'me' || own.id === 'me') sfx.buzz('medium');
       }
@@ -1818,6 +1834,10 @@ function botStep(a, h) {
     if (k > 0) inp = { x: (dx / d) * k, y: (-dz / d) * k };
   }
   P.sprint = !!ai.sprint && !(ai.slowT > 0) && state === 'play'; P.charging = false;
+  // без мяча — корпусом к мячу (бег боком и спиной), если не убегает от него далеко и не рвётся вперёд
+  { const own = B.owner === a.id, bx = B.p.x - P.p.x, bz = B.p.z - P.p.z, bl = Math.hypot(bx, bz) || 1, tl = ai.tx !== undefined ? Math.hypot(ai.tx - P.p.x, ai.tz - P.p.z) : 0;
+    const away = ai.tx !== undefined && tl > 0.5 ? ((ai.tx - P.p.x) * bx + (ai.tz - P.p.z) * bz) / (tl * bl) : 1;
+    P.face = !own && state === 'play' && !ai.run && !ai.chasing && bl < 45 && (away > -0.55 || tl < 6) ? B.p : null; }
   if (ai.run && (ai.run.t -= h) <= 0) ai.run = null; // забегание кончилось — снова по расстановке
   if (state === 'play') inp = stepToBall(P, inp, a.id);
   BP.playerStep(P, inp, h, owning() && B.owner === a.id);
@@ -1861,7 +1881,7 @@ function formation(a, foes, attacking) {
   const ai = a.ai, P = a.P, H = homeOf(a, attacking); let tx = H.x, tz = H.z;
   // забегание: полузащитник или нападающий в атаке время от времени рвётся вперёд в свободный коридор — под пас на ход
   if (!attacking) ai.run = null;
-  else if (!ai.run && homeBase(a)[1] >= 0.45 && Math.random() < 0.035 && !isOffside(a)) {
+  else if (!ai.run && homeBase(a)[1] >= 0.45 && Math.random() < 0.05 && !isOffside(a)) {
     const fz = fwdZ(a.team), side = Math.abs(H.x) > 10 ? -Math.sign(H.x) : Math.random() < 0.5 ? -1 : 1;
     ai.run = { x: clampX(H.x + side * (3 + Math.random() * 5), 3), z: clampZ(H.z + fz * (12 + Math.random() * 8), 4), t: 2.6 };
   }
@@ -1883,11 +1903,12 @@ function botWithBall(a, mates, foes) {
   const dGoal = Math.hypot(P.p.x, P.p.z - gz), gk = GK[team === 0 ? 0 : 1].pl.holder.position;
   const near = foes.map((f) => ({ f, d: Math.hypot(f.P.p.x - P.p.x, f.P.p.z - P.p.z) })).sort((x, y) => x.d - y.d)[0];
   // удар: в дальний от вратаря угол, с ошибкой; только если линию не закрывает полевой соперник
-  if (dGoal < AI.shootD && Math.abs(P.p.z - gz) > 2) {
+  const big = NSIDE > 3; // 11 на 11: смелее — бьют чаще и издалека, в последней трети реже отдают назад
+  if (dGoal < (big ? 27 : AI.shootD) && Math.abs(P.p.z - gz) > 2) {
     const side = gk.x > P.p.x * 0.3 ? -1 : 1, tx = side * (GW - 1.2) + (Math.random() * 2 - 1) * DF(team).noise; // в угол, но не всегда точно: бывает и мимо
-    const clear = foes.every((f) => segDist(P.p.x, P.p.z, tx, gz, f.P.p.x, f.P.p.z) > 1.0);
-    const facing = (Math.sin(P.yaw) * (tx - P.p.x) + Math.cos(P.yaw) * (gz - P.p.z)) / Math.max(1, dGoal) > 0.2;
-    const want = dGoal < 11 ? 0.5 : dGoal < 17 ? 0.3 : 0.1;
+    const clear = foes.every((f) => segDist(P.p.x, P.p.z, tx, gz, f.P.p.x, f.P.p.z) > (big ? 0.75 : 1.0));
+    const facing = (Math.sin(P.yaw) * (tx - P.p.x) + Math.cos(P.yaw) * (gz - P.p.z)) / Math.max(1, dGoal) > (big ? 0 : 0.2);
+    const want = big ? (dGoal < 11 ? 0.75 : dGoal < 17 ? 0.5 : dGoal < 23 ? 0.28 : 0.12) : dGoal < 11 ? 0.5 : dGoal < 17 ? 0.3 : 0.1;
     if (clear && facing && Math.random() < want * DF(team).want) { botShoot(a, tx, Math.min(0.85, 0.32 + dGoal / 40 + Math.random() * 0.15)); return; }
   }
   // навес: с фланга в последней трети — верхом на партнёра в штрафной (там он бьёт головой)
@@ -1902,7 +1923,8 @@ function botWithBall(a, mates, foes) {
   const open = m ? openOf(m) : 0;
   const mAhead = m ? (m.P.p.z - P.p.z) * fz : -99, md = m ? Math.hypot(m.P.p.x - P.p.x, m.P.p.z - P.p.z) : 99;
   const pressed = near && near.d < 2.3 && ((near.f.P.p.z - P.p.z) * fz > -0.5);
-  if (m && open > 1.6 && md > 5 && md < 34 && ((pressed && Math.random() < 0.6) || (m.ai && m.ai.run && mAhead > 3 && Math.random() < 0.55) || (ai.holdT > 1.6 && mAhead > 2 && Math.random() < 0.45) || (ai.holdT > 3.5 && Math.random() < 0.5))) {
+  const lastThird = big && depthOf(team, P.p.z) < 32 && dGoal > 0; // у чужих ворот — сам идёт и бьёт, отдаёт только под давлением или вперёд
+  if (m && open > 1.6 && md > 5 && md < 34 && ((pressed && Math.random() < 0.6) || (m.ai && m.ai.run && mAhead > 3 && Math.random() < 0.55) || (!lastThird && ai.holdT > 1.6 && mAhead > 2 && Math.random() < 0.45) || (ai.holdT > (lastThird ? 2.6 : 3.5) && (!lastThird || mAhead > -2) && Math.random() < 0.5))) {
     const runner = m.ai && m.ai.run && mAhead > 0, kind = runner ? 'through' : 'ground'; // забегающему — на ход (далёкому — верхом)
     if (startPass(P, a.id, a.pl, md > 22 ? 0.7 : md > 14 ? 0.45 : 0.2, kind)) { const job = a.id === 'me' ? run.pass : ai.pass; job.recv = m; if (runner && md > 18) job.loft = true; ai.holdT = 0; return; }
   }
@@ -1910,7 +1932,7 @@ function botWithBall(a, mates, foes) {
   let dx = -P.p.x * 0.25, dz = fz * 6;
   if (near && near.d < 4.5 && ((near.f.P.p.z - P.p.z) * fz > -0.3)) { const s = near.f.P.p.x > P.p.x ? -1 : 1, s2 = Math.abs(P.p.x + s * 4) > MATCH.HW - 2 ? -s : s; dx += s2 * 5; dz *= 0.6; }
   if (Math.abs(P.p.z - gz) < 5) dx = -P.p.x * 0.8; // у лицевой — к центру
-  ai.tx = clampX(P.p.x + dx, 1.5); ai.tz = clampZ(P.p.z + dz, 0.8); ai.sprint = !(near && near.d < 3.5) && dGoal > 9;
+  ai.tx = clampX(P.p.x + dx, 1.5); ai.tz = clampZ(P.p.z + dz, 0.8); ai.sprint = !(near && near.d < (big ? 2.4 : 3.5)) && dGoal > 9;
   ai.want = { x: dx, z: dz };
 }
 function botShoot(a, tx, pw) {
@@ -2003,7 +2025,7 @@ function matchPhys(h) {
   const P = run.P, live = state === 'play', A = actors();
   for (const a of A) a.P.spd = a.pl.spd || 1;
   if (state === 'goal') { celebrateStep(h); gkTick(h); matchRules(h); for (const j of [0, 1]) withGK(j, () => keeperAI(h)); return; } // гол: празднование, мяч в сетке
-  P.sprint = btn.sprint || keys.ShiftLeft || keys.ShiftRight; P.charging = run.charge >= 0;
+  P.sprint = btn.sprint || keys.ShiftLeft || keys.ShiftRight; P.charging = run.charge >= 0; P.face = null; // управляемый — корпус по ходу
   if (AUTOPLAY) botStep(A[0], h); else {
     let inp = live ? pressInput(P, chaseInput(P, passInput(), h)) : { x: 0, y: 0 };
     if (run.meAI.slowT > 0) { inp = { x: inp.x * 0.5, y: inp.y * 0.5 }; P.sprint = false; }
@@ -2046,7 +2068,9 @@ function matchPhys(h) {
     if (best) {
       statGot(best.team);
       const ji = best.id === 'me' ? passInput() : null, intent = best.id === 'me' ? (Math.hypot(ji.x, ji.y) > 0.2 ? { x: ji.x, z: -ji.y } : null) : botIntent(best);
-      const rel = BP.firstTouch(B, best.P, best.id, intent); sfx.touch(); if (best.id === 'me' && rel > 5) sfx.buzz('light');
+      const vin = Math.hypot(B.v.x, B.v.z), rel = BP.firstTouch(B, best.P, best.id, intent); sfx.touch(); if (best.id === 'me' && rel > 5) sfx.buzz('light');
+      // приём паса на месте или шагом — запись приёма: наклон и остановка мяча стопой (receive, с 0,65 с)
+      if (vin > 6 && Math.hypot(best.P.v.x, best.P.v.z) < 2.6 && best.pl.name !== 'strike' && best.pl.name !== 'pass') { play(best.pl, 'receive', { t: 0.65, fade: 0.12, speed: 1.35, follow: true }); best.pl.once = { name: 'receive', until: 1.2 }; }
       MT.last = best.team; if (MT.restart && MT.restart.kind !== 'kickoff') MT.restart = null;
       if (best.ai) { best.ai.holdT = 0; best.ai.pass = null; best.ai.strike = null; }
     }
@@ -2107,9 +2131,10 @@ function header(a) {
   }
   B.w.set(0, 0, 0); B.lockOwner = a.id; B.lockUntil = simT + (kind === 'cushion' ? 0.25 : 0.35); B.mustClear = false; BP.clearGoalFlags(B);
   MT.headT = simT; MT.last = team; MT.kicker = a.pl; MST().heads[team]++; if (MT.passPend) statGot(team, 'head');
-  play(a.pl, 'header_soccerball', { t: 0.4, fade: 0.08, speed: 1.35, follow: true }); a.pl.cele = 1.15;
+  if (kind === 'cushion' && B.p.y < 1.55) { play(a.pl, 'stall_soccerball_4', { t: 0.85, fade: 0.1, speed: 1.3, follow: true }); a.pl.once = { name: 'stall_soccerball_4', until: 1.5 }; } // на уровне пояса — бедром
+  else { play(a.pl, 'header_soccerball', { t: 0.4, fade: 0.08, speed: 1.35, follow: true }); a.pl.cele = 1.15; }
   sfx.touch(); if (me) sfx.buzz('medium');
-  if (kind === 'shot') { statShot(team); withGK(team === 0 ? 0 : 1, () => planKeeper()); }
+  if (kind === 'shot') { statShot(team, 'голова'); withGK(team === 0 ? 0 : 1, () => planKeeper()); }
 }
 // ---- офсайд (11 на 11) ----
 // глубина — расстояние до ворот, которые атакует команда; линия офсайда — второй с конца соперник (вратарь считается).
@@ -2142,7 +2167,7 @@ const MST = () => MT.stats || (MT.stats = { poss: [0, 0], shots: [0, 0], on: [0,
 const matchMin = () => Math.max(1, Math.min(90, Math.ceil(((MATCH.time - MT.clock) / MATCH.time) * 90)));
 function statPass(team) { MST().passes[team]++; MT.passPend = { team }; MT.shotPend = null; }
 function statGot(team, how = 'int') { if (MT.passPend) { if (MT.passPend.team === team) MST().passOk[team]++; else MST().lost[how]++; MT.passPend = null; } MT.shotPend = null; }
-function statShot(team) { MST().shots[team]++; MT.shotPend = { team }; MT.passPend = null; }
+function statShot(team, how = 'нога') { MST().shots[team]++; MT.shotPend = { team }; MT.passPend = null; MT.shotHow = how; MT.shotFrom = Math.round(Math.hypot(B.p.x, B.p.z - attackZ(team))); }
 // ---- правила: время, аут, угловой, от ворот, гол, начало с центра ----
 function matchRules(h) {
   if (MT.st === 'play' || MT.st === 'dead') { MT.clock = Math.max(0, MT.clock - h); if (MT.clock <= 0 && state === 'play') return matchOver(); }
@@ -2181,7 +2206,7 @@ function matchGoal(end) {
   const A = actors(), mine = A.filter((a) => a.team === team);
   let hero = mine.find((a) => a.pl === MT.kicker) || mine.reduce((x, y) => (Math.hypot(y.P.p.x - B.p.x, y.P.p.z - B.p.z) < Math.hypot(x.P.p.x - B.p.x, x.P.p.z - B.p.z) ? y : x));
   const gz = attackZ(team), sx = TV_CAMS[tvCamSel].yaw < 60 ? 1 : Math.sign(hero.P.p.x) || 1; // к угловому флажку со стороны камеры
-  MST().goals.push({ team, min: matchMin(), name: (team === 0 ? hero.pl.nick : null) || (team === 0 ? 'Игрок клуба' : 'Соперник') });
+  MST().goals.push({ team, how: MT.shotHow, from: MT.shotFrom, min: matchMin(), name: (team === 0 ? hero.pl.nick : null) || (team === 0 ? 'Игрок клуба' : 'Соперник') });
   MT.cele = { team, hero: hero.pl, t: 0, jumped: false, spot: { x: sx * (MATCH.HW - 4), z: gz + (team === 0 ? 7 : -7) } };
   sfx.roar(); sfx.buzz('heavy'); shake = 0.12; matchBanner('ГОЛ!', true); matchHud(true);
 }
@@ -2337,9 +2362,9 @@ function offMarker() {
   if (!offEl) return; if (!MATCH_ON || !run || state === 'load') { offEl.style.display = 'none'; if (nameEl) nameEl.style.display = 'none'; return; }
   offV.copy(shooter.holder.position); offV.y = 1; offV.project(cam);
   const x = (offV.x + 1) / 2, y = (1 - offV.y) / 2, out = x < 0.02 || x > 0.98 || y < 0.04 || y > 0.96;
-  // имя управляемого игрока (с карточки) — над ним, мелко
+  // имя управляемого игрока (с карточки) — под ним, мелко, как в FC Mobile
   if (nameEl) { const show = !out && !!shooter.nick && state !== 'load'; nameEl.style.display = show ? 'block' : 'none';
-    if (show) { if (nameEl.textContent !== shooter.nick) nameEl.textContent = shooter.nick; offV.copy(shooter.holder.position); offV.y = 2.55; offV.project(cam); nameEl.style.transform = `translate(${((offV.x + 1) / 2) * innerWidth}px, ${((1 - offV.y) / 2) * innerHeight}px) translate(-50%, -100%)`; } }
+    if (show) { if (nameEl.textContent !== shooter.nick) nameEl.textContent = shooter.nick; offV.copy(shooter.holder.position); offV.y = 0; offV.project(cam); nameEl.style.transform = `translate(${((offV.x + 1) / 2) * innerWidth}px, ${((1 - offV.y) / 2) * innerHeight + 10}px) translate(-50%, 0)`; } }
   if (!out) { offEl.style.display = 'none'; return; }
   const cx = Math.min(0.96, Math.max(0.04, x)) * innerWidth, cy = Math.min(0.58, Math.max(0.16, y)) * innerHeight, ang = Math.atan2(y - 0.5, x - 0.5);
   offEl.style.display = 'block'; offEl.style.transform = `translate(${cx - 14}px, ${cy - 14}px) rotate(${ang}rad)`;
@@ -2533,6 +2558,12 @@ if (TRACE) window.__duel = (mx, mz, ox, oz, fx, fz) => { const A = actors(); MT.
   o.p.x = ox; o.p.z = oz; o.yaw = Math.atan2(fx, fz); o.v.x = fx * 4; o.v.z = fz * 4; A[2].ai.thinkT = 9; A[2].ai.tx = ox + fx * 30; A[2].ai.tz = oz + fz * 30; A[2].ai.strike = A[2].ai.pass = null;
   placeBall(BP.controlPoint(o, null)); BP.capture(B, o, 'o1'); B.trapDur = 0; ballPrev.copy(B.p); };
 if (TRACE) window.__tackle = () => tryTackle(actorOf('me'));
+if (TRACE) window.__clipMove = (name) => { const pl = shooter, h = pl.holder, keep = [h.position.clone(), h.rotation.clone()]; h.position.set(0, 0, 0); h.rotation.set(0, 0, 0); h.updateMatrixWorld(true);
+  const a = pl.mixer.clipAction(clipOf(name)); pl.mixer.stopAllAction(); a.reset().play(); pl.mixer.setTime(0); pl.model.updateMatrixWorld(true); const p0 = pl.hips.getWorldPosition(new THREE.Vector3());
+  pl.mixer.setTime(Math.min(0.5, clipOf(name).duration * 0.6)); pl.model.updateMatrixWorld(true); const p1 = pl.hips.getWorldPosition(new THREE.Vector3()); a.stop(); pl.act = null; pl.name = ''; h.position.copy(keep[0]); h.rotation.copy(keep[1]);
+  return [+(p1.x - p0.x).toFixed(2), +(p1.z - p0.z).toFixed(2)]; }; // смещение записи при взгляде вдоль +z (право — это −x)
+if (TRACE) window.__pose = (name, t) => { const pl = shooter; pl.mixer.stopAllAction(); const a = pl.mixer.clipAction(clipOf(name)); a.reset().play(); pl.mixer.setTime(t); pl.act = a; pl.name = 'pose'; pl.follow = false; pl.lock = null; window.__freeze = true; };
+if (TRACE) window.__clips = () => base.animations.map((c) => { const t = c.tracks.find((x) => x.name === 'Hips.position'), v = t ? t.values : [0, 0, 0], n = v.length; return [c.name, +c.duration.toFixed(2), t ? [+(v[n - 3] - v[0]).toFixed(0), +(v[n - 2] - v[1]).toFixed(0), +(v[n - 1] - v[2]).toFixed(0)] : null]; });
 if (TRACE) window.__pos = (id, x, z) => { const q = actorOf(id); if (!q) return; q.P.p.x = x; q.P.p.z = z; q.P.v.x = q.P.v.z = 0; if (q.ai) { q.ai.tx = x; q.ai.tz = z; q.ai.thinkT = 9; q.ai.run = null; } };
 if (TRACE) window.__ids = () => actors().map((q) => q.id);
 if (TRACE) window.__kick = () => gkCtx(0, () => ({ lt: +lastGkTouch.toFixed(2), sim: +simT.toFixed(2), k: kick && { t: +kick.t.toFixed(2), T: +kick.T.toFixed(2), react: +kick.react.toFixed(2), wait: !!kick.wait, dived: !!kick.dived, ex: +(kick.ex || 0).toFixed(2), lx: +kick.lx.toFixed(2) }, name: keeper.name, kt: +(keeper.t || 0).toFixed(2), x: +keeper.holder.position.x.toFixed(2), st: GKS.st, hands: keeper.sph.filter((q) => q.name.endsWith('Hand')).map((q) => [+q.x.toFixed(2), +q.y.toFixed(2), +q.z.toFixed(2)]) }));

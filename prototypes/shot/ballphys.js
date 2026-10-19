@@ -360,8 +360,10 @@ export function playerStep(P, inp, h, withBall) {
   P.stopping = want < 0.3 && sp > 0.4;
   P.yawRate = 0;
   if (P.lockYaw > 0) { P.lockYaw -= h; return P; } // финт: корпус не разворачивается за скоростью (шаг вбок)
-  if (sp > 0.3) {
-    let d = Math.atan2(P.v.x, P.v.z) - P.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
+  // face — точка, к которой игрок без мяча держит корпус (обычно мяч): смещается боком и спиной, как настоящий игрок
+  const face = P.face && !withBall && !P.sprint && sp < C.jog * 1.15 ? P.face : null;
+  if (face || sp > 0.3) {
+    let d = (face ? Math.atan2(face.x - P.p.x, face.z - P.p.z) : Math.atan2(P.v.x, P.v.z)) - P.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
     const rate = C.turn * (1 - (1 - C.turnAtSprint) * Math.min(1, sp / C.sprint)), step = d * (1 - Math.exp(-h * rate));
     P.yaw += step; P.yawRate = step / h;
   }
