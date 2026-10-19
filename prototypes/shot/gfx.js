@@ -39,6 +39,8 @@ export const LOOK = {
     normal: 0.3,          // мелкий рельеф травы
     roughness: 0.93,
     macro: 0.07,          // ± крупная вариация цвета (пятна по 20–60 м)
+    // зерно издалека (как в FC Mobile): трава в крупном масштабе там, где мелкая уже сливается в ровный цвет
+    grain: 0.85, grainK: 1.5, soft: 0.05, warm: 0.3, // grainK — контраст зерна, soft — мягкость края полос, warm — желтизна светлых травинок
   },
   // газон для «2 на 1» (камера сверху-сбоку, издалека): полосы стрижки читаются, зелёный спокойнее, мелкой ряби меньше
   pitchTV: { stripeA: '#4a7a3d', stripeB: '#5b8c4a', macro: 0.05, detail: 0.38, paintDetail: 0.2 },
@@ -104,7 +106,7 @@ const LOOK_A = {
   exposure: 1.02, env: 0.8, hemi: 0.24,                  // больше рассеянного света — мягкие тени, детали в тени формы
   sun: { elevation: 58, azimuth: 55, color: '#fff4e4', intensity: 2.45 },
   shadowRadius: 3.5,                                      // мягкий край тени
-  pitch: { stripeA: '#3b6a25', stripeB: '#4b7c30', stripeWidth: 7.5, macro: 0.06, detail: 0.5, paintDetail: 0.14, far: 0.2 }, // спокойнее: меньше насыщенность, больше зерна травы, вдали темнее // как в FC Mobile: сочный зелёный без жёлтого, чёткие полосы
+  pitch: { stripeA: '#4b7a33', stripeB: '#5f8f3e', stripeWidth: 7.5, macro: 0.06, detail: 0.5, paintDetail: 0.14, far: 0.2, soft: 0.07, grain: 0.85, grainK: 1.7, warm: 0.3 }, // спокойнее: меньше насыщенность, больше зерна травы, вдали темнее // как в FC Mobile: сочный зелёный без жёлтого, чёткие полосы
   paint: 0.97, envKind: 'training',
 };
 export const TV_LOOKS = {

@@ -159,7 +159,7 @@ const pitchU = {};
 function pitchLook(tv) {
   if (!pitchU.gp) return; const P = LOOK.pitch, L = tv && TVL(), T = tv ? Object.assign({}, P, LOOK.pitchTV, L ? L.pitch : null) : P;
   pitchU.gp2.value.y = L ? L.paint : P.paint.match(/[\d.]+/g).map(Number)[3];
-  pitchU.stripeA.value.set(T.stripeA); pitchU.stripeB.value.set(T.stripeB); pitchU.gp.value.set(T.stripeWidth, T.macro, T.detail, T.paintDetail); pitchU.gp2.value.z = T.far || 0;
+  pitchU.stripeA.value.set(T.stripeA); pitchU.stripeB.value.set(T.stripeB); pitchU.gp.value.set(T.stripeWidth, T.macro, T.detail, T.paintDetail); pitchU.gp2.value.z = T.far || 0; pitchU.gp3.value.set(T.soft || 0, T.grain || 0, T.warm || 0, T.grainK || 1);
 }
 // вид «2 на 1» (пресет из gfx.js) или обычный: экспозиция, свет, тени, камера, окружение (тренировочная база / стадион)
 const TVL = () => (TV() && LOOKSEL !== 'old' ? GFX.TV_LOOKS[LOOKSEL] : null);
@@ -210,15 +210,16 @@ function pitch() {
   Object.assign(pitchU, { grassC: { value: gC }, noiseT: { value: noise }, lineT: { value: lines },
     stripeA: { value: col(P.stripeA) }, stripeB: { value: col(P.stripeB) }, paintC: { value: col(`rgb(${paint[0]},${paint[1]},${paint[2]})`) },
     gp: { value: new THREE.Vector4(P.stripeWidth, P.macro, P.detail, P.paintDetail) }, gp2: { value: new THREE.Vector4(P.detailMean, paint[3], 0, 0) },
+    gp3: { value: new THREE.Vector4(P.soft || 0, P.grain || 0, P.warm || 0, P.grainK || 1) },
     lineBox: { value: new THREE.Vector4(X0, Z0, X1 - X0, Z1 - Z0) } });
   pm.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, pitchU);
     sh.vertexShader = 'varying vec3 vW;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n  vW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = 'varying vec3 vW;\nuniform sampler2D grassC, noiseT, lineT;\nuniform vec3 stripeA, stripeB, paintC;\nuniform vec4 gp, gp2, lineBox;\n' +
+    sh.fragmentShader = 'varying vec3 vW;\nuniform sampler2D grassC, noiseT, lineT;\nuniform vec3 stripeA, stripeB, paintC;\nuniform vec4 gp, gp2, gp3, lineBox;\n' +
       sh.fragmentShader.replace('#include <map_fragment>', `
   vec2 wp = vW.xz;
   // полосы стрижки поперёк поля, со сглаженным краем (без «лесенки» вдали)
-  float sx = (wp.y + 8.0) / gp.x, aa = fwidth(sx) * 1.5;
+  float sx = (wp.y + 8.0) / gp.x, aa = fwidth(sx) * 1.5 + gp3.x; // gp3.x — мягкость края полосы (доля ширины)
   float stripe = smoothstep(0.5 - aa, 0.5 + aa, abs(fract(sx * 0.5) * 2.0 - 1.0));
   vec3 base = mix(stripeA, stripeB, stripe);
   // крупные мягкие пятна (20–60 м) — убирают повторяемость, а не добавляют шум
@@ -227,12 +228,19 @@ function pitch() {
   // мелкая трава: две выборки в разном масштабе и повороте — повтор плитки не читается
   vec3 d1 = texture2D(grassC, wp / 2.2).rgb, d2 = texture2D(grassC, mat2(0.8, -0.6, 0.6, 0.8) * wp / 3.7).rgb;
   float lum = dot(mix(d1, d2, 0.45), vec3(0.2126, 0.7152, 0.0722)) / gp2.x;
+  // зерно издалека: та же трава в крупном масштабе (пучки по 5–10 см). Вблизи — мелкая трава, с камеры трансляции
+  // (пиксель — несколько сантиметров) мелкая усредняется в ровный цвет, и вместо неё видно зерно — как в FC Mobile
+  vec3 g1 = texture2D(grassC, wp / 6.5 + 0.31).rgb, g2 = texture2D(grassC, mat2(0.6, -0.8, 0.8, 0.6) * wp / 15.0).rgb;
+  float glum = dot(mix(g1, g2, 0.4), vec3(0.2126, 0.7152, 0.0722)) / gp2.x;
+  float coarse = smoothstep(0.006, 0.03, length(fwidth(wp))) * gp3.y;
+  lum = mix(lum, 1.0 + (glum - 1.0) * gp3.w, coarse); // gp3.w — контраст зерна
   // разметка — краска: чуть приглушённый белый, сквозь неё немного видна трава
   vec2 luv = (wp - lineBox.xy) / lineBox.zw;
   float inside = step(0.0, luv.x) * step(luv.x, 1.0) * step(0.0, luv.y) * step(luv.y, 1.0);
   float pnt = texture2D(lineT, vec2(luv.x, 1.0 - luv.y)).r * inside * gp2.y;
   vec3 c = mix(base, paintC, pnt);
   c *= mix(1.0, clamp(lum, 0.45, 1.6), gp.z * mix(1.0, gp.w, pnt));
+  c *= mix(vec3(1.0), vec3(1.05, 1.0, 0.86), clamp((lum - 1.0) * 2.0, 0.0, 1.0) * gp3.z * (1.0 - pnt)); // светлые травинки чуть желтее
   // вдали — чуть темнее и спокойнее (воздух, как в трансляции): поле не «светится» одинаково до горизонта
   float far = smoothstep(25.0, 95.0, distance(cameraPosition.xz, wp)) * gp2.z;
   c = mix(c, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), far * 0.6) * (1.0 - far * 0.5);
@@ -492,7 +500,7 @@ function playerMaterial(o, kit) {
 // Своя модель команды игрока (assets/hero.glb): сделана в Tripo, кости — авто-скелет Mixamo, облегчена до 24 тыс. треугольников.
 // Скелет тот же (65 костей Mixamo), поэтому подходят все записи движений; у него свои единицы: таз во время движения
 // на 51 условной единице против 92,8 у общей модели — смещение таза в записях умножаем на HERO.hs, модель — в HERO.scale.
-const HERO = { hs: 0.553, scale: 1.95 };
+const HERO = { hs: 0.553, scale: 1.95, hv: 1.09 }; // hv — по высоте таз своей модели выше в hv раз (стопы на газоне, а не на 9 см ниже)
 let hero = null, heroDrib = null; // heroDrib — ведение мяча (Mixamo «Dribble», записано на этом скелете): 2,62 м за цикл в его единицах
 // heroMoves — движения, записанные на этом же скелете (assets/hero_moves.glb, имена с «h_»): рывок, быстрый бег, торможение,
 // разворот на 180°, три подката и три поворота. Только для своей модели: на общей модели они искажаются.
@@ -894,6 +902,25 @@ const ALIAS = { kick: 'soccer_penalty_kick', kick2: 'kick_soccerball', strike: '
 const clipOf = (name) => (name.startsWith('h_') ? heroMoves && heroMoves[name] : base.animations.find((c) => c.name === (ALIAS[name] || name)));
 const variants = new Map();
 // копия движения: смещение таза по сторонам (fx) и вперёд (fz) умножено — вратарь долетает ровно до мяча и не выбегает из ворот
+// Бег и стойка своей модели (записи общей модели): высоту таза подбираем по замеру — за весь цикл стопа не уходит
+// в газон и не висит над ним. Замер — на невидимой копии своей модели, один раз на запись.
+const HERO_FIT = new Set(['idle', 'jog', 'jog_back', 'jog_strafe_left', 'jog_strafe_right']);
+let heroProbe = null;
+function heroFit(c, up) {
+  if (!hero) return;
+  if (!heroProbe) { const m = cloneSkinned(hero.scene); m.scale.setScalar(HERO.scale);
+    heroProbe = { m, mixer: new THREE.AnimationMixer(m), hips: m.getObjectByName('Hips'), feet: ['Foot', 'ToeBase', 'Toe_End'].flatMap((n, i) => ['Left', 'Right'].map((s) => [m.getObjectByName(s + n), GROUND.feet.own[i]])) }; }
+  const P = heroProbe, a = P.mixer.clipAction(c); a.reset().play(); let low = 1e9;
+  for (let i = 0; i < 30; i++) { P.mixer.setTime((c.duration * i) / 30); P.m.updateMatrixWorld(true); for (const [b, r] of P.feet) low = Math.min(low, b.matrixWorld.elements[13] - r); }
+  a.stop(); P.mixer.uncacheAction(c);
+  const k = P.hips.parent.matrixWorld.elements[4 * up + 1]; // на сколько метров по высоте сдвигает единица этой оси
+  const tr = c.tracks.find((t) => t.name === 'Hips.position'); if (!tr || Math.abs(k) < 1e-4 || Math.abs(low) > 0.3) return; // замер не удался — оставляем как есть
+  for (let i = up; i < tr.values.length; i += 3) tr.values[i] -= low / k;
+  if (TRACE) console.log('heroFit', c.name, +(-low).toFixed(3));
+}
+// какая ось смещения таза — высота: та ось родителя таза (Armature), что в мире смотрит вверх (по общей модели)
+let HIPS_UP = -1;
+const hipsUp = () => { if (HIPS_UP < 0) { base.scene.updateMatrixWorld(true); const e = base.scene.getObjectByName('Hips').parent.matrixWorld.elements; HIPS_UP = [0, 1, 2].reduce((b, j) => (Math.abs(e[4 * j + 1]) > Math.abs(e[4 * b + 1]) ? j : b), 0); } return HIPS_UP; };
 function variant(name, fx = 1, fz = 1, hs = 1) {
   fx = Math.round(fx * 20) / 20; fz = Math.round(fz * 20) / 20; // шаг 0,05: глазом не отличить, копий меньше
   const key = name + '|' + fx.toFixed(2) + '|' + fz.toFixed(2) + (hs !== 1 ? '|h' + hs : ''); if (variants.has(key)) return variants.get(key);
@@ -902,7 +929,10 @@ function variant(name, fx = 1, fz = 1, hs = 1) {
   const src = clipOf(name), stretch = fx !== 1 || fz !== 1 || hs !== 1;
   const c = new THREE.AnimationClip(key, src.duration, src.tracks.map((t) => (stretch && t.name === 'Hips.position' ? t.clone() : t)));
   const tr = stretch && c.tracks.find((t) => t.name === 'Hips.position');
-  if (tr) { const v = tr.values, x0 = v[0], y0 = v[1]; for (let i = 0; i < v.length; i += 3) { v[i] = x0 + (v[i] - x0) * fx; v[i + 1] = y0 + (v[i + 1] - y0) * fz; } if (hs !== 1) for (let i = 0; i < v.length; i++) v[i] *= hs; }
+  if (tr) { const v = tr.values, x0 = v[0], y0 = v[1]; for (let i = 0; i < v.length; i += 3) { v[i] = x0 + (v[i] - x0) * fx; v[i + 1] = y0 + (v[i + 1] - y0) * fz; }
+    if (hs !== 1) { // своя модель: по высоте таз выше (ноги длиннее, чем у общей модели), иначе стопы уходят в газон
+      const up = hipsUp(), hv = hs * HERO.hv; for (let i = 0; i < v.length; i++) v[i] *= i % 3 === up ? hv : hs;
+      if (HERO_FIT.has(name)) heroFit(c, up); } }
   variants.set(key, c); return c;
 }
 function play(pl, name, { t = 0, loop = false, fade = 0.25, speed = 1, hold = Infinity, fx = 1, fz = 1, lock = null, lift = 0, follow = false } = {}) {
@@ -931,7 +961,9 @@ function loco(pl, sp, dt, P) {
   if (pl.own && heroMoves && !L.run) L.run = RUN_CLIPS.map(([n, m, off]) => ({ a: pl.mixer.clipAction(heroMoves[n]), m, off })); // своя модель: быстрый бег и рывок
   const all = (L.dirs ? [L.idle, ...L.dirs.map((d) => d.a)] : [L.idle, L.jog]).concat(L.drib ? [L.drib] : [], L.run ? L.run.map((r) => r.a) : []);
   if (pl.name !== 'loco') {
-    L.prev = pl.act; L.f = 0;
+    // было движение из самого бега (например, стойка после розыгрыша) — без нарастания: иначе на 0,3 с сквозь вес
+    // проступала поза покоя скелета (у своей модели она «в газоне»)
+    L.prev = all.includes(pl.act) ? null : pl.act; L.f = L.prev ? 0 : 1;
     for (const a of all) { a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.play(); a.setEffectiveWeight(0); }
     Object.assign(pl, { name: 'loco', act: L.jog, hold: Infinity, lock: null, lift: 0, follow: true });
   }
@@ -940,7 +972,8 @@ function loco(pl, sp, dt, P) {
   L.idle.setEffectiveWeight((1 - w) * L.f);
   if (L.prev && !all.includes(L.prev)) { L.prev.setEffectiveWeight(1 - L.f); if (L.f >= 1) { L.prev.stop(); L.prev = null; } }
   // ведение (своя модель, мяч у ноги, бежит): плавно переходит с бега на запись ведения
-  let dw = 0; if (L.drib) { L.dw += ((pl.withBall ? 1 : 0) - L.dw) * Math.min(1, dt * 6); dw = L.dw; L.drib.timeScale = THREE.MathUtils.clamp(sp / DRIB_SPEED, 0.7, 2.1); L.drib.setEffectiveWeight(w * dw * L.f); }
+  // на рывке с мячом (быстрее 4 м/с) — не ведение в два раза быстрее (семенит), а настоящий бег и рывок: мяч толкает вперёд
+  let dw = 0; if (L.drib) { const want = pl.withBall ? 1 - (L.run ? THREE.MathUtils.smoothstep(sp, 4.0, 4.8) : 0) : 0; L.dw += (want - L.dw) * Math.min(1, dt * 6); dw = L.dw; L.drib.timeScale = THREE.MathUtils.clamp(sp / DRIB_SPEED, 0.7, 1.7); L.drib.setEffectiveWeight(w * dw * L.f); }
   // быстрый бег и рывок (своя модель): чем быстрее бежит вперёд, тем больше этих записей вместо трусцы; шаг — в той же фазе
   const fwd = !P || sp < 0.05 ? 1 : Math.max(0, (P.v.x * Math.sin(P.yaw) + P.v.z * Math.cos(P.yaw)) / sp);
   const wr = L.run ? THREE.MathUtils.smoothstep(sp, 4.0, 5.2) * fwd * fwd : 0, wsp = THREE.MathUtils.smoothstep(sp, 5.4, 6.3);
@@ -971,7 +1004,31 @@ function tickPlayer(pl, dt) {
     else if (pl.lock) { w.x = pl.lock.x; w.z = pl.lock.z; }
     if (pl.lift) w.y += pl.lift(pl.t);
     pl.hips.position.copy(par.worldToLocal(w));
-  }
+  } else pl.holder.updateMatrixWorld(true);
+  groundFix(pl, dt, pl.lift ? pl.lift(pl.t) : 0);
+}
+// Газон твёрдый: ни одна часть тела не уходит под него (падения, подкаты, прыжки вратаря, а у своей модели — и записи
+// с другого скелета). Берём суставы с «толщиной» тела вокруг; если самый низкий ниже газона — вся модель сразу
+// приподнимается на эту величину, потом плавно опускается обратно. Толщина у стоп — по ровной стойке (стоя подъёма нет).
+const GROUND = {
+  bones: [['Hips', 0.1], ['Spine2', 0.11], ['Head', 0.09], ['HeadTop_End', 0.02], ['LeftHand', 0.03], ['RightHand', 0.03], ['LeftForeArm', 0.04], ['RightForeArm', 0.04], ['LeftLeg', 0.055], ['RightLeg', 0.055]],
+  // стопа, носок, кончик носка — высота сустава над газоном в ровной стойке (замер): у общей модели и у своей разная
+  feet: { base: [0.105, 0.03, 0.035], own: [0.12, 0, 0] },
+  slack: [0.01, 0.035, 0.04], // носок на бегу может уйти в траву на 3–4 см (его не видно в траве) — из-за этого тело не подбрасываем
+  tol: 0.012, on: Q.get('gfix') !== '0',
+};
+const groundStat = {};
+function groundFix(pl, dt, lift) {
+  if (!pl.gb) { const f = GROUND.feet[pl.own ? 'own' : 'base'], ft = ['Foot', 'ToeBase', 'Toe_End'].flatMap((n, i) => [['Left' + n, f[i] - GROUND.slack[i]], ['Right' + n, f[i] - GROUND.slack[i]]]);
+    pl.gb = GROUND.bones.concat(ft).map(([n, r]) => [pl.model.getObjectByName(n), r]).filter((x) => x[0]); }
+  let low = 1e9, lb = null; for (const [b, r] of pl.gb) { const y = b.matrixWorld.elements[13] - r; if (y < low) { low = y; lb = b; } }
+  pl.glb = lb && lb.name; const cur = pl.model.position.y, base = low + lift - cur; // самая низкая точка без подъёма (у прыжка вратаря таз уже поднят на lift)
+  if (TRACE) { const k = (pl.own ? 'h:' : '') + pl.name, g = groundStat[k] || (groundStat[k] = { min: 0, n: 0, bad: 0 }); g.n++; if (base < g.min) { g.min = +base.toFixed(3); g.bone = lb.name; g.hip = +pl.hips.matrixWorld.elements[13].toFixed(2); g.vis = pl.holder.visible; g.sp = pl.loco ? +pl.loco.f.toFixed(2) : null; } if (base < -0.03) g.bad++; }
+  if (!GROUND.on) return;
+  // вверх — быстро (сильно ниже газона — сразу), вниз — плавно: на бегу тело не дёргается от каждого шага
+  const want = Math.max(0, -base - GROUND.tol), d = want - cur;
+  const y = pl.model.position.y = d > 0.12 ? want : cur + d * (1 - Math.exp(-dt * (d > 0 ? 30 : 9)));
+  if (TRACE) { const g = groundStat[(pl.own ? 'h:' : '') + pl.name]; const after = base + y; if (after < (g.after ?? 0)) g.after = +after.toFixed(3); }
 }
 const hipsAt = (pl) => { pl.model.updateMatrixWorld(true); return pl.holder.worldToLocal(pl.hips.getWorldPosition(new THREE.Vector3())); };
 // заранее: в какой момент удара нога касается мяча и где в этот момент стопа (чтобы поставить игрока к мячу)
@@ -1659,7 +1716,8 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
   moveTick(pl, P, dt);
   h.position.set(P.p.x, 0, P.p.z); h.rotation.y = P.yaw;
   // наклон: на повороте — внутрь, при разгоне — вперёд
-  const lean = Math.max(-0.26, Math.min(0.26, -P.yawRate * sp * 0.035)), pitch = Math.max(-0.08, Math.min(0.14, P.acc * 0.025));
+  // (наклон — вокруг точки на газоне: сильнее 0,18 рад внутренняя стопа уходила бы в газон и тело приподнималось)
+  const lean = Math.max(-0.18, Math.min(0.18, -P.yawRate * sp * 0.03)), pitch = Math.max(-0.06, Math.min(0.1, P.acc * 0.02));
   const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
   // замах занят до конца движения ноги; запись может закончиться раньше этого запаса — тогда до её конца (иначе поза застывает навсегда)
   const busyTill = (C, extra) => Math.min(C.tc + extra, C.dur - 0.05);
@@ -2833,8 +2891,10 @@ if (TRACE) window.__duel = (mx, mz, ox, oz, fx, fz) => { const A = actors(); MT.
   placeBall(BP.controlPoint(o, null)); BP.capture(B, o, 'o1'); B.trapDur = 0; ballPrev.copy(B.p); };
 if (TRACE) window.__tackle = () => tryTackle(actorOf('me'));
 if (TRACE) window.__slide = () => trySlide(actorOf('me'));
+if (TRACE) window.__ground = () => groundStat;
+if (TRACE) window.__bones = () => actors().concat(GK.map((g, i) => ({ id: 'gk' + i, pl: g.pl, P: { v: { x: 0, z: 0 } } }))).map((a) => { const pl = a.pl; if (!pl.gb) return null; const o = { id: a.id, own: pl.own, name: pl.name, sp: +Math.hypot(a.P.v.x, a.P.v.z).toFixed(1), f: pl.loco ? +pl.loco.f.toFixed(2) : 0, lift: +pl.model.position.y.toFixed(3), lb: pl.glb, rz: +pl.holder.rotation.z.toFixed(2), rx: +pl.holder.rotation.x.toFixed(2) }; for (const [b] of pl.gb) o[b.name] = +b.matrixWorld.elements[13].toFixed(3); return o; }).filter(Boolean);
 if (TRACE) window.__sprint = (on) => { btn.sprint = !!on; };
-if (TRACE) window.__me = () => { const a = actorOf('me') || { P: run.P, pl: shooter }, P = a.P, L = a.pl.loco; return { name: a.pl.name, t: a.pl.act ? +a.pl.act.time.toFixed(2) : 0, sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(2), p: [+P.p.x.toFixed(2), +P.p.z.toFixed(2)], mv: a.pl.mv ? a.pl.mv.name : null, run: L && L.run ? L.run.map((r) => +r.a.getEffectiveWeight().toFixed(2)) : null, own: !!a.pl.own }; };
+if (TRACE) window.__me = () => { const a = actorOf('me') || { P: run.P, pl: shooter }, P = a.P, L = a.pl.loco; return { name: a.pl.name, t: a.pl.act ? +a.pl.act.time.toFixed(2) : 0, sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(2), p: [+P.p.x.toFixed(2), +P.p.z.toFixed(2)], mv: a.pl.mv ? a.pl.mv.name : null, run: L && L.run ? L.run.map((r) => +r.a.getEffectiveWeight().toFixed(2)) : null, drib: L && L.drib ? +L.drib.getEffectiveWeight().toFixed(2) : null, own: !!a.pl.own, owner: B.owner }; };
 if (TRACE) window.__lesson = () => ({ pts: LS.pts, att: LS.att, step: LS.step, done: LS.done, coach: LS.coachOn, gates: LS.gates.map((g) => g.done), discs: LS.discs.map((d) => d.hit), cross: LS.cross, me: run ? [+run.P.p.x.toFixed(1), +run.P.p.z.toFixed(1)] : null, own: B.owner, st: state });
 if (TRACE) window.__clipMove = (name) => { const pl = shooter, h = pl.holder, keep = [h.position.clone(), h.rotation.clone()]; h.position.set(0, 0, 0); h.rotation.set(0, 0, 0); h.updateMatrixWorld(true);
   const a = pl.mixer.clipAction(clipOf(name)); pl.mixer.stopAllAction(); a.reset().play(); pl.mixer.setTime(0); pl.model.updateMatrixWorld(true); const p0 = pl.hips.getWorldPosition(new THREE.Vector3());
