@@ -60,6 +60,13 @@ const Football = (() => {
     slot = s.xi.findIndex((k) => !k); if (slot < 0) slot = 0;
     render(); Screens.show('fbpick');
   }
+  // тренировки для новичка (игра сама запоминает лучший результат — тот же сайт, localStorage 'shot.lessons')
+  const LESSONS = [['basics', 'Основы', 'Бег, пас, удар'], ['dribble', 'Дриблинг', 'Гонка через фишки'], ['targets', 'Мишени', 'Штрафные по мишеням']];
+  function lessons() {
+    let st = {}; try { st = JSON.parse(localStorage.getItem('shot.lessons') || '{}'); } catch (e) { /* без памяти */ }
+    return `<p class="fbp-h">Тренировки для новичка</p><div class="fbp-les">${LESSONS.map(([id, t, d], i) => { const r = st[id];
+      return `<button class="fbp-l ${r && r.ok ? 'ok' : ''}" data-fblesson="${id}"><i>${r && r.ok ? '✓' : i + 1}</i><b>${t}</b><small>${r ? `${r.best} оч.` : d}</small></button>`; }).join('')}</div>`;
+  }
   function head(s) {
     return `<div class="fbp-seg">${[3, 11].map((n) => `<button data-fbfmt="${n}" class="${s.fmt === n ? 'on' : ''}">${n} на ${n}${n === 11 ? ' · тест' : ''}</button>`).join('')}</div>
       <div class="fbp-seg sm"><span>Соперники</span>${DIFF.map((t, i) => `<button data-fbdiff="${i}" class="${s.diff === i ? 'on' : ''}">${t}</button>`).join('')}</div>`;
@@ -86,7 +93,7 @@ const Football = (() => {
         <div class="sq-pitch fbp-pitch">${PITCH}${pts}</div>
         <p class="fbp-h">${esc(XD.RU[pos] || pos)} — выбери игрока <small>${own} из 11 своих${own < 11 ? ' · бледные подобраны сами' : ''}</small></p>
         <div class="fbp-list">${cells((c) => (fitPos(c, pos) > 0 ? 1 : 0), pos === 'GK', sq.xi[slot], used) || `<p class="fbp-none">Карточек пока нет — на поле выйдет игрок клуба.</p>`}</div>
-        <p class="fbp-none">Пробный режим: 11 на 11 на полном поле, 5 минут. Состав общий с «Моим составом».</p>
+        <p class="fbp-none">Пробный режим: 11 на 11 на полном поле, 5 минут. Состав общий с «Моим составом».</p>${lessons()}
         <div class="fbp-go"><button class="btn" data-act="football-go">На поле!</button></div>`;
       return;
     }
@@ -97,7 +104,7 @@ const Football = (() => {
     const used = new Set(s.xi.filter(Boolean));
     el.innerHTML = `${head(s)}<div class="fbp-slots">${slots}</div>
       <p class="fbp-h">${LBL3[slot]} — ${slot === 2 ? 'вратари' : 'полевые'} из твоей коллекции</p>
-      <div class="fbp-list">${cells((c) => (fit3(c, slot) ? 1 : 0), slot === 2, s.xi[slot], used) || `<p class="fbp-none">${slot === 2 ? 'Вратарей пока нет' : 'Полевых пока нет'} — на поле выйдет игрок клуба. Карточки — из паков и испытаний.</p>`}</div>
+      <div class="fbp-list">${cells((c) => (fit3(c, slot) ? 1 : 0), slot === 2, s.xi[slot], used) || `<p class="fbp-none">${slot === 2 ? 'Вратарей пока нет' : 'Полевых пока нет'} — на поле выйдет игрок клуба. Карточки — из паков и испытаний.</p>`}</div>${lessons()}
       <div class="fbp-go"><button class="btn" data-act="football-go">На поле!</button></div>`;
   }
   function bind() {
@@ -105,6 +112,7 @@ const Football = (() => {
     el.addEventListener('click', (e) => {
       const fm = e.target.closest('[data-fbfmt]'); if (fm) { S().fmt = +fm.dataset.fbfmt; slot = 0; Store.save(); Sound.play('tap'); return render(); }
       const df = e.target.closest('[data-fbdiff]'); if (df) { S().diff = +df.dataset.fbdiff; Store.save(); Sound.play('tap'); return render(); }
+      const le = e.target.closest('[data-fblesson]'); if (le) { Sound.play('tap'); return App.openFootball('fk', le.dataset.fblesson); }
       const fo = e.target.closest('[data-fbform]'); if (fo) { SQ().form = fo.dataset.fbform; Store.save(); Sound.play('tap'); return render(); }
       const sl = e.target.closest('[data-fbslot]'); if (sl) { slot = +sl.dataset.fbslot; Sound.play('tap'); return render(); }
       const pc = e.target.closest('[data-fbcard]'); if (!pc) return;

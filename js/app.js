@@ -383,10 +383,12 @@ const App = (() => {
   }
 
   // where: вкладка ('games'), раздел игр ('puzzles') или ничего — вернуться туда, где был
-  function openFootball(mode) {
+  // lesson — тренировка для новичка (basics / dribble / targets): состав не нужен
+  function openFootball(mode, lesson) {
     const u = Store.d && Store.d.user, q = new URLSearchParams({ mode, embed: '1', snd: Store.d && Store.d.sound ? '1' : '0' });
     if (u && u.nick) q.set('name', String(u.nick).slice(0, 14));
-    for (const [k, v] of Object.entries(Football.params())) q.set(k, v); // состав, размер команды, сложность
+    if (lesson) q.set('lesson', lesson);
+    else for (const [k, v] of Object.entries(Football.params())) q.set(k, v); // состав, размер команды, сложность
     const fr = $('#football-frame'); fr.onload = fbInsets; fr.src = 'prototypes/shot/index.html?' + q;
     try { if (TG && TG.unlockOrientation) TG.unlockOrientation(); } catch (e) { /* старый Telegram */ } // игра горизонтальная — экран должен поворачиваться
     // на телефоне матч — во весь экран Telegram, без верхней панели; при выходе панель вернётся
@@ -650,7 +652,7 @@ const App = (() => {
 
   function refresh() { if (Screens.current === 'hub') renderHub(); if (Screens.current === 'profile') renderProfile(); }
 
-  return { init, home, refresh };
+  return { init, home, refresh, openFootball };
 })();
 
 App.init();

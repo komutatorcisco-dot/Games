@@ -36,6 +36,12 @@ const tg=()=>{const noop=new Proxy(function(){},{get:(t,k)=>k==='isVisible'?fals
     await page.evaluate(()=>document.querySelector('#home2 [data-act="football"]').click()); // приветствие новичка не мешает
     await page.waitForFunction(()=>document.body.dataset.scr==='fbpick');
     assert.equal(await page.$$eval('#fbp .fbp-slot .cc',a=>a.length),3,'состав собран сам: двое полевых и вратарь');
+    // тренировки для новичка: три урока, урок открывается во фрейме без состава
+    assert.equal(await page.$$eval('#fbp [data-fblesson]',a=>a.length),3,'три тренировки');
+    await page.evaluate(()=>document.querySelector('#fbp [data-fblesson="dribble"]').click());
+    await page.waitForFunction(()=>/lesson=dribble/.test(document.querySelector('#football-frame').getAttribute('src')||''));
+    assert.ok(!/p0=/.test(await page.getAttribute('#football-frame','src')),'урок — без состава');
+    await page.evaluate(()=>Football.open());
     await page.evaluate(()=>document.querySelector('[data-act="football-go"]').click());
     await page.waitForFunction(()=>document.body.dataset.scr==='football');
     const src=await page.getAttribute('#football-frame','src');

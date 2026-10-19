@@ -185,6 +185,30 @@
   .mstats .row i em { position: relative; font-style: normal; }
   .mstats h3 { margin: 0 0 2px; display: flex; justify-content: space-between; font: 900 13px var(--fd); color: rgba(255,255,255,.6); }
   @media (max-height: 430px) { .card.wide { padding: 14px 16px; } .mstats { gap: 5px; } .mstats .row i { height: 16px; line-height: 16px; } }
+  /* тренировки: сверху попытки и очки (как в FC Mobile), подсказка тренера, «+500» над полем, карточка результата */
+  body.lesson .modes, body.lesson .sb, body.lesson #gfxq, body.lesson #camBtn, body.lesson #help, body.lesson #restart { display: none !important; }
+  .lhud { position: fixed; left: 50%; top: calc(var(--st) + 10px); z-index: 4; display: flex; align-items: center; transform: translateX(-50%); pointer-events: none; }
+  .lhud[hidden] { display: none; }
+  .lh-a { display: grid; min-width: 104px; border-radius: 8px 0 0 8px; overflow: hidden; background: rgba(17,17,22,.82); text-align: center; }
+  .lh-a b { padding: 3px 10px; background: var(--acc); color: #111; font: 900 12px var(--fd); letter-spacing: .04em; } .lh-a span { padding: 3px 10px 4px; font: 800 15px var(--f); }
+  .lh-p { display: grid; place-items: center; align-content: center; width: 58px; height: 58px; margin-left: -6px; border-radius: 50%; background: #141419; box-shadow: inset 0 0 0 3px var(--acc), 0 4px 14px rgba(0,0,0,.4); }
+  .lh-p small { font: 800 10px var(--f); color: rgba(255,255,255,.7); } .lh-p b { font: 900 17px/1 var(--fd); color: var(--acc); }
+  .coach { position: fixed; inset: 0; z-index: 9; display: grid; align-items: end; justify-items: center; padding-bottom: calc(var(--sb) + 22px); background: rgba(5,5,8,.28); }
+  .coach[hidden] { display: none; }
+  .ch-card { display: flex; gap: 14px; align-items: center; width: min(560px, 88vw); padding: 14px 18px; border-radius: 16px; background: #141419; box-shadow: inset 0 0 0 1px var(--line), 0 10px 40px rgba(0,0,0,.5); animation: chIn .3s cubic-bezier(.2,1.3,.4,1); }
+  @keyframes chIn { from { transform: translateY(24px); opacity: 0; } }
+  .ch-ava { position: relative; flex: none; width: 54px; height: 60px; filter: drop-shadow(0 4px 0 #1a0f00); }
+  .ch-ava::before { content: ""; position: absolute; inset: 0; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); background: linear-gradient(180deg, #fff1a8, #ffd23f 38%, #f0a812); }
+  .ch-ava span { position: relative; display: grid; place-items: center; height: 100%; color: #2b1a00; font: italic 900 22px var(--fd); }
+  .ch-t b { display: block; font: 900 17px var(--fd); color: var(--acc); } .ch-t p { margin: 3px 0 6px; font: 600 14px/1.35 var(--f); color: #fff; } .ch-t small { font: 800 11px var(--f); color: rgba(255,255,255,.55); letter-spacing: .03em; text-transform: uppercase; }
+  .lpop { position: fixed; z-index: 5; transform: translate(-50%, -50%); font: 900 22px var(--fd); color: var(--acc); text-shadow: 0 2px 0 #6b4c00, 0 4px 10px rgba(0,0,0,.5); pointer-events: none; animation: lpop 1.25s ease-out forwards; }
+  @keyframes lpop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.6); } 15% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); } 100% { opacity: 0; transform: translate(-50%, -190%) scale(1); } }
+  #lres { z-index: 9; }
+  .card.lr { width: min(460px, 90vw); text-align: left; }
+  .lr h3 { margin: 0 0 12px; font: 900 18px var(--fd); text-transform: uppercase; }
+  .lr-row { display: flex; justify-content: space-between; gap: 12px; font: 600 13px var(--f); color: rgba(255,255,255,.6); } .lr-row b { font: 800 15px var(--f); color: #fff; }
+  .lr-big { display: flex; justify-content: space-between; align-items: center; margin: 16px 0; padding: 12px 14px; border-radius: 12px; background: rgba(255,255,255,.05); }
+  .lr-big b { font: 900 24px var(--fd); color: #34d26a; } .lr-big b.fail { color: var(--acc); } .lr-big span { font: 800 15px var(--f); }
 </style>
 </head>
 <body>
@@ -205,6 +229,9 @@
 <div class="hint glass" id="hint">Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.</div>
 <div class="end" id="end"><div class="card glass" id="endCard"><div class="end-l"><h2 id="endT"></h2><p id="endP"></p><div class="endg" id="endG"></div><button class="btn" id="again">Ещё серия</button><button class="btn sec" id="toMenu" hidden>Выйти</button></div><div class="mstats" id="endS" hidden></div><small class="credits">Мяч: LeMon74, CC BY 4.0 · ворота: romullus, CC BY-SA 4.0 · трава и небо: ambientCG, CC0 · игрок и движения: Mixamo</small></div></div>
 <div class="fade" id="fade"></div>
+<div class="lhud" id="lhud" hidden><div class="lh-a"><b id="lhL">ПОПЫТКА</b><span id="lhA">1/1</span></div><div class="lh-p"><small>ОЧ.</small><b id="lhP">0</b></div></div>
+<div class="coach" id="coach" hidden><div class="ch-card"><div class="ch-ava"><span>ДЖ</span></div><div class="ch-t"><b id="chT"></b><p id="chP"></p><small>Далее — коснитесь</small></div></div></div>
+<div class="end" id="lres"><div class="card glass lr"><h3>Результат — развитие навыков</h3><div class="lr-row"><span>Задание:</span><span>Сложность:</span></div><div class="lr-row"><b id="lrTask"></b><b>Новичок</b></div><div class="lr-big"><b id="lrOk">✓ УСПЕХ</b><span id="lrPts"></span></div><button class="btn" id="lrNext">Далее</button><button class="btn sec" id="lrAgain">Ещё раз</button></div></div>
 <canvas class="minimap" id="minimap" width="160" height="104"></canvas><div class="offme" id="offme"></div><div class="melbl" id="melbl"></div>
 <div class="end" id="pause"><div class="card glass"><h2>Пауза</h2><button class="btn" id="pResume">Продолжить</button><button class="btn sec" id="pRestart">Начать заново</button><button class="btn sec" id="pTrain" hidden>Тренировка</button><button class="btn sec" id="pSets">Настройки</button><button class="btn sec" id="pHelp" hidden>Как играть</button><button class="btn sec" id="pExit">Выйти</button></div></div>
 <div class="end" id="confirm"><div class="card glass"><h2>Выйти?</h2><p>Матч не закончен — счёт не сохранится.</p><button class="btn" id="cStay">Остаться</button><button class="btn sec" id="cExit">Выйти</button></div></div>

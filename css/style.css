@@ -824,6 +824,11 @@ a { color: var(--danil); }
 .fbp-pt.auto .cc { opacity: .55; filter: saturate(.5); }
 .fbp-pt.sel .cc, .fbp-pt.sel:not(.on) { box-shadow: 0 0 0 3px #ffcf3a, 0 6px 12px rgba(0,0,0,.4); border-radius: 8px; }
 .fbp-pt > small { font: 900 10px "Rubik", sans-serif; color: #ffcf3a; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+.fbp-les { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.fbp-l { display: grid; justify-items: center; gap: 3px; padding: 10px 6px; border: 0; border-radius: 14px; background: rgba(255,255,255,.06); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); color: inherit; font: inherit; }
+.fbp-l i { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: rgba(255,207,58,.16); color: #ffcf3a; font: 900 15px "Rubik", sans-serif; font-style: normal; }
+.fbp-l.ok i { background: #34c46a; color: #0b0b0f; }
+.fbp-l b { font-size: 13px; } .fbp-l small { font-size: 11px; opacity: .65; text-align: center; }
 .rh-badge { align-self: flex-start; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 12px; background: var(--sasha); color: #fff; }
 
 .ic-crest.n1, .ic-crest.n2, .ic-crest.n3, .ic-crest.n4 { width: 15px; height: 19px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }

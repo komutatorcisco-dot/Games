@@ -24,7 +24,9 @@ import { gestureButton } from './controls.js'; // кнопки с жестами
 const Q = new URLSearchParams(location.search);
 const ST = Math.max(40, Math.min(99, Number(Q.get('st')) || 82));
 const NAME = (Q.get('name') || 'ИГРОК').toUpperCase().slice(0, 14);
-let MODE = ['pen', 'run', 'duo', 'match'].includes(Q.get('mode')) ? Q.get('mode') : 'fk';
+// тренировки для новичка (как «Развитие навыков» в FC Mobile): основы управления, гонка с дриблингом, удары по мишеням
+const LESSON = ['basics', 'dribble', 'targets'].includes(Q.get('lesson')) ? Q.get('lesson') : null;
+let MODE = LESSON ? { basics: 'duo', dribble: 'run', targets: 'fk' }[LESSON] : ['pen', 'run', 'duo', 'match'].includes(Q.get('mode')) ? Q.get('mode') : 'fk';
 const FREE = () => MODE === 'run' || MODE === 'duo' || MODE === 'match'; // свободная игра: «1 на 1», «2 на 1» и матч
 const MATCH_ON = MODE === 'match';
 const EMBED = Q.get('embed') === '1' && window.parent !== window; // открыто внутри хаба (фрейм): выход, «Назад» и вибрация — через хаб
@@ -64,13 +66,13 @@ scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#c3d4e6',
 // «2 на 1»: камера сбоку и сверху, как в трансляции (?cam=old — прежняя камера за спиной игрока, для сравнения)
 // вид «2 на 1»: ?look=a (по умолчанию) | b | old (прежний); ?cam=old — прежняя камера за спиной
 const LOOKSEL = ['a', 'b', 'old'].includes(Q.get('look')) ? Q.get('look') : 'a';
-const DUO_OLD = Q.get('cam') === 'old', TV = () => (MODE === 'duo' || MODE === 'match') && !DUO_OLD, BALL_TV = 1.2; // мяч на экране чуть крупнее в виде с трибуны (камера далеко)
+const DUO_OLD = Q.get('cam') === 'old', TV = () => (MODE === 'duo' || MODE === 'match' || LESSON === 'dribble') && !DUO_OLD, BALL_TV = 1.2; // мяч на экране чуть крупнее в виде с трибуны (камера далеко)
 // Камера «с трибуны»: ~42° сверху, ~66 м до центра кадра, узкий объектив (почти без перспективного растяжения).
 // При таком ракурсе «глубина кадра × размер игрока» ≈ 1,8 / tg(наклона): ~24 м поля в глубину и ~35 м в ширину, игрок ~8% высоты кадра.
 const CAM_TV = { side: 48.8, h: 44, fov: 14, look: 0, ahead: 7, rate: 2.6, zMin: 1 }; // ~66 м, ~42°: над трибуной; узкий угол — линии поля почти не сходятся
 // для подбора (только с ?trace=1): ?tv=side,h,fov,look — камера, ?sun=высота,азимут — солнце «2 на 1»
 if (Q.get('trace') === '1' && Q.get('tv')) { const [a, b, c, d] = Q.get('tv').split(',').map(Number); Object.assign(CAM_TV, { side: a, h: b, fov: c, look: d }); }
-const fov = () => (innerWidth > innerHeight ? (TV() ? CAM_TV.fov : { pen: 33, fk: 37, run: 44, duo: 44, match: 44 }[MODE]) : 48);
+const fov = () => (innerWidth > innerHeight ? (TV() ? CAM_TV.fov : LESSON === 'targets' ? 27 : { pen: 33, fk: 37, run: 44, duo: 44, match: 44 }[MODE]) : 48); // мишени — уже кадр: ворота крупнее
 const cam = new THREE.PerspectiveCamera(fov(), innerWidth / innerHeight, 0.1, 400);
 addEventListener('resize', () => { ren.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.fov = fov(); cam.updateProjectionMatrix(); fitSwipe(); });
 // Страница не прокручивается и не «тянется» (иначе вертикальный свайп может свернуть окно). Ловушки истории нет:
@@ -515,6 +517,7 @@ let shooter, keeper, shooter0 = null; const wall = [];
 const spot = new THREE.Vector3(); let wallZ = 0, wallX = [], wallFace = 0;
 function setSpot(n) {
   if (MODE === 'pen') { spot.set(0, R, 11); wallX = []; }
+  else if (LESSON === 'targets') { const x = [-3, 3, 0, -5, 5, 1][n % 6], z = [17, 17, 18, 18, 18, 16][n % 6]; spot.set(x, R, z); } // урок: ближе к воротам — мишени крупнее
   else { const x = [-4, 3.5, -7, 6, 0][n % 5], z = [21, 20, 23, 22, 25][n % 5]; spot.set(x, R, z); }
   if (MODE === 'fk') {
     const d = new THREE.Vector3(-Math.sign(spot.x || 1) * GW * 0.55 - spot.x, 0, -spot.z).normalize();
@@ -538,6 +541,7 @@ function aimCam() { // камера за спиной: в кадре и мяч, 
   const back = M.clone().normalize(), right = new THREE.Vector3(back.z, 0, -back.x);
   camAim.p.copy(M).addScaledVector(back, MODE === 'pen' ? 5.5 : 6.5).addScaledVector(right, 0.6); camAim.p.y = 2.4;
   camAim.l.set(spot.x * 0.15, 1.0, 0);
+  if (LESSON === 'targets') { camAim.p.addScaledVector(back, 1.5); camAim.p.y = 2.9; camAim.l.set(spot.x * 0.15, 0.2, 0); } // узкий кадр: мяч и ворота с мишенями целиком
 }
 function resetShot() {
   pitchLook(TV()); ball.scale.setScalar(TV() ? BALL_TV : 1); tvLook();
@@ -561,8 +565,8 @@ function resetShot() {
   wall.forEach((w, i) => play(w, 'idle', { loop: true, fade: 0.3, t: 1 + i * 1.7, speed: 0.8, lock: w.holder.localToWorld(new THREE.Vector3(0, 0, 0)) }));
   aimCam(); camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); // новая попытка — сразу на месте // после placeShooter — игрок уже стоит
   state = 'aim'; shot = null; kick = null; setTimeout(sfx.whistle, 500); sfx.level(MODE === 'pen' ? 0.6 : 0.4); celebrate = -1; slow = 1; msg.className = 'msg';
-  $('#hint').style.opacity = n === 0 ? 1 : 0;
-  dots();
+  $('#hint').style.opacity = n === 0 && !LESSON ? 1 : 0;
+  dots(); if (LESSON) lessonReset();
 }
 function dots(fresh = false) {
   const o = Math.max(0, Math.min(n, results.length) - (SHOTS - 1)); // «2 на 1» — без конца серии: видны последние попытки
@@ -801,7 +805,8 @@ function finish(ok, text, cls) {
   if (ok) sfx.roar(); else if (text !== 'В стенку' && text !== 'Вратарь забрал' && !(text === 'Мимо' && Math.abs(B.p.x) > GW + 2.5)) sfx.ooh();
   results[n] = ok; lastEvent = text; dots(true);
   if (ok) { celebrate = 0; slow = 0.3; slowT = 0.9; shake = 0.15; crowd.userData.U.uJump.value = 1; } // без конфетти: трибуны, звук и счёт
-  setTimeout(() => { crowd.userData.U.uJump.value = 0; n++; if (n >= SHOTS && MODE !== 'duo') end(); else if (state === 'over') resetShot(); }, ok ? 2600 : 1800);
+  if (LESSON) lessonAttempt(ok);
+  setTimeout(() => { crowd.userData.U.uJump.value = 0; n++; if (LESSON) { if (!LS.done && state === 'over') resetShot(); } else if (n >= SHOTS && MODE !== 'duo') end(); else if (state === 'over') resetShot(); }, ok ? 2600 : 1800);
 }
 function end() {
   const g = results.filter(Boolean).length;
@@ -1024,8 +1029,8 @@ function markerTick() {
 }
 function resetRun() {
   wall.forEach((w) => (w.holder.visible = false));
-  const sx = (Math.random() * 2 - 1) * 7, P = BP.newPlayer({ x: sx, z: 30 }, Math.PI);
-  shooter.holder.position.set(sx, 0, 30); shooter.holder.rotation.set(0, Math.PI, 0);
+  const sx = LESSON === 'dribble' ? 0 : LESSON === 'basics' ? 4 : (Math.random() * 2 - 1) * 7, sz = LESSON === 'dribble' ? 41 : 30, P = BP.newPlayer({ x: sx, z: sz }, Math.PI);
+  shooter.holder.position.set(sx, 0, sz); shooter.holder.rotation.set(0, Math.PI, 0);
   placeBall(BP.controlPoint(P, null)); BP.capture(B, P, 'me'); B.trapDur = 0; // мяч у ноги с самого начала
   play(shooter, 'idle', { loop: true, fade: 0.2, follow: true });
   keeper.holder.position.set(0, 0, 0.4); keeper.holder.rotation.set(0, 0, 0); keeperReset();
@@ -1040,7 +1045,7 @@ function resetRun() {
   }
   if (TV()) tvCam(camAim, true); else runCam(camAim);
   camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); // новая попытка — сразу на месте (без пролёта камеры через всё поле)
-  state = 'play'; celebrate = -1; dots();
+  state = 'play'; celebrate = -1; dots(); if (LESSON) { lessonReset(); $('#hint').style.opacity = 0; return; }
   // подсказка — только при первом запуске режима на этом телефоне (новые ключи — новое управление жестами)
   const HINT_KEY = () => MODE === 'duo' ? 'shot.duo.hint3' : 'shot.run.hint2';
   let seen = false; try { seen = localStorage.getItem(HINT_KEY()) === '1'; localStorage.setItem(HINT_KEY(), '1'); } catch (e) { /* без памяти — покажем */ }
@@ -1186,7 +1191,7 @@ function firePass(P, who, job, recv) {
   const tgt = passTarget(recv, job.kind, job.power, MATCH_ON ? attackZ(teamOf(who)) : 0, !!job.loft);
   if (MATCH_ON && job.kind === 'lofted') { const tm = teamOf(who); if (depthOf(tm, tgt.z) < 18 && Math.abs(tgt.x) < 20) { const dx = tgt.x - B.p.x, dz = tgt.z - B.p.z, dl = Math.hypot(dx, dz) || 1; tgt.x += (dx / dl) * 2.3; tgt.z += (dz / dl) * 2.3; job.cross = true; } }
   const pv = BP.passVelocity(B, tgt, job.kind === 'lofted' || job.loft ? 'lofted' : 'ground', job.power);
-  if (BP.applyShot(B, pv, BP.controlPoint(P, B), who, simT)) { B.inGoal = false; B.goal = false; B.netHit = false; if (MATCH_ON) { statPass(teamOf(who)); markOffside(who); } if (who === 'me' && TEAM()) run.swapNow = true; sfx.kick(0.1 + job.power * 0.25); run.lastPass = { who, t: simT, tgt }; return true; }
+  if (BP.applyShot(B, pv, BP.controlPoint(P, B), who, simT)) { B.inGoal = false; B.goal = false; B.netHit = false; if (MATCH_ON) { statPass(teamOf(who)); markOffside(who); } if (who === 'me' && TEAM()) run.swapNow = true; sfx.kick(0.1 + job.power * 0.25); run.lastPass = { who, t: simT, tgt }; if (LESSON === 'basics' && who === 'me') LS.passT = simT; return true; }
   sfx.touch(); return false; // нога не достала — мяч свободен
 }
 // Смена управления: управляемый и бот меняются ролями ('me' — всегда тот, кем управляю). Владельца мяча не меняет:
@@ -2370,6 +2375,118 @@ function offMarker() {
   offEl.style.display = 'block'; offEl.style.transform = `translate(${cx - 14}px, ${cy - 14}px) rotate(${ang}rad)`;
 }
 
+// ---------- тренировки для новичка («Развитие навыков» как в FC Mobile) ----------
+// Сверху — попытки и очки, подсказки тренера останавливают игру до касания, в конце — карточка «Результат».
+// basics — основы: добежать до зоны, пас партнёру, гол; dribble — гонка через ворота из фишек и удар; targets — штрафные по мишеням.
+const LS = { coachOn: false, pts: 0, att: 0, step: 0, done: false, props: null, gates: [], discs: [], zone: null, passT: 0, t0: 0, cross: null, zp: null, prevZ: 0 };
+const LESSON_INFO = {
+  basics: { title: 'Изучите основы управления', label: 'Задание', max: 3, need: 4000, next: 'dribble' },
+  dribble: { title: 'Дриблинг: гонка через фишки', label: 'Попытка', max: 2, need: 5000, next: 'targets' },
+  targets: { title: 'Удары: мишени и стенка', label: 'Удар', max: 6, need: 3000, next: null },
+};
+const LI = () => LESSON_INFO[LESSON];
+function lessonHud() { const I = LI(); $('#lhL').textContent = I.label.toUpperCase(); $('#lhA').textContent = `${Math.min(I.max, (LESSON === 'basics' ? LS.step : LS.att) + 1)}/${I.max}`; $('#lhP').textContent = LS.pts; }
+function lessonPts(v, at) {
+  LS.pts += v; lessonHud(); sfx.buzz('light');
+  const el = document.createElement('div'); el.className = 'lpop'; el.textContent = '+' + v;
+  if (at) { offV.copy(at); offV.project(cam); el.style.left = ((offV.x + 1) / 2) * innerWidth + 'px'; el.style.top = ((1 - offV.y) / 2) * innerHeight + 'px'; } else { el.style.left = '50%'; el.style.top = '30%'; }
+  document.body.appendChild(el); setTimeout(() => el.remove(), 1300);
+}
+// подсказка тренера: игра стоит, пока не коснёшься экрана
+function coach(title, text, then) {
+  LS.coachOn = true; $('#chT').textContent = title; $('#chP').textContent = text; const c = $('#coach'); c.hidden = false;
+  joy.id = null; joy.x = joy.y = 0; btn.sprint = false; btn.press = false; cancelCharge();
+  const go = (e) => { e.preventDefault(); e.stopPropagation(); c.removeEventListener('pointerdown', go); c.hidden = true; LS.coachOn = false; last = performance.now() / 1000; if (then) then(); };
+  setTimeout(() => c.addEventListener('pointerdown', go), 350);
+}
+// фишки, зона, ворота из фишек, мишени — простые меши (несколько вызовов отрисовки)
+function lessonProps() {
+  if (LS.props) return; LS.props = new THREE.Group(); scene.add(LS.props);
+  LS.coneG = new THREE.ConeGeometry(0.16, 0.42, 14); LS.coneG.translate(0, 0.21, 0);
+  LS.coneM = new THREE.MeshStandardMaterial({ color: '#ff7a1a', roughness: 0.55 });
+}
+const coneAt = (x, z, m) => { const c = new THREE.Mesh(LS.coneG, m || LS.coneM); c.position.set(x, 0, z); c.castShadow = true; LS.props.add(c); return c; };
+function dashTex(color) { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); g.strokeStyle = color; g.lineWidth = 6; g.setLineDash([14, 10]); g.strokeRect(4, 4, 120, 120); g.fillStyle = 'rgba(255,207,58,0.16)'; g.fillRect(4, 4, 120, 120); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; }
+function lessonReset() {
+  if (!LESSON) return; lessonProps(); LS.cross = null; LS.zp = null; LS.t0 = simT; LS.prevZ = run ? run.P.p.z : 0;
+  if (LESSON === 'basics' && LS.step === 0 && !LS.zone) { // зона, до которой надо добежать с мячом
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshBasicMaterial({ map: dashTex('#ffffff'), transparent: true, depthWrite: false }));
+    m.rotation.x = -Math.PI / 2; m.position.set(-7, 0.02, 21); LS.props.add(m); const cs = [[-10, 18], [-4, 18], [-10, 24], [-4, 24]].map(([x, z]) => coneAt(x, z)); LS.zone = { m, cs, x: -7, z: 21 };
+  }
+  if (LESSON === 'dribble') { // четыре ворот из фишек змейкой до штрафной; пройти — с мячом между фишками
+    for (const g of LS.gates) { g.cs.forEach((c) => LS.props.remove(c)); LS.props.remove(g.line); } LS.gates = [];
+    [[-4, 35], [4, 29], [-4, 23], [4, 17]].forEach(([x, z]) => {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 0.35), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.55, depthWrite: false })); line.rotation.x = -Math.PI / 2; line.position.set(x, 0.02, z); LS.props.add(line);
+      const mat = LS.coneM.clone(); LS.gates.push({ x, z, done: false, mat, line, cs: [coneAt(x - 1.7, z, mat), coneAt(x + 1.7, z, mat)] });
+    });
+  }
+  if (LESSON === 'targets') { // мишени в воротах; вратаря нет (как в уроке FC Mobile), стенка — манекены
+    keeper.holder.position.set(60, 0, -8); keeper.holder.visible = false;
+    if (!LS.discs.length) {
+      const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
+      ['#ffffff', '#e8343e', '#ffffff', '#e8343e'].forEach((col, i) => { g.fillStyle = col; g.beginPath(); g.arc(64, 64, 62 - i * 15, 0, 7); g.fill(); });
+      const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+      for (const [x, y] of [[-2.85, 1.85], [2.85, 1.85], [-2.85, 0.6], [2.85, 0.6], [-1, 1.95], [1, 1.95]]) {
+        const d = new THREE.Mesh(new THREE.CircleGeometry(0.5, 32), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })); d.position.set(x, y, -0.06); LS.props.add(d); LS.discs.push({ x, y, d, hit: false });
+      }
+    }
+  }
+  lessonHud();
+}
+function lessonStart() {
+  $('#lhud').hidden = false; document.body.classList.add('lesson'); lessonReset();
+  if (LESSON !== 'targets') Object.assign(BP.CFG.keeper, { reaction: 0.34, readError: 0.32 }); // новичку — вратарь попроще
+  const t = { basics: ['Основы управления', 'Слева — джойстик: веди пальцем, игрок бежит с мячом. Добеги до жёлтой зоны.'],
+    dribble: ['Гонка с дриблингом', 'Проведи мяч через все ворота из фишек (+500 за каждые) и забей. Чем быстрее, тем больше очков. Держи «Рывок» — бег быстрее.'],
+    targets: ['Удары: мишени', 'Проведи пальцем от мяча к воротам: быстрее — сильнее, изогни линию — мяч закрутится. Попади в мишени — +1000 за каждую.'] }[LESSON];
+  setTimeout(() => coach(t[0], t[1]), 700); // сначала поле, потом подсказка
+}
+function lessonTick() {
+  if (!run || LS.done || LS.coachOn) return; const P = run.P;
+  if (LESSON === 'basics') {
+    if (LS.step === 0 && LS.zone && Math.abs(P.p.x - LS.zone.x) < 3 && Math.abs(P.p.z - LS.zone.z) < 3) {
+      lessonPts(1000, new THREE.Vector3(P.p.x, 2, P.p.z)); LS.props.remove(LS.zone.m); LS.zone.cs.forEach((c) => LS.props.remove(c)); LS.zone = null; LS.step = 1; lessonHud();
+      coach('Успешно!', 'Отлично получается. Теперь пас: нажми «Пас» — мяч уйдёт партнёру, и ты будешь управлять им.');
+    } else if (LS.step === 1 && LS.passT && B.state === 'owned' && B.owner === 'me' && simT - LS.passT < 6) {
+      lessonPts(1000, new THREE.Vector3(P.p.x, 2, P.p.z)); LS.step = 2; lessonHud();
+      coach('Точный пас!', 'Теперь удар: держи «Удар» — копится сила, отпусти — удар. Забей гол!');
+    }
+  }
+  if (LESSON === 'dribble') {
+    const z0 = LS.prevZ, z1 = P.p.z; LS.prevZ = z1;
+    for (const g of LS.gates) if (!g.done && z0 > g.z && z1 <= g.z) {
+      g.done = true; const ok = Math.abs(P.p.x - g.x) < 1.7 && B.owner === 'me' && (B.state === 'owned' || B.state === 'strike');
+      g.mat.color.set(ok ? '#34d26a' : '#e8343e'); g.line.material.color.set(ok ? '#34d26a' : '#e8343e');
+      if (ok) lessonPts(500, new THREE.Vector3(g.x, 1.5, g.z)); else sfx.ooh();
+    }
+  }
+}
+// попытка закончилась (гол или нет)
+function lessonAttempt(ok) {
+  if (LS.done) return; const I = LI();
+  if (LESSON === 'basics') { if (LS.step === 2 && ok) { lessonPts(2000); LS.step = 3; return lessonDone(); } if (LS.step === 2) setTimeout(() => !LS.done && coach('Почти!', 'Подойди ближе к воротам и бей в угол. Чем дольше держишь «Удар», тем сильнее.'), 2700); return; }
+  if (LESSON === 'dribble') { if (ok) { lessonPts(1000); const bonus = Math.max(0, Math.min(1000, Math.round((16 - (simT - LS.t0)) * 100))); if (bonus) setTimeout(() => lessonPts(bonus), 500); } }
+  if (LESSON === 'targets') {
+    const c = LS.cross; let hit = null;
+    if (c) for (const d of LS.discs) if (!d.hit && Math.hypot(c.x - d.x, c.y - d.y) < 0.5 + R) { hit = d; break; }
+    if (hit) { hit.hit = true; hit.d.material.opacity = 0.25; lessonPts(1000, new THREE.Vector3(hit.x, hit.y, 0)); } else if (ok) lessonPts(300);
+  }
+  LS.att++; lessonHud();
+  if (LS.att >= I.max) setTimeout(lessonDone, 1700);
+  else if (LESSON === 'dribble') setTimeout(() => coach('Попытка 2', 'Ещё раз! Фишки снова на месте. Постарайся быстрее.'), 2700);
+}
+function lessonDone() {
+  if (LS.done) return; LS.done = true; const I = LI(), ok = LS.pts >= I.need;
+  try { const st = JSON.parse(localStorage.getItem('shot.lessons') || '{}'); const o = st[LESSON] || {}; st[LESSON] = { best: Math.max(o.best || 0, LS.pts), ok: !!(o.ok || ok) }; localStorage.setItem('shot.lessons', JSON.stringify(st)); } catch (e) { /* без памяти */ }
+  setTimeout(() => {
+    $('#lrTask').textContent = I.title; $('#lrOk').textContent = ok ? '✓ УСПЕХ' : 'ЕЩЁ НЕМНОГО'; $('#lrOk').classList.toggle('fail', !ok);
+    $('#lrPts').textContent = `${LS.pts}/${I.need} оч.`; $('#lrNext').textContent = ok && I.next ? 'Далее' : ok ? 'Готово' : 'Ещё раз';
+    $('#lres').classList.add('on'); sfx.whistle();
+  }, LESSON === 'basics' ? 2400 : 400);
+}
+$('#lrNext').addEventListener('click', () => { const I = LI(), ok = LS.pts >= I.need; if (!ok) return location.reload(); if (I.next) { const q = new URLSearchParams(location.search); q.set('lesson', I.next); location.replace('?' + q); } else exitToMenu(); });
+$('#lrAgain').addEventListener('click', () => location.reload());
+
 // ---------- пауза, настройки, выход в меню ----------
 // Пауза останавливает игру, время матча и звук (кадр не считается и не рисуется). Выход в меню — переход на страницу меню:
 // эта страница выгружается целиком (цикл, звук, обработчики), второго рендерера не бывает.
@@ -2447,10 +2564,12 @@ const tmpA = new THREE.Vector3(), tmpB = new THREE.Vector3(), tmpC = new THREE.V
 function gameStep(h) {
   simT += h; ballPrev.copy(B.p);
   const zPrev = B.p.z;
+  if (LESSON === 'targets' && zPrev > 0) LS.zp = { x: B.p.x, y: B.p.y, z: zPrev };
   if (MATCH_ON && run) matchPhys(h);
   else if (FREE() && run) runPhys(h);
   const flying = FREE() ? state === 'play' || state === 'over' || state === 'goal' : state === 'fly' || state === 'over';
   if (B.state === 'free' && flying) onEvents(BP.stepFree(B, h, worldNow()));
+  if (LESSON === 'targets' && LS.zp && LS.zp.z > 0 && B.p.z <= 0 && !LS.cross) { const k = LS.zp.z / Math.max(1e-6, LS.zp.z - B.p.z); LS.cross = { x: LS.zp.x + (B.p.x - LS.zp.x) * k, y: LS.zp.y + (B.p.y - LS.zp.y) * k }; }
   if (B.state === 'held') { holdBall(); B.v.set(0, 0, 0); B.w.set(0, 0, 0); }
   spinBall(h);
   if (kick) kick.t += h;
@@ -2475,7 +2594,7 @@ function frame() {
   if (autoQ && state !== 'load') autoQ.frame(now - prevNow);
   prevNow = now;
   if (fpsEl) { fpsN++; fpsT += raw; fpsWorst = Math.max(fpsWorst, raw); if (fpsT > 1) { const i = ren.info.render; fpsEl.textContent = `${Math.round(fpsN / fpsT)} к/с · ${(1000 * fpsT / fpsN).toFixed(1)} мс · худший ${Math.round(fpsWorst * 1000)} мс · ${i.calls} вызовов · ${(i.triangles / 1000).toFixed(0)} тыс. треуг. · ${QL}`; fpsN = 0; fpsT = 0; fpsWorst = 0; } }
-  if (paused) return; // пауза: ничего не считаем и не рисуем
+  if (paused || LS.coachOn) return; // пауза (и подсказка тренера): ничего не считаем и не рисуем
   if (STADIUM) STADIUM.tick(now, raw);
   drawSwipe(raw);
   if (state === 'load') return;
@@ -2485,6 +2604,7 @@ function frame() {
   const steps = fixed.add(dt);
   for (let i = 0; i < steps; i++) gameStep(BP.CFG.dt);
   // позы — каждый кадр
+  if (LESSON && state !== 'load') lessonTick(dt);
   if (MATCH_ON && run) matchAnim(dt);
   else if (FREE() && run) runAnim(dt);
   else if (state === 'aim') tickPlayer(shooter, dt);
@@ -2519,7 +2639,7 @@ function frame() {
   cam.lookAt(camNow.l);
   if (camPunch > 0 || cam.fov !== fov()) { camPunch = Math.max(0, camPunch - raw * 2.5); cam.fov = fov() - 4 * camPunch * camPunch; cam.updateProjectionMatrix(); } // камера чуть вздрагивает от удара
   // тень солнца — на активную зону: в «1 на 1» от игрока к воротам, в штрафном и пенальти — от мяча до ворот
-  if (TV() && run) { const a = run.P.p, b = run.mate.P.p, x0 = Math.min(a.x, b.x, ball.position.x, 0), x1 = Math.max(a.x, b.x, ball.position.x, 0), z0 = Math.min(a.z, b.z, ball.position.z, 0), z1 = Math.max(a.z, b.z, ball.position.z, 0);
+  if (TV() && run) { const a = run.P.p, b = run.mate ? run.mate.P.p : a, x0 = Math.min(a.x, b.x, ball.position.x, 0), x1 = Math.max(a.x, b.x, ball.position.x, 0), z0 = Math.min(a.z, b.z, ball.position.z, 0), z1 = Math.max(a.z, b.z, ball.position.z, 0);
     fitShadow((x0 + x1) / 2, (z0 + z1) / 2, Math.max(x1 - x0, z1 - z0) / 2 + 4); }
   else if (FREE() && run) { const P = run.P.p; fitShadow(P.x * 0.7, P.z * 0.65, Math.max(9, Math.hypot(P.x, P.z) * 0.35 + 4)); }
   else fitShadow(spot.x * 0.5, spot.z * 0.5 - 0.5, spot.length() * 0.5 + 3);
@@ -2558,6 +2678,7 @@ if (TRACE) window.__duel = (mx, mz, ox, oz, fx, fz) => { const A = actors(); MT.
   o.p.x = ox; o.p.z = oz; o.yaw = Math.atan2(fx, fz); o.v.x = fx * 4; o.v.z = fz * 4; A[2].ai.thinkT = 9; A[2].ai.tx = ox + fx * 30; A[2].ai.tz = oz + fz * 30; A[2].ai.strike = A[2].ai.pass = null;
   placeBall(BP.controlPoint(o, null)); BP.capture(B, o, 'o1'); B.trapDur = 0; ballPrev.copy(B.p); };
 if (TRACE) window.__tackle = () => tryTackle(actorOf('me'));
+if (TRACE) window.__lesson = () => ({ pts: LS.pts, att: LS.att, step: LS.step, done: LS.done, coach: LS.coachOn, gates: LS.gates.map((g) => g.done), discs: LS.discs.map((d) => d.hit), cross: LS.cross, me: run ? [+run.P.p.x.toFixed(1), +run.P.p.z.toFixed(1)] : null, own: B.owner, st: state });
 if (TRACE) window.__clipMove = (name) => { const pl = shooter, h = pl.holder, keep = [h.position.clone(), h.rotation.clone()]; h.position.set(0, 0, 0); h.rotation.set(0, 0, 0); h.updateMatrixWorld(true);
   const a = pl.mixer.clipAction(clipOf(name)); pl.mixer.stopAllAction(); a.reset().play(); pl.mixer.setTime(0); pl.model.updateMatrixWorld(true); const p0 = pl.hips.getWorldPosition(new THREE.Vector3());
   pl.mixer.setTime(Math.min(0.5, clipOf(name).duration * 0.6)); pl.model.updateMatrixWorld(true); const p1 = pl.hips.getWorldPosition(new THREE.Vector3()); a.stop(); pl.act = null; pl.name = ''; h.position.copy(keep[0]); h.rotation.copy(keep[1]);
@@ -2614,6 +2735,7 @@ if (TRACE) window.__ball = (x, z, vx = 0, vz = 0) => { if (B.state === 'owned' |
   const hidden = []; scene.traverse((o) => { if (!o.visible) { hidden.push(o); o.visible = true; } });
   ren.compile(scene, cam); ren.render(scene, cam); hidden.forEach((o) => (o.visible = false)); // один кадр под заставкой загрузки: драйвер доделывает шейдеры при первой отрисовке
   $('#load').remove();
+  if (LESSON) lessonStart();
   if (QCHOICE === 'auto') autoQ = new GFX.AutoQuality(QL, applyQuality);
   gfxLabel();
   // разбор записей движений (только для проверки): куда смещается таз, где и когда руки/носки. Вызов: __audit(['goalkeeper_catch'], 'keeper')
