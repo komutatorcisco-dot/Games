@@ -101,10 +101,10 @@ export class AutoQuality {
 // Меняются только настройки (свет, цвет газона, камера, окружение) — геометрия и модели общие.
 const LOOK_A = {
   cam: { side: 32.7, h: 23.7, fov: 20, yaw: 25, look: 0 }, // ~36° сверху, ~40 м; разворот к воротам на 25°
-  exposure: 1.16, env: 0.95, hemi: 0.32,                  // больше рассеянного света — мягкие тени, детали в тени формы
+  exposure: 1.02, env: 0.8, hemi: 0.24,                  // больше рассеянного света — мягкие тени, детали в тени формы
   sun: { elevation: 58, azimuth: 55, color: '#fff4e4', intensity: 2.45 },
   shadowRadius: 3.5,                                      // мягкий край тени
-  pitch: { stripeA: '#4a7834', stripeB: '#5a893e', stripeWidth: 7.5, macro: 0.035, detail: 0.34, paintDetail: 0.12 }, // как в FC Mobile: сочный зелёный без жёлтого, чёткие полосы
+  pitch: { stripeA: '#3b6a25', stripeB: '#4b7c30', stripeWidth: 7.5, macro: 0.06, detail: 0.5, paintDetail: 0.14, far: 0.2 }, // спокойнее: меньше насыщенность, больше зерна травы, вдали темнее // как в FC Mobile: сочный зелёный без жёлтого, чёткие полосы
   paint: 0.97, envKind: 'training',
 };
 export const TV_LOOKS = {

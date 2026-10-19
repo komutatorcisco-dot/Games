@@ -159,7 +159,7 @@ const pitchU = {};
 function pitchLook(tv) {
   if (!pitchU.gp) return; const P = LOOK.pitch, L = tv && TVL(), T = tv ? Object.assign({}, P, LOOK.pitchTV, L ? L.pitch : null) : P;
   pitchU.gp2.value.y = L ? L.paint : P.paint.match(/[\d.]+/g).map(Number)[3];
-  pitchU.stripeA.value.set(T.stripeA); pitchU.stripeB.value.set(T.stripeB); pitchU.gp.value.set(T.stripeWidth, T.macro, T.detail, T.paintDetail);
+  pitchU.stripeA.value.set(T.stripeA); pitchU.stripeB.value.set(T.stripeB); pitchU.gp.value.set(T.stripeWidth, T.macro, T.detail, T.paintDetail); pitchU.gp2.value.z = T.far || 0;
 }
 // вид «2 на 1» (пресет из gfx.js) или обычный: экспозиция, свет, тени, камера, окружение (тренировочная база / стадион)
 const TVL = () => (TV() && LOOKSEL !== 'old' ? GFX.TV_LOOKS[LOOKSEL] : null);
@@ -233,6 +233,9 @@ function pitch() {
   float pnt = texture2D(lineT, vec2(luv.x, 1.0 - luv.y)).r * inside * gp2.y;
   vec3 c = mix(base, paintC, pnt);
   c *= mix(1.0, clamp(lum, 0.45, 1.6), gp.z * mix(1.0, gp.w, pnt));
+  // вдали — чуть темнее и спокойнее (воздух, как в трансляции): поле не «светится» одинаково до горизонта
+  float far = smoothstep(25.0, 95.0, distance(cameraPosition.xz, wp)) * gp2.z;
+  c = mix(c, vec3(dot(c, vec3(0.2126, 0.7152, 0.0722))), far * 0.6) * (1.0 - far * 0.5);
   diffuseColor.rgb *= c;`);
   };
   const m = new THREE.Mesh(new THREE.PlaneGeometry(W, W), pm);
