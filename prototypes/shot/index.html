@@ -162,12 +162,35 @@
   .pbtns button { background: rgba(17,17,22,.6); font: 800 12px/1 var(--f); font-style: normal; text-transform: none; letter-spacing: .01em; }
   .pbtns .gb { font: 800 11px/1 var(--f); font-style: normal; }
   .melbl { border-radius: 6px; background: rgba(11,11,15,.66); font: 800 11px/1.3 var(--f); font-style: normal; text-transform: none; letter-spacing: 0; }
+  /* матч: одна кнопка меню (пауза, настройки, камера, как играть — внутри), игровые кнопки компактнее */
+  body.match #gfxq, body.match #camBtn { display: none !important; }
+  body.match #pauseBtn { min-width: 40px; font-size: 17px; }
+  body.match .sb { transform: scale(.88); transform-origin: left top; }
+  body.match .pbtns { transform: scale(.82); transform-origin: right bottom; }
+  @media (max-height: 430px) { body.match .pbtns { transform: scale(.76); } }
+  /* мяч в руках у нашего вратаря: остаётся одна кнопка — «Отдать пас» (джойстик — кому, жест вверх — бросок далеко) */
+  #pad.gkm .pbtns button:not(.b-pass) { display: none; }
+  #pad.gkm .b-pass { right: 0; bottom: 0; width: 104px; height: 104px; font-size: 15px !important; --rim: #ffcf3a; }
+  /* итоги матча: слева счёт, голы и кнопки, справа статистика */
+  .card.wide { width: min(660px, 94vw); display: grid; grid-template-columns: 1fr 1.15fr; gap: 18px; align-items: center; text-align: left; padding: 18px 20px; }
+  .card.wide .credits { display: none; }
+  .card.wide h2 { font-size: 28px; } .card.wide p { margin-bottom: 8px; font: 900 22px var(--fd); color: #fff; }
+  .endg { display: grid; gap: 3px; margin: 0 0 12px; max-height: 92px; overflow: auto; font: 600 13px var(--f); color: rgba(255,255,255,.82); }
+  .endg:empty { display: none; } .endg b { color: var(--acc); font-weight: 800; margin-right: 4px; } .endg .them { color: rgba(255,255,255,.55); } .endg .them b { color: rgba(255,255,255,.55); }
+  .mstats { display: grid; gap: 7px; }
+  .mstats .row { display: grid; grid-template-columns: 34px 1fr 34px; align-items: center; gap: 8px; font: 800 14px var(--f); }
+  .mstats .row span:last-child { text-align: right; color: rgba(255,255,255,.7); }
+  .mstats .row i { position: relative; display: block; height: 18px; border-radius: 6px; background: rgba(255,255,255,.08); overflow: hidden; font: 700 11px/18px var(--f); font-style: normal; text-align: center; color: rgba(255,255,255,.85); }
+  .mstats .row i::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--w); background: rgba(255,207,58,.35); }
+  .mstats .row i em { position: relative; font-style: normal; }
+  .mstats h3 { margin: 0 0 2px; display: flex; justify-content: space-between; font: 900 13px var(--fd); color: rgba(255,255,255,.6); }
+  @media (max-height: 430px) { .card.wide { padding: 14px 16px; } .mstats { gap: 5px; } .mstats .row i { height: 16px; line-height: 16px; } }
 </style>
 </head>
 <body>
 <div class="vig"></div>
 <div class="sb glass"><span class="sb-n" id="who">—</span><span class="sb-s" id="score">0</span><span class="sb-d" id="dots"></span><span class="sb-t" id="mclock" hidden></span></div>
-<div class="tools"><button class="tbtn glass" id="pauseBtn" title="Пауза" hidden>❚❚</button><button class="tbtn glass" id="help" title="Как играть">?</button><button class="tbtn glass" id="gfxq">⚙</button><button class="tbtn glass" id="camBtn" hidden>🎥 Сверху</button><button class="tbtn glass" id="restart" hidden>↻ Заново</button></div>
+<div class="tools"><button class="tbtn glass" id="pauseBtn" title="Меню" hidden>☰</button><button class="tbtn glass" id="help" title="Как играть">?</button><button class="tbtn glass" id="gfxq">⚙</button><button class="tbtn glass" id="camBtn" hidden>🎥 Сверху</button><button class="tbtn glass" id="restart" hidden>↻ Заново</button></div>
 <div class="modes glass"><button data-m="fk" class="on">Штрафной</button><button data-m="pen">Пенальти</button><button data-m="run">1 на 1</button><button data-m="duo">2 на 1</button><button data-m="match" hidden>Матч 3×3</button></div>
 <div class="pad" id="pad" hidden><div class="zone" id="zone"></div><div class="joy" id="joy"><i id="stick"></i></div>
   <div class="pbtns">
@@ -180,10 +203,10 @@
   </div></div>
 <div class="msg" id="msg"></div>
 <div class="hint glass" id="hint">Проведи пальцем от мяча к воротам. Быстрее — сильнее, изогни линию — мяч закрутится.</div>
-<div class="end" id="end"><div class="card glass"><h2 id="endT"></h2><p id="endP"></p><button class="btn" id="again">Ещё серия</button><button class="btn sec" id="toMenu" hidden>Выйти</button><small class="credits">Мяч: LeMon74, CC BY 4.0 · ворота: romullus, CC BY-SA 4.0 · трава и небо: ambientCG, CC0 · игрок и движения: Mixamo</small></div></div>
+<div class="end" id="end"><div class="card glass" id="endCard"><div class="end-l"><h2 id="endT"></h2><p id="endP"></p><div class="endg" id="endG"></div><button class="btn" id="again">Ещё серия</button><button class="btn sec" id="toMenu" hidden>Выйти</button></div><div class="mstats" id="endS" hidden></div><small class="credits">Мяч: LeMon74, CC BY 4.0 · ворота: romullus, CC BY-SA 4.0 · трава и небо: ambientCG, CC0 · игрок и движения: Mixamo</small></div></div>
 <div class="fade" id="fade"></div>
 <canvas class="minimap" id="minimap" width="160" height="104"></canvas><div class="offme" id="offme"></div><div class="melbl" id="melbl"></div>
-<div class="end" id="pause"><div class="card glass"><h2>Пауза</h2><button class="btn" id="pResume">Продолжить</button><button class="btn sec" id="pRestart">Начать заново</button><button class="btn sec" id="pTrain" hidden>Тренировка</button><button class="btn sec" id="pSets">Настройки</button><button class="btn sec" id="pExit">Выйти</button></div></div>
+<div class="end" id="pause"><div class="card glass"><h2>Пауза</h2><button class="btn" id="pResume">Продолжить</button><button class="btn sec" id="pRestart">Начать заново</button><button class="btn sec" id="pTrain" hidden>Тренировка</button><button class="btn sec" id="pSets">Настройки</button><button class="btn sec" id="pHelp" hidden>Как играть</button><button class="btn sec" id="pExit">Выйти</button></div></div>
 <div class="end" id="confirm"><div class="card glass"><h2>Выйти?</h2><p>Матч не закончен — счёт не сохранится.</p><button class="btn" id="cStay">Остаться</button><button class="btn sec" id="cExit">Выйти</button></div></div>
 <div class="end" id="sets"><div class="card glass"><h2>Настройки</h2>
   <div class="set"><span>Звук</span><button class="opt" id="sSound"></button></div>
