@@ -1813,9 +1813,9 @@ const AI = { think: 0.2, shootD: 22, tackleD: 1.15, tackleCd: 1.2, keepAway: 9.1
 // сложность соперников (?diff=0|1|2, выбирается в хабе): как часто думают, как охотно отбирают, как точно и часто бьют,
 // насколько быстрее бегают, как реагирует их вратарь. Наши боты — всегда «средние».
 const DIFFS = [
-  { think: 0.3, tackle: 0.22, noise: 2.6, want: 0.7, spd: 0.95, gk: { reaction: 0.25, diveReach: 2.6 } },
-  { think: 0.2, tackle: 0.4, noise: 2.0, want: 1, spd: 1, gk: { reaction: 0.18, diveReach: 2.8 } },
-  { think: 0.14, tackle: 0.55, noise: 1.4, want: 1.25, spd: 1.03, gk: { reaction: 0.15, diveReach: 3.0 } },
+  { think: 0.3, tackle: 0.22, noise: 2.6, want: 0.7, spd: 0.95, gk: { reaction: 0.25, diveReach: 2.6, readError: 0.2, catchHands: 19 } },
+  { think: 0.2, tackle: 0.4, noise: 2.0, want: 1, spd: 1, gk: { reaction: 0.18, diveReach: 2.8, readError: 0.16, catchHands: 21 } },
+  { think: 0.14, tackle: 0.55, noise: 1.4, want: 1.25, spd: 1.03, gk: { reaction: 0.15, diveReach: 3.0, readError: 0.14, catchHands: 22 } },
 ];
 const DIFF = DIFFS[Math.max(0, Math.min(2, Number(Q.get('diff') ?? 1) || (Q.get('diff') === '0' ? 0 : 1)))];
 const DF = (team) => (team === 1 ? DIFF : DIFFS[1]);
@@ -1869,7 +1869,13 @@ function matchOwnerP() { if (!owning()) return null; const a = actorOf(B.owner);
 // ---- вратарь j: переключение и расчёт в его системе координат ----
 function gkUse(j) { if (j === gkCur) return; GK[gkCur].kick = kick; gkCur = j; keeper = GK[j].pl; GKS = GK[j].S; kick = GK[j].kick; if (GK[j].kc) Object.assign(BP.CFG.keeper, GK[j].kc); }
 // наш вратарь — по карточке: прыжок (1-я характеристика) — дальше достаёт, реакция (4-я) — раньше прыгает
-function gkFromCard(c) { const st = c ? c.st : []; return { reaction: 0.23 - 0.07 * k01(st[3]), diveReach: 2.6 + 0.35 * k01(st[0]) }; }
+// вратарь по карточке (прыжок, руки, выбивание, реакция, реакция на поле, выбор позиции): хороший — лучше вратаря
+// «Сильных» соперников, средний (80) — как у «Средних». Без карточки — средний.
+function gkFromCard(c) {
+  if (!c) return { reaction: 0.18, diveReach: 2.8, readError: 0.16, catchHands: 21 };
+  const k = (i) => k01(c.st[i]);
+  return { reaction: 0.25 - 0.11 * k(3), diveReach: 2.55 + 0.6 * k(0), readError: 0.24 - 0.12 * k(5), catchHands: 17 + 7 * k(1) };
+}
 function gkCtx(j, fn) { const was = gkCur; gkUse(j); try { return fn(); } finally { gkUse(was); } }
 let worldFlipped = false;
 function flipWorld(dir) { // поворот всего, что читает логика вратаря: мяч, полевые игроки, сам вратарь
@@ -2952,7 +2958,7 @@ if (TRACE) window.__ball = (x, z, vx = 0, vz = 0) => { if (B.state === 'owned' |
     for (let i = 1; i < wall.length - 1; i++) makeSpheres(wall[i], 'x' + i); // метки (кто есть кто) раздаёт resetMatch
     makeSpheres(wall[wall.length - 1], 'gk2');
     GK.push({ pl: wall[wall.length - 1], S: { st: 'pos', t: 0, v: new THREE.Vector3(), want: '', wantT: 0 }, kick: null });
-    Object.assign(BP.CFG.keeper, { reaction: 0.18, reactionJitter: 0.08, diveReach: 2.8, diveTime: 0.52 }); GK[0].kc = { reaction: 0.18, diveReach: 2.8 };
+    Object.assign(BP.CFG.keeper, { reaction: 0.18, reactionJitter: 0.08, diveReach: 2.8, diveTime: 0.52 }); GK[0].kc = Object.assign({}, DIFF.gk);
     GK[1].kc = gkFromCard(LINEUP[NSIDE - 1]);
     BP.CFG.player.bounds = { x: MATCH.HW + 1, zMin: 0.25, zMax: MATCH.L - 0.25 };
     $('.modes').style.display = 'none';
