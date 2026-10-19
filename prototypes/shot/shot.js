@@ -489,14 +489,24 @@ function playerMaterial(o, kit) {
   // форма перекрашивается умножением: складки и швы из текстуры остаются
   const part = kit && PART[o.name]; if (part && kit[part]) mt.color.set(kit[part]);
 }
-async function player(kit) { // у всех одна и та же полная модель — без упрощения
-  await baseReady;
-  const src = base;
+// Своя модель команды игрока (assets/hero.glb): сделана в Tripo, кости — авто-скелет Mixamo, облегчена до 24 тыс. треугольников.
+// Скелет тот же (65 костей Mixamo), поэтому подходят все записи движений; у него свои единицы: таз во время движения
+// на 51 условной единице против 92,8 у общей модели — смещение таза в записях умножаем на HERO.hs, модель — в HERO.scale.
+const HERO = { hs: 0.553, scale: 1.95 };
+let hero = null, heroDrib = null; // heroDrib — ведение мяча (Mixamo «Dribble», записано на этом скелете): 2,62 м за цикл в его единицах
+const heroReady = Q.get('hero') === '0' ? Promise.resolve(null) : Promise.all([loader.loadAsync('assets/hero.glb'), loader.loadAsync('assets/hero_dribble.glb').catch(() => null)])
+  .then(([g, d]) => { hero = g; heroDrib = d && d.animations[0] || null; return g; }).catch(() => null);
+const DRIB_SPEED = 2.62 * 0.01 * HERO.scale / 1.767; // м/с при обычной скорости записи
+async function player(kit, mine = false) { // общая полная модель — без упрощения; своя команда — своя модель (если загрузилась)
+  await baseReady; if (mine) await heroReady;
+  const own = mine && hero, src = own ? hero : base;
   const m = cloneSkinned(src.scene);
+  if (own) m.scale.setScalar(HERO.scale);
   const baseMats = {}; base.scene.traverse((o) => { if (o.isMesh) baseMats[o.name] = o.material; });
   m.traverse((o) => {
     if (!o.isMesh) return;
     o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true;
+    if (own) { o.material = o.material.clone(); o.material.roughness = 0.78; o.material.metalness = 0; o.material.envMapIntensity = 0.6; return; } // текстура своей формы — как есть
     o.material = (baseMats[o.name] || o.material).clone(); // свой материал (цвет формы), текстуры общие
     playerMaterial(o, kit);
   });
@@ -506,7 +516,7 @@ async function player(kit) { // у всех одна и та же полная �
   Object.assign(blobs.find((x) => x.m === bl), { bone: hips, player: true }); // тень идёт за тазом: записанные движения двигают игрока сами
   const footL = m.getObjectByName('LeftFoot'), footR = m.getObjectByName('RightFoot'), toeL = m.getObjectByName('LeftToeBase'), toeR = m.getObjectByName('RightToeBase');
   const body = ['LeftHand', 'RightHand', 'Spine2', 'Head'].map((n) => m.getObjectByName(n)); // чем вратарь касается мяча
-  return { holder, model: m, mixer: new THREE.AnimationMixer(m), hips, hipsRest: hips.position.clone(), body, footL, footR, toeL, toeR, act: null, t: 0 };
+  return { holder, model: m, mixer: new THREE.AnimationMixer(m), hips, hipsRest: hips.position.clone(), body, footL, footR, toeL, toeR, act: null, t: 0, hs: own ? HERO.hs : 1, own };
 }
 const hexKit = (q) => { const k = (q || '').split('.').filter((c) => /^[0-9a-f]{6}$/i.test(c)); return k.length ? { shirt: '#' + k[0], shorts: '#' + (k[1] || k[0]), socks: '#' + (k[2] || k[1] || k[0]) } : null; };
 const myKit = hexKit(Q.get('kit')); // без ?kit= — своя белая форма модели
@@ -849,21 +859,22 @@ const ALIAS = { kick: 'soccer_penalty_kick', kick2: 'kick_soccerball', strike: '
 const clipOf = (name) => base.animations.find((c) => c.name === (ALIAS[name] || name));
 const variants = new Map();
 // копия движения: смещение таза по сторонам (fx) и вперёд (fz) умножено — вратарь долетает ровно до мяча и не выбегает из ворот
-function variant(name, fx = 1, fz = 1) {
+function variant(name, fx = 1, fz = 1, hs = 1) {
   fx = Math.round(fx * 20) / 20; fz = Math.round(fz * 20) / 20; // шаг 0,05: глазом не отличить, копий меньше
-  const key = name + '|' + fx.toFixed(2) + '|' + fz.toFixed(2); if (variants.has(key)) return variants.get(key);
+  const key = name + '|' + fx.toFixed(2) + '|' + fz.toFixed(2) + (hs !== 1 ? '|h' + hs : ''); if (variants.has(key)) return variants.get(key);
   // копируем только дорожку таза (её растягиваем), остальные дорожки — общие с исходной записью: меньше памяти и без рывка при создании
-  const src = clipOf(name), stretch = fx !== 1 || fz !== 1;
+  // hs — другой скелет (своя модель из Mixamo): смещение таза в его единицах
+  const src = clipOf(name), stretch = fx !== 1 || fz !== 1 || hs !== 1;
   const c = new THREE.AnimationClip(key, src.duration, src.tracks.map((t) => (stretch && t.name === 'Hips.position' ? t.clone() : t)));
   const tr = stretch && c.tracks.find((t) => t.name === 'Hips.position');
-  if (tr) { const v = tr.values, x0 = v[0], y0 = v[1]; for (let i = 0; i < v.length; i += 3) { v[i] = x0 + (v[i] - x0) * fx; v[i + 1] = y0 + (v[i + 1] - y0) * fz; } }
+  if (tr) { const v = tr.values, x0 = v[0], y0 = v[1]; for (let i = 0; i < v.length; i += 3) { v[i] = x0 + (v[i] - x0) * fx; v[i + 1] = y0 + (v[i + 1] - y0) * fz; } if (hs !== 1) for (let i = 0; i < v.length; i++) v[i] *= hs; }
   variants.set(key, c); return c;
 }
 function play(pl, name, { t = 0, loop = false, fade = 0.25, speed = 1, hold = Infinity, fx = 1, fz = 1, lock = null, lift = 0, follow = false } = {}) {
-  const a = pl.mixer.clipAction(variant(name, fx, fz));
+  const a = pl.mixer.clipAction(variant(name, fx, fz, pl.hs || 1));
   a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); a.clampWhenFinished = true; a.timeScale = speed; a.time = t; a.setEffectiveWeight(1);
   if (pl.name === 'loco' && pl.loco) { // из смешанного бега: гасим обе записи (и незавершённый прошлый переход)
-    const o = pl.loco; for (const x of [o.idle, o.jog, o.prev]) if (x && x !== a) { if (fade > 0) x.fadeOut(fade); else x.stop(); }
+    const o = pl.loco; for (const x of new Set([o.idle, o.jog, o.prev, o.drib, ...(o.dirs || []).map((d) => d.a)])) if (x && x !== a) { if (fade > 0) x.fadeOut(fade); else x.stop(); }
     o.prev = null; if (fade > 0) a.fadeIn(fade);
   } else if (pl.act && pl.act !== a && fade > 0) a.crossFadeFrom(pl.act, fade, false); else if (pl.act && pl.act !== a) pl.act.stop();
   a.play(); Object.assign(pl, { act: a, name, hold, lock, lift, t0: t, t, follow });
@@ -876,9 +887,10 @@ const JOG_SPEED = 2.48;
 // Метров за цикл записи (замер смещения таза): вперёд 2,15, назад 1,90, влево 2,11, вправо 1,76.
 const LOCO_DIRS = [['jog', 2.15], ['jog_back', 1.9], ['jog_strafe_left', 2.11], ['jog_strafe_right', 1.76]];
 function loco(pl, sp, dt, P) {
-  const L = pl.loco || (pl.loco = { idle: pl.mixer.clipAction(variant('idle')), jog: pl.mixer.clipAction(variant('jog')), dirs: null, f: 1, prev: null, ph: 0 });
-  if (MATCH_ON && !L.dirs) L.dirs = LOCO_DIRS.map(([n, m]) => ({ a: n === 'jog' ? L.jog : pl.mixer.clipAction(variant(n)), m }));
-  const all = L.dirs ? [L.idle, ...L.dirs.map((d) => d.a)] : [L.idle, L.jog];
+  const hs = pl.hs || 1, L = pl.loco || (pl.loco = { idle: pl.mixer.clipAction(variant('idle', 1, 1, hs)), jog: pl.mixer.clipAction(variant('jog', 1, 1, hs)), dirs: null, f: 1, prev: null, ph: 0 });
+  if (MATCH_ON && !L.dirs) L.dirs = LOCO_DIRS.map(([n, m]) => ({ a: n === 'jog' ? L.jog : pl.mixer.clipAction(variant(n, 1, 1, hs)), m }));
+  if (pl.own && heroDrib && !L.drib) { L.drib = pl.mixer.clipAction(heroDrib); L.dw = 0; } // своя модель: ведение мяча — своя запись
+  const all = (L.dirs ? [L.idle, ...L.dirs.map((d) => d.a)] : [L.idle, L.jog]).concat(L.drib ? [L.drib] : []);
   if (pl.name !== 'loco') {
     L.prev = pl.act; L.f = 0;
     for (const a of all) { a.reset(); a.setLoop(THREE.LoopRepeat, Infinity); a.play(); a.setEffectiveWeight(0); }
@@ -888,14 +900,16 @@ function loco(pl, sp, dt, P) {
   const w = THREE.MathUtils.smoothstep(sp, 0.3, 1.9);
   L.idle.setEffectiveWeight((1 - w) * L.f);
   if (L.prev && !all.includes(L.prev)) { L.prev.setEffectiveWeight(1 - L.f); if (L.f >= 1) { L.prev.stop(); L.prev = null; } }
-  if (!L.dirs || !P) { L.jog.setEffectiveWeight(w * L.f); L.jog.timeScale = THREE.MathUtils.clamp(sp / JOG_SPEED, 0.75, 2.1); return; } // на рывке частоту ног ограничиваем
+  // ведение (своя модель, мяч у ноги, бежит): плавно переходит с бега на запись ведения
+  let dw = 0; if (L.drib) { L.dw += ((pl.withBall ? 1 : 0) - L.dw) * Math.min(1, dt * 6); dw = L.dw; L.drib.timeScale = THREE.MathUtils.clamp(sp / DRIB_SPEED, 0.7, 2.1); L.drib.setEffectiveWeight(w * dw * L.f); }
+  if (!L.dirs || !P) { L.jog.setEffectiveWeight(w * L.f * (1 - dw)); L.jog.timeScale = THREE.MathUtils.clamp(sp / JOG_SPEED, 0.75, 2.1); return; } // на рывке частоту ног ограничиваем
   // скорость в осях корпуса: вперёд и вправо (правая сторона при взгляде вдоль +z — это −x)
   const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), vf = sp > 0.05 ? (P.v.x * fx + P.v.z * fz) / sp : 1, vr = sp > 0.05 ? (-P.v.x * fz + P.v.z * fx) / sp : 0;
   const s = Math.abs(vf) + Math.abs(vr) || 1, ws = [Math.max(0, vf) / s, Math.max(0, -vf) / s, Math.max(0, -vr) / s, Math.max(0, vr) / s];
   // шагов в секунду — по смеси записей; ограничение то же, что было (не семенить на рывке)
   let cps = 0; for (let i = 0; i < 4; i++) cps += ws[i] * (sp / L.dirs[i].m); cps = THREE.MathUtils.clamp(cps, 0.75 / 0.87, 2.1 / 0.87);
   L.ph = (L.ph + cps * dt) % 1;
-  for (let i = 0; i < 4; i++) { const d = L.dirs[i]; d.a.timeScale = 0; d.a.time = L.ph * d.a.getClip().duration; d.a.setEffectiveWeight(w * ws[i] * L.f); }
+  for (let i = 0; i < 4; i++) { const d = L.dirs[i]; d.a.timeScale = 0; d.a.time = L.ph * d.a.getClip().duration; d.a.setEffectiveWeight(w * ws[i] * L.f * (1 - dw)); }
 }
 // таз в мировых координатах ↔ в координатах скелета (у скелета Mixamo свой поворот и масштаб 0,01)
 function tickPlayer(pl, dt) {
@@ -1567,6 +1581,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
   // замах занят до конца движения ноги; запись может закончиться раньше этого запаса — тогда до её конца (иначе поза застывает навсегда)
   const busyTill = (C, extra) => Math.min(C.tc + extra, C.dur - 0.05);
   const busy = (pl.name === 'strike' && pl.t < busyTill(STRIKE, 0.3)) || (pl.name === 'pass' && pl.t < busyTill(PASS, 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele) || (pl.once && pl.name === pl.once.name && pl.t < pl.once.until);
+  pl.withBall = B.state === 'owned' && B.owner === (who0 || (pl === shooter ? 'me' : 'mate')) && sp > 1.4;
   if (!busy) loco(pl, sp, dt, P);
   tickPlayer(pl, dt);
   // касания при ведении — в такт шагу: правая нога проходит вперёд на ~62–69% цикла бега (замер записи jog_forward);
@@ -2705,7 +2720,7 @@ if (TRACE) window.__ball = (x, z, vx = 0, vz = 0) => { if (B.state === 'owned' |
 // ---------- старт ----------
 (async () => {
   const bar = $('#loadbar');
-  const all = [player(myKit), player(gkKit), ...Array.from({ length: MATCH_ON ? 2 * NSIDE - 2 : 4 }, () => player(wallKit()))]; // матч: партнёры, соперники и наш вратарь
+  const all = [player(myKit, true), player(gkKit), ...Array.from({ length: MATCH_ON ? 2 * NSIDE - 2 : 4 }, (_, i) => player(wallKit(), MATCH_ON && i < NSIDE - 2))]; // матч: партнёры (своя модель), соперники и наш вратарь
   let done = 0; all.forEach((p) => p.then(() => { done++; if (bar) bar.style.width = (done / all.length) * 100 + '%'; }));
   const got = await Promise.all(all);
   [shooter, keeper] = got; shooter0 = shooter; wall.push(...got.slice(2)); blob(ball, 0.45); makeSpheres(keeper, 'gk'); makeSpheres(shooter, 'me'); makeSpheres(wall[0], 'mate');

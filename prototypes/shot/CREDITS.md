@@ -6,3 +6,6 @@
 - Трава — Grass003, ambientCG (ambientcg.com) — CC0 (assets/grass3.webp — цвет 1024², grass3_n.webp — нормали 512²).
 - Небо — DaySkyHDRI069B, ambientCG (ambientcg.com) — CC0.
 - Ворота — «Football Goal», romullus, https://sketchfab.com/3d-models/football-goal-bf20be6e423e41d191134ab77c590992 — CC BY-SA 4.0. Изменено: сетка облегчена (gltfpack -si 0.4), картинки в WEBP. Изменённая модель (assets/goal.glb) — тоже под CC BY-SA 4.0.
+- Модель своей команды (assets/hero.glb) — сделана владельцем проекта в Tripo, скелет — авто-риггинг Mixamo;
+  облегчена в Blender (bpy) с 1,94 млн до 24 тыс. треугольников, текстура цвета 2048, нормали 1024 (WEBP).
+  Ведение мяча (assets/hero_dribble.glb) — Mixamo «Dribble», записано на этом же скелете. Исходники — в релизе data-1.
