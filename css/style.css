@@ -814,6 +814,16 @@ a { color: var(--danil); }
 .fbp-none { grid-column: 1 / -1; margin: 0; opacity: .75; }
 .fbp-go { position: fixed; left: 0; right: 0; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; z-index: 5; pointer-events: none; }
 .fbp-go .btn { pointer-events: auto; min-width: 220px; font-size: 20px; }
+.fbp-slot em, .fbp-pc em { font: 800 10px var(--font-body); font-style: normal; color: #ff8a8a; }
+.fbp-h small { font-weight: 500; opacity: .7; margin-left: 4px; }
+.fbp-forms { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+.fbp-forms button { flex: none; padding: 6px 10px; border: 0; border-radius: 10px; background: rgba(255,255,255,.08); color: inherit; font: 800 13px var(--font-body, inherit); }
+.fbp-forms button.on { background: #ffcf3a; color: #1b1240; }
+.fbp-pitch { width: min(100%, 330px); margin: 4px auto 6px; }
+.fbp-pt .cc { width: 46px; } .fbp-pt:not(.on) { width: 44px; height: 56px; }
+.fbp-pt.auto .cc { opacity: .55; filter: saturate(.5); }
+.fbp-pt.sel .cc, .fbp-pt.sel:not(.on) { box-shadow: 0 0 0 3px #ffcf3a, 0 6px 12px rgba(0,0,0,.4); border-radius: 8px; }
+.fbp-pt > small { font: 900 10px "Rubik", sans-serif; color: #ffcf3a; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
 .rh-badge { align-self: flex-start; padding: 2px 8px; border-radius: 8px; font-weight: 800; font-size: 12px; background: var(--sasha); color: #fff; }
 
 .ic-crest.n1, .ic-crest.n2, .ic-crest.n3, .ic-crest.n4 { width: 15px; height: 19px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
