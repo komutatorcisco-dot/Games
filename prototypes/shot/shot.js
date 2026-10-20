@@ -762,7 +762,7 @@ let lastGkTouch = -9;
 world.onSphere = (q, c) => {
   if (q.who === 'gk2' && MT.back) { gkTrapFeet(); return 'stop'; }
   if (q.who === 'gk2') return gkCtx(1, () => gkSphere(q, c));
-  if (q.who !== 'gk') return 'bounce';
+  if (q.who !== 'gk') { if (TRACE) console.log('bodyHit', JSON.stringify({ who: q.who, s: q.name, rel: +c.rel.toFixed(1), y: +B.p.y.toFixed(2), bv: +Math.hypot(B.v.x, B.v.z).toFixed(1), sv: +Math.hypot(q.vx || 0, q.vz || 0).toFixed(1), pass: !!passInFlight() })); return 'bounce'; }
   return gkCtx(0, () => gkSphere(q, c));
 };
 function gkSphere(q, c) {
@@ -1611,7 +1611,9 @@ function passInput() {
   // (больше ~35°): и пока мяч идёт, и после приёма (иначе получатель с тем же джойстиком уходил от мяча — замер по кадрам).
   // Не дольше 4 с. Мяч ушёл к сопернику — удержание сразу снимается.
   const lostBall = B.state === 'owned' && B.owner !== 'me' || B.state === 'held';
-  if (m < 0.3 || cos < Math.cos(0.6) || simT - H.t > 4 || lostBall) { run.holdInp = null; return i; }
+  // Как только получатель взял мяч (или прошло 1.5 с) — управление сразу снова твоё: иначе игрок «застревал» с мячом.
+  const got = B.state === 'owned' && B.owner === 'me';
+  if (m < 0.3 || cos < Math.cos(0.6) || simT - H.t > 1.5 || got || lostBall) { run.holdInp = null; return i; }
   return { x: 0, y: 0 };
 }
 function runPhys(h) {
@@ -2249,7 +2251,9 @@ function botThink(a) {
 }
 // как часто нападающие и полузащитники забегают: когда у своего мяч в центре или у чужих ворот, он смотрит вперёд
 // и его не прессингуют — чаще (как в настоящей игре: открываются под пас)
+const RUNS = false; // забегания за спину выключены у всех команд: партнёры держат позиции и остаются вариантами для паса
 function runChance(a) {
+  if (!RUNS) return 0;
   const ow = owning() && actorOf(B.owner); if (!ow || ow.team !== a.team || ow === a) return 0.02;
   const O = ow.P, fz = fwdZ(a.team), facing = Math.cos(O.yaw) * fz, d0 = homeBase(a)[1], deep = depthOf(a.team, O.p.z);
   const pressed = actors().some((f) => f.team !== a.team && Math.hypot(f.P.p.x - O.p.x, f.P.p.z - O.p.z) < 2.5);
@@ -2449,7 +2453,7 @@ function matchPhys(h) {
   if (own) {
     const near = (a) => Math.abs(a.P.p.x - B.p.x) < 3 && Math.abs(a.P.p.z - B.p.z) < 3; // мяч упирается только в тех, кто рядом
     const obs = A.filter((a) => a.team !== own.team && near(a)).flatMap((a) => a.pl.sph || []).concat(GK[gkOfTeam(1 - own.team)].pl.sph || []);
-    if (BP.controlStep(B, own.P, h, obs) === 'lost') { sfx.touch(); cancelOwnerAction(own.id); }
+    if (BP.controlStep(B, own.P, h, obs) === 'lost') { sfx.touch(); cancelOwnerAction(own.id); if (TRACE) console.log('lostBody', JSON.stringify({ id: own.id, sp: +Math.hypot(own.P.v.x, own.P.v.z).toFixed(1) })); }
     else if (own.id === 'me') {
       if (run.fire) { run.fire = false; if (run.strike) { fireStrike(); MT.last = 0; } }
       if (run.passFire) { run.passFire = false; if (run.pass) { const r = run.pass.recv || pickReceiver(P, input(), false, true); run.swapTo = r.id; if (firePass(P, 'me', run.pass, r.P)) { MT.last = 0; if (r.id === 'gk2') { MT.back = { t: simT }; run.swapTo = '-'; } } } run.pass = null; }
