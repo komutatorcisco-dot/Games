@@ -1631,6 +1631,9 @@ function stepToBall(P, inp, who) {
   const im = Math.hypot(inp.x, inp.y); if (B.trapT >= BP.CFG.control.turnWindow) B.touchSoft = false;
   if (B.touchSoft && im > 0.5 && B.trapT < BP.CFG.control.turnWindow && Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z) < 0.75) { // принял мягко и сразу повёл — разворот с мячом
     BP.firstTouch(B, P, who, { x: inp.x, z: -inp.y }, true); B.touchSoft = false; if (who === 'me') sfx.touch();
+    // разворот с мячом — дальше обычное ведение: мяч сразу идёт за ногой (раньше катился сам медленнее игрока, и тот,
+    // разогнавшись, убегал от мяча — потеря на ровном месте)
+    B.touchFirst = false; B.trapT = 1; BP.touch(B, P);
   }
   const cp = BP.controlPoint(P, null), ex = B.p.x - cp.x, ez = B.p.z - cp.z, e = Math.hypot(ex, ez);
   const dx = B.p.x - P.p.x, dz = B.p.z - P.p.z, d = Math.hypot(dx, dz) || 1, mag = Math.hypot(inp.x, inp.y);

@@ -419,6 +419,7 @@ export function firstTouch(b, P, who, intent, again = false) {
   const C = CFG.control, rel = again ? Math.hypot(b.v.x - P.v.x, b.v.z - P.v.z) : capture(b, P, who), il = intent ? Math.hypot(intent.x, intent.z) : 0;
   let dx = Math.sin(P.yaw), dz = Math.cos(P.yaw);
   if (il > 0.2) { dx = intent.x / il; dz = intent.z / il; }
+  else { const ps = Math.hypot(P.v.x, P.v.z); if (ps > 1) { dx = P.v.x / ps; dz = P.v.z / ps; } } // без ввода — мяч гасится по ходу игрока, а не «от груди» вперёд
   let rx = b.p.x - P.p.x, rz = b.p.z - P.p.z; const rl = Math.hypot(rx, rz) || 1; rx /= rl; rz /= rl;
   const into = dx * rx + dz * rz;
   if (into < -0.2) { dx -= into * rx; dz -= into * rz; const l = Math.hypot(dx, dz); if (l < 1e-3) { dx = -rz; dz = rx; } else { dx /= l; dz /= l; } }
@@ -429,7 +430,7 @@ export function firstTouch(b, P, who, intent, again = false) {
   // с джойстиком: мяч уходит не дальше чем на ~2 м/с быстрее игрока; если игрок бежит в другую сторону — короткое касание
   // (он развернётся и заберёт), иначе мяч уезжал от него на 5+ м/с и сразу считался потерянным
   const pv = P.v.x * dx + P.v.z * dz;
-  const s = il > 0.2 ? (pv < 0.5 ? Math.min(1.2, 0.5 + C.touchOut * 0.5 * Math.min(1, il)) : Math.min(pv + 2.2, pv + C.touchOut * Math.min(1, il) + C.touchKeep * Math.min(rel, 8))) : Math.min(1.6, Math.max(0, P.v.x * dx + P.v.z * dz) * 0.3 + C.touchSoft + C.touchKeep * 0.25 * rel);
+  const s = il > 0.2 ? (pv < 0.5 ? Math.min(1.2, 0.5 + C.touchOut * 0.5 * Math.min(1, il)) : Math.min(pv + 2.2, pv + C.touchOut * Math.min(1, il) + C.touchKeep * Math.min(rel, 8))) : Math.min(1.2, Math.max(0, P.v.x * dx + P.v.z * dz) * 0.45 + C.touchSoft * 0.5); // скорость прилёта гасится целиком: мяч и тормозящий игрок останавливаются вместе
   b.v.x = dx * s; b.v.z = dz * s; b.w.x = b.v.z / CFG.R; b.w.y = 0; b.w.z = -b.v.x / CFG.R;
   b.trapT = 0; b.trapDur = C.touchFree + C.touchFreePerV * rel; b.touchFirst = true; b.touchSoft = !(il > 0.2);
   return rel;
@@ -457,7 +458,10 @@ export function controlStep(b, P, h, obstacles) {
   let ex = cp.x - b.p.x, ez = cp.z - b.p.z;
   // первое касание: сначала мяч катится сам (только трение), потом ведение плавно набирает силу
   let free = false, blend = 1;
-  if (b.touchFirst && !b.strikeAt) { // замах (пас/удар сразу после приёма) — мяч сразу ведётся к ударной ноге
+  // мягкий приём (без джойстика): скорость прилёта уже погашена — мяч сразу у ноги под обычным контролем (без фазы, где он
+  // катится сам и игрок «танцует» вокруг него); сила поправки умеренная — без «магнита» издалека
+  const soft = b.touchFirst && b.touchSoft && !b.strikeAt;
+  if (b.touchFirst && !b.strikeAt && !soft) { // замах (пас/удар сразу после приёма) — мяч сразу ведётся к ударной ноге
     if (b.trapT < b.trapDur) free = true;
     else { const u = Math.min(1, (b.trapT - b.trapDur) / C.touchBlend); blend = u * u * (3 - 2 * u);
       if (u >= 1 && (Math.hypot(ex, ez) < 0.3 || b.trapT > 1.8)) b.touchFirst = false; } // мяч ещё не у ноги — ведение не включается в полную силу
@@ -469,11 +473,12 @@ export function controlStep(b, P, h, obstacles) {
     const g = C.gain * (P.stopping ? C.stopTrap : 1) * (b.roll > 0 && !P.stopping ? (C.rollGain ?? 1) : 1); // сразу после касания мяч катится почти сам
     let cx = ex * g, cz = ez * g;
     // после первого касания мяч не «догоняет» игрока издалека: пружина сильна только у самой стопы
-    const far = b.touchFirst ? Math.max(0.15, Math.min(1, 1 - (Math.hypot(ex, ez) - 0.3) / 0.45)) : 1;
-    const mc = C.maxCorr * (0.25 + 0.75 * blend) * far, cl = Math.hypot(cx, cz); if (cl > mc) { cx *= mc / cl; cz *= mc / cl; }
+    const far = b.touchFirst && !soft ? Math.max(0.15, Math.min(1, 1 - (Math.hypot(ex, ez) - 0.3) / 0.45)) : 1;
+    const mc = C.maxCorr * (soft ? 0.6 : (0.25 + 0.75 * blend) * far), cl = Math.hypot(cx, cz); if (cl > mc) { cx *= mc / cl; cz *= mc / cl; }
+    if (soft && Math.hypot(ex, ez) < 0.3) b.touchFirst = false; // мяч у ноги — обычное ведение
     const dvx = P.v.x + cx, dvz = P.v.z + cz;
     // приём: сначала мяч живёт своей скоростью, контроль включается плавно (сильный прилёт гасится дольше)
-    const k = 1 - Math.exp(-h * C.resp * (b.touchFirst ? 0.1 + 0.9 * blend : 0.15 + 0.85 * ease));
+    const k = 1 - Math.exp(-h * C.resp * (soft ? 0.6 : b.touchFirst ? 0.1 + 0.9 * blend : 0.15 + 0.85 * ease));
     b.v.x += (dvx - b.v.x) * k; b.v.z += (dvz - b.v.z) * k; b.v.y = 0;
   }
   b.p.x += b.v.x * h; b.p.z += b.v.z * h; b.p.y = R;
