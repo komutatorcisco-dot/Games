@@ -789,7 +789,8 @@ function worldNow() {
   if (MATCH_ON && run && run.opp) { // матч: вторые ворота и тела всех шестерых (кроме только что ударившего)
     world.goal2 = Object.assign(goalDef(), { L: MATCH.L }); world.spheres = [];
     const lock = simT < B.lockUntil || B.mustClear ? B.lockOwner : null;
-    for (const a of actors()) if (a.pl.sph && a.id !== lock && Math.abs(a.P.p.x - B.p.x) < 4 && Math.abs(a.P.p.z - B.p.z) < 4) for (const q of a.pl.sph) world.spheres.push(q); // дальние не проверяем
+    const pf = passInFlight(); // пас своему в пути: свои мяч пропускают, а получатель принимает его ногой (не отбивает корпусом)
+    for (const a of actors()) if (a.pl.sph && a.id !== lock && Math.abs(a.P.p.x - B.p.x) < 4 && Math.abs(a.P.p.z - B.p.z) < 4 && !(pf && pf.team === a.team)) for (const q of a.pl.sph) world.spheres.push(q); // дальние не проверяем
     for (const g of GK) for (const q of g.pl.sph) world.spheres.push(q);
     return world;
   }
@@ -1375,7 +1376,8 @@ function firePass(P, who, job, recv) {
   if (MATCH_ON && job.kind === 'lofted') { const tm = teamOf(who); if (depthOf(tm, tgt.z) < 18 && Math.abs(tgt.x) < 20) { const dx = tgt.x - B.p.x, dz = tgt.z - B.p.z, dl = Math.hypot(dx, dz) || 1; tgt.x += (dx / dl) * 2.3; tgt.z += (dz / dl) * 2.3; job.cross = true; } }
   const pa = MATCH_ON && actorOf(who), pe = pa ? pa.pl.passErr || 0 : 0; // точность паса — по карточке
   const pv = spreadShot(BP.passVelocity(B, tgt, job.kind === 'lofted' || job.loft ? 'lofted' : 'ground', job.power), pe, pe * 0.6);
-  if (BP.applyShot(B, pv, BP.controlPoint(P, B), who, simT)) { B.inGoal = false; B.goal = false; B.netHit = false; if (MATCH_ON) { statPass(teamOf(who)); markOffside(who); } if (who === 'me' && TEAM()) run.swapNow = true; sfx.kick(0.1 + job.power * 0.25); run.lastPass = { who, t: simT, tgt }; if (LESSON === 'basics' && who === 'me') LS.passT = simT; return true; }
+  if (BP.applyShot(B, pv, BP.controlPoint(P, B), who, simT)) { B.inGoal = false; B.goal = false; B.netHit = false; if (MATCH_ON) { statPass(teamOf(who)); markOffside(who); } if (who === 'me' && TEAM()) run.swapNow = true; sfx.kick(0.1 + job.power * 0.25); run.lastPass = { who, t: simT, tgt };
+    if (MATCH_ON) { const ra = actors().find((q) => q.P === recv); run.passTo = ra ? { id: ra.pl, team: ra.team, t: simT, tgt: { x: tgt.x, z: tgt.z } } : null; if (TRACE) console.log('passEv', JSON.stringify({ who, to: ra && ra.id, d: +Math.hypot(tgt.x - B.p.x, tgt.z - B.p.z).toFixed(1), v: +pv.speed.toFixed(1), kind: job.kind, ball: [+B.p.x.toFixed(1), +B.p.z.toFixed(1)], bv: [+B.v.x.toFixed(1), +B.v.z.toFixed(1)], tgt: [+tgt.x.toFixed(1), +tgt.z.toFixed(1)], rp: ra ? [+ra.P.p.x.toFixed(1), +ra.P.p.z.toFixed(1), +ra.P.v.x.toFixed(1), +ra.P.v.z.toFixed(1)] : null, flip: worldFlipped })); } if (LESSON === 'basics' && who === 'me') LS.passT = simT; return true; }
   sfx.touch(); return false; // нога не достала — мяч свободен
 }
 // Смена управления: управляемый и бот меняются ролями ('me' — всегда тот, кем управляю). Владельца мяча не меняет:
@@ -1386,6 +1388,8 @@ function swapControl(toId = 'mate') {
   cancelCharge(); passIn.down = -1; const pg = $('#pass-g'); if (pg) pg.textContent = '';
   run.feint = null; B.feintOff = null; run.strike = null; run.pass = null; run.fire = false; run.passFire = false;
   const oP = run.P, oPl = shooter; run.P = m.P; shooter = m.pl; m.P = oP; m.pl = oPl;
+  // место в расстановке остаётся у игрока, а не у «слота»: иначе бывший пасующий получал место получателя и бежал на него
+  if (MATCH_ON && run.meAI && m.hxy && run.meAI.hxy) { const h = run.meAI.hxy; run.meAI.hxy = m.hxy; m.hxy = h; }
   const id = m.id || 'mate', sw = (v) => (v === 'me' ? id : v === id ? 'me' : v); B.owner = sw(B.owner); B.lockOwner = sw(B.lockOwner);
   shooter.sph.forEach((q) => (q.who = 'me')); m.pl.sph.forEach((q) => (q.who = id));
   m.P.charging = false; m.pass = null; m.fire = false; m.hold = 0; m.st = 'support'; m.plan = null; m.planT = 0; m.pick = -1; m.pickT = 0; m.strike = null; m.sfire = false;
@@ -1603,7 +1607,11 @@ function holdAfterPass() { const i = input(); run.holdInp = Math.hypot(i.x, i.y)
 function passInput() {
   const i = input(), H = run.holdInp; if (!H) return i;
   const m = Math.hypot(i.x, i.y), cos = m > 1e-3 ? (i.x * H.x + i.y * H.y) / (m * Math.hypot(H.x, H.y)) : -1;
-  if (m < 0.3 || cos < Math.cos(0.6) || simT - H.t > 2 || (B.state !== 'free' && !(B.state === 'owned' && B.owner === 'me' && B.touchFirst))) { run.holdInp = null; return i; }
+  // Удержанное после паса направление не действует, пока палец не отпустил джойстик или не повёл его в другую сторону
+  // (больше ~35°): и пока мяч идёт, и после приёма (иначе получатель с тем же джойстиком уходил от мяча — замер по кадрам).
+  // Не дольше 4 с. Мяч ушёл к сопернику — удержание сразу снимается.
+  const lostBall = B.state === 'owned' && B.owner !== 'me' || B.state === 'held';
+  if (m < 0.3 || cos < Math.cos(0.6) || simT - H.t > 4 || lostBall) { run.holdInp = null; return i; }
   return { x: 0, y: 0 };
 }
 function runPhys(h) {
@@ -1727,18 +1735,14 @@ function keeperAI(h) {
     let out = THREE.MathUtils.clamp(((K.outStart - dist) / K.outStart) * K.maxOut, 0.4, K.maxOut);
     if (MATCH_ON && MT.restart && MT.restart.kind === 'pen') out = 0.4; // пенальти — на линии ворот
     else if (MATCH_ON) {
-      // мяч далеко — стоит выше линии (страхует за спиной защитников), а не на линии ворот
-      if (dist > K.outStart) out = Math.min(K.sweep, 2 + (dist - K.outStart) * 0.12); else out = Math.max(out, 2);
-      // один на один: соперник с мячом идёт к воротам, и между ним и воротами нет защитника — выходит навстречу,
-      // сокращает угол (до 3,5 м от мяча, не дальше 11 м от ворот)
-      if (foeHas && dist < 24) {
-        const mates = actors().filter((a) => a.team === (gkCur === 0 ? 1 : 0)).map((a) => a.P);
-        const cover = mates.some((Q) => Q.p.z < bp.z - 0.5 && segDist(bp.x, bp.z, 0, 0, Q.p.x, Q.p.z) < 2.2);
-        if (!cover) { out = Math.max(out, Math.min(11, dist - 3.5)); GKS.oneOnOne = true; } else GKS.oneOnOne = false;
-      } else GKS.oneOnOne = false;
+      // мяч у чужих ворот (дальше 40 м) — стоит выше линии, до 3,5 м (страхует за спиной защитников); ближе — как
+      // раньше: у линии и сокращает угол по мере приближения мяча. Стоять дальше от линии и «выбегать навстречу»
+      // нельзя: замер 96 ударами — на 12–22 м вратарь не успевал реагировать (сейвов меньше, голов больше).
+      // В ноги выходит, когда соперник отпустил мяч (loose) или он первым успевает к свободному мячу (firstToIt).
+      if (dist > 40) out = Math.min(K.sweep, 0.4 + (dist - 40) * 0.1);
     }
     const o = Math.min(out, Math.max(0.4, dist - 2.4));
-    tx = (bp.x / Math.max(dist, 0.1)) * o; tz = Math.max(0.35, (bp.z / Math.max(dist, 0.1)) * o); vmax = GKS.oneOnOne ? K.rush : K.forward;
+    tx = (bp.x / Math.max(dist, 0.1)) * o; tz = Math.max(0.35, (bp.z / Math.max(dist, 0.1)) * o); vmax = K.forward;
     if (dist < 8) { const cur = Math.hypot(k.position.x, k.position.z); if (cur > o) { tx = (bp.x / Math.max(dist, 0.1)) * cur; tz = Math.max(0.35, (bp.z / Math.max(dist, 0.1)) * cur); } } // соперник близко — не пятится к воротам
   }
   const ready = (MATCH_ON ? gkCur === 0 && run.charge >= 0 : run.charge >= 0) || ((B.state === 'owned' || B.state === 'strike') && foeHas && dist < 14);
@@ -1831,7 +1835,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
     const L = pl.loco, jogW = L ? L.jog.getEffectiveWeight() : 0, ph = L ? (L.jog.time / L.jog.getClip().duration) % 1 : 0;
     const stepNow = jogW > 0.5 && L.lastPh !== undefined && L.lastPh < 0.62 && ph >= 0.62;
     const toe = pl.toeR.getWorldPosition(tmpB).distanceTo(B.p) - R;
-    if (stepNow || (jogW <= 0.5 && toe < 0.12) || B.touchCd < -(BP.CFG.control.touchMax - BP.CFG.control.touchMin)) { BP.touch(B, P); sfx.touch(); }
+    if (stepNow || (jogW <= 0.5 && toe < 0.12) || B.touchCd < -(BP.CFG.control.touchMax - BP.CFG.control.touchMin)) { BP.touch(B, P); sfx.touch(); if (who === 'me' && run) run.meTouchT = simT; }
   }
   if (pl.loco) pl.loco.lastPh = (pl.loco.jog.time / pl.loco.jog.getClip().duration) % 1;
   return sp;
@@ -2222,12 +2226,20 @@ function botThink(a) {
     return botSupport(a, mates, foes);
   }
   if (B.state === 'free' && MT.back && team === 0) return formation(a, foes, true); // пас нашему вратарю — не перехватываем
+  const pf = B.state === 'free' && passInFlight();
+  if (pf && pf.team === team) { // пас своему в пути: получатель выходит навстречу, остальные — по местам (не бегут на мяч)
+    ai.run = null;
+    if (pf.id === a.pl) { const mp = meetPoint(P, BP.CFG.player.sprint * 0.85, B.p.y > 1.5 || B.v.y > 1.5); ai.chasing = true; ai.tx = mp.x; ai.tz = mp.z; ai.sprint = Math.hypot(mp.x - P.p.x, mp.z - P.p.z) > 3; ai.want = { x: -mp.x * 0.15, z: fwdZ(team) }; return; }
+    ai.chasing = false; return NSIDE > 3 ? formation(a, foes, true) : botSupport(a, mates, foes);
+  }
   if (B.state === 'free') {
     // свободный мяч: бежит ближайший из команды (оценка — расстояние до места, где мяч будет через полсекунды);
     // у нас — только если он заметно ближе меня. Точку встречи считает только он.
     const fx = B.p.x + B.v.x * 0.5, fz = B.p.z + B.v.z * 0.5, est = (Q) => Math.hypot(fx - Q.p.x, fz - Q.p.z);
     const my = est(P), bots = mates.filter((m) => m.id !== 'me'), me = mates.find((m) => m.id === 'me');
-    const first = bots.every((m) => my <= est(m.P) + (ai.chasing ? 1.5 : 0)) && (!me || (run.chase ? my + 4 < est(me.P) : my < est(me.P) + 1));
+    // мяч только что был у меня (касание, приём, потеря при ведении) — 1,5 с он мой: партнёр не подбирает его у меня из-под ног
+    const mineRecent = me && simT - (run.meTouchT ?? -9) < 1.5;
+    const first = bots.every((m) => my <= est(m.P) + (ai.chasing ? 1.5 : 0)) && (!me || (run.chase || mineRecent ? my + 4 < est(me.P) : my < est(me.P) + 1));
     ai.chasing = first;
     if (first) { const mp = meetPoint(P, BP.CFG.player.sprint * 0.9, B.p.y > 1.5 || B.v.y > 1.5); ai.tx = mp.x; ai.tz = mp.z; ai.sprint = Math.hypot(mp.x - P.p.x, mp.z - P.p.z) > 2.5; ai.want = { x: -mp.x * 0.15, z: fwdZ(team) }; return; }
     if (NSIDE > 3) return formation(a, foes, attackPhase(team));
@@ -2241,7 +2253,10 @@ function runChance(a) {
   const ow = owning() && actorOf(B.owner); if (!ow || ow.team !== a.team || ow === a) return 0.02;
   const O = ow.P, fz = fwdZ(a.team), facing = Math.cos(O.yaw) * fz, d0 = homeBase(a)[1], deep = depthOf(a.team, O.p.z);
   const pressed = actors().some((f) => f.team !== a.team && Math.hypot(f.P.p.x - O.p.x, f.P.p.z - O.p.z) < 2.5);
-  let c = d0 >= 0.7 ? 0.11 : 0.05; if (facing > 0.3) c *= 1.6; if (pressed) c *= 0.4; if (deep > 70) c *= 0.5;
+  // не больше одного забегающего (у чужой штрафной — двух): остальные остаются вариантами для паса
+  const runners = actors().filter((q) => q.team === a.team && q.ai && q.ai.run).length, cap = deep < 35 ? 2 : 1;
+  if (runners >= cap) return 0;
+  let c = d0 >= 0.7 ? 0.04 : 0.012; if (facing > 0.3) c *= 1.5; if (pressed) c *= 0.3;
   return c;
 }
 // по расстановке; в обороне — подтягивается к ближайшему сопернику в своей зоне (со стороны своих ворот)
@@ -2392,9 +2407,18 @@ function pressInput(P, inp) {
   return { x: (tx / tl) * k, y: (-tz / tl) * k };
 }
 const matchDef = () => MATCH_ON && run && state === 'play' && ownerTeam() === 1; // мяч у соперников — кнопки «Отбор» и «Прессинг»
-// автоподбор в матче — только если мяч рядом или я ближе партнёра
+// пас в пути: мяч свободен, отдан своему (кому — run.passTo), летит к точке паса, прошло не больше 3 с.
+// Получатель выходит к мячу сам (и я, и бот), остальные партнёры на этот мяч не бегут.
+function passInFlight() {
+  const pt = run && run.passTo; if (!pt || B.state !== 'free' || simT - pt.t > 3) return null;
+  const vx = B.v.x, vz = B.v.z, sp = Math.hypot(vx, vz), dx = pt.tgt.x - B.p.x, dz = pt.tgt.z - B.p.z, dl = Math.hypot(dx, dz);
+  if (sp > 1.5 && dl > 1.5 && (vx * dx + vz * dz) / (sp * dl) < 0.6) { run.passTo = null; return null; } // мяч отскочил не туда — уже не пас
+  return pt;
+}
+// автоподбор в матче — только если мяч рядом или я ближе партнёра (или пас идёт мне)
 function matchChaseOk() {
   if (!MATCH_ON) return true; if (MT.back) return false; if (MT.restart && MT.restart.taker !== 'me') return false;
+  const pt = passInFlight(); if (pt && pt.team === 0) return pt.id === shooter;
   const P = run.P, d = Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z), M = actorOf(nearestAlly()).P, dm = Math.hypot(B.p.x - M.p.x, B.p.z - M.p.z);
   return d < 9 || d < dm + 1;
 }
@@ -2441,16 +2465,20 @@ function matchPhys(h) {
       if (MT.restart && MT.restart.kind !== 'kickoff' && MT.restart.taker !== a.id && MT.restart.t < 6) continue;
       if (MT.back && a.team === 0) continue; // пас своему вратарю идёт мимо своих
       if (a.pl.mv && SLIDE[a.pl.mv.name] && a.pl.t > SLIDE[a.pl.mv.name].win[0]) continue; // лежит в подкате — мяч не берёт
-      if (!BP.canCapture(B, a.P, a.id, simT)) continue;
+      { const pt = passInFlight(); if (pt && pt.team === a.team && pt.id !== a.pl && Math.hypot(B.v.x, B.v.z) > 2.5) continue; } // пас другому своему — пропускает мяч
+      // кому адресован пас — принимает и чуть шире (мяч прошёл рядом, в метре от ног): помощь при приёме, как в FC
+      const pt = passInFlight(), mine = pt && pt.id === a.pl && Math.hypot(B.p.x - a.P.p.x, B.p.z - a.P.p.z) < 1.15 && B.p.y < 0.5 && Math.hypot(B.v.x - a.P.v.x, B.v.z - a.P.v.z) < BP.CFG.control.captureVrel * 1.45 && !(B.lockOwner === a.id && (simT < B.lockUntil || B.mustClear));
+      if (!mine && !BP.canCapture(B, a.P, a.id, simT)) continue;
       const d = Math.hypot(B.p.x - a.P.p.x, B.p.z - a.P.p.z); if (d < bd) { bd = d; best = a; }
     }
     if (best && checkOffside(best)) best = null; // принял, стоя вне игры, — свисток
     if (best) {
-      statGot(best.team);
+      if (TRACE) { const pt = run.passTo; console.log('capEv', JSON.stringify({ id: best.id, intended: pt ? pt.id === best.pl : null, rel: +Math.hypot(B.v.x - best.P.v.x, B.v.z - best.P.v.z).toFixed(1), vin: +Math.hypot(B.v.x, B.v.z).toFixed(1), psp: +Math.hypot(best.P.v.x, best.P.v.z).toFixed(1), dt: pt ? +(simT - pt.t).toFixed(2) : null })); }
+      statGot(best.team); run.passTo = null; if (best.id === 'me') run.meTouchT = simT;
       // первое касание — по джойстику как он есть (раньше удержание джойстика после паса гасилось, и приём выходил «в стоп»:
       // мяч замирал у ноги, игрок тормозил); без джойстика — мягко у ноги
-      const ji = best.id === 'me' ? input() : null, intent = best.id === 'me' ? (Math.hypot(ji.x, ji.y) > 0.2 ? { x: ji.x, z: -ji.y } : null) : botIntent(best);
-      if (best.id === 'me') run.holdInp = null;
+      // первое касание: джойстик, который держали ещё при пасе, не уводит мяч (мягкий приём у ноги); новое направление — уводит
+      const ji = best.id === 'me' ? passInput() : null, intent = best.id === 'me' ? (Math.hypot(ji.x, ji.y) > 0.2 ? { x: ji.x, z: -ji.y } : null) : botIntent(best);
       const vin = Math.hypot(B.v.x, B.v.z), rel = BP.firstTouch(B, best.P, best.id, intent); sfx.touch(); if (best.id === 'me' && rel > 5) sfx.buzz('light');
       // приём паса на месте или шагом — запись приёма: наклон и остановка мяча стопой (receive, с 0,65 с)
       if (vin > 7 && !intent && Math.hypot(best.P.v.x, best.P.v.z) < 1.2 && best.pl.name !== 'strike' && best.pl.name !== 'pass') { play(best.pl, 'receive', { t: 0.65, fade: 0.12, speed: 1.35, follow: true }); best.pl.once = { name: 'receive', until: 1.2 }; }
@@ -2750,7 +2778,9 @@ function matchAnim(dt) {
 // мини-карта: поле, повёрнутое так же, как его показывает камера; точки — игроки (наши светлые, соперники красные,
 // управляемый — бирюзовый), мяч — жёлтый. Перерисовывается через кадр, отдельным маленьким холстом.
 const mm = { el: document.getElementById('minimap'), n: 0 }; mm.g = mm.el && mm.el.getContext('2d');
+const MINIMAP = false; // мини-карта убрана (закрывала поле внизу) — не рисуем
 function minimap() {
+  if (!MINIMAP) return;
   if (!mm.g || !MATCH_ON || !run || (mm.n++ & 1)) return;
   const W = mm.el.width, H = mm.el.height, g = mm.g; cam.getWorldDirection(tmpA); tmpA.y = 0; tmpA.normalize();
   const fx = tmpA.x, fz = tmpA.z, rx = -fz, rz = fx; // «вправо» и «вверх» экрана на поле
@@ -3084,6 +3114,9 @@ if (TRACE) window.__duel = (mx, mz, ox, oz, fx, fz) => { const A = actors(); MT.
   placeBall(BP.controlPoint(o, null)); BP.capture(B, o, 'o1'); B.trapDur = 0; ballPrev.copy(B.p); };
 if (TRACE) window.__tackle = () => tryTackle(actorOf('me'));
 if (TRACE) window.__slide = () => trySlide(actorOf('me'));
+if (TRACE) window.__park = () => { for (const a of actors()) if (a.team === 1) { a.P.p.x = -30 + (+a.id.slice(1)) * 5; a.P.p.z = 100; a.P.v.x = a.P.v.z = 0; a.ai.thinkT = 999; a.ai.tx = a.P.p.x; a.ai.tz = 100; a.ai.run = null; } };
+if (TRACE) window.__give = (x, z) => { const me = actorOf('me'), P = me.P; MT.restart = null; MT.gkHold = null; state = 'play'; MT.st = 'play'; if (x !== undefined) { P.p.x = x; P.p.z = z; } P.v.x = P.v.z = 0; placeBall(BP.controlPoint(P, null)); BP.capture(B, P, 'me'); B.trapDur = 0; ballPrev.copy(B.p); };
+if (TRACE) window.__state = () => ({ t: +simT.toFixed(2), owner: B.owner, bs: B.state, ball: [+B.p.x.toFixed(2), +B.p.z.toFixed(2), +Math.hypot(B.v.x, B.v.z).toFixed(1)], me: (() => { const a = actorOf('me'); return [a.pl.nick, +a.P.p.x.toFixed(2), +a.P.p.z.toFixed(2), +Math.hypot(a.P.v.x, a.P.v.z).toFixed(1)]; })(), mates: actors().filter((a) => a.team === 0 && a.id !== 'me').map((a) => [a.id, +a.P.p.x.toFixed(1), +a.P.p.z.toFixed(1), a.ai && a.ai.run ? 1 : 0]), chase: !!run.chase, passTo: run.passTo ? run.passTo.id.nick : null });
 if (TRACE) window.__sendOff = (id) => { const a = actorOf(id); if (a) { a.pl.yc = 1; sendOff(a.pl); } return actors().length; };
 if (TRACE) window.__ground = () => groundStat;
 if (TRACE) window.__bones = () => actors().concat(GK.map((g, i) => ({ id: 'gk' + i, pl: g.pl, P: { v: { x: 0, z: 0 } } }))).map((a) => { const pl = a.pl; if (!pl.gb) return null; const o = { id: a.id, own: pl.own, name: pl.name, sp: +Math.hypot(a.P.v.x, a.P.v.z).toFixed(1), f: pl.loco ? +pl.loco.f.toFixed(2) : 0, lift: +pl.model.position.y.toFixed(3), lb: pl.glb, rz: +pl.holder.rotation.z.toFixed(2), rx: +pl.holder.rotation.x.toFixed(2) }; for (const [b] of pl.gb) o[b.name] = +b.matrixWorld.elements[13].toFixed(3); return o; }).filter(Boolean);
