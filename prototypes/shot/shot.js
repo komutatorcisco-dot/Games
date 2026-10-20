@@ -803,7 +803,8 @@ function worldNow() {
     world.goal2 = Object.assign(goalDef(), { L: MATCH.L }); world.spheres = [];
     const lock = simT < B.lockUntil || B.mustClear ? B.lockOwner : null;
     const pf = passInFlight(); // пас своему в пути: свои мяч пропускают, а получатель принимает его ногой (не отбивает корпусом)
-    for (const a of actors()) if (a.pl.sph && a.id !== lock && Math.abs(a.P.p.x - B.p.x) < 4 && Math.abs(a.P.p.z - B.p.z) < 4 && !(pf && pf.team === a.team)) for (const q of a.pl.sph) world.spheres.push(q); // дальние не проверяем
+    const slowBall = Math.hypot(B.v.x, B.v.z) < 4;
+    for (const a of actors()) if (a.pl.sph && a.id !== lock && Math.abs(a.P.p.x - B.p.x) < 4 && Math.abs(a.P.p.z - B.p.z) < 4 && !(pf && pf.team === a.team) && !(slowBall && isDown(a.pl))) for (const q of a.pl.sph) world.spheres.push(q); // дальние не проверяем; лежащий не держит медленный мяч (замер: мяч 3,5 с «толкался» о лежащего)
     for (const g of GK) for (const q of g.pl.sph) world.spheres.push(q);
     return world;
   }
@@ -2027,7 +2028,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
   const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
   // замах занят до конца движения ноги; запись может закончиться раньше этого запаса — тогда до её конца (иначе поза застывает навсегда)
   const busyTill = (C, extra) => Math.min(C.tc + extra, C.dur - 0.05);
-  const busy = (pl.name === 'strike' && pl.t < busyTill(strikeOf(pl), 0.3)) || (pl.name === 'pass' && pl.t < busyTill(passOf(pl), 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele) || (pl.once && pl.name === pl.once.name && pl.t < pl.once.until && !(pl.once.name === 'receive' && sp > 1.3)); // приём не держит позу, если игрок уже побежал
+  const busy = (pl.name === 'strike' && pl.t < busyTill(strikeOf(pl), 0.3)) || (pl.name === 'pass' && pl.t < busyTill(passOf(pl), 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele) || (pl.once && pl.name === pl.once.name && pl.t < pl.once.until && !(pl.once.name === 'receive' && sp > 1.3) && !(pl.once.run && sp < 0.6)); // приём не держит позу, если игрок уже побежал
   pl.withBall = B.state === 'owned' && B.owner === (who0 || (pl === shooter ? 'me' : 'mate')) && sp > 1.4;
   if (!busy) { loco(pl, sp, dt, P); autoMoves(pl, P, sp, dt, who0 || (pl === shooter ? 'me' : 'mate')); }
   tickPlayer(pl, dt);
@@ -2701,6 +2702,25 @@ function passCatch(P, id) {
   const cp = BP.controlPoint(P, null), d = Math.min(Math.hypot(B.p.x - cp.x, B.p.z - cp.z), Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z));
   return d < 0.85 && Math.hypot(B.v.x - P.v.x, B.v.z - P.v.z) < 24;
 }
+// Ничейный мяч низом дошёл до ног игрока (спереди, сбоку или сзади) на разумной скорости — игрок его принимает
+// (запись приёма), а не отбивает телом. Раньше брался только мяч перед стопой и не быстрее 9 м/с: остальное
+// отскакивало от ног и корпуса (жалоба: «мяч тупо отскакивает, они его не принимают»).
+function feetCatch(a) {
+  if (B.state !== 'free' || B.p.y > 0.4 || isDown(a.pl) || (B.lockOwner === a.id && (simT < B.lockUntil || B.mustClear))) return false;
+  if (passInFlight()) return false; // пас в пути: адресат — passCatch, соперник — interceptOk, остальные свои пропускают
+  const rx = B.p.x - a.P.p.x, rz = B.p.z - a.P.p.z, d = Math.hypot(rx, rz), rel = Math.hypot(B.v.x - a.P.v.x, B.v.z - a.P.v.z);
+  return d < 0.62 && rel < 16;
+}
+// запись приёма: стоит — остановка подошвой (receive), бежит — приём на ходу (receive_soccerball: нога гасит мяч
+// на ≈0,47 с записи — начинаем с этого места, касание на экране совпадает с изменением скорости мяча)
+function receiveAnim(a, vin, intent) {
+  const pl = a.pl; if (pl.name === 'strike' || pl.name === 'pass' || pl.mv || vin < 2.5) return;
+  const sp = Math.hypot(a.P.v.x, a.P.v.z);
+  if (sp < 1.2 && !intent) { play(pl, 'receive', { t: 0.65, fade: 0.1, speed: 1.35, follow: true }); pl.once = { name: 'receive', until: 1.2 }; }
+  else if (clipOf('receive_soccerball')) { play(pl, 'receive_soccerball', { t: 0.4, fade: 0.06, speed: 1.2, follow: true }); pl.once = { name: 'receive_soccerball', until: 0.85, run: true }; }
+}
+// игрок лежит (подкат, падение) — мяч не берёт и не застревает в нём
+const isDown = (pl) => (pl.mv && SLIDE[pl.mv.name] && pl.t > SLIDE[pl.mv.name].win[0]) || pl.name === 'soccer_trip' || pl.name === 'fallen_idle' || pl.name === 'standing_up';
 function interceptOk(P, id) {
   if (B.state !== 'free' || B.p.y > 0.45 || (B.lockOwner === id && (simT < B.lockUntil || B.mustClear))) return false;
   const cp = BP.controlPoint(P, null), rx = B.p.x - P.p.x, rz = B.p.z - P.p.z;
@@ -2771,7 +2791,7 @@ function matchPhys(h) {
       // соперник на линии паса перехватывает мяч, прошедший у самой его ноги (пас быстрый — обычный приём его не берёт,
       // и без этого пас проходил бы «сквозь» защитника)
       const cut = !mine && pt && pt.team !== a.team && interceptOk(a.P, a.id);
-      if (!mine && !cut && !BP.canCapture(B, a.P, a.id, simT)) continue;
+      if (!mine && !cut && !BP.canCapture(B, a.P, a.id, simT) && !feetCatch(a)) continue;
       const d = Math.hypot(B.p.x - a.P.p.x, B.p.z - a.P.p.z); if (d < bd) { bd = d; best = a; }
     }
     if (best && checkOffside(best)) best = null; // принял, стоя вне игры, — свисток
@@ -2803,7 +2823,7 @@ function matchPhys(h) {
       const intent = best.id === 'me' ? (Math.hypot(ji.x, ji.y) > 0.2 ? { x: ji.x, z: -ji.y } : null) : botIntent(best);
       const vin = Math.hypot(B.v.x, B.v.z), rel = BP.firstTouch(B, best.P, best.id, intent); sfx.touch(); if (best.id === 'me' && rel > 5) sfx.buzz('light');
       // приём паса на месте или шагом — запись приёма: наклон и остановка мяча стопой (receive, с 0,65 с)
-      if (vin > 7 && !intent && Math.hypot(best.P.v.x, best.P.v.z) < 1.2 && best.pl.name !== 'strike' && best.pl.name !== 'pass') { play(best.pl, 'receive', { t: 0.65, fade: 0.12, speed: 1.35, follow: true }); best.pl.once = { name: 'receive', until: 1.2 }; }
+      receiveAnim(best, vin, intent);
       MT.last = best.team; if (MT.restart && MT.restart.kind !== 'kickoff') MT.restart = null;
       if (best.ai) { best.ai.holdT = 0; best.ai.pass = null; best.ai.strike = null; }
       if (best.id === 'me') runQueue(); else run.queue = null;
