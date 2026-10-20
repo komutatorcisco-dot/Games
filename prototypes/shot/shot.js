@@ -2108,7 +2108,10 @@ function passOf(pl) { if (!pl || !pl.own) return PASS; return CONTACT.ownPass ||
 // Возвращает true — бить сейчас, 'cancel' — отменить, false — ждать.
 function passContact(pl, job, P, who, dt) {
   job.age = (job.age || 0) + dt; if (job.age > 1.2) return 'cancel'; // страховка: пас не висит (иначе следующие нажатия блокируются)
-  if (pl.name !== 'pass') return (job.off = (job.off || 0) + dt) > 0.1 ? 'cancel' : false; // запись паса прервана другой — отмена
+  if (pl.name !== 'pass') { // запись паса перебита другой (замер серии: 1 пас из 10 терялся) — мяч ещё у ноги: замах заново
+    if (B.state === 'strike' && B.owner === who && (job.restarts = (job.restarts || 0) + 1) <= 2) { const S = job.S || PASS; play(pl, 'pass', { t: Math.max(0, S.tc - 0.12), fade: 0.04, speed: 1.15, follow: true }); job.dPrev = undefined; if (TRACE) console.log('passRestart', JSON.stringify({ who, t: +simT.toFixed(2) })); return false; }
+    return 'cancel';
+  }
   const S = job.S || PASS, c = strikeContact(pl, S, job), cp = BP.controlPoint(P, B);
   const near = B.state === 'strike' && B.owner === who && Math.hypot(B.p.x - cp.x, B.p.z - cp.z) <= BP.CFG.shot.contactR;
   if (TRACE && job.dPrev !== undefined) { job.dMin = Math.min(job.dMin ?? 9, job.dPrev); job.cpMax = Math.max(job.cpMax || 0, Math.hypot(B.p.x - cp.x, B.p.z - cp.z)); job.lastC = c; job.near = near; }
