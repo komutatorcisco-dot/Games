@@ -746,11 +746,14 @@ let simT = 0; const fixed = BP.clockFixed();
 const PARTS = { LeftHand: [0.1, 'hand'], RightHand: [0.1, 'hand'], LeftForeArm: [0.07, 'hand'], RightForeArm: [0.07, 'hand'], Head: [0.11, 'body'], Spine2: [0.17, 'body'],
   Spine: [0.15, 'body'], Hips: [0.15, 'body'], LeftLeg: [0.09, 'body'], RightLeg: [0.09, 'body'], LeftFoot: [0.08, 'body'], RightFoot: [0.08, 'body'] };
 // у вратарей ещё и бёдра: иначе мяч на высоте 0,4–0,9 м проходил между ног (замер: дальний удар в корпус — гол)
-const GK_PARTS = { LeftUpLeg: [0.11, 'body'], RightUpLeg: [0.11, 'body'] };
-function makeSpheres(pl, who) { pl.sph = Object.entries(who === 'gk' || who === 'gk2' ? Object.assign({}, PARTS, GK_PARTS) : PARTS).map(([name, [r, kind]]) => ({ bone: pl.model.getObjectByName(name), name, r, kind, who, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, init: false })).filter((q) => q.bone); }
+// и «закрытые ноги»: точки посередине бедра и голени и между коленями и стопами — мяч низом не проходит между ног
+const GK_PARTS = { LThigh: [0.1, 'body', 'LeftUpLeg', 'LeftLeg'], RThigh: [0.1, 'body', 'RightUpLeg', 'RightLeg'], LShin: [0.08, 'body', 'LeftLeg', 'LeftFoot'], RShin: [0.08, 'body', 'RightLeg', 'RightFoot'],
+  Knees: [0.1, 'body', 'LeftLeg', 'RightLeg'], Feet: [0.09, 'body', 'LeftFoot', 'RightFoot'] };
+function makeSpheres(pl, who) { pl.sph = Object.entries(who === 'gk' || who === 'gk2' ? Object.assign({}, PARTS, GK_PARTS) : PARTS).map(([name, [r, kind, a, b]]) => ({ bone: pl.model.getObjectByName(a || name), bone2: b ? pl.model.getObjectByName(b) : null, name, r, kind, who, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, init: false })).filter((q) => q.bone); }
+const v3b = new THREE.Vector3();
 function updSpheres(pl, dt) {
   for (const q of pl.sph) {
-    q.bone.getWorldPosition(v3);
+    q.bone.getWorldPosition(v3); if (q.bone2) v3.add(q.bone2.getWorldPosition(v3b)).multiplyScalar(0.5);
     if (q.init && dt > 1e-4) { const k = 1 / dt, vx = (v3.x - q.x) * k, vy = (v3.y - q.y) * k, vz = (v3.z - q.z) * k, l = Math.hypot(vx, vy, vz), c = l > 12 ? 12 / l : 1; q.vx = vx * c; q.vy = vy * c; q.vz = vz * c; }
     else { q.vx = q.vy = q.vz = 0; }
     q.x = v3.x; q.y = v3.y; q.z = v3.z; q.init = true;
@@ -883,7 +886,8 @@ function keeperDive() { // сейв (и для штрафного с пенал�
   const fast = (G) => THREE.MathUtils.clamp((G.tc * 0.7) / left, 1, 1.6);
   if (kick.wide) { play(keeper, 'gk_ready', { loop: true, fade: 0.25, follow, lock: follow ? null : here() }); kick.fall = false; return; } // мимо — провожает взглядом
   if (ax < (B.v.length() > 20 ? 0.3 : K.nearReach)) { // у тела: ловля (быстрый мяч в стороне — уже прыжок, ловлей не достать)
-    let name = y > 1.75 ? 'gk_catch4' : y > 0.32 ? 'gk_catch2' : (lx > 0 ? 'gk_block' : 'gk_block2'), G = GKC[name];
+    // низкий мяч прямо в корпус — не бросок вбок (открывал центр), а низкая ловля: руки к газону, ноги закрывают мяч
+    let name = y > 1.75 ? 'gk_catch4' : y > 0.32 || (ax < 0.35 && GKC.gk_catch) ? 'gk_catch2' : (lx > 0 ? 'gk_block' : 'gk_block2'), G = GKC[name];
     // мяч в корпус на высоте 0,32–1,75 м: ловля, у которой руки в момент касания — на высоте мяча
     // (низкая ловля у пояса — руки 0,45–0,95 м; «грудь-голова» — 0,95–1,5 м). Раньше всегда руки шли к 1,5 м и мяч проходил под ними
     if (name === 'gk_catch2' && GKC.gk_catch) {
