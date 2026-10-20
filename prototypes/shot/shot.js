@@ -2703,8 +2703,10 @@ function passCatch(P, id) {
 }
 function interceptOk(P, id) {
   if (B.state !== 'free' || B.p.y > 0.45 || (B.lockOwner === id && (simT < B.lockUntil || B.mustClear))) return false;
-  const cp = BP.controlPoint(P, null);
-  return Math.min(Math.hypot(B.p.x - cp.x, B.p.z - cp.z), Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z)) < 0.5 && Math.hypot(B.v.x - P.v.x, B.v.z - P.v.z) < 26;
+  const cp = BP.controlPoint(P, null), rx = B.p.x - P.p.x, rz = B.p.z - P.p.z;
+  if (rx * Math.sin(P.yaw) + rz * Math.cos(P.yaw) < -0.1) return false; // мяч за спиной — не перехватить
+  // только мяч прямо у ноги (0,35 м): матч ботов с 0,5 м — 8 перехватов из 19 пасов (было 1 из 17)
+  return Math.min(Math.hypot(B.p.x - cp.x, B.p.z - cp.z), Math.hypot(rx, rz)) < 0.35 && Math.hypot(B.v.x - P.v.x, B.v.z - P.v.z) < 26;
 }
 // автоподбор в матче — только если мяч рядом или я ближе партнёра (или пас идёт мне)
 function matchChaseOk() {
