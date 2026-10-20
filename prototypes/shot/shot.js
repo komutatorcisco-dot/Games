@@ -1225,11 +1225,11 @@ let marker = null;
 // Полоска силы удара под ногами (как в FC Mobile): растёт, пока держишь «Удар», цвет — зелёный → жёлтый → оранжевый →
 // красный (полная, мяч уходит высоко). После удара ещё ~1 с показывает выбранную силу. Лежит на газоне поперёк экрана.
 let pbar = null;
-const PBAR_W = 0.9, pbarColor = (p) => (p < 0.3 ? '#4cd964' : p < 0.6 ? '#ffd23f' : p < 0.92 ? '#ff9a2e' : '#ff4f5e');
+const PBAR_W = 1.25, pbarColor = (p) => (p < 0.3 ? '#4cd964' : p < 0.6 ? '#ffd23f' : p < 0.92 ? '#ff9a2e' : '#ff4f5e');
 function powerBarTick() {
   if (!FREE() || !run || !shooter) { if (pbar) pbar.visible = false; return; }
   if (!pbar) {
-    pbar = new THREE.Group(); const mk = (c, o) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.11), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.renderOrder = 2; pbar.add(m); return m; };
+    pbar = new THREE.Group(); const mk = (c, o) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.17), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.renderOrder = 2; pbar.add(m); return m; };
     pbar.userData.bg = mk('#101418', 0.55); pbar.userData.fg = mk('#4cd964', 0.95); pbar.userData.bg.scale.x = PBAR_W; scene.add(pbar);
   }
   const charging = run.charge >= 0, show = charging || simT < (run.barUntil || 0);
