@@ -1318,7 +1318,7 @@ const camF = new THREE.Vector3();
 // kind: 'drive' — обычный удар, 'curl' — подкрутка (side: +1 влево, −1 вправо), 'chip' — переброс
 function startCharge(kind = 'drive') {
   if (kind === true) kind = 'curl'; else if (kind === false) kind = 'drive';
-  if (!FREE() || state !== 'play' || !run || run.charge >= 0 || run.strike || run.pass || run.feint || B.state !== 'owned' || B.owner !== 'me') return;
+  if (!FREE() || state !== 'play' || !run || run.charge >= 0 || run.strike || run.pass || run.feint || ((B.state !== 'owned' || B.owner !== 'me') && !recvSoon())) return;
   run.charge = performance.now(); run.kind = kind; run.side = 0; setPower(0); $('#ring').classList.add('on'); hintOff(); shotBadge();
 }
 function cancelCharge() { if (!run || run.charge < 0) return; run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true); }
@@ -1328,10 +1328,27 @@ const chargePw = () => Math.min(1, (performance.now() - run.charge) / 900); // �
 function releaseCharge() {
   if (!run || run.charge < 0) return;
   const pw = chargePw(); run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true);
-  if (state !== 'play' || B.state !== 'owned' || B.owner !== 'me') return;
-  // замах начинается сразу; мяч остаётся под контролем до касания ноги, импульс — один раз в момент касания (runPhys)
-  run.strike = { pw, kind: run.kind || 'drive', side: run.side || 0, aim: input() }; B.state = 'strike'; B.strikeAt = STRIKE.at;
+  if (state !== 'play') return;
+  if ((B.state !== 'owned' || B.owner !== 'me') && recvSoon()) { run.queue = { kind: 'strike', pw, k: run.kind || 'drive', side: run.side || 0, t: simT }; return; } // мяч ещё в пути — удар сразу после касания
+  if (B.state !== 'owned' || B.owner !== 'me') return;
+  doStrike(pw, run.kind || 'drive', run.side || 0);
+}
+// замах начинается сразу; мяч остаётся под контролем до касания ноги, импульс — один раз в момент касания (runPhys)
+function doStrike(pw, kind, side) {
+  run.strike = { pw, kind, side, aim: input() }; B.state = 'strike'; B.strikeAt = STRIKE.at;
   play(shooter, 'strike', { t: Math.max(0, STRIKE.tc - 0.3), fade: 0.1, speed: 1.25, follow: true });
+}
+// мяч вот-вот будет мой (пас мне в пути или бегу к свободному мячу, он рядом): нажатие «Пас»/«Удар» запоминается
+// и выполняется сразу после касания (один раз; старше 0,5 с — забывается)
+function recvSoon() {
+  if (!MATCH_ON || !run || state !== 'play' || B.state !== 'free') return false;
+  const me = actorOf('me'), pt = passInFlight(); if (!me) return false;
+  return ((pt && pt.id === me.pl) || run.chase) && Math.hypot(B.p.x - me.P.p.x, B.p.z - me.P.p.z) < 5;
+}
+function runQueue() {
+  const q = run.queue; run.queue = null; if (!q || simT - q.t > 0.5 || B.state !== 'owned' || B.owner !== 'me' || run.strike || run.pass) return;
+  if (q.kind === 'strike') doStrike(q.pw, q.k, q.side);
+  else if (q.kind === 'pass' && startPass(run.P, 'me', shooter, q.power, q.k) && run.pass) run.pass.recv = q.recv || pickReceiver(run.P, input(), false, true);
 }
 function fireStrike() {
   const s = run.strike, P = run.P; run.strike = null;
@@ -1352,7 +1369,8 @@ const gkWaits = () => MATCH_ON && run && B.state === 'held' && B.owner === 'gk2'
 function passDown() {
   if (gkMine()) { passIn.down = performance.now(); return; }
   if (!TEAM() || state !== 'play' || !run || !run.mate) return;
-  if (B.state !== 'owned' || B.owner !== 'me' || run.strike || run.pass || run.charge >= 0) return;
+  if (run.strike || run.pass || run.charge >= 0) return;
+  if ((B.state !== 'owned' || B.owner !== 'me') && !recvSoon()) return;
   passIn.down = performance.now(); hintOff();
 }
 // «На ход»: пас в свободную зону перед партнёром — по ходу его движения
@@ -1364,7 +1382,10 @@ function throughPass(loft = false) {
 function passUp(kind = 'ground') {
   if (passIn.down < 0) return; const held = (performance.now() - passIn.down) / 1000; passIn.down = -1;
   if (gkMine()) { MT.gkCmd = { kind, inp: input() }; return; } // команда нашему вратарю
-  startPass(run.P, 'me', shooter, held > 0.3 ? 1 : 0, kind);
+  // адресат выбирается в момент нажатия (по джойстику) и дальше не меняется
+  const recv = MATCH_ON && run ? pickReceiver(run.P, input(), false, true) : null;
+  if (MATCH_ON && (B.state !== 'owned' || B.owner !== 'me')) { if (recvSoon()) run.queue = { kind: 'pass', power: held > 0.3 ? 1 : 0, k: kind, recv, t: simT }; return; }
+  if (startPass(run.P, 'me', shooter, held > 0.3 ? 1 : 0, kind) && recv && run.pass) run.pass.recv = recv;
 }
 function startPass(P, who, pl, power, kind) { // замах сразу; направление и сила — в момент касания (firePass)
   if (state !== 'play' || B.state !== 'owned' || B.owner !== who) return false;
@@ -1627,7 +1648,7 @@ function passInput() {
   const lostBall = B.state === 'owned' && B.owner !== 'me' || B.state === 'held';
   // «Взял» — мяч уже у ноги (первое касание закончилось): раньше удержание снималось в момент касания, и игрок с тем же
   // джойстиком уходил от мяча и терял его (замер цепочки: 2 потери из 3). Пас ещё идёт ко мне — ждём до 3 с.
-  const got = B.state === 'owned' && B.owner === 'me' && !B.touchFirst, toMe = run.passTo && run.passTo.id === actorOf('me').pl;
+  const got = B.state === 'owned' && B.owner === 'me' && (!B.touchFirst || Math.hypot(B.p.x - BP.controlPoint(run.P, null).x, B.p.z - BP.controlPoint(run.P, null).z) < 0.35), toMe = run.passTo && run.passTo.id === actorOf('me').pl;
   if (m < 0.3 || cos < Math.cos(0.6) || simT - H.t > (toMe ? 3 : 2) || got || lostBall) { run.holdInp = null; return i; }
   return { x: 0, y: 0 };
 }
@@ -1829,7 +1850,11 @@ function autoMoves(pl, P, sp, dt, who) {
   if (!pl.own || !heroMoves || pl.mv || pl.name !== 'loco' || pl.mvCd > 0 || state !== 'play') return;
   const mine = B.state === 'owned' && B.owner === who, want = Math.hypot(P.wx || 0, P.wz || 0);
   // разворот: управляемый игрок бежит и тянет джойстик назад
-  if (who === 'me' && sp > 2.4 && pl.pk > 3.3 && want > 2 && !P.charging && (P.wx * P.v.x + P.wz * P.v.z) / (want * sp) < -0.6) {
+  // только от настоящего джойстика (не от автопомощи) и не во время приёма: разворот ведёт игрока записью, и раньше
+  // автоподбор у мяча запускал его сам — получатель уезжал спиной от паса
+  const raw = who === 'me' ? input() : null, rawM = raw ? Math.hypot(raw.x, raw.y) : 0;
+  const receiving = (B.state === 'free' && (run.chase || passInFlight())) || (mine && B.touchFirst);
+  if (who === 'me' && !receiving && rawM > 0.6 && sp > 2.4 && pl.pk > 3.3 && want > 2 && !P.charging && (P.wx * P.v.x + P.wz * P.v.z) / (want * sp) < -0.6 && (raw.x * P.v.x - raw.y * P.v.z) / (rawM * sp) < -0.6) {
     pl.mvCd = 0.9; startMove(pl, P, 'h_turn_180', { t: 0.04, speed: 1.2, end: 0.55, k: THREE.MathUtils.clamp(pl.pk / 4.2, 0.7, 1.3), fade: 0.1 }); return;
   }
   // торможение: бежал быстро и отпустил (без мяча) — запись остановки; снова побежал — сразу бег
@@ -1851,7 +1876,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
   const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
   // замах занят до конца движения ноги; запись может закончиться раньше этого запаса — тогда до её конца (иначе поза застывает навсегда)
   const busyTill = (C, extra) => Math.min(C.tc + extra, C.dur - 0.05);
-  const busy = (pl.name === 'strike' && pl.t < busyTill(STRIKE, 0.3)) || (pl.name === 'pass' && pl.t < busyTill(PASS, 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele) || (pl.once && pl.name === pl.once.name && pl.t < pl.once.until);
+  const busy = (pl.name === 'strike' && pl.t < busyTill(STRIKE, 0.3)) || (pl.name === 'pass' && pl.t < busyTill(PASS, 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele) || (pl.once && pl.name === pl.once.name && pl.t < pl.once.until && !(pl.once.name === 'receive' && sp > 1.3)); // приём не держит позу, если игрок уже побежал
   pl.withBall = B.state === 'owned' && B.owner === (who0 || (pl === shooter ? 'me' : 'mate')) && sp > 1.4;
   if (!busy) { loco(pl, sp, dt, P); autoMoves(pl, P, sp, dt, who0 || (pl === shooter ? 'me' : 'mate')); }
   tickPlayer(pl, dt);
@@ -1946,9 +1971,12 @@ function homeBase(a) { // [x, глубина] места игрока: из со
 // В обороне — компактно и ближе к мячу: линии сжимаются, ширина меньше, всё смещается в сторону мяча.
 function homeOf(a, attacking) {
   const [hx, d0] = homeBase(a), t = a.team, bd = t === 0 ? (MATCH.L - B.p.z) / MATCH.L : B.p.z / MATCH.L;
+  // блок едет за мячом: место = глубина мяча + сдвиг по линии (защита сзади, атака впереди). Владение меняет форму
+  // чуть-чуть (в атаке шире по длине), а не отправляет всех вперёд: раньше при владении каждый сразу прибавлял до 0,38
+  // длины поля, и защитники оказывались впереди мяча на своей половине
   let d;
-  if (attacking) { d = d0 + Math.max(0, Math.min(0.3, bd - 0.3)) + 0.08; if (d0 < 0.36) d = Math.min(d, 0.5); }
-  else d = 0.42 + (d0 - 0.5) * 0.7 + Math.max(-0.3, Math.min(0.12, bd - 0.5)) * 0.85;
+  if (attacking) { d = Math.max(bd + (d0 - 0.52) * 0.62, d0 * 0.55); if (d0 < 0.36) d = Math.min(d, bd - 0.1, 0.6); }
+  else { d = bd + (d0 - 0.52) * 0.5 - 0.06; if (d0 < 0.36) d = Math.min(d, bd - 0.06); }
   d = Math.max(0.07, Math.min(0.88, d));
   return { x: clampX(hx * (attacking ? 1 : 0.78) + B.p.x * (attacking ? 0.15 : 0.3), 2), z: t === 0 ? MATCH.L - d * MATCH.L : d * MATCH.L };
 }
@@ -2262,17 +2290,29 @@ function botThink(a) {
   if (B.state === 'free') {
     // свободный мяч: бежит ближайший из команды (оценка — расстояние до места, где мяч будет через полсекунды);
     // у нас — только если он заметно ближе меня. Точку встречи считает только он.
-    const fx = B.p.x + B.v.x * 0.5, fz = B.p.z + B.v.z * 0.5, est = (Q) => Math.hypot(fx - Q.p.x, fz - Q.p.z);
-    const my = est(P), bots = mates.filter((m) => m.id !== 'me'), me = mates.find((m) => m.id === 'me');
-    // мяч только что был у меня (касание, приём, потеря при ведении) — 1,5 с он мой: партнёр не подбирает его у меня из-под ног
-    const mineRecent = me && simT - (run.meTouchT ?? -9) < 1.5;
-    const first = bots.every((m) => my <= est(m.P) + (ai.chasing ? 1.5 : 0)) && (!me || (run.chase || mineRecent ? my + 4 < est(me.P) : my < est(me.P) + 1));
+    // кто первым успеет к мячу — по времени до точки встречи (по полёту мяча), а не по расстоянию до мяча сейчас;
+    // выбор держится, пока другой не успевает заметно раньше (без смены цели каждые доли секунды)
+    const fc = freeChaser(team), me = mates.find((m) => m.id === 'me');
+    const first = fc.id === a.id && !(me && fc.alt === 'me' && (run.chase || simT - (run.meTouchT ?? -9) < 1.5));
     ai.chasing = first;
     if (first) { const mp = meetPoint(P, BP.CFG.player.sprint * 0.9, B.p.y > 1.5 || B.v.y > 1.5); ai.tx = mp.x; ai.tz = mp.z; ai.sprint = Math.hypot(mp.x - P.p.x, mp.z - P.p.z) > 2.5; ai.want = { x: -mp.x * 0.15, z: fwdZ(team) }; return; }
     if (NSIDE > 3) return formation(a, foes, attackPhase(team));
     return ot === -1 && Math.random() < 0.5 ? botSupport(a, mates, foes, true) : botDefend(a, mates, foes);
   }
   return botDefend(a, mates, foes);
+}
+// свободный мяч: кто из команды раньше всех успеет к нему (время до точки встречи, считается для 4 ближайших).
+// Держим выбранного, пока другой не успевает раньше на 0,25 с. alt — второй (у нас: если это я и я бегу к мячу — бот уступает)
+function freeChaser(team) {
+  const C = (MT.fc || (MT.fc = [{}, {}]))[team]; if (simT - (C.t ?? -9) < 0.15) return C;
+  const high = B.p.y > 1.5 || B.v.y > 1.5, fx = B.p.x + B.v.x * 0.5, fz = B.p.z + B.v.z * 0.5;
+  const cand = actors().filter((q) => q.team === team).sort((x, y) => Math.hypot(fx - x.P.p.x, fz - x.P.p.z) - Math.hypot(fx - y.P.p.x, fz - y.P.p.z)).slice(0, 4);
+  const T = {}; for (const q of cand) T[q.id] = meetPoint(q.P, BP.CFG.player.sprint * 0.9 * (q.pl.spd || 1), high).t;
+  let best = null, bt = 1e9; for (const id in T) if (T[id] < bt) { bt = T[id]; best = id; }
+  if (C.id && T[C.id] !== undefined && T[C.id] < bt + 0.25) best = C.id;
+  // мне — с запасом: если я успеваю почти так же (на 0,6 с), бот мяч не берёт (иначе забирал у меня из-под ног)
+  const alt = T.me !== undefined && best !== 'me' && T.me < T[best] + 0.6 ? 'me' : null;
+  C.id = best; C.alt = best === 'me' ? 'me' : alt; C.t = simT; return C;
 }
 // как часто нападающие и полузащитники забегают: когда у своего мяч в центре или у чужих ворот, он смотрит вперёд
 // и его не прессингуют — чаще (как в настоящей игре: открываются под пас)
@@ -2394,7 +2434,11 @@ function botDefend(a, mates, foes) {
   const dC = (Q) => Math.hypot(Q.p.x - C.x, Q.p.z - C.z);
   if (NSIDE > 3) {
     const zoneOk = (x) => { const H = homeOf(x, false); return Math.hypot(H.x - C.x, H.z - C.z) < 24; }; // своя зона рядом с мячом
-    const bots = mates.filter((x) => x.id !== 'me' && zoneOk(x)), me = mates.find((x) => x.id === 'me'), meNear = me && dC(me.P) < 6, rank = bots.filter((x) => dC(x.P) < dC(P)).length;
+    const bots = mates.filter((x) => x.id !== 'me' && zoneOk(x)).concat(zoneOk(a) ? [a] : []).sort((x, y) => dC(x.P) - dC(y.P)), me = mates.find((x) => x.id === 'me'), meNear = me && dC(me.P) < 6;
+    // давит один и тот же, пока другой не оказался заметно (на 1,5 м) ближе — без смены каждые 0,2 с
+    const PR = MT.press || (MT.press = [null, null]); let pr = bots[0]; const cur = bots.find((x) => x.id === PR[team]);
+    if (cur && pr && cur !== pr && dC(cur.P) < dC(pr.P) + 1.5) pr = cur; PR[team] = pr ? pr.id : null;
+    const rank = a === pr ? 0 : bots.filter((x) => x !== pr).indexOf(a) === 0 ? 1 : 2;
     const role = !zoneOk(a) ? 'form' : meNear ? (rank === 0 ? 'cover' : 'form') : rank === 0 ? 'press' : rank === 1 ? 'cover' : 'form';
     if (role === 'form') return formation(a, foes, false);
     ai.role = role;
@@ -2462,6 +2506,7 @@ function matchPhys(h) {
     let inp = live ? pressInput(P, chaseInput(P, passInput(), h)) : { x: 0, y: 0 };
     if (run.meAI.slowT > 0) { inp = { x: inp.x * 0.5, y: inp.y * 0.5 }; P.sprint = false; }
     if (live) inp = stepToBall(P, inp, 'me');
+    if (TRACE) run.dbgInp = [+inp.x.toFixed(2), +inp.y.toFixed(2)];
     BP.playerStep(P, inp, h, owning() && B.owner === 'me');
   }
   feintTick(h);
@@ -2496,7 +2541,7 @@ function matchPhys(h) {
       if (a.pl.mv && SLIDE[a.pl.mv.name] && a.pl.t > SLIDE[a.pl.mv.name].win[0]) continue; // лежит в подкате — мяч не берёт
       { const pt = passInFlight(); if (pt && pt.team === a.team && pt.id !== a.pl && Math.hypot(B.v.x, B.v.z) > 2.5) continue; } // пас другому своему — пропускает мяч
       // кому адресован пас — принимает и чуть шире (мяч прошёл рядом, в метре от ног): помощь при приёме, как в FC
-      const pt = passInFlight(), mine = pt && pt.id === a.pl && Math.hypot(B.p.x - a.P.p.x, B.p.z - a.P.p.z) < 1.15 && B.p.y < 0.5 && Math.hypot(B.v.x - a.P.v.x, B.v.z - a.P.v.z) < BP.CFG.control.captureVrel * 1.45 && !(B.lockOwner === a.id && (simT < B.lockUntil || B.mustClear));
+      const pt = passInFlight(), mine = pt && pt.id === a.pl && Math.hypot(B.p.x - a.P.p.x, B.p.z - a.P.p.z) < 0.8 && B.p.y < 0.5 && Math.hypot(B.v.x - a.P.v.x, B.v.z - a.P.v.z) < BP.CFG.control.captureVrel * 1.45 && !(B.lockOwner === a.id && (simT < B.lockUntil || B.mustClear));
       if (!mine && !BP.canCapture(B, a.P, a.id, simT)) continue;
       const d = Math.hypot(B.p.x - a.P.p.x, B.p.z - a.P.p.z); if (d < bd) { bd = d; best = a; }
     }
@@ -2504,6 +2549,7 @@ function matchPhys(h) {
     if (best) {
       if (TRACE) { const pt = run.passTo; console.log('capEv', JSON.stringify({ id: best.id, intended: pt ? pt.id === best.pl : null, rel: +Math.hypot(B.v.x - best.P.v.x, B.v.z - best.P.v.z).toFixed(1), vin: +Math.hypot(B.v.x, B.v.z).toFixed(1), psp: +Math.hypot(best.P.v.x, best.P.v.z).toFixed(1), dt: pt ? +(simT - pt.t).toFixed(2) : null })); }
       statGot(best.team); run.passTo = null; if (best.id === 'me') run.meTouchT = simT;
+      if (best.pl.mv && !SLIDE[best.pl.mv.name]) endMove(best.pl, best.P); // приём прерывает разворот/остановку: дальше — управление
       // первое касание — по джойстику как он есть (раньше удержание джойстика после паса гасилось, и приём выходил «в стоп»:
       // мяч замирал у ноги, игрок тормозил); без джойстика — мягко у ноги
       // первое касание: джойстик, который держали ещё при пасе, не уводит мяч (мягкий приём у ноги); новое направление — уводит
@@ -2513,6 +2559,7 @@ function matchPhys(h) {
       if (vin > 7 && !intent && Math.hypot(best.P.v.x, best.P.v.z) < 1.2 && best.pl.name !== 'strike' && best.pl.name !== 'pass') { play(best.pl, 'receive', { t: 0.65, fade: 0.12, speed: 1.35, follow: true }); best.pl.once = { name: 'receive', until: 1.2 }; }
       MT.last = best.team; if (MT.restart && MT.restart.kind !== 'kickoff') MT.restart = null;
       if (best.ai) { best.ai.holdT = 0; best.ai.pass = null; best.ai.strike = null; }
+      if (best.id === 'me') runQueue(); else run.queue = null;
     }
   }
   // вратари: в своей системе координат; бросок в ноги владельцу мяча
@@ -3144,11 +3191,14 @@ if (TRACE) window.__duel = (mx, mz, ox, oz, fx, fz) => { const A = actors(); MT.
 if (TRACE) window.__tackle = () => tryTackle(actorOf('me'));
 if (TRACE) window.__slide = () => trySlide(actorOf('me'));
 if (TRACE) window.__park = () => { for (const a of actors()) if (a.team === 1) { a.P.p.x = -30 + (+a.id.slice(1)) * 5; a.P.p.z = 100; a.P.v.x = a.P.v.z = 0; a.ai.thinkT = 999; a.ai.tx = a.P.p.x; a.ai.tz = 100; a.ai.run = null; } };
+if (TRACE) window.__unpark = () => { for (const a of actors()) if (a.ai) a.ai.thinkT = 0; };
 if (TRACE) window.__give = (x, z) => { const me = actorOf('me'), P = me.P; MT.restart = null; MT.gkHold = null; state = 'play'; MT.st = 'play'; if (x !== undefined) { P.p.x = x; P.p.z = z; } P.v.x = P.v.z = 0; placeBall(BP.controlPoint(P, null)); BP.capture(B, P, 'me'); B.trapDur = 0; ballPrev.copy(B.p); };
 if (TRACE) window.__state = () => ({ t: +simT.toFixed(2), owner: B.owner, bs: B.state, ball: [+B.p.x.toFixed(2), +B.p.z.toFixed(2), +Math.hypot(B.v.x, B.v.z).toFixed(1)], me: (() => { const a = actorOf('me'); return [a.pl.nick, +a.P.p.x.toFixed(2), +a.P.p.z.toFixed(2), +Math.hypot(a.P.v.x, a.P.v.z).toFixed(1)]; })(), mates: actors().filter((a) => a.team === 0 && a.id !== 'me').map((a) => [a.id, +a.P.p.x.toFixed(1), +a.P.p.z.toFixed(1), a.ai && a.ai.run ? 1 : 0]), chase: !!run.chase, passTo: run.passTo ? run.passTo.id.nick : null });
 if (TRACE) window.__sendOff = (id) => { const a = actorOf(id); if (a) { a.pl.yc = 1; sendOff(a.pl); } return actors().length; };
 if (TRACE) window.__ground = () => groundStat;
 if (TRACE) window.__bones = () => actors().concat(GK.map((g, i) => ({ id: 'gk' + i, pl: g.pl, P: { v: { x: 0, z: 0 } } }))).map((a) => { const pl = a.pl; if (!pl.gb) return null; const o = { id: a.id, own: pl.own, name: pl.name, sp: +Math.hypot(a.P.v.x, a.P.v.z).toFixed(1), f: pl.loco ? +pl.loco.f.toFixed(2) : 0, lift: +pl.model.position.y.toFixed(3), lb: pl.glb, rz: +pl.holder.rotation.z.toFixed(2), rx: +pl.holder.rotation.x.toFixed(2) }; for (const [b] of pl.gb) o[b.name] = +b.matrixWorld.elements[13].toFixed(3); return o; }).filter(Boolean);
+if (TRACE) window.__dbgMe = () => ({ inp: run.dbgInp, drive: !!run.P.drive, lockYaw: +(run.P.lockYaw || 0).toFixed(2), hold: !!run.holdInp, tf: !!B.touchFirst, soft: !!B.touchSoft, trapT: +(B.trapT || 0).toFixed(2), slow: run.meAI && +(run.meAI.slowT || 0).toFixed(2), pass: !!run.pass, strike: !!run.strike, charge: run.charge >= 0, queue: run.queue ? run.queue.kind : null, chase: !!run.chase, mv: actorOf('me') && actorOf('me').pl.mv ? actorOf('me').pl.mv.name : null, vx: +run.P.v.x.toFixed(2), vz: +run.P.v.z.toFixed(2), yaw: +run.P.yaw.toFixed(2) });
+if (TRACE) window.__team = () => actors().map((a) => [a.id, a.team, +a.P.p.x.toFixed(1), +a.P.p.z.toFixed(1), a.ai ? a.ai.role || '' : 'me', a.ai && a.ai.chasing ? 1 : 0, a.ai && a.ai.home !== undefined ? homeBase(a)[1] : (a.ai && a.ai.hxy ? a.ai.hxy[1] : null)]);
 if (TRACE) window.__sprint = (on) => { btn.sprint = !!on; };
 if (TRACE) window.__me = () => { const a = actorOf('me') || { P: run.P, pl: shooter }, P = a.P, L = a.pl.loco; return { name: a.pl.name, t: a.pl.act ? +a.pl.act.time.toFixed(2) : 0, sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(2), p: [+P.p.x.toFixed(2), +P.p.z.toFixed(2)], mv: a.pl.mv ? a.pl.mv.name : null, run: L && L.run ? L.run.map((r) => +r.a.getEffectiveWeight().toFixed(2)) : null, drib: L && L.drib ? +L.drib.getEffectiveWeight().toFixed(2) : null, own: !!a.pl.own, owner: B.owner }; };
 if (TRACE) window.__lesson = () => ({ pts: LS.pts, att: LS.att, step: LS.step, done: LS.done, coach: LS.coachOn, gates: LS.gates.map((g) => g.done), discs: LS.discs.map((d) => d.hit), cross: LS.cross, me: run ? [+run.P.p.x.toFixed(1), +run.P.p.z.toFixed(1)] : null, own: B.owner, st: state });

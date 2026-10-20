@@ -597,7 +597,10 @@ export function chaseVel(P, b, meet, C = CHASE) {
   const pl = CFG.player, bx = b.p.x - P.p.x, bz = b.p.z - P.p.z, dBall = Math.hypot(bx, bz);
   if (dBall < C.near && b.p.y < 0.5) {
     const px = bx + b.v.x * 0.12, pz = bz + b.v.z * 0.12, l = Math.hypot(px, pz) || 1e-6, cl = Math.min(C.close, l * 2.2);
-    return { x: b.v.x + (px / l) * cl, z: b.v.z + (pz / l) * cl, boost: 1, near: true };
+    // подстраиваемся под скорость мяча, только если он убегает или катится вбок; мяч, который катится НА игрока, —
+    // не повод бежать назад (раньше получатель паса пятился от мяча, и анимация разворота уводила его спиной к мячу)
+    const nx = bx / (dBall || 1e-6), nz = bz / (dBall || 1e-6), va = b.v.x * nx + b.v.z * nz, cut = va < 0 ? va : 0;
+    return { x: b.v.x - nx * cut + (px / l) * cl, z: b.v.z - nz * cut + (pz / l) * cl, boost: 1, near: true };
   }
   const tx = meet.x - P.p.x, tz = meet.z - P.p.z, d = Math.hypot(tx, tz) || 1e-6, sp = d > C.brake ? pl.sprint : Math.max(2, d * 2.2);
   return { x: (tx / d) * sp, z: (tz / d) * sp, boost: C.boost, near: false };
