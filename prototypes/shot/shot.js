@@ -67,7 +67,7 @@ function backPrint(pl, name, num, kit) {
   if (!num && !name) return;
   // картинка: фамилия сверху, номер крупно; цвет — контрастный к футболке
   const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
-  const shirt = new THREE.Color(kit && kit.shirt || '#f4f4f2'), lum = shirt.r * 0.3 + shirt.g * 0.59 + shirt.b * 0.11, ink = pl.own && !(kit && kit !== KIT_US && kit.shirt) ? '#1c2443' : lum > 0.45 ? '#1c2443' : '#f4f4f2';
+  const shirt = new THREE.Color(kit && kit.shirt || '#f4f4f2'), lum = shirt.r * 0.3 + shirt.g * 0.59 + shirt.b * 0.11, ink = lum > 0.45 ? '#1c2443' : '#f4f4f2';
   g.fillStyle = ink; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
   const nm = (name || '').split(' ').pop().toUpperCase().slice(0, 12);
   if (nm) { let fs = 50; g.font = `800 ${fs}px Rubik, Arial, sans-serif`; while (g.measureText(nm).width > 236 && fs > 18) { fs -= 2; g.font = `800 ${fs}px Rubik, Arial, sans-serif`; } g.fillText(nm, 128, 52); }
@@ -234,7 +234,7 @@ function tvLook() {
   if (!NIGHT) { key.color.set(L ? L.sun.color : LOOK.sun.color); key.intensity = L ? L.sun.intensity : LOOK.sun.intensity; }
   key.shadow.radius = L ? L.shadowRadius : LOOK.shadow.radius;
   if (!training) training = buildTraining(scene, Object.assign({ aniso: Math.min(PQ.aniso, ren.capabilities.getMaxAnisotropy()) }, MATCH_ON ? { X: MATCH.HW + 7, Z0: -6.5, Z1: MATCH.L + 6.5, trees: [MATCH.HW + 45, -36, MATCH.L + 36] } : null));
-  const tr = !!(L && L.envKind === 'training'); if (training) training.visible = tr; if (STADIUM) STADIUM.group.visible = !tr;
+  const tr = !!(L && L.envKind === 'training') && !MATCH_ON; if (training) training.visible = tr; if (STADIUM) STADIUM.group.visible = !tr; // матч — стадион с трибунами (как в FC Mobile), тренировка — база
 }
 function pitch() {
   // полное поле 105×68 м: от линии наших ворот (z = 0) до дальней (z = 105), бровки x = ±34; одна система координат для всей разметки
@@ -609,7 +609,7 @@ async function player(kit, mine = false) { // общая полная модел
   m.traverse((o) => {
     if (!o.isMesh) return;
     o.frustumCulled = false; o.castShadow = true; o.receiveShadow = true;
-    if (own) { o.material = o.material.clone(); o.material.roughness = 0.78; o.material.metalness = 0; o.material.envMapIntensity = 0.6; return; } // текстура своей формы — как есть
+    if (own) { o.material = o.material.clone(); o.material.roughness = 0.78; o.material.metalness = 0; o.material.envMapIntensity = 0.6; heroKitShader(o); return; } // текстура своей формы + перекраска белой ткани
     o.material = (baseMats[o.name] || o.material).clone(); // свой материал (цвет формы), текстуры общие
     playerMaterial(o, kit);
   });
@@ -621,12 +621,32 @@ async function player(kit, mine = false) { // общая полная модел
   const body = ['LeftHand', 'RightHand', 'Spine2', 'Head'].map((n) => m.getObjectByName(n)); // чем вратарь касается мяча
   return { holder, model: m, mixer: new THREE.AnimationMixer(m), hips, hipsRest: hips.position.clone(), body, footL, footR, toeL, toeR, act: null, t: 0, hs: own ? HERO.hs : 1, own: !!own };
 }
+// Своя модель: форма нарисована в текстуре (белая). Перекраска шейдером: светлые бесцветные места текстуры (ткань) —
+// в цвет команды, складки и тени сохраняются; кожа, бутсы, волосы, тёмные полосы и логотипы — как были. Что это —
+// футболка, шорты или гетры — по высоте точки на теле в исходной позе (ниже колена — гетры, до пояса — шорты).
+function heroKitShader(o) {
+  const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); const bb = g.boundingBox, mt = o.material;
+  const U = { uKitOn: { value: 0 }, uShirt: { value: new THREE.Color('#ffffff') }, uShorts: { value: new THREE.Color('#ffffff') }, uSocks: { value: new THREE.Color('#ffffff') }, uKitY: { value: new THREE.Vector2(bb.min.y, bb.max.y - bb.min.y) } };
+  mt.userData.kitU = U;
+  mt.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, U);
+    sh.vertexShader = 'varying float vKitY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vKitY = position.y;');
+    sh.fragmentShader = 'varying float vKitY;\nuniform float uKitOn; uniform vec3 uShirt, uShorts, uSocks; uniform vec2 uKitY;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+  { vec3 c = diffuseColor.rgb; float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), sat = mx > 1e-3 ? (mx - mn) / mx : 0.0;
+    float m = uKitOn * smoothstep(0.16, 0.34, mx) * (1.0 - smoothstep(0.1, 0.24, sat));
+    float h = (vKitY - uKitY.x) / uKitY.y; vec3 k = h < 0.3 ? uSocks : h < 0.56 ? uShorts : uShirt;
+    diffuseColor.rgb = mix(c, k * clamp(mx / 0.82, 0.0, 1.15), m); }`);
+  };
+  mt.customProgramCacheKey = () => 'heroKit';
+}
 const hexKit = (q) => { const k = (q || '').split('.').filter((c) => /^[0-9a-f]{6}$/i.test(c)); return k.length ? { shirt: '#' + k[0], shorts: '#' + (k[1] || k[0]), socks: '#' + (k[2] || k[1] || k[0]) } : null; };
 const myKit = hexKit(Q.get('kit')); // без ?kit= — своя белая форма модели
 const gkKit = { shirt: '#ffd23f', shorts: '#2a2d3a', socks: '#ffd23f' };
 const wallKit = () => ({ shirt: '#e0303c', shorts: '#ffffff', socks: '#e0303c' });
 // перекрасить форму (футболка, шорты, гетры) — складки и швы текстуры остаются
-function recolor(pl, kit) { if (pl && kit) pl.model.traverse((o) => { const part = o.isMesh && PART[o.name]; if (part && kit[part]) o.material.color.set(kit[part]); }); }
+function recolor(pl, kit) { if (pl && kit) pl.model.traverse((o) => { if (!o.isMesh) return; const U = o.material.userData.kitU;
+  if (U) { const white = /^#?f[0-9a-f]f[0-9a-f]f/i.test(kit.shirt || '') && kit.shirt === kit.shorts; U.uKitOn.value = white ? 0 : 1; U.uShirt.value.set(kit.shirt); U.uShorts.value.set(kit.shorts || kit.shirt); U.uSocks.value.set(kit.socks || kit.shirt); return; } // своя модель — перекраска шейдером
+  const part = PART[o.name]; if (part && kit[part]) o.material.color.set(kit[part]); }); }
 let shooter, keeper, shooter0 = null; const wall = [];
 
 // ---------- позиция удара ----------
@@ -1164,7 +1184,7 @@ function wallTick(w, i, dt) { // стенка: стоят, при ударе т�
 // Игрок и мяч считаются в ballphys.js фиксированными шагами: runPhys — движение, ведение, приём, удар, вратарь;
 // runAnim — каждый кадр: позы, касания ногой, наклоны.
 let STRIKE = null, PASS = null, run = null, crowdT = 0;
-const joy = { x: 0, y: 0, id: null, cx: 0, cy: 0 }, keys = {}, btn = { shot: false, sprint: false, press: false, tk: false, pd: false };
+const joy = { x: 0, y: 0, id: null, cx: 0, cy: 0 }, keys = {}, btn = { shot: false, sprint: false, press: false, tk: false, pd: false, second: false, rd: false, sl: false };
 // камера «1 на 1»: за спиной игрока по линии на ворота, игрок — в нижней трети кадра, ворота видны впереди
 const CAM_RUN = { back: 6.3, height: 2.9, ahead: 8, lookH: 0.9 };
 function runCam(out) {
@@ -1331,7 +1351,7 @@ function setPower(p) { ringFg.style.strokeDashoffset = 100 - p * 100; ringFg.sty
 // Кнопки с жестами (controls.js). Направления — по экрану, как у джойстика, и не зависят от ракурса камеры.
 // «Удар»: держишь — сила, отпустил — удар; оттянул палец влево/вправо — подкрутка в эту сторону, вверх — переброс.
 gestureButton($('#b-shot'), {
-  onDown: () => { if (matchDef()) { btn.tk = true; tryTackle(actorOf('me')); return; } btn.tk = false; startCharge('drive'); },
+  onDown: () => { if (matchDef()) { btn.tk = true; if (slideOk()) trySlide(actorOf('me')); return; } btn.tk = false; startCharge('drive'); }, // оборона (матч) — «Подкат», как в FC Mobile
   // жесты одинаковые при любой камере: влево/вправо — подкрутка (мяч уходит в эту сторону от бьющего), вверх — переброс.
   // Мяч у соперника (матч) — эта же кнопка «Отбор»: короткое нажатие — попытка выбить мяч.
   onGesture: (dir) => { if (btn.tk || !run || run.charge < 0) return;
@@ -1343,23 +1363,24 @@ gestureButton($('#b-shot'), {
 // «Пас»: коротко — в ноги (или на ход, если партнёр бежит), удержание — сильнее, вверх — верховая; мяч у партнёра — просьба вернуть
 gestureButton($('#b-pass'), {
   // мяч у соперника (матч) — «Прессинг»: пока держишь, игрок сам идёт к владельцу мяча
-  onDown: () => { if (matchDef()) { btn.press = true; btn.pd = true; return; } btn.pd = false; passDown(); },
+  onDown: () => { if (matchDef()) { btn.pd = true; swapManual(); return; } btn.pd = false; passDown(); }, // оборона — «Смена»
   onGesture: (dir) => { const el = $('#pass-g'); if (el) el.textContent = dir === 'up' && passIn.down >= 0 ? '⌒ верхом' : ''; },
-  onUp: (mode, held, cancel) => { if (btn.pd) { btn.press = false; btn.pd = false; return; } const el = $('#pass-g'); if (el) el.textContent = ''; if (cancel) { passIn.down = -1; return; } passUp(mode === 'up' ? 'lofted' : 'ground'); },
+  onUp: (mode, held, cancel) => { if (btn.pd) { btn.pd = false; return; } const el = $('#pass-g'); if (el) el.textContent = ''; if (cancel) { passIn.down = -1; return; } passUp(mode === 'up' ? 'lofted' : 'ground'); },
 });
 // «Рывок»: держишь без жеста — ускорение; короткий резкий жест — финт (один раз за жест)
 gestureButton($('#b-run'), {
   threshold: 30, flick: 0.28,
-  onDown: () => { btn.sprint = true; },
-  onGesture: (dir, quick) => { if (quick) feint(dir); },
-  onUp: () => { btn.sprint = false; },
+  // оборона (матч) — «Рывок и отбор»: держишь — рывок (без джойстика — сам идёт к владельцу мяча), короткое нажатие — отбор
+  onDown: () => { btn.sprint = true; btn.rd = matchDef(); if (btn.rd) btn.press = true; },
+  onGesture: (dir, quick) => { if (quick && !btn.rd) feint(dir); },
+  onUp: (mode, held, cancel) => { btn.sprint = false; btn.press = false; if (btn.rd && !cancel && held < 0.25 && matchDef()) tryTackle(actorOf('me')); btn.rd = false; },
 });
 // «На ход»: коротко — низом в свободную зону перед партнёром; зажал и потянул вверх — верхом, вразрез (за спину защитникам)
 // мяч у соперника (матч, своя модель) — эта же кнопка «Подкат»
 gestureButton($('#b-thru'), {
-  onDown: () => { btn.sl = matchDef() && slideOk(); if (btn.sl) trySlide(actorOf('me')); },
+  onDown: () => { btn.sl = matchDef(); if (btn.sl) btn.second = true; }, // оборона — «2-й защитник»: пока держишь, ближайший партнёр давит на владельца
   onGesture: (dir) => { if (btn.sl) return; const el = $('#thru-g'); if (el) el.textContent = dir === 'up' ? '⌒ верхом' : ''; },
-  onUp: (mode, held, cancel) => { if (btn.sl) { btn.sl = false; return; } const el = $('#thru-g'); if (el) el.textContent = ''; if (!cancel) throughPass(mode === 'up'); },
+  onUp: (mode, held, cancel) => { if (btn.sl) { btn.sl = false; btn.second = false; return; } const el = $('#thru-g'); if (el) el.textContent = ''; if (!cancel) throughPass(mode === 'up'); },
 });
 $('#b-swap').addEventListener('pointerdown', (e) => { e.preventDefault(); swapManual(); });
 $('#restart').addEventListener('click', () => { if (FREE() && run) resetShot(); });
@@ -2207,7 +2228,8 @@ function homeOf(a, attacking) {
   d = Math.max(0.07, Math.min(0.88, d));
   return { x: clampX(hx * (attacking ? 1 : 0.78) + B.p.x * (attacking ? 0.15 : 0.3), 2), z: t === 0 ? MATCH.L - d * MATCH.L : d * MATCH.L };
 }
-const KIT_US = { shirt: '#f4f4f2', shorts: '#f4f4f2', socks: '#f4f4f2' }, KIT_THEM = { shirt: '#2c2e35', shorts: '#26282e', socks: '#2c2e35' }, KIT_GK2 = { shirt: '#2fbf71', shorts: '#1d2430', socks: '#2fbf71' };
+// цвета — как в записи матча FC Mobile: мы — синие с жёлтыми гетрами, соперник — оранжевая футболка и чёрные шорты
+const KIT_US = { shirt: '#2357c9', shorts: '#2357c9', socks: '#f1c21b' }, KIT_THEM = { shirt: '#f0602a', shorts: '#1c1d22', socks: '#f0602a' }, KIT_GK2 = { shirt: '#2fbf71', shorts: '#1d2430', socks: '#2fbf71' };
 const teamOf = (id) => (id === 'me' || id === 'mate' || id === 'gk2' || (typeof id === 'string' && id[0] === 't') ? 0 : 1); // наши: me, mate, t2…; соперники: o1…, gk
 const attackZ = (team) => (team === 0 ? 0 : MATCH.L); // ворота, которые атакует команда
 const ownZ = (team) => (team === 0 ? MATCH.L : 0);
@@ -2667,12 +2689,13 @@ function botDefend(a, mates, foes) {
     const PR = MT.press || (MT.press = [null, null]); let pr = bots[0]; const cur = bots.find((x) => x.id === PR[team]);
     if (cur && pr && cur !== pr && dC(cur.P) < dC(pr.P) + 1.5) pr = cur; PR[team] = pr ? pr.id : null;
     const rank = a === pr ? 0 : bots.filter((x) => x !== pr).indexOf(a) === 0 ? 1 : 2;
-    const role = !zoneOk(a) ? 'form' : meNear ? (rank === 0 ? 'cover' : 'form') : rank === 0 ? 'press' : rank === 1 ? 'cover' : 'form';
+    let role = !zoneOk(a) ? 'form' : meNear ? (rank === 0 ? 'cover' : 'form') : rank === 0 ? 'press' : rank === 1 ? 'cover' : 'form';
+    if (team === 0 && btn.second && carrier && carrier.team !== team && a === pr) role = 'press'; // «2-й защитник» (держу кнопку) — давит, даже если я рядом
     if (role === 'form') return formation(a, foes, false);
     ai.role = role;
   }
   const m = NSIDE > 3 ? (mates.filter((x) => x.id !== 'me').sort((x, y) => dC(x.P) - dC(y.P))[0] || mates[0]) : mates[0];
-  const presser = NSIDE > 3 ? ai.role === 'press' : !m || (ai.role === 'press' ? dC(P) < dC(m.P) + 2 : dC(P) + 2 < dC(m.P)) || (m.id === 'me' && !(btn.press) && dC(P) < dC(m.P) + 1.5 && dC(m.P) > 6);
+  const presser = NSIDE > 3 ? ai.role === 'press' : (team === 0 && btn.second && (m.id === 'me' || dC(P) <= dC(m.P))) || !m || (ai.role === 'press' ? dC(P) < dC(m.P) + 2 : dC(P) + 2 < dC(m.P)) || (m.id === 'me' && !(btn.press) && dC(P) < dC(m.P) + 1.5 && dC(m.P) > 6);
   ai.role = presser ? 'press' : 'cover';
   if (presser) {
     const gx = G.x - C.x, gz = G.z - C.z, gl = Math.hypot(gx, gz) || 1, d = dC(P), off = d > 3 ? 1.3 : 0.75, lead = carrier && d > 2 ? Math.min(0.6, d / 8) : 0;
@@ -2699,7 +2722,7 @@ function botDefend(a, mates, foes) {
 }
 // «Прессинг» (держишь): управляемый игрок сам идёт к владельцу мяча со стороны своих ворот; джойстик в это время не нужен
 function pressInput(P, inp) {
-  if (!MATCH_ON || !btn.press || state !== 'play') return inp;
+  if (!MATCH_ON || !btn.press || state !== 'play' || Math.hypot(inp.x, inp.y) > 0.25) return inp; // джойстик — рывок туда, куда ведёшь
   const carrier = owning() ? actorOf(B.owner) : null; if (!carrier || carrier.team === 0) return inp;
   const C = carrier.P.p, G = { x: 0, z: MATCH.L }, gx = G.x - C.x, gz = G.z - C.z, gl = Math.hypot(gx, gz) || 1, d = Math.hypot(C.x - P.p.x, C.z - P.p.z);
   const tx = C.x + (gx / gl) * (d > 3 ? 1.2 : 0.7) - P.p.x, tz = C.z + (gz / gl) * (d > 3 ? 1.2 : 0.7) - P.p.z, tl = Math.hypot(tx, tz);
@@ -3081,13 +3104,16 @@ function matchHud(force) {
 let defShown = null;
 // мяч у нашего вратаря (в руках или в ногах после паса назад) — ждёт команды «Отдать пас»
 const gkMine = () => MATCH_ON && run && state === 'play' && B.state === 'held' && B.owner === 'gk2' && MT.gkHold && MT.gkHold.phase === 'hold' && !AUTOPLAY;
+// Кнопки — как в FC Mobile (запись матча пользователя). Атака: «Пас», «Вразрез», сверху «Выбить» на своей половине и
+// «Удар» ближе к чужим воротам, большая «Рывок и навык». Оборона: «Смена», «2-й защ.», «Подкат», «Рывок и отбор».
 function matchButtons() {
-  const gm = gkMine(), def = !gm && matchDef(), near = def && run && inTackleRange(actorOf('me')); $('#b-shot').classList.toggle('off', def && !near);
-  const sl = def && slideOk(); $('#b-thru').classList.toggle('off', def && !sl);
-  const key = gm ? 'gk' : def ? (sl || heroMoves && shooter.own ? 'def+' : 'def') : 'att'; if (key === defShown) return; defShown = key;
+  const gm = gkMine(), def = !gm && matchDef(), sl = def && slideOk(); $('#b-shot').classList.toggle('off', def && !sl); $('#b-thru').classList.remove('off');
+  const far = !def && run && depthOf(0, run.P.p.z) > MATCH.L * 0.5; // на своей половине — «Выбить»
+  const key = gm ? 'gk' : def ? 'def' : far ? 'att-far' : 'att'; if (key === defShown) return; defShown = key;
   const lab = (id, t) => { const b = $(id); if (!b) return; const n = [...b.childNodes].find((x) => x.nodeType === 3 && x.nodeValue.trim()); if (n) n.nodeValue = t; };
-  lab('#b-shot', def ? 'Отбор' : 'Удар'); lab('#b-pass', gm ? 'Отдать пас' : def ? 'Прессинг' : 'Пас');
-  lab('#b-thru', key === 'def+' ? 'Подкат' : 'На ход'); $('#pad').classList.toggle('def', def); $('#pad').classList.toggle('gkm', gm);
+  lab('#b-shot', def ? 'Подкат' : far ? 'Выбить' : 'Удар'); lab('#b-pass', gm ? 'Отдать пас' : def ? 'Смена' : 'Пас');
+  lab('#b-thru', def ? '2-й\nзащ.' : 'Вразрез'); lab('#b-run', def ? 'Рывок\nи\nотбор' : 'Рывок\nи\nнавык');
+  $('#pad').classList.toggle('def', def); $('#pad').classList.toggle('gkm', gm);
 }
 function resetMatch() {
   MT.score = [0, 0]; MT.clock = MATCH.time; MT.st = 'play'; MT.restart = null; MT.gkHold = null; MT.next = null; MT.shown = ''; MT.stats = null; MT.off = null; MT.back = null; MT.passPend = null; MT.shotPend = null;
@@ -3143,23 +3169,32 @@ function matchAnim(dt) {
 // мини-карта: поле, повёрнутое так же, как его показывает камера; точки — игроки (наши светлые, соперники красные,
 // управляемый — бирюзовый), мяч — жёлтый. Перерисовывается через кадр, отдельным маленьким холстом.
 const mm = { el: document.getElementById('minimap'), n: 0 }; mm.g = mm.el && mm.el.getContext('2d');
-const MINIMAP = false; // мини-карта убрана (закрывала поле внизу) — не рисуем
+const MINIMAP = true;
+const mmEl = $('#mmw'), mmMe = $('#mmMe'), mmOpp = $('#mmOpp');
+// Мини-карта — как в FC Mobile: поле сверху (ворота слева и справа, как на экране), свои — белые точки, соперники —
+// треугольники, я — жёлтый крестик, мяч — точка; под картой имена: мой игрок и ближайший к нему соперник
 function minimap() {
-  if (!MINIMAP) return;
-  if (!mm.g || !MATCH_ON || !run || (mm.n++ & 1)) return;
-  const W = mm.el.width, H = mm.el.height, g = mm.g; cam.getWorldDirection(tmpA); tmpA.y = 0; tmpA.normalize();
-  const fx = tmpA.x, fz = tmpA.z, rx = -fz, rz = fx; // «вправо» и «вверх» экрана на поле
-  const corners = [[-MATCH.HW, 0], [MATCH.HW, 0], [MATCH.HW, MATCH.L], [-MATCH.HW, MATCH.L]].map(([x, z]) => [x * rx + z * rz, x * fx + z * fz]);
-  const u0 = Math.min(...corners.map((c) => c[0])), u1 = Math.max(...corners.map((c) => c[0])), w0 = Math.min(...corners.map((c) => c[1])), w1 = Math.max(...corners.map((c) => c[1]));
-  const sc = Math.min((W - 8) / (u1 - u0), (H - 8) / (w1 - w0)), ox = (W - (u1 - u0) * sc) / 2, oy = (H - (w1 - w0) * sc) / 2;
-  const at = (x, z) => [ox + ((x * rx + z * rz) - u0) * sc, oy + (w1 - (x * fx + z * fz)) * sc];
-  g.clearRect(0, 0, W, H); g.fillStyle = 'rgba(20,70,35,.55)'; g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1;
-  g.beginPath(); corners.forEach((c, i) => { const p = at(...[[-MATCH.HW, 0], [MATCH.HW, 0], [MATCH.HW, MATCH.L], [-MATCH.HW, MATCH.L]][i]); if (i) g.lineTo(p[0], p[1]); else g.moveTo(p[0], p[1]); }); g.closePath(); g.fill(); g.stroke();
-  const h1 = at(-MATCH.HW, MATCH.L / 2), h2 = at(MATCH.HW, MATCH.L / 2); g.beginPath(); g.moveTo(h1[0], h1[1]); g.lineTo(h2[0], h2[1]); g.stroke();
-  const dot = (x, z, r, c, ring) => { const [px, py] = at(x, z); g.beginPath(); g.arc(px, py, r, 0, 7); g.fillStyle = c; g.fill(); if (ring) { g.strokeStyle = ring; g.lineWidth = 1.5; g.stroke(); g.lineWidth = 1; } };
-  for (const a of actors()) if (a.id !== 'me') dot(a.P.p.x, a.P.p.z, 2.6, a.team === 0 ? '#f4f4f2' : '#ff5d6c');
-  GK.forEach((k, j) => dot(k.pl.holder.position.x, k.pl.holder.position.z, 2.6, j === 1 ? '#2fbf71' : '#ffd23f'));
-  dot(run.P.p.x, run.P.p.z, 3.4, '#3fe0a8', '#0b3d2c'); dot(B.p.x, B.p.z, 2.2, '#ffd84a', '#1b1b1b');
+  if (!MINIMAP || !mm.g || !MATCH_ON || !run) { if (mmEl) mmEl.classList.remove('on'); return; }
+  mmEl.classList.toggle('on', state === 'play' || state === 'goal'); if (mm.n++ % 3) return;
+  if (worldFlipped) return; // логика вратаря временно развернула мир — кадр пропускаем
+  const W = mm.el.width, H = mm.el.height, g = mm.g, pad = 6;
+  // как на экране (камера сбоку): вправо — к воротам z = 0, вверх — к дальней бровке (−x)
+  const at = (x, z) => [pad + (1 - z / MATCH.L) * (W - 2 * pad), pad + ((x + MATCH.HW) / (2 * MATCH.HW)) * (H - 2 * pad)];
+  g.clearRect(0, 0, W, H); g.fillStyle = 'rgba(34,92,46,.62)'; g.fillRect(0, 0, W, H);
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.2; g.strokeRect(pad, pad, W - 2 * pad, H - 2 * pad);
+  const mid = at(0, MATCH.L / 2); g.beginPath(); g.moveTo(mid[0], pad); g.lineTo(mid[0], H - pad); g.stroke(); g.beginPath(); g.arc(mid[0], H / 2, (H - 2 * pad) * 0.13, 0, 7); g.stroke();
+  for (const z of [0, MATCH.L]) { const a = at(-20, z), b = at(20, z + (z ? -16.5 : 16.5)); g.strokeRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])); }
+  const me = actorOf('me'); let opp = null, od = 1e9;
+  for (const a of actors()) {
+    const [px, py] = at(a.P.p.x, a.P.p.z);
+    if (a.team === 1) { const d = Math.hypot(a.P.p.x - me.P.p.x, a.P.p.z - me.P.p.z); if (d < od) { od = d; opp = a; }
+      g.beginPath(); g.moveTo(px, py - 3.6); g.lineTo(px + 3.3, py + 2.6); g.lineTo(px - 3.3, py + 2.6); g.closePath(); g.strokeStyle = '#fff'; g.lineWidth = 1.3; g.stroke(); }
+    else if (a.id !== 'me') { g.beginPath(); g.arc(px, py, 2.8, 0, 7); g.fillStyle = '#fff'; g.fill(); }
+  }
+  GK.forEach((k, j) => { const [px, py] = at(k.pl.holder.position.x, k.pl.holder.position.z); if (j === 1) { g.beginPath(); g.arc(px, py, 2.8, 0, 7); g.fillStyle = '#fff'; g.fill(); } else { g.beginPath(); g.moveTo(px, py - 3.6); g.lineTo(px + 3.3, py + 2.6); g.lineTo(px - 3.3, py + 2.6); g.closePath(); g.strokeStyle = '#fff'; g.stroke(); } });
+  { const [bx, by] = at(B.p.x, B.p.z); g.beginPath(); g.arc(bx, by, 2, 0, 7); g.fillStyle = '#ffd84a'; g.fill(); }
+  { const [px, py] = at(me.P.p.x, me.P.p.z); g.strokeStyle = '#ffd23f'; g.lineWidth = 2.4; g.beginPath(); g.moveTo(px - 4.5, py); g.lineTo(px + 4.5, py); g.moveTo(px, py - 4.5); g.lineTo(px, py + 4.5); g.stroke(); }
+  const mn = shooter.nick || '', on = opp ? opp.pl.nick || '' : ''; if (mmMe.textContent !== mn) mmMe.textContent = mn; if (mmOpp.textContent !== on) mmOpp.textContent = on;
 }
 // управляемый игрок ушёл за край кадра (камера держит мяч) — стрелка у края экрана показывает, где он
 const offEl = document.getElementById('offme'), nameEl = document.getElementById('melbl'), offV = new THREE.Vector3();

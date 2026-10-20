@@ -104,7 +104,23 @@
   .fade.on { opacity: 1; }
   .melbl { position: fixed; left: 0; top: 0; z-index: 3; display: none; padding: 1px 6px; border-radius: 5px; background: rgba(8,12,20,.55); font: italic 800 11px/1.3 var(--f); letter-spacing: .04em; text-transform: uppercase; color: #fff; white-space: nowrap; pointer-events: none; }
   .minimap { position: fixed; left: 50%; bottom: calc(var(--sb) + 6px); z-index: 3; width: min(134px, 20vw); height: auto; aspect-ratio: 160 / 104; opacity: .92; transform: translateX(-50%); pointer-events: none; display: none; }
-  /* мини-карта убрана: закрывала поле внизу по центру */
+  /* мини-карта внизу по центру и под ней имена: мой игрок и ближайший соперник (как в FC Mobile) */
+  .mmw { position: fixed; left: 50%; bottom: calc(var(--sb) + 4px); z-index: 3; width: min(150px, 19vw); transform: translateX(-50%); pointer-events: none; display: none; }
+  body.match .mmw.on { display: block; }
+  .mmw .minimap { position: static; display: block; width: 100%; transform: none; opacity: 1; border-radius: 3px; }
+  .mmn { display: grid; grid-template-columns: 1fr 1fr; margin-top: 2px; font: 700 9.5px/1 var(--f); color: #fff; }
+  .mmn span { padding: 3px 4px; background: rgba(10,14,22,.72); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+  .mmn span:first-child { box-shadow: inset 3px 0 0 #3c7bff; } .mmn span:last-child { box-shadow: inset -3px 0 0 #ff4a3d; }
+  /* кнопки матча — как в FC Mobile: большая «Рывок и навык» (в обороне — «Рывок и отбор»), слева «Пас» («Смена»),
+     над ним «Вразрез» («2-й защ.»), сверху «Выбить»/«Удар» («Подкат») */
+  body.match .pbtns button { background: radial-gradient(circle at 50% 35%, rgba(52,58,66,.88), rgba(14,17,22,.9)); font: 900 11px/1.05 var(--f); letter-spacing: .02em; text-transform: uppercase; white-space: pre-line; text-align: center; }
+  body.match .b-run { right: 0; bottom: 0; width: 94px; height: 94px; font-size: 13px !important; --rim: rgba(255,255,255,.35); }
+  body.match .b-pass { right: 112px; bottom: 6px; width: 58px; height: 58px; --rim: #3aa0ff; }
+  body.match .b-thru { right: 96px; bottom: 90px; width: 54px; height: 54px; font-size: 9.5px !important; --rim: #e8b33a; }
+  body.match .b-shot { right: 18px; bottom: 116px; width: 56px; height: 56px; font-size: 10.5px !important; --rim: #ff7a3a; }
+  body.match .b-swap { display: none !important; }
+  body.match .def .b-run { --rim: rgba(255,255,255,.35); } body.match .def .b-pass { --rim: #3cc8d4; font-size: 11px !important; }
+  body.match .def .b-thru { --rim: #e8b33a; } body.match .def .b-shot { --rim: #ff5d6c; }
   .offme { position: fixed; left: 0; top: 0; z-index: 3; display: none; width: 28px; height: 28px; pointer-events: none; }
   .offme::before { content: ""; position: absolute; inset: 4px; background: #3fe0a8; clip-path: polygon(100% 50%, 0 0, 22% 50%, 0 100%); filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
   .card .btn + .btn { margin-top: 9px; }
@@ -237,7 +253,7 @@
 <div class="lhud" id="lhud" hidden><div class="lh-a"><b id="lhL">ПОПЫТКА</b><span id="lhA">1/1</span></div><div class="lh-p"><small>ОЧ.</small><b id="lhP">0</b></div></div>
 <div class="coach" id="coach" hidden><div class="ch-card"><div class="ch-ava"><span>ДЖ</span></div><div class="ch-t"><b id="chT"></b><p id="chP"></p><small>Далее — коснитесь</small></div></div></div>
 <div class="end" id="lres"><div class="card glass lr"><h3>Результат — развитие навыков</h3><div class="lr-row"><span>Задание:</span><span>Сложность:</span></div><div class="lr-row"><b id="lrTask"></b><b>Новичок</b></div><div class="lr-big"><b id="lrOk">✓ УСПЕХ</b><span id="lrPts"></span></div><button class="btn" id="lrNext">Далее</button><button class="btn sec" id="lrAgain">Ещё раз</button></div></div>
-<canvas class="minimap" id="minimap" width="160" height="104"></canvas><div class="offme" id="offme"></div><div class="melbl" id="melbl"></div>
+<div class="mmw" id="mmw"><canvas class="minimap" id="minimap" width="240" height="160"></canvas><div class="mmn"><span id="mmMe"></span><span id="mmOpp"></span></div></div><div class="offme" id="offme"></div><div class="melbl" id="melbl"></div>
 <div class="end" id="pause"><div class="card glass"><h2>Пауза</h2><button class="btn" id="pResume">Продолжить</button><button class="btn sec" id="pRestart">Начать заново</button><button class="btn sec" id="pTrain" hidden>Тренировка</button><button class="btn sec" id="pSets">Настройки</button><button class="btn sec" id="pHelp" hidden>Как играть</button><button class="btn sec" id="pExit">Выйти</button></div></div>
 <div class="end" id="confirm"><div class="card glass"><h2>Выйти?</h2><p>Матч не закончен — счёт не сохранится.</p><button class="btn" id="cStay">Остаться</button><button class="btn sec" id="cExit">Выйти</button></div></div>
 <div class="end" id="sets"><div class="card glass"><h2>Настройки</h2>
