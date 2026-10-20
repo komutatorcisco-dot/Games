@@ -1348,12 +1348,12 @@ const camF = new THREE.Vector3();
 // Направление — по свайпу (как у джойстика: одинаково при любой камере), сила — по длине свайпа (короткий — слабый и
 // низом, длинный — сильный и выше). На экране остаётся след свайпа. Мяч ещё в пути ко мне — удар сразу после касания.
 const szone = $('#szone'), strail = Object.assign(document.createElement('div'), { className: 'strail' }); document.body.appendChild(strail);
-let sw = null;
+let swp = null;
 const trail = (x0, y0, x1, y1) => { const dx = x1 - x0, dy = y1 - y0; strail.style.width = Math.hypot(dx, dy) + 'px'; strail.style.transform = `translate(${x0}px, ${y0}px) rotate(${Math.atan2(dy, dx)}rad)`; strail.classList.add('on'); };
 if (szone) {
-  szone.addEventListener('pointerdown', (e) => { if (!MATCH_ON || !run || state !== 'play' || sw) return; e.preventDefault(); sw = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() }; try { szone.setPointerCapture(e.pointerId); } catch (er) { /* без захвата */ } });
-  szone.addEventListener('pointermove', (e) => { if (sw && e.pointerId === sw.id && Math.hypot(e.clientX - sw.x, e.clientY - sw.y) > 12) trail(sw.x, sw.y, e.clientX, e.clientY); });
-  const swEnd = (e, cancel) => { if (!sw || e.pointerId !== sw.id) return; const s0 = sw; sw = null; strail.classList.remove('on'); if (cancel) return;
+  szone.addEventListener('pointerdown', (e) => { if (!MATCH_ON || !run || state !== 'play' || swp) return; e.preventDefault(); swp = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() }; try { szone.setPointerCapture(e.pointerId); } catch (er) { /* без захвата */ } });
+  szone.addEventListener('pointermove', (e) => { if (swp && e.pointerId === swp.id && Math.hypot(e.clientX - swp.x, e.clientY - swp.y) > 12) trail(swp.x, swp.y, e.clientX, e.clientY); });
+  const swEnd = (e, cancel) => { if (!swp || e.pointerId !== swp.id) return; const s0 = swp; swp = null; strail.classList.remove('on'); if (cancel) return;
     const dx = e.clientX - s0.x, dy = e.clientY - s0.y, L = Math.hypot(dx, dy), dt = (performance.now() - s0.t) / 1000; if (L < 45 || dt > 0.9) return;
     gestureShot(dx / L, -dy / L, Math.min(1, Math.max(0.15, L / (0.6 * Math.min(innerWidth, innerHeight))))); };
   szone.addEventListener('pointerup', (e) => swEnd(e, false)); szone.addEventListener('pointercancel', (e) => swEnd(e, true));
