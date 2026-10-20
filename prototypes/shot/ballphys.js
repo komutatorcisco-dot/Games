@@ -134,10 +134,11 @@ export const CFG = {
     vMin: 13, vMax: 31,       // скорость мяча при слабом и сильном ударе, м/с (сила 0…1 — линейно)
     runBonus: 0.3,            // скорость бега вдоль удара добавляет столько от себя…
     runBonusMax: 1.8,         // … но не больше, м/с
-    height: 0.9,              // обычный удар идёт на высоте ≈ 0,9 м у линии ворот (без сопротивления воздуха; на деле чуть ниже)
+    height: 0.9,              // (для справки) средний удар у линии ворот на высоте ≈ 0,9 м
+    hLow: 0.3, hHigh: 1.65,   // высота у линии ворот растёт с силой: слабый — низом, полный — под перекладину (как в уроке FC Mobile)
     finesseHeight: 1.35,      // удар щёчкой с подкруткой — чуть выше
     overPower: 0.92,          // сила выше этой — удар «перебран»…
-    overLift: 22,             // … и уходит выше: +столько метров высоты на единицу перебора
+    overLift: 10,             // … и уходит выше: +столько метров высоты на единицу перебора (полная сила — у перекладины, риск выше)
     topspin: 7,               // верхнее вращение сильного удара (мяч «ныряет»), рад/с при силе 1
     finesseSpeed: 0.85,       // удар с подкруткой медленнее
     finesseSpin: 36,          // вращение подкрутки, рад/с (≈ 6 оборотов в секунду)
@@ -525,31 +526,42 @@ export function shotVelocity(b, P, aim, pw, kind, goal, curlSide = 0) {
   if (kind === true) kind = 'curl'; else if (!kind) kind = 'drive';
   const fin = kind === 'curl', chip = kind === 'chip';
   const S = CFG.shot, R = CFG.R;
-  let dx, dz;
   const L = Math.hypot(aim.x, aim.y);
+  let tx = null; // точка на линии ворот, куда целимся (null — по корпусу)
   if (L > 0.25) {
-    const a = Math.atan2(aim.x, Math.max(aim.y, -0.2)) / S.stickAngle, tx = Math.max(-1.7, Math.min(1.7, a)) * goal.w;
-    dx = tx - b.p.x; dz = -b.p.z; // к точке на линии ворот
-    if (dz > -0.5) dz = -0.5;
-  } else { dx = Math.sin(P.yaw); dz = Math.cos(P.yaw); }
-  const dl = Math.hypot(dx, dz); dx /= dl; dz /= dl;
-  // скорость: сила + ограниченная добавка от бега вдоль удара
-  const along = Math.max(0, P.v.x * dx + P.v.z * dz);
-  let speed = S.vMin + (S.vMax - S.vMin) * pw + Math.min(S.runBonusMax, along * S.runBonus);
-  if (fin) speed *= S.finesseSpeed;
-  if (chip) speed = Math.max(S.chipMin, speed * S.chipSpeed);
-  // высота: целимся на height у линии ворот (сопротивление воздуха не учитываем — на деле мяч чуть ниже);
-  // перебор силы — выше
-  let hT = (chip ? S.chipHeight : fin ? S.finesseHeight : S.height) + Math.max(0, pw - S.overPower) * S.overLift;
-  const dist = dz < -0.05 ? Math.min(40, b.p.z / -dz) : 20, tt = dist / speed;
-  let vy = (hT - R + 0.5 * CFG.g * tt * tt) / tt; vy = Math.max(0.4, Math.min(speed * 0.6, vy));
-  const vh = Math.sqrt(Math.max(1, speed * speed - vy * vy));
-  const v = vec(dx * vh, vy, dz * vh);
-  // вращение: сильный удар — верхнее (ныряет); подкрутка — вокруг вертикали, уводит мяч к центру ворот (плавно, физикой)
-  const top = chip ? -S.chipBackspin : S.topspin * pw * (fin ? 0.3 : 1); // у переброса — обратное вращение
-  const w = vec(dz * top, 0, -dx * top);
-  if (fin) { const side = curlSide || (Math.abs(b.p.x + dx * dist) > 0.3 ? Math.sign(b.p.x + dx * dist) : 1); w.y = side * S.finesseSpin; } // w.y > 0 — мяч уходит влево (−x)
-  return { v, w, speed };
+    const a = Math.atan2(aim.x, Math.max(aim.y, -0.2)) / S.stickAngle; tx = Math.max(-1.7, Math.min(1.7, a)) * goal.w;
+    // подкрутка «по центру» (или без выбора стороны) — в дальнюю штангу, как finesse в FC Mobile
+    if (fin && !curlSide && Math.abs(a) < 0.3 && Math.abs(b.p.x) > 1) tx = -Math.sign(b.p.x) * goal.w * 0.7;
+  } else if (fin && !curlSide) tx = -Math.sign(b.p.x || 1) * goal.w * 0.7;
+  const build = (ax) => { // ax — куда направлена нога по линии ворот (без учёта вращения)
+    let dx, dz;
+    if (ax !== null) { dx = ax - b.p.x; dz = -b.p.z; if (dz > -0.5) dz = -0.5; } else { dx = Math.sin(P.yaw); dz = Math.cos(P.yaw); }
+    const dl = Math.hypot(dx, dz); dx /= dl; dz /= dl;
+    // скорость: сила + ограниченная добавка от бега вдоль удара
+    const along = Math.max(0, P.v.x * dx + P.v.z * dz);
+    let speed = S.vMin + (S.vMax - S.vMin) * pw + Math.min(S.runBonusMax, along * S.runBonus);
+    if (fin) speed *= S.finesseSpeed;
+    if (chip) speed = Math.max(S.chipMin, speed * S.chipSpeed);
+    // высота у линии ворот: растёт с силой (слабый — низом, полный — под перекладину); перебор силы — выше
+    const hT = (chip ? S.chipHeight : fin ? S.finesseHeight : S.hLow + (S.hHigh - S.hLow) * Math.pow(Math.max(0, pw), 1.5)) + Math.max(0, pw - S.overPower) * S.overLift;
+    const dist = dz < -0.05 ? Math.min(40, b.p.z / -dz) : 20, tt = dist / speed;
+    let vy = (hT - R + 0.5 * CFG.g * tt * tt) / tt; vy = Math.max(0.4, Math.min(speed * 0.6, vy));
+    const vh = Math.sqrt(Math.max(1, speed * speed - vy * vy));
+    const v = vec(dx * vh, vy, dz * vh);
+    // вращение: сильный удар — верхнее (ныряет); подкрутка — вокруг вертикали, уводит мяч к центру ворот (плавно, физикой)
+    const top = chip ? -S.chipBackspin : S.topspin * pw * (fin ? 0.3 : 1); // у переброса — обратное вращение
+    const w = vec(dz * top, 0, -dx * top);
+    if (fin) { const ref = tx !== null ? tx : b.p.x + dx * dist, side = curlSide || (Math.abs(ref) > 0.3 ? Math.sign(ref) : 1); w.y = side * S.finesseSpin; } // w.y > 0 — мяч уходит влево (−x)
+    return { v, w, speed };
+  };
+  let ax = tx, sv = build(ax);
+  // подкрутка: нога целит с поправкой на дугу, чтобы мяч пришёл в выбранную точку (после удара мяч летит сам, без доводки)
+  if (fin && tx !== null && b.p.z > 1) for (let i = 0; i < 3; i++) {
+    const cr = predict(b.p, sv.v, sv.w, 0); if (!(cr.t < 2.9)) break;
+    const e = cr.p.x - tx; if (Math.abs(e) < 0.05) break;
+    ax = Math.max(-goal.w * 4, Math.min(goal.w * 4, ax - e)); sv = build(ax);
+  }
+  return sv;
 }
 // импульс удара — ровно один раз; если мяч далеко от ударной точки — нога не достала (промах)
 export function applyShot(b, shotV, contact, who, t) {

@@ -1222,6 +1222,24 @@ function setTvCam(name, snap = true) {
 let lastRaw = 1 / 60;
 // маркер управляемого игрока: тонкое кольцо на газоне вокруг ног (мяч у ноги — внутри кольца)
 let marker = null;
+// Полоска силы удара под ногами (как в FC Mobile): растёт, пока держишь «Удар», цвет — зелёный → жёлтый → оранжевый →
+// красный (полная, мяч уходит высоко). После удара ещё ~1 с показывает выбранную силу. Лежит на газоне поперёк экрана.
+let pbar = null;
+const PBAR_W = 0.9, pbarColor = (p) => (p < 0.3 ? '#4cd964' : p < 0.6 ? '#ffd23f' : p < 0.92 ? '#ff9a2e' : '#ff4f5e');
+function powerBarTick() {
+  if (!FREE() || !run || !shooter) { if (pbar) pbar.visible = false; return; }
+  if (!pbar) {
+    pbar = new THREE.Group(); const mk = (c, o) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.11), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.renderOrder = 2; pbar.add(m); return m; };
+    pbar.userData.bg = mk('#101418', 0.55); pbar.userData.fg = mk('#4cd964', 0.95); pbar.userData.bg.scale.x = PBAR_W; scene.add(pbar);
+  }
+  const charging = run.charge >= 0, show = charging || simT < (run.barUntil || 0);
+  pbar.visible = show; if (!show) return;
+  const p = charging ? chargePw() : run.barPw || 0; if (charging) run.barPw = p;
+  const fg = pbar.userData.fg; fg.scale.x = Math.max(0.02, p) * PBAR_W; fg.position.x = -(1 - p) * PBAR_W / 2; fg.material.color.set(pbarColor(p));
+  // поперёк экрана, чуть ближе к камере, чем ступни
+  cam.getWorldDirection(tmpC); tmpC.y = 0; tmpC.normalize();
+  pbar.position.set(shooter.holder.position.x - tmpC.x * 0.45, 0.035, shooter.holder.position.z - tmpC.z * 0.45); pbar.rotation.y = Math.atan2(-tmpC.x, -tmpC.z); // длинная сторона — вправо по экрану
+}
 function markerTick() {
   if (!marker) { marker = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.57, 48), new THREE.MeshBasicMaterial({ color: '#ffd84a', transparent: true, opacity: 0.85, depthWrite: false }));
     marker.rotation.x = -Math.PI / 2; marker.renderOrder = 1; scene.add(marker); }
@@ -1231,6 +1249,7 @@ function markerTick() {
   if (marker.visible) marker.userData.tri.position.set(shooter.hips.getWorldPosition(tmpC).x, 2.35, tmpC.z);
   const sb = $('#b-swap'); if (sb) sb.classList.toggle('off', marker.visible && ownBall());
   if (marker.visible) marker.position.set(shooter.holder.position.x, 0.03, shooter.holder.position.z);
+  powerBarTick();
 }
 function resetRun() {
   wall.forEach((w) => (w.holder.visible = false));
@@ -1314,6 +1333,10 @@ function input() {
   let x = joy.x, y = joy.y;
   if (keys.KeyA || keys.ArrowLeft) x -= 1; if (keys.KeyD || keys.ArrowRight) x += 1; if (keys.KeyW || keys.ArrowUp) y += 1; if (keys.KeyS || keys.ArrowDown) y -= 1;
   const L = Math.hypot(x, y); if (L > 1) { x /= L; y /= L; }
+  return screenToField(x, y);
+}
+// направление на экране (x — вправо, y — вверх) → в осях поля (y — «к воротам», −z): одинаково при любой камере
+function screenToField(x, y) {
   if (TV()) { // вправо по экрану — вправо на экране при любой камере: переводим в оси поля (y — «к воротам» = −z)
     cam.getWorldDirection(camF); camF.y = 0; camF.normalize(); const rx = -camF.z, rz = camF.x, wx = x * rx + y * camF.x, wz = x * rz + y * camF.z;
     return { x: wx, y: -wz };
@@ -1321,6 +1344,28 @@ function input() {
   return { x, y };
 }
 const camF = new THREE.Vector3();
+// Удар свайпом по полю (матч): провёл пальцем по свободной правой части экрана в сторону ворот — удар туда.
+// Направление — по свайпу (как у джойстика: одинаково при любой камере), сила — по длине свайпа (короткий — слабый и
+// низом, длинный — сильный и выше). На экране остаётся след свайпа. Мяч ещё в пути ко мне — удар сразу после касания.
+const szone = $('#szone'), strail = Object.assign(document.createElement('div'), { className: 'strail' }); document.body.appendChild(strail);
+let sw = null;
+const trail = (x0, y0, x1, y1) => { const dx = x1 - x0, dy = y1 - y0; strail.style.width = Math.hypot(dx, dy) + 'px'; strail.style.transform = `translate(${x0}px, ${y0}px) rotate(${Math.atan2(dy, dx)}rad)`; strail.classList.add('on'); };
+if (szone) {
+  szone.addEventListener('pointerdown', (e) => { if (!MATCH_ON || !run || state !== 'play' || sw) return; e.preventDefault(); sw = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() }; try { szone.setPointerCapture(e.pointerId); } catch (er) { /* без захвата */ } });
+  szone.addEventListener('pointermove', (e) => { if (sw && e.pointerId === sw.id && Math.hypot(e.clientX - sw.x, e.clientY - sw.y) > 12) trail(sw.x, sw.y, e.clientX, e.clientY); });
+  const swEnd = (e, cancel) => { if (!sw || e.pointerId !== sw.id) return; const s0 = sw; sw = null; strail.classList.remove('on'); if (cancel) return;
+    const dx = e.clientX - s0.x, dy = e.clientY - s0.y, L = Math.hypot(dx, dy), dt = (performance.now() - s0.t) / 1000; if (L < 45 || dt > 0.9) return;
+    gestureShot(dx / L, -dy / L, Math.min(1, Math.max(0.15, L / (0.6 * Math.min(innerWidth, innerHeight))))); };
+  szone.addEventListener('pointerup', (e) => swEnd(e, false)); szone.addEventListener('pointercancel', (e) => swEnd(e, true));
+}
+function gestureShot(sx, sy, pw) {
+  if (!MATCH_ON || !run || state !== 'play' || run.strike || run.pass || run.charge >= 0) return;
+  const aim = screenToField(sx, sy); if (aim.y < 0.2) return; // свайп не в сторону ворот — не удар
+  run.barPw = pw; run.barUntil = simT + 1.1;
+  if (TRACE) { run.pressT = simT; console.log('shotPress', JSON.stringify({ t: +simT.toFixed(3), gesture: true, pw: +pw.toFixed(2) })); }
+  if (B.state === 'owned' && B.owner === 'me') doStrike(pw, 'drive', 0, aim);
+  else if (recvSoon()) run.queue = { kind: 'strike', pw, k: 'drive', side: 0, aim, t: simT };
+}
 // держишь «Удар» — копится сила (кольцо), отпустил — удар; жест на кнопке выбирает подкрутку или переброс.
 // Копить можно только с мячом у ноги; во время удара второе нажатие ничего не делает.
 // kind: 'drive' — обычный удар, 'curl' — подкрутка (side: +1 влево, −1 вправо), 'chip' — переброс
@@ -1328,22 +1373,23 @@ function startCharge(kind = 'drive') {
   if (kind === true) kind = 'curl'; else if (kind === false) kind = 'drive';
   if (!FREE() || state !== 'play' || !run || run.charge >= 0 || run.strike || run.pass || run.feint || ((B.state !== 'owned' || B.owner !== 'me') && !recvSoon())) return;
   run.charge = performance.now(); run.kind = kind; run.side = 0; setPower(0); $('#ring').classList.add('on'); hintOff(); shotBadge();
+  if (TRACE) { run.pressT = simT; console.log('shotPress', JSON.stringify({ t: +simT.toFixed(3), owned: B.state === 'owned' && B.owner === 'me' })); }
 }
 function cancelCharge() { if (!run || run.charge < 0) return; run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true); }
 // на кнопке «Удар» — компактная подпись выбранного удара (на поле ничего не рисуем)
 function shotBadge(clear) { const el = $('#shot-g'); if (!el) return; el.textContent = clear || !run || run.charge < 0 ? '' : run.kind === 'curl' ? (run.side > 0 ? '↶ крутить' : run.side < 0 ? 'крутить ↷' : 'крутить') : run.kind === 'chip' ? '⌒ переброс' : ''; }
-const chargePw = () => Math.min(1, (performance.now() - run.charge) / 900); // сила копится по настоящему времени: 0,9 с — полная
+const chargePw = () => Math.min(1, (performance.now() - run.charge) / 600); // сила копится по настоящему времени: 0,6 с — полная (как полоска в FC Mobile, ≈0,5 с)
 function releaseCharge() {
   if (!run || run.charge < 0) return;
-  const pw = chargePw(); run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true);
+  const pw = chargePw(); run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true); run.barPw = pw; run.barUntil = simT + 1.1;
   if (state !== 'play') return;
   if ((B.state !== 'owned' || B.owner !== 'me') && recvSoon()) { run.queue = { kind: 'strike', pw, k: run.kind || 'drive', side: run.side || 0, t: simT }; return; } // мяч ещё в пути — удар сразу после касания
   if (B.state !== 'owned' || B.owner !== 'me') return;
   doStrike(pw, run.kind || 'drive', run.side || 0);
 }
 // замах начинается сразу; мяч остаётся под контролем до касания ноги, импульс — один раз в момент касания (runPhys)
-function doStrike(pw, kind, side) {
-  run.strike = { pw, kind, side, aim: input() }; B.state = 'strike'; B.strikeAt = STRIKE.at;
+function doStrike(pw, kind, side, aim = input()) {
+  run.strike = { pw, kind, side, aim, cmdT: simT }; B.state = 'strike'; B.strikeAt = STRIKE.at;
   play(shooter, 'strike', { t: Math.max(0, STRIKE.tc - 0.3), fade: 0.1, speed: 1.25, follow: true });
 }
 // мяч вот-вот будет мой (пас мне в пути или бегу к свободному мячу, он рядом): нажатие «Пас»/«Удар» запоминается
@@ -1355,7 +1401,7 @@ function recvSoon() {
 }
 function runQueue() {
   const q = run.queue; run.queue = null; if (!q || simT - q.t > 0.7 || B.state !== 'owned' || B.owner !== 'me' || run.strike || run.pass) return;
-  if (q.kind === 'strike') doStrike(q.pw, q.k, q.side);
+  if (q.kind === 'strike') doStrike(q.pw, q.k, q.side, q.aim || input());
   else if (q.kind === 'pass' && startPass(run.P, 'me', shooter, q.power, q.k) && run.pass) run.pass.recv = q.recv || pickReceiver(run.P, input(), false, true);
 }
 function fireStrike() {
@@ -1364,7 +1410,12 @@ function fireStrike() {
   const sv0 = BP.shotVelocity(B, P, s.aim, pw, s.kind, goalDef(), s.side), ob = MATCH_ON ? offBalance(P, sv0) : 0;
   const sv = spreadShot(sv0, (MATCH_ON ? shooter.shotErr || 0 : 0) + 0.07 * ob);
   if (MATCH_ON) MT.kicker = shooter;
-  if (BP.applyShot(B, sv, BP.controlPoint(P, B), 'me', simT)) {
+  const cpT = BP.controlPoint(P, B), dC = Math.hypot(B.p.x - cpT.x, B.p.z - cpT.z);
+  const okShot = BP.applyShot(B, sv, cpT, 'me', simT);
+  if (TRACE) { const cr = okShot ? BP.predict(B.p, B.v, B.w, 0) : null; console.log('shotEv', JSON.stringify({ t: +simT.toFixed(3), sinceCmd: +(simT - (s.cmdT ?? simT)).toFixed(3), sincePress: +(simT - (run.pressT ?? simT)).toFixed(3), ok: okShot, dContact: +dC.toFixed(3), kind: s.kind, side: s.side, pw: +s.pw.toFixed(2), aim: [+s.aim.x.toFixed(2), +s.aim.y.toFixed(2)], ob: +ob.toFixed(2),
+    speed: +sv.speed.toFixed(1), v: [+sv.v.x.toFixed(1), +sv.v.y.toFixed(1), +sv.v.z.toFixed(1)], w: [+sv.w.x.toFixed(1), +sv.w.y.toFixed(1), +sv.w.z.toFixed(1)], from: [+B.p.x.toFixed(1), +B.p.z.toFixed(1)], psp: +Math.hypot(P.v.x, P.v.z).toFixed(1), yaw: +P.yaw.toFixed(2),
+    cross: cr ? [+cr.p.x.toFixed(2), +cr.p.y.toFixed(2), +cr.t.toFixed(2)] : null })); }
+  if (okShot) {
     B.inGoal = false; B.goal = false; B.netHit = false;
     shot = { tx: 0, ty: 0, speed: sv.speed, curve: s.kind === 'curl' ? 1 : 0 }; run.shotT = simT; run.lastPost = null;
     planKeeper(); kicked(s.pw); if (MATCH_ON) statShot(0);
@@ -1909,7 +1960,14 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
 function runAnim(dt) {
   if (TRACE && window.__freeze) return; // проверка поз: кадр записи стоит
   const P = run.P, sp = bodyAnim(shooter, P, dt);
-  if (run.strike && shooter.name === 'strike' && shooter.t >= STRIKE.tc) run.fire = true; // нога дошла до мяча
+  if (run.strike && shooter.name === 'strike' && shooter.t >= STRIKE.tc) { // нога дошла до точки удара
+    // мяч ещё не у ударной ноги (например, сразу после разворота) — нога ждёт его до 0,3 с (замах на паузе), потом удар
+    // отменяется, мяч остаётся у игрока. Раньше нога била «по воздуху», и мяч откатывался как потерянный
+    const cp = BP.controlPoint(P, B), far = Math.hypot(B.p.x - cp.x, B.p.z - cp.z) > BP.CFG.shot.contactR * 0.9 || B.state !== 'strike', S0 = run.strike;
+    if (!far) run.fire = true;
+    else if ((S0.wait = (S0.wait || 0) + dt) < 0.3) { if (shooter.act) shooter.act.time = Math.max(0, STRIKE.tc - 0.05); }
+    else { run.strike = null; if (B.state === 'strike' && B.owner === 'me') { B.state = 'owned'; B.strikeAt = null; } play(shooter, 'idle', { loop: true, fade: 0.2, follow: true }); if (TRACE) console.log('shotEv', JSON.stringify({ t: +simT.toFixed(3), ok: false, cancel: true })); }
+  }
   if (run.pass && shooter.name === 'pass' && shooter.t >= PASS.tc) run.passFire = true;
   const m = run.mate;
   if (m) { bodyAnim(m.pl, m.P, dt); if (m.pass && m.pl.name === 'pass' && m.pl.t >= PASS.tc) m.fire = true; }
@@ -3206,6 +3264,8 @@ if (TRACE) window.__duel = (mx, mz, ox, oz, fx, fz) => { const A = actors(); MT.
 if (TRACE) window.__tackle = () => tryTackle(actorOf('me'));
 if (TRACE) window.__slide = () => trySlide(actorOf('me'));
 if (TRACE) window.__park = () => { for (const a of actors()) if (a.team === 1) { a.P.p.x = -30 + (+a.id.slice(1)) * 5; a.P.p.z = 100; a.P.v.x = a.P.v.z = 0; a.ai.thinkT = 999; a.ai.tx = a.P.p.x; a.ai.tz = 100; a.ai.run = null; } };
+if (TRACE) window.__meYaw = (y) => { run.P.yaw = y; const a = actorOf('me'); if (a) a.pl.vyaw = y; };
+if (TRACE) window.__toScreen = (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(cam), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; };
 if (TRACE) window.__unpark = () => { for (const a of actors()) if (a.ai) a.ai.thinkT = 0; };
 if (TRACE) window.__give = (x, z) => { const me = actorOf('me'), P = me.P; MT.restart = null; MT.gkHold = null; state = 'play'; MT.st = 'play'; if (x !== undefined) { P.p.x = x; P.p.z = z; } P.v.x = P.v.z = 0; placeBall(BP.controlPoint(P, null)); BP.capture(B, P, 'me'); B.trapDur = 0; ballPrev.copy(B.p); };
 if (TRACE) window.__state = () => ({ t: +simT.toFixed(2), owner: B.owner, bs: B.state, ball: [+B.p.x.toFixed(2), +B.p.z.toFixed(2), +Math.hypot(B.v.x, B.v.z).toFixed(1)], me: (() => { const a = actorOf('me'); return [a.pl.nick, +a.P.p.x.toFixed(2), +a.P.p.z.toFixed(2), +Math.hypot(a.P.v.x, a.P.v.z).toFixed(1)]; })(), mates: actors().filter((a) => a.team === 0 && a.id !== 'me').map((a) => [a.id, +a.P.p.x.toFixed(1), +a.P.p.z.toFixed(1), a.ai && a.ai.run ? 1 : 0]), chase: !!run.chase, passTo: run.passTo ? run.passTo.id.nick : null });

@@ -172,11 +172,15 @@ test('18. сброс эпизода — владелец, скорости, вр
   assert.deepEqual([s.b.v.x, s.b.v.y, s.b.v.z, s.b.w.x, s.b.w.y, s.b.w.z], [0, 0, 0, 0, 0, 0]);
   assert.equal(s.b.mustClear, false); assert.equal(s.b.goal, false);
 });
-test('подкрутка уводит мяч плавно и умеренно', () => {
+test('подкрутка: мяч приходит туда же, куда целишь, но летит заметной плавной дугой', () => {
   const plain = shoot(0.6, false, { x: -0.5, y: 1 }), fin = shoot(0.6, true, { x: -0.5, y: 1 });
   const a = M.predict(plain.b.p, plain.b.v, plain.b.w).p, b = M.predict(fin.b.p, fin.b.v, fin.b.w).p;
-  const curl = Math.abs(a.x - b.x);
-  assert.ok(curl > 0.4 && curl < 3.5, `подкрутка увела на ${curl} м`);
+  assert.ok(Math.abs(a.x - b.x) < 0.6, `подкрутка пришла не в цель: ${a.x} против ${b.x}`);
+  // дуга: наибольшее отклонение траектории от прямой «точка удара — точка у ворот»
+  const q = M.newBall(fin.b.p); Object.assign(q.v, fin.b.v); Object.assign(q.w, fin.b.w); const p0 = { x: q.p.x, z: q.p.z };
+  let dev = 0; for (let t = 0; t < 3 && q.p.z > 0; t += M.CFG.dt) { M.stepFree(q, M.CFG.dt, {}); const ux = b.x - p0.x, uz = b.z - p0.z, ul = Math.hypot(ux, uz);
+    dev = Math.max(dev, Math.abs(((q.p.x - p0.x) * uz - (q.p.z - p0.z) * ux) / ul)); }
+  assert.ok(dev > 0.4 && dev < 3.5, `дуга подкрутки ${dev} м`);
 });
 test('край поля у ворот: игрок останавливается, мяч у ноги не уезжает за линию', () => {
   const { CFG } = M, P = M.newPlayer({ x: 4, z: 6 }, Math.PI), b = M.newBall(M.controlPoint(P, null)); M.capture(b, P, 'me'); b.trapDur = 0;
