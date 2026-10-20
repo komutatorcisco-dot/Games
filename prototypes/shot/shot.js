@@ -745,7 +745,9 @@ let simT = 0; const fixed = BP.clockFixed();
 // тела игроков для столкновений с мячом: шары на костях (размеры — как у настоящего тела)
 const PARTS = { LeftHand: [0.1, 'hand'], RightHand: [0.1, 'hand'], LeftForeArm: [0.07, 'hand'], RightForeArm: [0.07, 'hand'], Head: [0.11, 'body'], Spine2: [0.17, 'body'],
   Spine: [0.15, 'body'], Hips: [0.15, 'body'], LeftLeg: [0.09, 'body'], RightLeg: [0.09, 'body'], LeftFoot: [0.08, 'body'], RightFoot: [0.08, 'body'] };
-function makeSpheres(pl, who) { pl.sph = Object.entries(PARTS).map(([name, [r, kind]]) => ({ bone: pl.model.getObjectByName(name), name, r, kind, who, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, init: false })).filter((q) => q.bone); }
+// у вратарей ещё и бёдра: иначе мяч на высоте 0,4–0,9 м проходил между ног (замер: дальний удар в корпус — гол)
+const GK_PARTS = { LeftUpLeg: [0.11, 'body'], RightUpLeg: [0.11, 'body'] };
+function makeSpheres(pl, who) { pl.sph = Object.entries(who === 'gk' || who === 'gk2' ? Object.assign({}, PARTS, GK_PARTS) : PARTS).map(([name, [r, kind]]) => ({ bone: pl.model.getObjectByName(name), name, r, kind, who, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, init: false })).filter((q) => q.bone); }
 function updSpheres(pl, dt) {
   for (const q of pl.sph) {
     q.bone.getWorldPosition(v3);
@@ -771,7 +773,8 @@ function gkSphere(q, c) {
   // ловля — только при настоящем касании: обе кисти у мяча или мяч в корпус, и мяч не слишком быстрый
   const hands = keeper.sph.filter((h) => h.name.endsWith('Hand'));
   const twoHands = hands.length === 2 && hands.every((h) => Math.hypot(B.p.x - h.x, B.p.y - h.y, B.p.z - h.z) < R + h.r + K.twoHands);
-  const chest = q.name === 'Spine2' || q.name === 'Spine';
+  // ловит в движении ловли: мяч в корпус, бёдра или ноги — прижимает (не отскакивает от колен в ворота)
+  const chest = q.name === 'Spine2' || q.name === 'Spine' || (q.kind === 'body' && keeper.name && keeper.name.startsWith('gk_catch') && q.name !== 'Head');
   if (state !== 'over' && state !== 'goal' && ((twoHands && c.rel < K.catchHands) || (chest && c.rel < K.catchChest))) {
     B.state = 'held'; B.owner = 'gk'; B.v.set(0, 0, 0); B.w.set(0, 0, 0); if (kick) kick.held = true;
     sfx.hands(true); sfx.buzz('medium'); finish(false, 'Поймал!', 'miss'); return 'stop';
@@ -850,16 +853,16 @@ function prepKeeper() {
   const lh = keeper.model.getObjectByName('LeftHand'), rh = keeper.model.getObjectByName('RightHand'), loc = (o) => h.worldToLocal(o.getWorldPosition(new THREE.Vector3()));
   GKC = {};
   // по чему искать момент касания: прыжки и броски — руки дальше всего вбок; ловля верхом — руки выше всего
-  for (const [name, by] of [['gk_dive', 'x'], ['gk_dive2', 'x'], ['gk_block', 'x'], ['gk_block2', 'x'], ['gk_catch2', 'y'], ['gk_catch4', 'y'], ['gk_scoop', 'low']]) {
+  for (const [name, by] of [['gk_dive', 'x'], ['gk_dive2', 'x'], ['gk_block', 'x'], ['gk_block2', 'x'], ['gk_catch2', 'y'], ['gk_catch4', 'y'], ['gk_scoop', 'low'], ['gk_catch', 'low']]) {
     const clip = clipOf(name); if (!clip) continue; const a = keeper.mixer.clipAction(clip); keeper.mixer.stopAllAction(); a.reset().play();
-    let best = -1e9, info = null;
+    let best = -1e9, info = null; const tab = [];
     for (let t = 0; t <= clip.duration; t += 1 / 30) {
       keeper.mixer.setTime(t); keeper.model.updateMatrixWorld(true);
       const m = loc(lh).add(loc(rh)).multiplyScalar(0.5), hp = hipsAt(keeper);
-      const score = by === 'x' ? Math.abs(m.x) : by === 'y' ? m.y : -m.y + m.z * 0.3;
+      const score = by === 'x' ? Math.abs(m.x) : by === 'y' ? m.y : -m.y + m.z * 0.3; tab.push([t, m.y]);
       if (score > best) { best = score; info = { tc: t, hx: m.x, hy: m.y, hz: m.z, px: hp.x, dur: clip.duration }; }
     }
-    a.stop(); GKC[name] = info;
+    a.stop(); info.tab = tab; GKC[name] = info;
   }
   keeper.act = null; h.position.copy(keep[0]); h.rotation.copy(keep[1]);
 }
@@ -880,7 +883,15 @@ function keeperDive() { // сейв (и для штрафного с пенал�
   const fast = (G) => THREE.MathUtils.clamp((G.tc * 0.7) / left, 1, 1.6);
   if (kick.wide) { play(keeper, 'gk_ready', { loop: true, fade: 0.25, follow, lock: follow ? null : here() }); kick.fall = false; return; } // мимо — провожает взглядом
   if (ax < (B.v.length() > 20 ? 0.3 : K.nearReach)) { // у тела: ловля (быстрый мяч в стороне — уже прыжок, ловлей не достать)
-    const name = y > 1.75 ? 'gk_catch4' : y > 0.5 ? 'gk_catch2' : (lx > 0 ? 'gk_block' : 'gk_block2'), G = GKC[name];
+    let name = y > 1.75 ? 'gk_catch4' : y > 0.32 ? 'gk_catch2' : (lx > 0 ? 'gk_block' : 'gk_block2'), G = GKC[name];
+    // мяч в корпус на высоте 0,32–1,75 м: ловля, у которой руки в момент касания — на высоте мяча
+    // (низкая ловля у пояса — руки 0,45–0,95 м; «грудь-голова» — 0,95–1,5 м). Раньше всегда руки шли к 1,5 м и мяч проходил под ними
+    if (name === 'gk_catch2' && GKC.gk_catch) {
+      let bt = null, be = 1e9;
+      for (const [nm, t0, t1] of [['gk_catch', 0.35, GKC.gk_catch.tc], ['gk_catch2', 0.05, GKC.gk_catch2.tc]])
+        for (const [t, hy] of GKC[nm].tab) if (t >= t0 && t <= t1 && Math.abs(hy - y) < be) { be = Math.abs(hy - y); bt = [nm, t]; }
+      if (bt) { name = bt[0]; G = Object.assign({}, GKC[name], { tc: bt[1] }); }
+    }
     const fx = name.startsWith('gk_block') ? Math.max(0.15, (ax + 0.1) / Math.max(0.5, Math.abs(G.hx))) : 1;
     const sp = fast(G); play(keeper, name, { t: start(G, sp), speed: sp, fade: 0.18, fx, fz: 0.3, hold: G.dur - 0.04, follow: false, lock: name.startsWith('gk_block') ? null : here() });
     kick.fall = name.startsWith('gk_block'); return;
@@ -1826,7 +1837,10 @@ function autoMoves(pl, P, sp, dt, who) {
 function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег/стойка, касания мяча в такт шагу
   const h = pl.holder, sp = Math.hypot(P.v.x, P.v.z);
   moveTick(pl, P, dt);
-  h.position.set(P.p.x, 0, P.p.z); h.rotation.y = P.yaw;
+  // корпус на экране догоняет направление за ~0,05 с: без рывков от мгновенных поворотов (выпад в отбор, смена цели);
+  // большой скачок (перестановка игроков) — сразу
+  { const y0 = pl.vyaw ?? P.yaw; let dy = P.yaw - y0; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); pl.vyaw = Math.abs(dy) > 2.8 ? P.yaw : y0 + dy * (1 - Math.exp(-dt * 18)); }
+  h.position.set(P.p.x, 0, P.p.z); h.rotation.y = pl.vyaw;
   // наклон: на повороте — внутрь, при разгоне — вперёд
   // (наклон — вокруг точки на газоне: сильнее 0,18 рад внутренняя стопа уходила бы в газон и тело приподнималось)
   const lean = Math.max(-0.18, Math.min(0.18, -P.yawRate * sp * 0.03)), pitch = Math.max(-0.06, Math.min(0.1, P.acc * 0.02));
@@ -3150,6 +3164,11 @@ if (TRACE) window.__shoot = (x, z, ax, ay, pw, kind = 'drive') => { const A = ac
   gkCtx(0, () => { keeperReset(); kick = null; keeper.holder.position.set(0, 0, 0.4); keeper.holder.rotation.set(0, 0, 0); play(keeper, 'gk_idle', { loop: true, fade: 0.1, follow: true }); });
   placeBall(BP.controlPoint(me, null)); BP.capture(B, me, 'me'); B.trapDur = 0; ballPrev.copy(B.p); if (pw < 0) return;
   run.strike = { pw, kind, side: 0, aim: { x: ax, y: ay } }; B.state = 'strike'; B.strikeAt = STRIKE.at; play(shooter, 'strike', { t: Math.max(0, STRIKE.tc - 0.3), fade: 0.1, speed: 1.25, follow: true }); };
+if (TRACE) window.__gkClip = (nm) => gkCtx(0, () => { const h = keeper.holder, keep = [h.position.clone(), h.rotation.clone()]; h.position.set(0, 0, 0); h.rotation.set(0, 0, 0); h.updateMatrixWorld(true);
+  const clip = base.animations.find((c) => c.name === nm); const a = keeper.mixer.clipAction(clip); keeper.mixer.stopAllAction(); a.reset().play(); const out = [];
+  const loc = (n) => h.worldToLocal(keeper.model.getObjectByName(n).getWorldPosition(new THREE.Vector3()));
+  for (let t = 0; t <= clip.duration; t += 0.1) { keeper.mixer.setTime(t); keeper.model.updateMatrixWorld(true); const l = loc('LeftHand'), r = loc('RightHand'), hp = loc('Hips'); out.push([+t.toFixed(1), +((l.x + r.x) / 2).toFixed(2), +((l.y + r.y) / 2).toFixed(2), +((l.z + r.z) / 2).toFixed(2), +hp.y.toFixed(2), +hp.x.toFixed(2)]); }
+  a.stop(); h.position.copy(keep[0]); h.rotation.copy(keep[1]); return out; });
 if (TRACE) window.__gkGot = (j) => { MT.restart = null; gkGot(j); };
 // для проверки: свободный мяч в заданной точке и с заданной скоростью (лежащий / медленно катящийся)
 if (TRACE) window.__ball = (x, z, vx = 0, vz = 0) => { if (B.state === 'owned' || B.state === 'strike') BP.release(B, B.owner, simT, 0.5, false); B.state = 'free'; B.owner = null; B.p.set(x, R, z); B.v.set(vx, 0, vz); B.w.set(0, 0, 0); ballPrev.copy(B.p); if (run) run.shotT = simT; };
