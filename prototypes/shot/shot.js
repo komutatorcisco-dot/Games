@@ -1701,6 +1701,13 @@ function keeperAI(h) {
   if (MATCH_ON && MT.back && gkCur === 1) return; // пас назад своему вратарю — двигается gkBackPass
   if (kick && !kick.dived) { // удар уже был: до реакции стоит, после — приставным шагом к мячу (дальний удар), прыжок позже
     if (kick.wait) {
+      // вратарь следит за мячом: чем ближе мяч, тем точнее он видит, куда тот летит (ошибка первой оценки тает к моменту прыжка)
+      if ((kick.seeT = (kick.seeT || 0) - h) <= 0 && B.state === 'free') {
+        kick.seeT = 0.05; const q = predict(B.p, B.v, B.w, kick.kz), rest = Math.max(0, kick.T - kick.t);
+        if (kick.e0 === undefined) kick.e0 = kick.ex - kick.cx;
+        kick.cx = q.p.x; kick.cy = q.p.y; kick.ex = q.p.x + kick.e0 * Math.min(1, rest / Math.max(0.3, kick.T)) * 0.5;
+        kick.T = kick.t + q.t; kick.react = kick.T - 0.2;
+      }
       const tx = THREE.MathUtils.clamp(kick.ex, -GW + 0.6, GW - 0.6), dx = tx - k.position.x, st = Math.sign(dx) * Math.min(Math.abs(dx), K.lateral * 1.15 * h);
       k.position.x += st; if (Math.abs(dx) > 0.05) { const nm = dx > 0 === (Math.cos(k.rotation.y) > 0) ? 'gk_step' : 'gk_side2'; if (keeper.name !== nm) play(keeper, nm, { loop: true, fade: 0.12, follow: true }); }
       else if (keeper.name !== 'gk_ready') play(keeper, 'gk_ready', { loop: true, fade: 0.15, follow: true });

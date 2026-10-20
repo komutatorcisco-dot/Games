@@ -72,6 +72,7 @@ export const CFG = {
     charging: 0.55,         // пока копишь удар — медленнее (джойстик в это время целится)
     accel: 3.2, decel: 5.5, // разгон и торможение (скорость приближения к желаемой, 1/с) — у игрока есть вес
     turn: 9,                // скорость разворота корпуса, 1/с
+    curve: 11, curveMin: 4, // на бегу направление скорости поворачивается не быстрее (curve − скорость), но не медленнее curveMin, рад/с
     turnAtSprint: 0.55,     // на полном ходу разворачивается медленнее (доля)
     bounds: { x: 30, zMin: 1.2, zMax: 42 },
   },
@@ -353,7 +354,13 @@ export function playerStep(P, inp, h, withBall) {
   P.wx = wx; P.wz = wz; // чего хочет игрок (по нему видно резкий разворот)
   if (P.drive) { P.v.x = P.drive.x; P.v.z = P.drive.z; } // скорость задаёт запись движения (подкат, разворот), джойстик в это время не действует
   else { const k = 1 - Math.exp(-h * (want > sp0 ? C.accel * (P.boost || 1) * (P.accK || 1) : C.decel)); // boost — рывок к свободному мячу (автоподбор)
-    P.v.x += (wx - P.v.x) * k; P.v.z += (wz - P.v.z) * k; }
+    // на бегу поворот — дугой: направление скорости поворачивается не быстрее curve (на рывке медленнее), а не «ломается»;
+    // разворот больше ~120° — как раньше (торможение и разворот)
+    let d = 0; if (sp0 > 1.8 && want > 0.5) { d = Math.atan2(wx, wz) - Math.atan2(P.v.x, P.v.z); d = Math.atan2(Math.sin(d), Math.cos(d)); }
+    if (d !== 0 && Math.abs(d) < 2.1) {
+      const maxW = Math.max(C.curveMin, C.curve - sp0), a = Math.atan2(P.v.x, P.v.z) + Math.max(-maxW * h, Math.min(maxW * h, d)), m = sp0 + (want - sp0) * k;
+      P.v.x = Math.sin(a) * m; P.v.z = Math.cos(a) * m;
+    } else { P.v.x += (wx - P.v.x) * k; P.v.z += (wz - P.v.z) * k; } }
   const nx = P.p.x + P.v.x * h, nz = P.p.z + P.v.z * h;
   P.p.x = Math.max(-C.bounds.x, Math.min(C.bounds.x, nx));
   P.p.z = Math.max(C.bounds.zMin, Math.min(C.bounds.zMax, nz));
@@ -418,7 +425,10 @@ export function firstTouch(b, P, who, intent, again = false) {
   // без джойстика — подушка: мяч гасится у ноги, не быстрее 1,6 м/с (раньше быстрый пас после касания откатывался
   // на 3–4 м/с, игрок тормозил, мяч уходил от него — его подбирал другой). Замер цепочки пасов: 27 из 27, потерь 0;
   // вариант «мяч катится с бегущим игроком» — 9 потерь из 26
-  const s = il > 0.2 ? Math.max(0, P.v.x * dx + P.v.z * dz) + C.touchOut * Math.min(1, il) + C.touchKeep * rel : Math.min(1.6, Math.max(0, P.v.x * dx + P.v.z * dz) * 0.3 + C.touchSoft + C.touchKeep * 0.25 * rel);
+  // с джойстиком: мяч уходит не дальше чем на ~2 м/с быстрее игрока; если игрок бежит в другую сторону — короткое касание
+  // (он развернётся и заберёт), иначе мяч уезжал от него на 5+ м/с и сразу считался потерянным
+  const pv = P.v.x * dx + P.v.z * dz;
+  const s = il > 0.2 ? (pv < 0.5 ? Math.min(1.2, 0.5 + C.touchOut * 0.5 * Math.min(1, il)) : Math.min(pv + 2.2, pv + C.touchOut * Math.min(1, il) + C.touchKeep * Math.min(rel, 8))) : Math.min(1.6, Math.max(0, P.v.x * dx + P.v.z * dz) * 0.3 + C.touchSoft + C.touchKeep * 0.25 * rel);
   b.v.x = dx * s; b.v.z = dz * s; b.w.x = b.v.z / CFG.R; b.w.y = 0; b.w.z = -b.v.x / CFG.R;
   b.trapT = 0; b.trapDur = C.touchFree + C.touchFreePerV * rel; b.touchFirst = true; b.touchSoft = !(il > 0.2);
   return rel;
@@ -488,7 +498,8 @@ export function controlStep(b, P, h, obstacles) {
   b.w.x = b.v.z / R; b.w.y = 0; b.w.z = -b.v.x / R;
   // покой у ноги: без микродрожания
   if (Math.hypot(P.v.x, P.v.z) < 0.05 && Math.hypot(ex, ez) < 0.004 && Math.hypot(b.v.x, b.v.z) < 0.05) { b.v.x = 0; b.v.z = 0; b.w.x = 0; b.w.z = 0; }
-  if (Math.hypot(cp.x - b.p.x, cp.z - b.p.z) > (b.touchFirst ? C.touchLose : C.loseDist)) return release(b, null, 0, 0.25), 'lost';
+  // мяч ушёл после приёма сам (без соперника) — свободен, и тот же игрок может сразу снова его взять
+  if (Math.hypot(cp.x - b.p.x, cp.z - b.p.z) > (b.touchFirst ? C.touchLose : C.loseDist)) return release(b, null, 0, 0.25, !b.touchFirst), 'lost';
   return null;
 }
 // отпустить мяч (удар, потеря); lock — сколько секунд бывший владелец не может его снова взять
