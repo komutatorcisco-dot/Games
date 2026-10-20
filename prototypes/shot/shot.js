@@ -777,7 +777,7 @@ function gkSphere(q, c) {
   const hands = keeper.sph.filter((h) => h.name.endsWith('Hand'));
   const twoHands = hands.length === 2 && hands.every((h) => Math.hypot(B.p.x - h.x, B.p.y - h.y, B.p.z - h.z) < R + h.r + K.twoHands);
   // ловит в движении ловли: мяч в корпус, бёдра или ноги — прижимает (не отскакивает от колен в ворота)
-  const chest = q.name === 'Spine2' || q.name === 'Spine' || (q.kind === 'body' && keeper.name && keeper.name.startsWith('gk_catch') && q.name !== 'Head');
+  const chest = q.name === 'Spine2' || q.name === 'Spine' || (q.kind === 'body' && keeper.name && keeper.name.startsWith('gk_catch') && q.name !== 'Head' && c.rel < K.catchLegs);
   if (state !== 'over' && state !== 'goal' && ((twoHands && c.rel < K.catchHands) || (chest && c.rel < K.catchChest))) {
     B.state = 'held'; B.owner = 'gk'; B.v.set(0, 0, 0); B.w.set(0, 0, 0); if (kick) kick.held = true;
     sfx.hands(true); sfx.buzz('medium'); finish(false, 'Поймал!', 'miss'); return 'stop';
@@ -1720,7 +1720,7 @@ function keeperAI(h) {
       if ((kick.seeT = (kick.seeT || 0) - h) <= 0 && B.state === 'free') {
         kick.seeT = 0.05; const q = predict(B.p, B.v, B.w, kick.kz), rest = Math.max(0, kick.T - kick.t);
         if (kick.e0 === undefined) kick.e0 = kick.ex - kick.cx;
-        kick.cx = q.p.x; kick.cy = q.p.y; kick.ex = q.p.x + kick.e0 * Math.min(1, rest / Math.max(0.3, kick.T)) * 0.5;
+        kick.cx = q.p.x; kick.cy = q.p.y; kick.ex = q.p.x + kick.e0 * (0.45 + 0.55 * Math.min(1, rest / Math.max(0.3, kick.T))); // часть ошибки остаётся — вратарь не идеален
         kick.T = kick.t + q.t; kick.react = kick.T - 0.2;
       }
       const tx = THREE.MathUtils.clamp(kick.ex, -GW + 0.6, GW - 0.6), dx = tx - k.position.x, st = Math.sign(dx) * Math.min(Math.abs(dx), K.lateral * 1.15 * h);
