@@ -1358,9 +1358,25 @@ if (szone) {
     gestureShot(dx / L, -dy / L, Math.min(1, Math.max(0.15, L / (0.6 * Math.min(innerWidth, innerHeight))))); };
   szone.addEventListener('pointerup', (e) => swEnd(e, false)); szone.addEventListener('pointercancel', (e) => swEnd(e, true));
 }
+// куда указывает свайп: продлеваем его от игрока на экране до линии ворот на экране — там и цель удара
+// (на экране углы к левой и правой штанге отличаются на несколько градусов — по одному направлению прицел не попадал)
+function gestureAim(sx, sy, fallback) {
+  const r = ren.domElement.getBoundingClientRect(), pr = (x, y, z) => { const v = tmpC.set(x, y, z).project(cam); return [(v.x + 1) / 2 * r.width, (1 - v.y) / 2 * r.height]; }; // в пикселях экрана
+  const P0 = pr(run.P.p.x, 0, run.P.p.z), A = pr(-10, 1, 0), Bq = pr(10, 1, 0), d = [sx, -sy], e = [Bq[0] - A[0], Bq[1] - A[1]], den = d[0] * e[1] - d[1] * e[0];
+  if (Math.abs(den) < 1e-6) return fallback;
+  const w0 = [A[0] - P0[0], A[1] - P0[1]], t = (w0[0] * e[1] - w0[1] * e[0]) / den, u = (w0[0] * d[1] - w0[1] * d[0]) / den;
+  if (t <= 0) return fallback;
+  // точка на экране → метры на линии ворот: из-за перспективы середина отрезка на экране — не середина ворот, ищем делением
+  const ee = e[0] * e[0] + e[1] * e[1], uOf = (x) => { const q = pr(x, 1, 0); return ((q[0] - A[0]) * e[0] + (q[1] - A[1]) * e[1]) / ee; };
+  let lo = -10, hi = 10; for (let k = 0; k < 30; k++) { const mid = (lo + hi) / 2; if (uOf(mid) < u) lo = mid; else hi = mid; }
+  const tx = Math.max(-1.6 * GW, Math.min(1.6 * GW, (lo + hi) / 2)), an = (tx / GW) * BP.CFG.shot.stickAngle;
+  if (TRACE) run.gestTx = tx;
+  return { x: Math.sin(an), y: Math.cos(an) };
+}
 function gestureShot(sx, sy, pw) {
   if (!MATCH_ON || !run || state !== 'play' || run.strike || run.pass || run.charge >= 0) return;
-  const aim = screenToField(sx, sy); if (aim.y < 0.2) return; // свайп не в сторону ворот — не удар
+  let aim = screenToField(sx, sy); if (aim.y < 0.2) return; // свайп не в сторону ворот — не удар
+  aim = gestureAim(sx, sy, aim);
   run.barPw = pw; run.barUntil = simT + 1.1;
   if (TRACE) { run.pressT = simT; console.log('shotPress', JSON.stringify({ t: +simT.toFixed(3), gesture: true, pw: +pw.toFixed(2) })); }
   if (B.state === 'owned' && B.owner === 'me') doStrike(pw, 'drive', 0, aim);
@@ -3265,7 +3281,8 @@ if (TRACE) window.__tackle = () => tryTackle(actorOf('me'));
 if (TRACE) window.__slide = () => trySlide(actorOf('me'));
 if (TRACE) window.__park = () => { for (const a of actors()) if (a.team === 1) { a.P.p.x = -30 + (+a.id.slice(1)) * 5; a.P.p.z = 100; a.P.v.x = a.P.v.z = 0; a.ai.thinkT = 999; a.ai.tx = a.P.p.x; a.ai.tz = 100; a.ai.run = null; } };
 if (TRACE) window.__meYaw = (y) => { run.P.yaw = y; const a = actorOf('me'); if (a) a.pl.vyaw = y; };
-if (TRACE) window.__toScreen = (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(cam), r = renderer.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; };
+if (TRACE) window.__toScreen = (x, y, z) => { const v = new THREE.Vector3(x, y, z).project(cam), r = ren.domElement.getBoundingClientRect(); return [r.left + (v.x + 1) / 2 * r.width, r.top + (1 - v.y) / 2 * r.height]; };
+if (TRACE) window.__gestTx = (sx, sy) => { gestureAim(sx, sy, null); return run.gestTx; };
 if (TRACE) window.__unpark = () => { for (const a of actors()) if (a.ai) a.ai.thinkT = 0; };
 if (TRACE) window.__give = (x, z) => { const me = actorOf('me'), P = me.P; MT.restart = null; MT.gkHold = null; state = 'play'; MT.st = 'play'; if (x !== undefined) { P.p.x = x; P.p.z = z; } P.v.x = P.v.z = 0; placeBall(BP.controlPoint(P, null)); BP.capture(B, P, 'me'); B.trapDur = 0; ballPrev.copy(B.p); };
 if (TRACE) window.__state = () => ({ t: +simT.toFixed(2), owner: B.owner, bs: B.state, ball: [+B.p.x.toFixed(2), +B.p.z.toFixed(2), +Math.hypot(B.v.x, B.v.z).toFixed(1)], me: (() => { const a = actorOf('me'); return [a.pl.nick, +a.P.p.x.toFixed(2), +a.P.p.z.toFixed(2), +Math.hypot(a.P.v.x, a.P.v.z).toFixed(1)]; })(), mates: actors().filter((a) => a.team === 0 && a.id !== 'me').map((a) => [a.id, +a.P.p.x.toFixed(1), +a.P.p.z.toFixed(1), a.ai && a.ai.run ? 1 : 0]), chase: !!run.chase, passTo: run.passTo ? run.passTo.id.nick : null });
