@@ -91,6 +91,13 @@ function backPrint(pl, name, num, kit) {
 }
 // разброс: поворот скорости мяча вокруг вертикали (нормальное распределение, sd — рад) и множитель силы
 const gauss = () => { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); };
+// удар «из неудобного положения» (как в FC Mobile): корпус развёрнут от направления удара больше чем на ~50° —
+// мяч слабее (до −22%) и неточнее (до +4° разброса). Возвращает долю 0…1
+function offBalance(P, sv) {
+  const l = Math.hypot(sv.v.x, sv.v.z) || 1, c = (Math.sin(P.yaw) * sv.v.x + Math.cos(P.yaw) * sv.v.z) / l;
+  const f = THREE.MathUtils.smoothstep(Math.acos(Math.max(-1, Math.min(1, c))), 0.9, 2.3); if (f <= 0) return 0;
+  const k = 1 - 0.22 * f; sv.v.x *= k; sv.v.y *= k; sv.v.z *= k; if (sv.speed) sv.speed *= k; return f;
+}
 function spreadShot(sv, sd, pw = 0) { if (!sd) return sv; const a = gauss() * sd, c = Math.cos(a), sn = Math.sin(a), x = sv.v.x, z = sv.v.z; sv.v.x = x * c + z * sn; sv.v.z = -x * sn + z * c; if (pw) { const m = 1 + gauss() * pw; sv.v.x *= m; sv.v.z *= m; } return sv; }
 const MATCH = { L: 105, HW: 34, N: NSIDE, time: Math.max(30, Math.min(900, Number(Q.get('mt')) || (NSIDE > 3 ? 300 : 180))) };
 const NIGHT = Q.get('night') === '1'; // по умолчанию — дневной матч
@@ -1271,6 +1278,7 @@ gestureButton($('#b-shot'), {
   // Мяч у соперника (матч) — эта же кнопка «Отбор»: короткое нажатие — попытка выбить мяч.
   onGesture: (dir) => { if (btn.tk || !run || run.charge < 0) return;
     if (dir === 'left' || dir === 'right') { run.kind = 'curl'; run.side = dir === 'left' ? 1 : -1; } else if (dir === 'up') { run.kind = 'chip'; run.side = 0; }
+    else if (dir === 'down') { run.kind = 'curl'; run.side = 0; } // вниз — подкрутка в дальний угол (как finesse в FC Mobile)
     shotBadge(); },
   onUp: (mode, held, cancel) => { if (btn.tk) { btn.tk = false; return; } if (cancel) cancelCharge(); else releaseCharge(); },
 });
@@ -1339,21 +1347,22 @@ function doStrike(pw, kind, side) {
   play(shooter, 'strike', { t: Math.max(0, STRIKE.tc - 0.3), fade: 0.1, speed: 1.25, follow: true });
 }
 // мяч вот-вот будет мой (пас мне в пути или бегу к свободному мячу, он рядом): нажатие «Пас»/«Удар» запоминается
-// и выполняется сразу после касания (один раз; старше 0,5 с — забывается)
+// и выполняется сразу после касания (один раз; старше 0,7 с — забывается)
 function recvSoon() {
   if (!MATCH_ON || !run || state !== 'play' || B.state !== 'free') return false;
   const me = actorOf('me'), pt = passInFlight(); if (!me) return false;
   return ((pt && pt.id === me.pl) || run.chase) && Math.hypot(B.p.x - me.P.p.x, B.p.z - me.P.p.z) < 5;
 }
 function runQueue() {
-  const q = run.queue; run.queue = null; if (!q || simT - q.t > 0.5 || B.state !== 'owned' || B.owner !== 'me' || run.strike || run.pass) return;
+  const q = run.queue; run.queue = null; if (!q || simT - q.t > 0.7 || B.state !== 'owned' || B.owner !== 'me' || run.strike || run.pass) return;
   if (q.kind === 'strike') doStrike(q.pw, q.k, q.side);
   else if (q.kind === 'pass' && startPass(run.P, 'me', shooter, q.power, q.k) && run.pass) run.pass.recv = q.recv || pickReceiver(run.P, input(), false, true);
 }
 function fireStrike() {
   const s = run.strike, P = run.P; run.strike = null;
   const pw = MATCH_ON ? (s.pw > 0.92 ? s.pw : Math.min(0.92, s.pw * (shooter.shotK || 1))) : s.pw; // матч: «удар» карточки чуть добавляет силы
-  const sv = spreadShot(BP.shotVelocity(B, P, s.aim, pw, s.kind, goalDef(), s.side), MATCH_ON ? shooter.shotErr || 0 : 0);
+  const sv0 = BP.shotVelocity(B, P, s.aim, pw, s.kind, goalDef(), s.side), ob = MATCH_ON ? offBalance(P, sv0) : 0;
+  const sv = spreadShot(sv0, (MATCH_ON ? shooter.shotErr || 0 : 0) + 0.07 * ob);
   if (MATCH_ON) MT.kicker = shooter;
   if (BP.applyShot(B, sv, BP.controlPoint(P, B), 'me', simT)) {
     B.inGoal = false; B.goal = false; B.netHit = false;
@@ -2406,7 +2415,8 @@ function botShoot(a, tx, pw) {
 function fireBotStrike(a) {
   const s = a.ai.strike; a.ai.strike = null;
   const shoot = (tx) => { const ang = Math.max(-1.6, Math.min(1.6, tx / GW)) * BP.CFG.shot.stickAngle, aim = { x: Math.sin(ang), y: Math.cos(ang) };
-    const sv = spreadShot(BP.shotVelocity(B, a.P, aim, Math.min(0.92, s.pw * (a.pl.shotK || 1)), 'drive', goalDef(), 0), a.pl.shotErr || 0);
+    const sv0 = BP.shotVelocity(B, a.P, aim, Math.min(0.92, s.pw * (a.pl.shotK || 1)), 'drive', goalDef(), 0), ob = offBalance(a.P, sv0);
+    const sv = spreadShot(sv0, (a.pl.shotErr || 0) + 0.07 * ob);
     if (BP.applyShot(B, sv, BP.controlPoint(a.P, B), a.id, simT)) { BP.clearGoalFlags(B); planKeeper(); return true; } sfx.touch(); return false; };
   const ok = a.team === 0 ? withGK(0, () => shoot(s.tx)) : withGK(1, () => shoot(-s.tx));
   if (ok) { kicked(s.pw); MT.last = a.team; MT.kicker = a.pl; statShot(a.team); }
