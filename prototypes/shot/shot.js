@@ -1184,7 +1184,9 @@ const tvFocus = new THREE.Vector3();
 // yaw — откуда смотрит камера (0° — с боковой линии +x, 90° — из-за спины атаки, со стороны +z);
 // near/far — сколько метров от центра кадра видно к камере/вглубь (активный игрок всегда в этих пределах).
 const TV_CAMS = {
-  tv: { label: 'Трансляция', yaw: 0, side: 27, h: 16.5, fov: 31, ahead: 7, zMin: 1, near: 6, far: 8, right: 7, left: 14 }, // как в FC Mobile: ~35° сверху, перспектива
+  // как в записи матча FC Mobile (пользователь, 21.10): камера дальше и ниже (≈17° над полем, было ≈31°) — круг центра в ≈4 раза
+  // шире своей высоты (было в 2 раза), видна дальняя бровка; кадр чуть впереди по ходу атаки
+  tv: { label: 'Трансляция', yaw: 0, side: 38, h: 12, fov: 25, lookIn: 4, lead: 5, ahead: 7, zMin: 1, near: 6, far: 8, right: 7, left: 14 },
   behind: { label: 'Сверху', yaw: 90, side: 22, h: 27.5, fov: 26, ahead: 7, zMin: 0.5, near: 7, far: 9, right: 2.5, left: 12 },  // ~46° сверху, ~35 м
   side: { label: 'Сбоку', yaw: 0, side: 27.5, h: 30.5, fov: 20, ahead: 7, zMin: 1, near: 4.5, far: 6.5, right: 4, left: 11 },       // ~48° сверху, ~41 м
   diag: { label: 'Диагональ', yaw: 25, side: 29.5, h: 28, fov: 20, ahead: 7, zMin: 1, near: 4.5, far: 6.5, right: 6, left: 12 },
@@ -1197,6 +1199,8 @@ function matchCam(out, snap) {
   const C = CAM_TV, a = run ? run.P.p : { x: 0, z: MATCH.L / 2 }, celeP = state === 'goal' && MT.cele && MT.stT > 0.8 ? MT.cele.hero.holder.position : null, bp = celeP || ball.position;
   // главное — мяч: он всегда в кадре; управляемый игрок добавляет немного (если он далеко от мяча, может уйти за край)
   let fx = bp.x * 0.75 + a.x * 0.25, fz = bp.z * 0.75 + a.z * 0.25;
+  // кадр впереди по ходу атаки того, у кого мяч (как в FC Mobile: мяч левее центра, когда атакуем вправо)
+  if (C.lead && MATCH_ON) { const ot = ownerTeam(), want = ot >= 0 ? fwdZ(ot) * C.lead : 0; tvLead += (want - tvLead) * Math.min(1, lastRaw * 1.5); fz += tvLead; }
   const yaw = THREE.MathUtils.degToRad(C.yaw || 0), dx = Math.cos(yaw), dz = Math.sin(yaw);
   { const d = (bp.x - fx) * dx + (bp.z - fz) * dz, sh = d > C.near ? d - C.near : d < -C.far ? d + C.far : 0; fx += dx * sh; fz += dz * sh;
     const rx = dz, rz = -dx, l = (bp.x - fx) * rx + (bp.z - fz) * rz, lim = 7, sl = l > lim ? l - lim : l < -lim ? l + lim : 0; fx += rx * sl; fz += rz * sl; }
@@ -1209,9 +1213,10 @@ function matchCam(out, snap) {
     const vmax = 22; const vl = Math.hypot(tvVel.x, tvVel.z); if (vl > vmax) { tvVel.x *= vmax / vl; tvVel.z *= vmax / vl; }
     tvFocus.x += tvVel.x * dt; tvFocus.z += tvVel.z * dt;
   }
-  out.l.set(tvFocus.x, 0.6, tvFocus.z); out.p.set(out.l.x + C.side * dx, C.h, out.l.z + C.side * dz);
+  out.p.set(tvFocus.x + C.side * dx, C.h, tvFocus.z + C.side * dz); out.l.set(tvFocus.x + (C.lookIn || 0) * dx, 0.6, tvFocus.z + (C.lookIn || 0) * dz);
 }
 const tvVel = new THREE.Vector3();
+let tvLead = 0;
 function tvCam(out, snap) {
   if (MATCH_ON) return matchCam(out, snap);
   const C = CAM_TV, m = run && run.mate, a = run ? run.P.p : { x: 0, z: 20 }, b = m ? m.P.p : a, bp = ball.position;
@@ -1246,25 +1251,40 @@ function powerBarTick() {
   if (!pbar) {
     pbar = new THREE.Group(); const mk = (c, o) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.17), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.renderOrder = 2; pbar.add(m); return m; };
     pbar.userData.bg = mk('#101418', 0.55); pbar.userData.fg = mk('#4cd964', 0.95); pbar.userData.bg.scale.x = PBAR_W; scene.add(pbar);
+    pbar.userData.ticks = [1, 2, 3].map((k) => { const t = mk('#5b6570', 0.9); t.scale.set(0.03, 0.6, 1); t.position.x = (k / 4 - 0.5) * PBAR_W; t.position.y = 0.002; return t; }); // деления — как у полоски паса в FC Mobile
   }
   const passing = passIn.down >= 0 && !gkMine() && (owning() && B.owner === 'me' || recvSoon()); // держу «Пас» — та же полоска
   const charging = run.charge >= 0, show = charging || passing || simT < (run.barUntil || 0);
   pbar.visible = show; if (!show) return;
-  const p = charging ? chargePw() : passing ? passPw((performance.now() - passIn.down) / 1000) : run.barPw || 0; if (charging || passing) run.barPw = p;
-  const fg = pbar.userData.fg; fg.scale.x = Math.max(0.02, p) * PBAR_W; fg.position.x = -(1 - p) * PBAR_W / 2; fg.material.color.set(pbarColor(p));
+  const p = charging ? chargePw() : passing ? passPw((performance.now() - passIn.down) / 1000) : run.barPw || 0; if (charging || passing) { run.barPw = p; run.barPass = passing; run.barPl = shooter; }
+  // пас — зелёная полоска с делениями (FC Mobile); удар — цвет по силе. После паса полоска остаётся под пасующим, а не
+  // переезжает к получателю
+  const isPass = passing || (!charging && run.barPass), pl = (!charging && !passing && run.barPl) || shooter;
+  const fg = pbar.userData.fg; fg.scale.x = Math.max(0.02, p) * PBAR_W; fg.position.x = -(1 - p) * PBAR_W / 2; fg.material.color.set(isPass ? '#3ee05a' : pbarColor(p));
+  pbar.userData.ticks.forEach((t) => (t.visible = isPass));
   // поперёк экрана, чуть ближе к камере, чем ступни
   cam.getWorldDirection(tmpC); tmpC.y = 0; tmpC.normalize();
-  pbar.position.set(shooter.holder.position.x - tmpC.x * 0.45, 0.035, shooter.holder.position.z - tmpC.z * 0.45); pbar.rotation.y = Math.atan2(-tmpC.x, -tmpC.z); // длинная сторона — вправо по экрану
+  pbar.position.set(pl.holder.position.x - tmpC.x * 0.45, 0.035, pl.holder.position.z - tmpC.z * 0.45); pbar.rotation.y = Math.atan2(-tmpC.x, -tmpC.z); // длинная сторона — вправо по экрану
 }
 function markerTick() {
   if (!marker) { marker = new THREE.Mesh(new THREE.RingGeometry(0.5, 0.57, 48), new THREE.MeshBasicMaterial({ color: '#ffd84a', transparent: true, opacity: 0.85, depthWrite: false }));
     marker.rotation.x = -Math.PI / 2; marker.renderOrder = 1; scene.add(marker); }
   if (!marker.userData.tri) { // небольшой треугольник над головой активного игрока (как в мобильном футболе)
     const t = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.26, 3), new THREE.MeshBasicMaterial({ color: '#3fe0a8' })); t.rotation.x = Math.PI; scene.add(t); marker.userData.tri = t; }
-  marker.visible = TEAM() && !!run && !!run.mate; marker.userData.tri.visible = marker.visible;
-  if (marker.visible) marker.userData.tri.position.set(shooter.hips.getWorldPosition(tmpC).x, 2.35, tmpC.z);
-  const sb = $('#b-swap'); if (sb) sb.classList.toggle('off', marker.visible && ownBall());
+  if (!marker.userData.arrow) { // белая «галочка» на газоне перед игроком — куда он бежит / куда джойстик (FC Mobile)
+    const sh = new THREE.Shape(); sh.moveTo(0, 0.42); sh.lineTo(0.36, -0.12); sh.lineTo(0, 0.02); sh.lineTo(-0.36, -0.12); sh.closePath();
+    const ar = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.92, depthWrite: false }));
+    ar.rotation.order = 'YXZ'; ar.renderOrder = 2; scene.add(ar); marker.userData.arrow = ar; marker.userData.ay = 0; }
+  const on = TEAM() && !!run && !!run.mate; marker.visible = on && !MATCH_ON; marker.userData.tri.visible = on; // в матче кольца нет — как в FC Mobile
+  if (on) marker.userData.tri.position.set(shooter.hips.getWorldPosition(tmpC).x, 2.35, tmpC.z);
+  const sb = $('#b-swap'); if (sb) sb.classList.toggle('off', on && ownBall());
   if (marker.visible) marker.position.set(shooter.holder.position.x, 0.03, shooter.holder.position.z);
+  const ar = marker.userData.arrow, P = run && run.P;
+  if (ar) { ar.visible = on && MATCH_ON && state === 'play';
+    if (ar.visible) { const i = input(), il = Math.hypot(i.x, i.y), vs = Math.hypot(P.v.x, P.v.z);
+      const want = il > 0.25 ? Math.atan2(i.x, -i.y) : vs > 0.5 ? Math.atan2(P.v.x, P.v.z) : P.yaw;
+      let d = want - marker.userData.ay; d = Math.atan2(Math.sin(d), Math.cos(d)); marker.userData.ay += d * Math.min(1, lastRaw * 14);
+      const ay = marker.userData.ay, hp = shooter.holder.position; ar.position.set(hp.x + Math.sin(ay) * 1.15, 0.04, hp.z + Math.cos(ay) * 1.15); ar.rotation.set(-Math.PI / 2, ay + Math.PI, 0); } } // форма лежит носом к −z: поворот на 180° — носом по ходу
   powerBarTick(); tapFxTick(Math.min(0.1, lastRaw));
 }
 function resetRun() {
@@ -1424,7 +1444,7 @@ function gestureShot(sx, sy, pw) {
   if (!MATCH_ON || !run || state !== 'play' || run.strike || run.pass || run.charge >= 0) return;
   let aim = screenToField(sx, sy); if (aim.y < 0.2) return; // свайп не в сторону ворот — не удар
   aim = gestureAim(sx, sy, aim);
-  run.barPw = pw; run.barUntil = simT + 1.1;
+  run.barPw = pw; run.barUntil = simT + 1.1; run.barPass = false; run.barPl = shooter;
   if (TRACE) { run.pressT = simT; console.log('shotPress', JSON.stringify({ t: +simT.toFixed(3), gesture: true, pw: +pw.toFixed(2) })); }
   if (B.state === 'owned' && B.owner === 'me') doStrike(pw, 'drive', 0, aim);
   else if (recvSoon()) run.queue = { kind: 'strike', pw, k: 'drive', side: 0, aim, t: simT };
@@ -1444,7 +1464,7 @@ function shotBadge(clear) { const el = $('#shot-g'); if (!el) return; el.textCon
 const chargePw = () => Math.min(1, (performance.now() - run.charge) / 600); // сила копится по настоящему времени: 0,6 с — полная (как полоска в FC Mobile, ≈0,5 с)
 function releaseCharge() {
   if (!run || run.charge < 0) return;
-  const pw = chargePw(); run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true); run.barPw = pw; run.barUntil = simT + 1.1;
+  const pw = chargePw(); run.charge = -1; $('#ring').classList.remove('on'); shotBadge(true); run.barPw = pw; run.barUntil = simT + 1.1; run.barPass = false; run.barPl = shooter;
   if (state !== 'play') return;
   if ((B.state !== 'owned' || B.owner !== 'me') && recvSoon()) { run.queue = { kind: 'strike', pw, k: run.kind || 'drive', side: run.side || 0, t: simT }; return; } // мяч ещё в пути — удар сразу после касания
   if (B.state !== 'owned' || B.owner !== 'me') return;
@@ -1516,7 +1536,7 @@ function passUp(kind = 'ground') {
   if (TRACE) console.log('passBtn', JSON.stringify({ e: 'up', t: +simT.toFixed(2), down: passIn.down >= 0, bs: B.state, ow: B.owner, pass: !!run.pass }));
   if (passIn.down < 0) return; const held = (performance.now() - passIn.down) / 1000; passIn.down = -1;
   if (gkMine()) { MT.gkCmd = { kind, inp: input() }; return; } // команда нашему вратарю
-  const pw = passPw(held); if (run) { run.barPw = pw; run.barUntil = simT + 0.9; }
+  const pw = passPw(held); if (run) { run.barPw = pw; run.barUntil = simT + 0.9; run.barPass = true; run.barPl = shooter; }
   // адресат выбирается в момент отпускания (джойстик + сила) и дальше не меняется
   const recv = MATCH_ON && run ? pickReceiver(run.P, input(), false, true, pw) : null;
   if (MATCH_ON && (B.state !== 'owned' || B.owner !== 'me')) { if (recvSoon(true)) run.queue = { kind: 'pass', power: pw, k: kind, recv, t: simT, flight: !!(passInFlight() && passInFlight().id === shooter) }; return; }
