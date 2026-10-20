@@ -1606,6 +1606,8 @@ function chaseInput(P, inp, h) {
   if (!ok) { run.chase = false; run.chasePlan = null; return inp; }
   if ((run.chasePlanT = (run.chasePlanT || 0) - h) <= 0 || !run.chasePlan) { run.chasePlan = meetPoint(P, BP.CFG.player.sprint * 0.92, MATCH_ON && (B.p.y > 1.5 || B.v.y > 1.5)); run.chasePlanT = CHASE.plan; }
   const mp = run.chasePlan, tx = mp.x - P.p.x, tz = mp.z - P.p.z, dl = Math.hypot(tx, tz) || 1e-6, ux = tx / dl, uz = tz / dl;
+  // удар или пас уже нажаты (ждут касания) — джойстик сейчас прицел, а не отказ от приёма: к мячу выходит автоматика
+  if (run.queue || run.charge >= 0) inp = { x: 0, y: 0 };
   const mag = Math.hypot(inp.x, inp.y), ix = mag > 1e-3 ? inp.x / mag : 0, iz = mag > 1e-3 ? -inp.y / mag : 0, cosA = ix * ux + iz * uz;
   if (TRACE) run.chDbg = [+mag.toFixed(2), +cosA.toFixed(2), +mp.x.toFixed(1), +mp.z.toFixed(1)];
   run.chase = BP.chaseDecide(!!run.chase, mag, cosA); // явно увожу в сторону — отпускаем; отпустил или к мячу — снова веду

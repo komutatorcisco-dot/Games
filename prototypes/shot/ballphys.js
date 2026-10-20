@@ -457,7 +457,7 @@ export function controlStep(b, P, h, obstacles) {
   let ex = cp.x - b.p.x, ez = cp.z - b.p.z;
   // первое касание: сначала мяч катится сам (только трение), потом ведение плавно набирает силу
   let free = false, blend = 1;
-  if (b.touchFirst) {
+  if (b.touchFirst && !b.strikeAt) { // замах (пас/удар сразу после приёма) — мяч сразу ведётся к ударной ноге
     if (b.trapT < b.trapDur) free = true;
     else { const u = Math.min(1, (b.trapT - b.trapDur) / C.touchBlend); blend = u * u * (3 - 2 * u);
       if (u >= 1 && (Math.hypot(ex, ez) < 0.3 || b.trapT > 1.8)) b.touchFirst = false; } // мяч ещё не у ноги — ведение не включается в полную силу
@@ -587,8 +587,9 @@ export function clockFixed() {
 // chaseDecide — включать ли преследование с учётом ввода (гистерезис: включается при отпущенном джойстике или вводе
 // к мячу, выключается только при явном вводе в другую сторону). chaseVel — желаемая скорость игрока, м/с (x, z):
 // далеко — сразу полный рывок к точке перехвата meet; у самой точки — торможение; у мяча — скорость мяча плюс мягкое
-// сближение (не проскакивает и не кружит). boost — во сколько раз быстрее разгон.
-export const CHASE = { plan: 0.1, boost: 2.6, neutral: 0.25, off: 0.45, cosOn: Math.cos(1.0), cosOff: Math.cos(1.45), near: 2.4, close: 2.6, assist: 0.65, brake: 3 };
+// сближение (не проскакивает и не кружит). boost — во сколько раз быстрее разгон. Отпускает при отклонении джойстика
+// больше ~60° от мяча (было ~83°: ручной ввод почти не перебивал автоподбор), подправка к мячу — 40 % (было 65 %).
+export const CHASE = { plan: 0.1, boost: 2.6, neutral: 0.25, off: 0.45, cosOn: Math.cos(0.8), cosOff: Math.cos(1.05), near: 2.4, close: 2.6, assist: 0.4, brake: 3 };
 export function chaseDecide(on, mag, cosA, C = CHASE) {
   if (on) return !(mag > C.off && cosA < C.cosOff);
   return mag < C.neutral || cosA > C.cosOn;
