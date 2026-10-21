@@ -287,3 +287,29 @@ test('с мячом игрок бежит туда, куда держат джо
     assert.ok(prog > 3, `на ${s * a}° за 2 с пройдено ${prog.toFixed(1)} м`);
   }
 });
+// Защита управления при ведении (эталон — 8355e3f/9a65a67): любые улучшения вида ведения не должны ухудшать то, как
+// игрок слушается джойстика. Пороги — с запасом к замеру основы (в скобках).
+function ctlRun(segs) { // segs: [длительность, (t) => ввод, рывок]
+  const { CFG } = M, P = M.newPlayer({ x: 0, z: 25 }, Math.PI), b = M.newBall(M.controlPoint(P, null)); M.capture(b, P, 'me'); b.trapT = 1; b.trapDur = 0;
+  const out = []; let lost = 0, maxCp = 0;
+  for (const [d, fn, spr] of segs) { const r = { resp: null, dev: [], stopT: null }; let t = 0;
+    while (t < d) { const i = fn(t); P.sprint = !!spr; M.playerStep(P, i, CFG.dt, b.state === 'owned');
+      if (b.state === 'owned') { if (b.touchCd <= 0 && Math.hypot(P.v.x, P.v.z) > 0.6) M.touch(b, P); if (M.controlStep(b, P, CFG.dt) === 'lost') lost++; const cp = M.controlPoint(P, b); maxCp = Math.max(maxCp, Math.hypot(b.p.x - cp.x, b.p.z - cp.z)); }
+      t += CFG.dt; const m = Math.hypot(i.x, i.y), sp = Math.hypot(P.v.x, P.v.z);
+      if (m > 0.5) { const a = Math.acos(Math.max(-1, Math.min(1, (P.v.x * i.x - P.v.z * i.y) / ((sp || 1) * m)))) * 57.3; if (r.resp === null && sp > 1.2 && a < 20) r.resp = t; if (r.resp !== null) r.dev.push(a); }
+      else if (r.stopT === null && sp < 0.2) r.stopT = t; }
+    out.push(r); }
+  return { out, lost, maxCp };
+}
+test('управление с мячом: реакция, следование джойстику, остановка, мяч у ноги (защита от ухудшений)', () => {
+  const J = (a) => ({ x: Math.sin(a * Math.PI / 180), y: Math.cos(a * Math.PI / 180) }), Z = () => ({ x: 0, y: 0 });
+  const { out, lost, maxCp } = ctlRun([[0.7, Z], [1.3, () => J(-90)], [0.8, Z], [1.3, () => J(45)], [0.6, Z], [4, (t) => J(t * 90)], [2.7, (t) => J(Math.floor(t / 0.45) % 2 ? -40 : 40)], [1.5, () => J(0), 1], [1.2, Z]]);
+  const mean = (a) => a.reduce((s, x) => s + x, 0) / a.length, max = (a) => Math.max(...a);
+  assert.equal(lost, 0, 'без соперника мяч не теряется');
+  assert.ok(maxCp < 0.7, `мяч от точки у ноги ${maxCp.toFixed(2)} м (0,5)`);
+  for (const k of [1, 3]) assert.ok(out[k].resp < 0.25, `старт: реакция ${out[k].resp} с (0,17)`);
+  for (const k of [2, 4, 8]) assert.ok(out[k].stopT !== null && out[k].stopT < 0.8, `остановка ${out[k].stopT} с (0,53)`);
+  assert.ok(max(out[5].dev.slice(10)) < 15, `круг стиком: отклонение ${max(out[5].dev.slice(10)).toFixed(0)}° (≈0)`);
+  assert.ok(mean(out[6].dev) < 22, `зигзаг: среднее отклонение ${mean(out[6].dev).toFixed(0)}° (17)`);
+  assert.ok(out[7].resp < 0.4, `рывок: реакция ${out[7].resp} с`);
+});

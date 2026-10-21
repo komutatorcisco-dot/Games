@@ -1141,7 +1141,7 @@ function loco(pl, sp, dt, P) {
   let cps = 0, ws = 0; for (const d of D) { cps += d.w * (sp / d.m); ws += d.w; } cps /= ws || 1;
   if (wr > 0) cps = cps * (1 - wr) + wr * sp / (L.run[0].m * (1 - wsp) + L.run[1].m * wsp); // у рывка шаг длиннее
   cps = THREE.MathUtils.clamp(cps, 0.55 / 0.87, 2.1 / 0.87); // медленнее нижней границы — ноги уже не скользят заметно
-  L.ph = (L.ph + cps * dt) % 1;
+  L.ph = (L.ph + cps * dt) % 1; L.cps = cps;
   for (const d of D) { d.a.timeScale = 0; d.a.time = ((((L.ph + d.off) % 1) + 1) % 1) * d.a.getClip().duration; d.a.setEffectiveWeight(w * (d.w / (ws || 1)) * L.f * (1 - dw) * (1 - wr)); }
   runW(L.ph);
 }
@@ -2142,6 +2142,8 @@ function moveTick(pl, P, dt) {
   if (m.onTick && m.onTick(pl, P, t) === 'end') endMove(pl, P);
 }
 // резкая остановка с бега и разворот на 180° — сами по ходу игры (только своя модель)
+// длительность цикла бега (шаг правой + шаг левой), с: у своей модели фаза идёт от скорости (L.cps), у остальных — запись
+const stepCycle = (L) => (!L ? 0 : L.cps > 0.05 ? 1 / L.cps : L.jog.timeScale > 0.05 ? L.jog.getClip().duration / L.jog.timeScale : 0);
 function autoMoves(pl, P, sp, dt, who) {
   pl.pk = Math.max(sp, (pl.pk || 0) - dt * 3); pl.mvCd = Math.max(0, (pl.mvCd || 0) - dt);
   if (!pl.own || !heroMoves || pl.mv || pl.name !== 'loco' || pl.mvCd > 0 || state !== 'play') return;
@@ -2202,10 +2204,21 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
   const who = who0 || (pl === shooter ? 'me' : 'mate');
   if (B.state === 'owned' && B.owner === who && sp > 0.6 && B.touchCd <= 0) {
     const L = pl.loco, jogW = L ? L.jog.getEffectiveWeight() : 0, ph = L ? (L.jog.time / L.jog.getClip().duration) % 1 : 0;
-    const phT = B.foot < 0 ? 0.12 : 0.62, stepNow = jogW > 0.5 && L.lastPh !== undefined && L.lastPh < phT && ph >= phT; // левая нога выходит вперёд на полцикла раньше
+    const phT = B.foot < 0 ? 0.12 : 0.62, lp = L ? L.lastPh : undefined; // левая нога выходит вперёд на полцикла раньше
+    const stepNow = jogW > 0.5 && lp !== undefined && (lp <= ph ? lp < phT && ph >= phT : lp < phT || ph >= phT); // и через конец цикла
     const toe = (B.foot < 0 ? pl.toeL : pl.toeR).getWorldPosition(tmpB).distanceTo(B.p) - R; // носок той ноги, что ведёт мяч
-    if (stepNow || (jogW <= 0.5 && toe < 0.12) || B.touchCd < -(BP.CFG.control.touchMax - BP.CFG.control.touchMin)) { BP.touch(B, P); sfx.touch(); if (who === 'me' && run) run.meTouchT = simT; }
+    // касание — только когда стопа у мяча: в такт шагу (мяч уходит вперёд и катится до следующего шага этой ноги —
+    // cyc, длительность цикла бега) или носком на медленном шаге. По таймеру больше не касаемся: на повороте это был
+    // толчок без ноги (нога в метре от мяча); без касания мяч просто остаётся у стопы
+    const cyc = stepCycle(L);
+    if (stepNow || (jogW <= 0.5 && toe < 0.12)) { BP.touch(B, P, sp > 1.5 ? cyc : 0); sfx.touch(); if (who === 'me' && run) run.meTouchT = simT; }
   }
+  // мяч перешёл под другую ногу посреди качения — следующий шаг уже этой ноги: качение заканчивается к нему
+  if (B.state === 'owned' && B.owner === (who0 || (pl === shooter ? 'me' : 'mate')) && pl.loco) {
+    const cy = stepCycle(pl.loco);
+    if (B.tp && pl.footSeen !== undefined && pl.footSeen !== B.foot && cy > 0) { const L = pl.loco, ph = (L.jog.time / L.jog.getClip().duration) % 1, phT = B.foot < 0 ? 0.12 : 0.62;
+      B.tp.T = B.tp.t + Math.max(0.08, (((phT - ph) % 1) + 1) % 1 * cy); }
+    pl.footSeen = B.foot; }
   if (pl.loco) pl.loco.lastPh = (pl.loco.jog.time / pl.loco.jog.getClip().duration) % 1;
   return sp;
 }
@@ -3894,7 +3907,7 @@ frame();
 // для проверки ведения: носки и мяч в системе игрока (f — вперёд, s — вправо), нога ведения, время последнего касания
 if (TRACE) window.__drib = () => { const a = actorOf('me'), pl = a.pl, P = a.P, fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw);
   const loc = (v) => { const dx = v.x - P.p.x, dz = v.z - P.p.z; return [+(dx * fx + dz * fz).toFixed(3), +(dx * rx + dz * rz).toFixed(3), +v.y.toFixed(3)]; };
-  return { tw: +(pl.twist || 0).toFixed(2), bv: +Math.hypot(B.v.x, B.v.z).toFixed(2), t: +simT.toFixed(3), l: loc(pl.toeL.getWorldPosition(new THREE.Vector3())), r: loc(pl.toeR.getWorldPosition(new THREE.Vector3())), b: loc(B.p), foot: B.foot || 0, sk: +(B.sideK ?? 1).toFixed(2), touch: +(run.meTouchT || 0).toFixed(3), sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(3), bs: B.state, own: B.owner, dw: pl.loco && pl.loco.dw ? +pl.loco.dw.toFixed(2) : 0, drt: pl.loco && pl.loco.drib ? +((pl.loco.drib.time / pl.loco.drib.getClip().duration) % 1).toFixed(3) : null }; };
+  return { tp: B.tp ? [+B.tp.t.toFixed(2), +B.tp.T.toFixed(2), +B.tp.A.toFixed(2)] : null, cps: pl.loco ? pl.loco.cps : null, jts: pl.loco ? +pl.loco.jog.timeScale.toFixed(2) : null, rv: +((B.v.x - P.v.x) * fx + (B.v.z - P.v.z) * fz).toFixed(2), push: +(B.push || 0).toFixed(3), tw: +(pl.twist || 0).toFixed(2), bv: +Math.hypot(B.v.x, B.v.z).toFixed(2), t: +simT.toFixed(3), l: loc(pl.toeL.getWorldPosition(new THREE.Vector3())), r: loc(pl.toeR.getWorldPosition(new THREE.Vector3())), b: loc(B.p), foot: B.foot || 0, sk: +(B.sideK ?? 1).toFixed(2), touch: +(run.meTouchT || 0).toFixed(3), sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(3), bs: B.state, own: B.owner, dw: pl.loco && pl.loco.dw ? +pl.loco.dw.toFixed(2) : 0, drt: pl.loco && pl.loco.drib ? +((pl.loco.drib.time / pl.loco.drib.getClip().duration) % 1).toFixed(3) : null }; };
 if (TRACE) window.__foot = (f) => { B.foot = f; B.sideK = f; B.footT = 0; B.turning = false; }; // для проверки: мяч под правую (1) или левую (−1)
 if (TRACE) window.__contactsL = () => ({ own: CONTACT.own, ownL: CONTACT.ownL, ownPass: CONTACT.ownPass, ownPassL: CONTACT.ownPassL, STRIKE_L, PASS_L });
 if (TRACE) window.__act = () => { const a = actorOf('me').pl.act; return a && { clip: a.getClip().name, dur: +a.getClip().duration.toFixed(2), ts: a.timeScale, en: a.enabled, paused: a.paused, run: a.isRunning(), w: +a.getEffectiveWeight().toFixed(2), time: +a.time.toFixed(3), tracks: a.getClip().tracks.length }; };
