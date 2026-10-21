@@ -1097,7 +1097,6 @@ function mirrorClip(c, name) {
     return u; });
   return new THREE.AnimationClip(name, c.duration, tracks);
 }
-const owns = (pl) => { const a = (B.state === 'owned' || B.state === 'strike') && B.owner ? actors().find((q) => q.id === B.owner) : null; return a ? a.pl === pl : (pl === shooter && B.owner === 'me'); };
 function loco(pl, sp, dt, P) {
   const hs = pl.hs || 1, L = pl.loco || (pl.loco = { idle: pl.mixer.clipAction(variant('idle', 1, 1, hs)), jog: pl.mixer.clipAction(variant('jog', 1, 1, hs)), dirs: null, f: 1, prev: null, ph: 0 });
   if (MATCH_ON && !L.dirs) L.dirs = LOCO8.map(([n, ang, mo, mb, ph]) => ({ a: n === 'jog' ? L.jog : pl.mixer.clipAction(variant(n, 1, 1, hs)), ang: ang * Math.PI / 180, m: pl.own ? mo : mb, off: ph - LOCO8[0][4], w: 0 }));
@@ -1123,11 +1122,7 @@ function loco(pl, sp, dt, P) {
     // (sideK от +1 — правая до −1 — левая, меняется вместе с переходом мяча). Зеркало идёт со сдвигом на четверть записи
     // (в ней два шага): левая нога зеркала выходит вперёд в тот же момент, что левая нога записи, — шаг не сбивается
     if (pl.withBall) L.sk = B.sideK ?? 1; const kR = (1 + (L.sk ?? 1)) / 2; // мяч ушёл — доигрывает той ногой, что вела
-    const D0 = L.drib.getClip().duration; L.dribL.timeScale = 0;
-    // ведение касаниями: запись ведения идёт в фазе шага из физики (правая стопа у мяча — 0,34 записи ↔ фаза 0,62), касание
-    // в физике совпадает с касанием в записи при любой частоте кадров
-    if (pl.withBall && B.tm && B.gph !== undefined && owns(pl)) { L.drib.timeScale = 0; L.drib.time = ((((B.gph + 0.06) / 2 + 0.5 * (B.gpar || 0)) % 1 + 1) % 1) * D0; }
-    L.dribL.time = (L.drib.time + D0 * 0.25) % D0;
+    const D0 = L.drib.getClip().duration; L.dribL.timeScale = 0; L.dribL.time = (L.drib.time + D0 * 0.25) % D0;
     L.drib.setEffectiveWeight(w * dw * L.f * kR); L.dribL.setEffectiveWeight(w * dw * L.f * (1 - kR)); }
   // быстрый бег и рывок (своя модель): чем быстрее бежит вперёд, тем больше этих записей вместо трусцы; шаг — в той же фазе
   const fwd = !P || sp < 0.05 ? 1 : Math.max(0, (P.v.x * Math.sin(P.yaw) + P.v.z * Math.cos(P.yaw)) / sp);
@@ -1147,7 +1142,6 @@ function loco(pl, sp, dt, P) {
   if (wr > 0) cps = cps * (1 - wr) + wr * sp / (L.run[0].m * (1 - wsp) + L.run[1].m * wsp); // у рывка шаг длиннее
   cps = THREE.MathUtils.clamp(cps, 0.55 / 0.87, 2.1 / 0.87); // медленнее нижней границы — ноги уже не скользят заметно
   L.ph = (L.ph + cps * dt) % 1;
-  if (pl.withBall && B.tm && B.gph !== undefined && owns(pl)) L.ph = B.gph; // ведение касаниями: шаг в той же фазе, что касания в физике
   for (const d of D) { d.a.timeScale = 0; d.a.time = ((((L.ph + d.off) % 1) + 1) % 1) * d.a.getClip().duration; d.a.setEffectiveWeight(w * (d.w / (ws || 1)) * L.f * (1 - dw) * (1 - wr)); }
   runW(L.ph);
 }
@@ -1178,34 +1172,6 @@ function torsoTwist(pl, ang) {
   pl.holder.updateMatrixWorld(true);
   const axes = pl.twB.map(([b]) => twA.copy(twU).applyQuaternion(b.parent.getWorldQuaternion(twQ).invert()).clone());
   pl.twB.forEach(([b, k], i) => b.quaternion.premultiply(twQ.setFromAxisAngle(axes[i], ang * k)));
-}
-// Касание стопой при ведении: за ~0,12 с до касания и ~0,08 с после стопа ведущей ноги подводится к поверхности мяча
-// (двухзвенная «обратная кинематика»: бедро — колено — голеностоп, плоскость сгиба колена сохраняется). Запись ведения и
-// так в той же фазе, что касание в физике, — подводка лишь добирает 5–25 см (поворот, ускоренный шаг), не больше reachMax.
-const REACH = { pre: 0.12, post: 0.08, max: 0.3, w: 0.9 };
-const ikA = new THREE.Vector3(), ikB = new THREE.Vector3(), ikC = new THREE.Vector3(), ikT = new THREE.Vector3(), ikD = new THREE.Vector3(), ikN = new THREE.Vector3(), ikQ = new THREE.Quaternion(), ikQ2 = new THREE.Quaternion(), ikV = new THREE.Vector3(), ikV2 = new THREE.Vector3();
-function footReach(pl, P, sp) {
-  const L = ((B.since ?? 9) < REACH.post ? (B.touchFoot ?? B.foot) : B.foot) < 0 ? 'Left' : 'Right'; // сразу после толчка — та нога, что толкнула
-  if (!pl.ik) pl.ik = {}; const k = pl.ik[L] || (pl.ik[L] = ['UpLeg', 'Leg', 'Foot', 'ToeBase'].map((n) => pl.model.getObjectByName(L + n)));
-  if (k.some((x) => !x)) return;
-  const rate = BP.gaitRate(sp), cph = B.foot < 0 ? 0.12 : 0.62, tC = (((cph - B.gph) % 1) + 1) % 1 / rate;
-  const pre = B.skipNext ? 0 : THREE.MathUtils.smoothstep(REACH.pre - tC, 0, REACH.pre), post = THREE.MathUtils.smoothstep(REACH.post - (B.since ?? 9), 0, REACH.post);
-  const w = Math.max(pre, post) * REACH.w; if (w < 0.02) return;
-  pl.model.updateMatrixWorld(true);
-  const [up, leg, foot, toe] = k; up.getWorldPosition(ikA); leg.getWorldPosition(ikB); foot.getWorldPosition(ikC); toe.getWorldPosition(ikT);
-  // куда стопе: к поверхности мяча со стороны игрока (по ходу), носок чуть над газоном
-  const dx = B.p.x - P.p.x, dz = B.p.z - P.p.z, dl = Math.hypot(dx, dz) || 1;
-  ikD.set(B.p.x - (dx / dl) * (R + 0.05), Math.max(0.05, ikT.y), B.p.z - (dz / dl) * (R + 0.05));
-  ikV.subVectors(ikD, ikT); if (ikV.length() > REACH.max) return; // слишком далеко — не тянем ногу (выглядит неестественно)
-  const Ct = ikV2.copy(ikC).addScaledVector(ikV, w); // цель для голеностопа: сдвиг на ошибку носка
-  const a = ikA.distanceTo(ikB), b = ikB.distanceTo(ikC), c = THREE.MathUtils.clamp(ikA.distanceTo(Ct), Math.abs(a - b) + 1e-3, a + b - 1e-3);
-  // 1) колено: внутренний угол под нужное расстояние бедро — голеностоп (вокруг оси сгиба)
-  ikN.subVectors(ikA, ikB).cross(ikV.subVectors(ikC, ikB)).normalize(); if (ikN.lengthSq() < 1e-6) return;
-  const cur = ikV.subVectors(ikA, ikB).angleTo(ikD.subVectors(ikC, ikB)), want = Math.acos(THREE.MathUtils.clamp((a * a + b * b - c * c) / (2 * a * b), -1, 1));
-  const rotW = (bone, q) => { bone.parent.getWorldQuaternion(ikQ2); const pinv = ikQ2.clone().invert(); bone.getWorldQuaternion(ikQ2); bone.quaternion.copy(pinv.multiply(q.multiply(ikQ2))); bone.updateMatrixWorld(true); };
-  rotW(leg, ikQ.setFromAxisAngle(ikN, want - cur)); // ось N = BA×BC: поворот голени на +угол раскрывает колено
-  // 2) бедро: направление бедро → голеностоп на цель
-  foot.getWorldPosition(ikC); rotW(up, ikQ.setFromUnitVectors(ikV.subVectors(ikC, ikA).normalize(), ikD.subVectors(Ct, ikA).normalize()));
 }
 // Газон твёрдый: ни одна часть тела не уходит под него (падения, подкаты, прыжки вратаря, а у своей модели — и записи
 // с другого скелета). Берём суставы с «толщиной» тела вокруг; если самый низкий ниже газона — вся модель сразу
@@ -2190,8 +2156,11 @@ function autoMoves(pl, P, sp, dt, who) {
     // берём отрезок самого разворота). Раньше разворот был всегда через правое плечо.
     const side = P.v.x * P.wz - P.v.z * P.wx; // > 0 — нужно повернуть влево
     pl.mvCd = 0.9;
-    if (side > 0 && heroMoves.h_run_turn) startMove(pl, P, 'h_run_turn', { t: 0.55, speed: 1.45, end: 1.3, k: THREE.MathUtils.clamp(pl.pk / 4.2, 0.7, 1.3), fade: 0.12 });
-    else startMove(pl, P, 'h_turn_180', { t: 0.04, speed: 1.2, end: 0.55, k: THREE.MathUtils.clamp(pl.pk / 4.2, 0.7, 1.3), fade: 0.1 });
+    // запись разворота не держит управление: отпустил джойстик или повёл в другую сторону (больше ~60° от того, куда
+    // разворачивались) — запись заканчивается сразу, дальше снова джойстик
+    const tx = raw.x / rawM, ty = raw.y / rawM, cancel = () => { const r = input(), m = Math.hypot(r.x, r.y); return m < 0.3 || (r.x * tx + r.y * ty) / m < 0.5 ? 'end' : null; };
+    if (side > 0 && heroMoves.h_run_turn) startMove(pl, P, 'h_run_turn', { t: 0.55, speed: 1.45, end: 1.3, k: THREE.MathUtils.clamp(pl.pk / 4.2, 0.7, 1.3), fade: 0.12, onTick: cancel });
+    else startMove(pl, P, 'h_turn_180', { t: 0.04, speed: 1.2, end: 0.55, k: THREE.MathUtils.clamp(pl.pk / 4.2, 0.7, 1.3), fade: 0.1, onTick: cancel });
     return;
   }
   // с места резко вправо-назад (джойстик на 75–150° правее корпуса, мяча нет): поворот с разбегом из записи (h_turn_run),
@@ -2228,13 +2197,10 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
     pl.twist = (pl.twist || 0) + (want - (pl.twist || 0)) * (1 - Math.exp(-dt * (Math.abs(want) > Math.abs(pl.twist || 0) ? 14 : 7))); // в поворот — быстро, обратно — мягче
     if (pl.name !== 'loco' && Math.abs(pl.twist) < 0.3) pl.twist *= Math.exp(-dt * 20); }
   tickPlayer(pl, dt);
-  if (B.tm && pl.withBall && owns(pl)) footReach(pl, P, sp); // ведение касаниями: стопа ровно к мячу в момент касания
   // касания при ведении — в такт шагу: правая нога проходит вперёд на ~62–69% цикла бега (замер записи jog_forward);
   // на медленном шаге (бег почти не смешан) — когда носок у мяча; и не реже раза в touchMax
   const who = who0 || (pl === shooter ? 'me' : 'mate');
-  // ведение касаниями (B.tm): касание считает физика в фазе шага — здесь только звук; иначе (медленно) — касание по стопе
-  if (B.state === 'owned' && B.owner === who && B.tm) { if (B.touchN !== pl.touchSeen) { pl.touchSeen = B.touchN; if (pl.touchSeen !== undefined) { sfx.touch(); if (who === 'me' && run) run.meTouchT = simT; } } }
-  else if (B.state === 'owned' && B.owner === who && sp > 0.6 && B.touchCd <= 0) {
+  if (B.state === 'owned' && B.owner === who && sp > 0.6 && B.touchCd <= 0) {
     const L = pl.loco, jogW = L ? L.jog.getEffectiveWeight() : 0, ph = L ? (L.jog.time / L.jog.getClip().duration) % 1 : 0;
     const phT = B.foot < 0 ? 0.12 : 0.62, stepNow = jogW > 0.5 && L.lastPh !== undefined && L.lastPh < phT && ph >= phT; // левая нога выходит вперёд на полцикла раньше
     const toe = (B.foot < 0 ? pl.toeL : pl.toeR).getWorldPosition(tmpB).distanceTo(B.p) - R; // носок той ноги, что ведёт мяч
@@ -2980,7 +2946,7 @@ function matchPhys(h) {
     if (TRACE) { // кто в этом шаге задал движение управляемого игрока (для проверки «один источник за шаг»)
       const ne = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y) > 1e-3, src = [];
       if (ne(raw, i1)) src.push('hold'); if (ne(i1, i2)) src.push('chase'); if (ne(i2, i3)) src.push('press'); if (ne(i3, inp)) src.push(run.meAI.slowT > 0 ? 'slow' : 'step');
-      if (P.drive) src.push('drive'); run.dbgSrc = src.length ? src.join('+') : 'joy'; run.dbgInp = [+inp.x.toFixed(2), +inp.y.toFixed(2)]; }
+      if (P.drive) src.push('drive'); run.dbgSrc = src.length ? src.join('+') : 'joy'; run.dbgInp = [+inp.x.toFixed(2), +inp.y.toFixed(2)]; run.dbgRaw = [+raw.x.toFixed(3), +raw.y.toFixed(3)]; }
     BP.playerStep(P, inp, h, owning() && B.owner === 'me');
   }
   feintTick(h);
@@ -3776,7 +3742,7 @@ if (TRACE) window.__state = () => ({ t: +simT.toFixed(2), owner: B.owner, bs: B.
 if (TRACE) window.__sendOff = (id) => { const a = actorOf(id); if (a) { a.pl.yc = 1; sendOff(a.pl); } return actors().length; };
 if (TRACE) window.__ground = () => groundStat;
 if (TRACE) window.__bones = () => actors().concat(GK.map((g, i) => ({ id: 'gk' + i, pl: g.pl, P: { v: { x: 0, z: 0 } } }))).map((a) => { const pl = a.pl; if (!pl.gb) return null; const o = { id: a.id, own: pl.own, name: pl.name, sp: +Math.hypot(a.P.v.x, a.P.v.z).toFixed(1), f: pl.loco ? +pl.loco.f.toFixed(2) : 0, lift: +pl.model.position.y.toFixed(3), lb: pl.glb, rz: +pl.holder.rotation.z.toFixed(2), rx: +pl.holder.rotation.x.toFixed(2) }; for (const [b] of pl.gb) o[b.name] = +b.matrixWorld.elements[13].toFixed(3); return o; }).filter(Boolean);
-if (TRACE) window.__dbgMe = () => ({ tm: !!B.tm, hurry: !!B.hurry, missT: +(B.missT || 0).toFixed(2), steer: !!run.P.steer, gph: +(B.gph || 0).toFixed(2), inp: run.dbgInp, src: run.dbgSrc, foot: B.foot || 0, drive: !!run.P.drive, lockYaw: +(run.P.lockYaw || 0).toFixed(2), hold: !!run.holdInp, tf: !!B.touchFirst, soft: !!B.touchSoft, trapT: +(B.trapT || 0).toFixed(2), slow: run.meAI && +(run.meAI.slowT || 0).toFixed(2), pass: !!run.pass, strike: !!run.strike, charge: run.charge >= 0, queue: run.queue ? run.queue.kind : null, chase: !!run.chase, mv: actorOf('me') && actorOf('me').pl.mv ? actorOf('me').pl.mv.name : null, vx: +run.P.v.x.toFixed(2), vz: +run.P.v.z.toFixed(2), yaw: +run.P.yaw.toFixed(2) });
+if (TRACE) window.__dbgMe = () => ({ raw: run.dbgRaw, inp: run.dbgInp, src: run.dbgSrc, foot: B.foot || 0, drive: !!run.P.drive, lockYaw: +(run.P.lockYaw || 0).toFixed(2), hold: !!run.holdInp, tf: !!B.touchFirst, soft: !!B.touchSoft, trapT: +(B.trapT || 0).toFixed(2), slow: run.meAI && +(run.meAI.slowT || 0).toFixed(2), pass: !!run.pass, strike: !!run.strike, charge: run.charge >= 0, queue: run.queue ? run.queue.kind : null, chase: !!run.chase, mv: actorOf('me') && actorOf('me').pl.mv ? actorOf('me').pl.mv.name : null, vx: +run.P.v.x.toFixed(2), vz: +run.P.v.z.toFixed(2), yaw: +run.P.yaw.toFixed(2) });
 if (TRACE) window.__team = () => actors().map((a) => [a.id, a.team, +a.P.p.x.toFixed(1), +a.P.p.z.toFixed(1), a.ai ? a.ai.role || '' : 'me', a.ai && a.ai.chasing ? 1 : 0, a.ai && a.ai.home !== undefined ? homeBase(a)[1] : (a.ai && a.ai.hxy ? a.ai.hxy[1] : null)]);
 if (TRACE) window.__sprint = (on) => { btn.sprint = !!on; };
 if (TRACE) window.__me = () => { const a = actorOf('me') || { P: run.P, pl: shooter }, P = a.P, L = a.pl.loco; return { name: a.pl.name, t: a.pl.act ? +a.pl.act.time.toFixed(2) : 0, sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(2), p: [+P.p.x.toFixed(2), +P.p.z.toFixed(2)], mv: a.pl.mv ? a.pl.mv.name : null, run: L && L.run ? L.run.map((r) => +r.a.getEffectiveWeight().toFixed(2)) : null, drib: L && L.drib ? +L.drib.getEffectiveWeight().toFixed(2) : null, own: !!a.pl.own, owner: B.owner }; };
@@ -3928,8 +3894,7 @@ frame();
 // для проверки ведения: носки и мяч в системе игрока (f — вперёд, s — вправо), нога ведения, время последнего касания
 if (TRACE) window.__drib = () => { const a = actorOf('me'), pl = a.pl, P = a.P, fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw);
   const loc = (v) => { const dx = v.x - P.p.x, dz = v.z - P.p.z; return [+(dx * fx + dz * fz).toFixed(3), +(dx * rx + dz * rz).toFixed(3), +v.y.toFixed(3)]; };
-  return { tm: !!B.tm, gph: +(B.gph || 0).toFixed(3), tn: B.touchN || 0, tf: B.touchFoot || 0, hurry: !!B.hurry, tw: +(pl.twist || 0).toFixed(2), bv: +Math.hypot(B.v.x, B.v.z).toFixed(2), t: +simT.toFixed(3), l: loc(pl.toeL.getWorldPosition(new THREE.Vector3())), r: loc(pl.toeR.getWorldPosition(new THREE.Vector3())), b: loc(B.p), foot: B.foot || 0, sk: +(B.sideK ?? 1).toFixed(2), touch: +(run.meTouchT || 0).toFixed(3), sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(3), bs: B.state, own: B.owner, dw: pl.loco && pl.loco.dw ? +pl.loco.dw.toFixed(2) : 0, drt: pl.loco && pl.loco.drib ? +((pl.loco.drib.time / pl.loco.drib.getClip().duration) % 1).toFixed(3) : null }; };
+  return { tw: +(pl.twist || 0).toFixed(2), bv: +Math.hypot(B.v.x, B.v.z).toFixed(2), t: +simT.toFixed(3), l: loc(pl.toeL.getWorldPosition(new THREE.Vector3())), r: loc(pl.toeR.getWorldPosition(new THREE.Vector3())), b: loc(B.p), foot: B.foot || 0, sk: +(B.sideK ?? 1).toFixed(2), touch: +(run.meTouchT || 0).toFixed(3), sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(3), bs: B.state, own: B.owner, dw: pl.loco && pl.loco.dw ? +pl.loco.dw.toFixed(2) : 0, drt: pl.loco && pl.loco.drib ? +((pl.loco.drib.time / pl.loco.drib.getClip().duration) % 1).toFixed(3) : null }; };
 if (TRACE) window.__foot = (f) => { B.foot = f; B.sideK = f; B.footT = 0; B.turning = false; }; // для проверки: мяч под правую (1) или левую (−1)
 if (TRACE) window.__contactsL = () => ({ own: CONTACT.own, ownL: CONTACT.ownL, ownPass: CONTACT.ownPass, ownPassL: CONTACT.ownPassL, STRIKE_L, PASS_L });
 if (TRACE) window.__act = () => { const a = actorOf('me').pl.act; return a && { clip: a.getClip().name, dur: +a.getClip().duration.toFixed(2), ts: a.timeScale, en: a.enabled, paused: a.paused, run: a.isRunning(), w: +a.getEffectiveWeight().toFixed(2), time: +a.time.toFixed(3), tracks: a.getClip().tracks.length }; };
-if (TRACE) window.__reachTest = () => { const a = actorOf('me'), pl = a.pl; const t = pl.model.getObjectByName((((B.since ?? 9) < 0.08 ? (B.touchFoot ?? B.foot) : B.foot) < 0 ? 'Left' : 'Right') + 'ToeBase').getWorldPosition(new THREE.Vector3()); return { toeBall: +(Math.hypot(t.x - B.p.x, t.z - B.p.z) - R).toFixed(3), since: +(B.since ?? 9).toFixed(3) }; };
