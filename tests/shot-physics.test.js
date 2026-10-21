@@ -46,7 +46,8 @@ test('2–3. медленный бег и длинный рывок — мяч �
   const fast = dribble(() => ({ x: 0, y: 1, sprint: true }), 4, { start: { x: 0, z: 40 } });
   for (const s of [slow, fast]) { assert.equal(s.lost, 0); assert.ok(s.minBody >= M.CFG.control.bodyR - 0.005, 'не сквозь ноги'); }
   assert.ok(slow.maxErr < 0.35, `на медленном беге мяч дальше ${slow.maxErr}`);
-  assert.ok(fast.maxErr < 0.7, `на рывке мяч дальше ${fast.maxErr}`);
+  // ведение касаниями (запись EA «The Art of Dribbling», 34,6–35,4 с): на рывке толчок через шаг, мяч уходит до ~1 м
+  assert.ok(fast.maxErr < 1.3, `на рывке мяч дальше ${fast.maxErr}`);
   assert.ok(fast.P.p.z < 40 - 20, 'игрок действительно бежал');
 });
 test('4. резкая остановка — мяч гасится и остаётся у ноги', () => {
@@ -63,11 +64,11 @@ test('5. повороты на 90° и 180° — без телепортаций
     assert.equal(s.lost, 0); assert.ok(s.minBody >= M.CFG.control.bodyR - 0.005, `мяч прошёл у центра игрока: ${s.minBody}`);
     assert.ok(s.maxJump < 13, `скачок скорости мяча ${s.maxJump} м/с`);
   }
-  assert.ok(t180.maxErr < 0.9, `при развороте мяч описал большой круг: ${t180.maxErr}`);
+  assert.ok(t180.maxErr < 1.3, `при развороте мяч описал большой круг: ${t180.maxErr}`);
 });
 test('6. назад и вбок — контроль сохраняется', () => {
   const s = dribble((t) => (t < 1.2 ? { x: -0.7, y: -0.7 } : { x: 1, y: 0 }), 3, { start: { x: 0, z: 20 } });
-  assert.equal(s.lost, 0); assert.ok(s.maxErr < 0.9);
+  assert.equal(s.lost, 0); assert.ok(s.maxErr < 1.3);
 });
 
 function shoot(pw, fin = false, aim = { x: 0, y: 1 }, run = 0) {
@@ -271,4 +272,29 @@ test('вторые ворота (матч): гол, штанга и сетка �
   const eb = run(b); assert.ok(eb.some((e) => e.type === 'goal' && e.end === 0), 'гол в первые'); assert.ok(!eb.some((e) => e.end === 1));
   const c = M.newBall({ x: -3.66, y: 0.5, z: 40 }); c.v.z = 15; c.v.y = 0.5; // точно в штангу
   const ec = run(c); assert.ok(ec.some((e) => e.type === 'post' && e.end === 1), 'штанга вторых'); assert.ok(c.p.z < L, 'отскочил в поле');
+});
+
+// ведение касаниями: шаг → касание → мяч катится и тормозит → следующее касание (запись EA, 28,5–35,4 с)
+function touchRun(prog, T, start = { x: 0, z: 35 }) {
+  const { CFG } = M, P = M.newPlayer(start, Math.PI), b = M.newBall(M.controlPoint(P, null)); M.capture(b, P, 'me'); b.trapT = 1; b.trapDur = 0;
+  let t = 0, tn = 0, last = 0, lost = 0, jumps = [], gaps = [], g = 0, prevV = 0;
+  while (t < T) { const inp = prog(t); P.sprint = !!inp.sprint; M.playerStep(P, inp, CFG.dt, true);
+    if (b.state === 'owned') { if (!b.tm && b.touchCd <= 0 && Math.hypot(P.v.x, P.v.z) > 0.6) M.touch(b, P); if (M.controlStep(b, P, CFG.dt) === 'lost') lost++; }
+    const bv = Math.hypot(b.v.x, b.v.z), d = Math.hypot(b.p.x - P.p.x, b.p.z - P.p.z); g = Math.max(g, d);
+    if ((b.touchN || 0) !== last) { last = b.touchN; tn++; if (t > 1) { jumps.push(bv - prevV); gaps.push(g); } g = 0; }
+    prevV = bv; t += CFG.dt; }
+  return { tn, lost, jumps, gaps };
+}
+test('ведение касаниями: касания регулярные, толчок виден, мяч уходит по скорости', () => {
+  const jog = touchRun(() => ({ x: 0, y: 1 }), 4), spr = touchRun(() => ({ x: 0, y: 1, sprint: true }), 4, { x: 0, z: 40 });
+  assert.equal(jog.lost + spr.lost, 0);
+  assert.ok(jog.tn >= 6 && jog.tn <= 9, `бегом касаний за 4 с: ${jog.tn}`); // ~раз в 0,58 с
+  assert.ok(Math.min(...jog.jumps) > 1, `касание должно толкать мяч: ${jog.jumps}`);
+  assert.ok(Math.max(...jog.gaps) < 0.9, `бегом мяч уходит дальше 0,9 м: ${jog.gaps}`);
+  assert.ok(Math.max(...spr.gaps) > 1.1 && Math.max(...spr.gaps) < 1.6, `на рывке вынос: ${spr.gaps}`);
+});
+test('ведение касаниями: дрожащий палец и зигзаг — без потерь', () => {
+  const jit = touchRun((t) => ({ x: Math.sin(Math.floor(t * 10) * 1.7) * 0.45, y: 0.9 }), 4);
+  const zig = touchRun((t) => (Math.floor(t / 0.8) % 2 ? { x: -0.7, y: 0.7 } : { x: 0.7, y: 0.7 }), 4);
+  assert.equal(jit.lost + zig.lost, 0);
 });
