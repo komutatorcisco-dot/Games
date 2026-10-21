@@ -1004,7 +1004,10 @@ const ALIAS = { kick: 'soccer_penalty_kick', kick2: 'kick_soccerball', strike: '
   gk_block2: 'goalkeeper_body_block_2', // низкий бросок на газон вправо (gk_block — влево)
   jog_back: 'jog_backward',
   pass: 'kick_soccerball_2' };          // пас низом правой ногой у земли, касание на 0,47 с (замер носка)
-const clipOf = (name) => (name.startsWith('h_') ? heroMoves && heroMoves[name] : base.animations.find((c) => c.name === (ALIAS[name] || name)));
+const clipOfRaw = (name) => (name.startsWith('h_') ? heroMoves && heroMoves[name] : base.animations.find((c) => c.name === (ALIAS[name] || name)));
+// «имя_L» — зеркальная копия записи (левой ногой): пас и удар с левой, если мяч ведёт левая (B.sideK < 0)
+const mirrored = new Map();
+const clipOf = (name) => { if (!name.endsWith('_L')) return clipOfRaw(name); if (!mirrored.has(name)) { const c = clipOfRaw(name.slice(0, -2)); mirrored.set(name, c ? mirrorClip(c, name) : null); } return mirrored.get(name); };
 const variants = new Map();
 // копия движения: смещение таза по сторонам (fx) и вперёд (fz) умножено — вратарь долетает ровно до мяча и не выбегает из ворот
 // Бег и стойка своей модели (записи общей модели): высоту таза подбираем по замеру — за весь цикл стопа не уходит
@@ -1012,7 +1015,7 @@ const variants = new Map();
 const HERO_FIT = new Set(['idle', 'jog', 'jog_back', 'jog_strafe_left', 'jog_strafe_right', 'jog_forward_diagonal', 'jog_forward_diagonal_2', 'jog_backward_diagonal', 'jog_backward_diagonal_2']);
 // удар: высота таза подгоняется по каждому ключу записи — опорная стопа всё время на газоне. Иначе на своей модели
 // опорная нога уходила под газон (до 0,77 м), «защита от провала» поднимала всё тело, и ударная стопа проходила над мячом
-const HERO_FIT_KEYS = new Set(['strike']);
+const HERO_FIT_KEYS = new Set(['strike', 'strike_L']);
 let heroProbe = null;
 function heroFit(c, up) {
   if (!hero) return;
@@ -1054,11 +1057,12 @@ function variant(name, fx = 1, fz = 1, hs = 1) {
       if (HERO_FIT.has(name)) heroFit(c, up); else if (HERO_FIT_KEYS.has(name)) heroFitKeys(c, up); } }
   variants.set(key, c); return c;
 }
-function play(pl, name, { t = 0, loop = false, fade = 0.25, speed = 1, hold = Infinity, fx = 1, fz = 1, lock = null, lift = 0, follow = false } = {}) {
-  const a = pl.mixer.clipAction(variant(name, fx, fz, name.startsWith('h_') ? 1 : pl.hs || 1)); // h_ — записано на своём скелете
+function play(pl, name, { t = 0, loop = false, fade = 0.25, speed = 1, hold = Infinity, fx = 1, fz = 1, lock = null, lift = 0, follow = false, mirror = false } = {}) {
+  // mirror — та же запись зеркально (левой ногой); имя движения (pl.name) остаётся прежним — вся логика паса/удара та же
+  const a = pl.mixer.clipAction(variant(mirror ? name + '_L' : name, fx, fz, name.startsWith('h_') ? 1 : pl.hs || 1)); // h_ — записано на своём скелете
   a.reset(); a.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity); a.clampWhenFinished = true; a.timeScale = speed; a.time = t; a.setEffectiveWeight(1);
   if (pl.name === 'loco' && pl.loco) { // из смешанного бега: гасим обе записи (и незавершённый прошлый переход)
-    const o = pl.loco; for (const x of new Set([o.idle, o.jog, o.prev, o.drib, ...(o.dirs || []).map((d) => d.a), ...(o.run || []).map((r) => r.a)])) if (x && x !== a) { if (fade > 0) x.fadeOut(fade); else x.stop(); }
+    const o = pl.loco; for (const x of new Set([o.idle, o.jog, o.prev, o.drib, o.dribL, ...(o.dirs || []).map((d) => d.a), ...(o.run || []).map((r) => r.a)])) if (x && x !== a) { if (fade > 0) x.fadeOut(fade); else x.stop(); }
     o.prev = null; if (fade > 0) a.fadeIn(fade);
   } else if (pl.act && pl.act !== a && fade > 0) a.crossFadeFrom(pl.act, fade, false); else if (pl.act && pl.act !== a) pl.act.stop();
   a.play(); Object.assign(pl, { act: a, name, hold, lock, lift, t0: t, t, follow });
@@ -1147,6 +1151,7 @@ function tickPlayer(pl, dt) {
   pl.mixer.update(dt);
   if (pl.act.time >= pl.hold) { pl.act.time = pl.hold; pl.act.paused = true; }
   pl.t = pl.act.time;
+  if (Math.abs(pl.twist || 0) > 0.005) torsoTwist(pl, pl.twist);
   if (pl.lock || pl.lift || pl.follow) {
     pl.holder.updateMatrixWorld(true);
     const par = pl.hips.parent, w = pl.hips.getWorldPosition(v3);
@@ -1156,6 +1161,17 @@ function tickPlayer(pl, dt) {
     pl.hips.position.copy(par.worldToLocal(w));
   } else pl.holder.updateMatrixWorld(true);
   groundFix(pl, dt, pl.lift ? pl.lift(pl.t) : 0);
+}
+// Поворот начинается с корпуса: плечи и голова разворачиваются к цели раньше ног (ноги бегут по скорости, а она
+// поворачивает дугой). Поверх записи бега: позвоночник и шея скручиваются вокруг вертикали (доли — снизу вверх).
+// Поворот вокруг мировой вертикали в системе родителя кости: при повороте кости вокруг вертикали её «вертикаль» не
+// меняется, поэтому оси для всех костей берём из одного расчёта.
+const TWIST = [['Spine', 0.25], ['Spine1', 0.3], ['Spine2', 0.3], ['Neck', 0.15]], twQ = new THREE.Quaternion(), twA = new THREE.Vector3(), twU = new THREE.Vector3(0, 1, 0);
+function torsoTwist(pl, ang) {
+  if (!pl.twB) pl.twB = TWIST.map(([n, k]) => [pl.model.getObjectByName(n), k]).filter((x) => x[0]);
+  pl.holder.updateMatrixWorld(true);
+  const axes = pl.twB.map(([b]) => twA.copy(twU).applyQuaternion(b.parent.getWorldQuaternion(twQ).invert()).clone());
+  pl.twB.forEach(([b, k], i) => b.quaternion.premultiply(twQ.setFromAxisAngle(axes[i], ang * k)));
 }
 // Газон твёрдый: ни одна часть тела не уходит под него (падения, подкаты, прыжки вратаря, а у своей модели — и записи
 // с другого скелета). Берём суставы с «толщиной» тела вокруг; если самый низкий ниже газона — вся модель сразу
@@ -1222,7 +1238,7 @@ function wallTick(w, i, dt) { // стенка: стоят, при ударе т�
 // ---------- 1 на 1: бежишь сам с мячом и бьёшь (джойстик + кнопки, как в FC Mobile) ----------
 // Игрок и мяч считаются в ballphys.js фиксированными шагами: runPhys — движение, ведение, приём, удар, вратарь;
 // runAnim — каждый кадр: позы, касания ногой, наклоны.
-let STRIKE = null, PASS = null, run = null, crowdT = 0;
+let STRIKE = null, PASS = null, STRIKE_L = null, PASS_L = null, run = null, crowdT = 0;
 const joy = { x: 0, y: 0, id: null, cx: 0, cy: 0 }, keys = {}, btn = { shot: false, sprint: false, press: false, tk: false, pd: false, second: false, rd: false, sl: false };
 // камера «1 на 1»: за спиной игрока по линии на ворота, игрок — в нижней трети кадра, ворота видны впереди
 const CAM_RUN = { back: 6.3, height: 2.9, ahead: 8, lookH: 0.9 };
@@ -1532,8 +1548,8 @@ function releaseCharge() {
 }
 // замах начинается сразу; мяч остаётся под контролем до касания ноги, импульс — один раз в момент касания (runPhys)
 function doStrike(pw, kind, side, aim = input()) {
-  const S = strikeOf(shooter); run.strike = { pw, kind, side, aim, cmdT: simT, S }; B.state = 'strike'; B.strikeAt = S.at;
-  play(shooter, 'strike', { t: Math.max(0, S.tc - 0.3), fade: shooter.own ? 0 : 0.1, speed: 1.25, follow: true }); // своя модель — без перехода: при смешивании таз проваливался, тело подбрасывало
+  const S = strikeOf(shooter, leftNow()); run.strike = { pw, kind, side, aim, cmdT: simT, S }; B.state = 'strike'; B.strikeAt = S.at;
+  play(shooter, 'strike', { t: Math.max(0, S.tc - 0.3), fade: shooter.own ? 0 : 0.1, speed: 1.25, follow: true, mirror: isL(S) }); // своя модель — без перехода: при смешивании таз проваливался, тело подбрасывало
 }
 // мяч вот-вот будет мой (пас мне в пути или бегу к свободному мячу, он рядом): нажатие «Пас»/«Удар» запоминается
 // и выполняется сразу после касания (один раз; старше 0,7 с — забывается)
@@ -1608,9 +1624,9 @@ function startPass(P, who, pl, power, kind, quick = false) { // замах ср�
   if (state !== 'play' || B.state !== 'owned' || B.owner !== who) return false;
   const job = { power, kind };
   if (who === 'me') { if (run.strike || run.pass) return false; run.pass = job; } else (MATCH_ON ? actorOf(who).ai : run.mate).pass = job;
-  const S = passOf(pl); job.S = S;
+  const S = passOf(pl, leftNow()); job.S = S;
   B.state = 'strike'; B.strikeAt = S.at;
-  play(pl, 'pass', { t: Math.max(0, S.tc - (quick ? 0.08 : 0.24)), fade: quick ? 0.04 : 0.08, speed: 1.15, follow: true }); // quick — в одно касание: нога уже в замахе
+  play(pl, 'pass', { t: Math.max(0, S.tc - (quick ? 0.08 : 0.24)), fade: quick ? 0.04 : 0.08, speed: 1.15, follow: true, mirror: isL(S) }); // quick — в одно касание: нога уже в замахе
   return true;
 }
 // точка встречи: где будет получатель, когда дойдёт мяч (если бежит — на ход), без самонаведения после касания
@@ -2169,18 +2185,25 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
   const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
   // замах занят до конца движения ноги; запись может закончиться раньше этого запаса — тогда до её конца (иначе поза застывает навсегда)
   const busyTill = (C, extra) => Math.min(C.tc + extra, C.dur - 0.05);
-  const busy = (pl.name === 'strike' && pl.t < busyTill(strikeOf(pl), 0.3)) || (pl.name === 'pass' && pl.t < busyTill(passOf(pl), 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele) || (pl.once && pl.name === pl.once.name && pl.t < pl.once.until && !(pl.once.name === 'receive' && sp > 1.3) && !(pl.once.run && sp < 0.6)); // приём не держит позу, если игрок уже побежал
+  const busy = (pl.name === 'strike' && pl.t < busyTill((pl.own && CONTACT.own) || STRIKE, 0.3)) || (pl.name === 'pass' && pl.t < busyTill((pl.own && CONTACT.ownPass) || PASS, 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele) || (pl.once && pl.name === pl.once.name && pl.t < pl.once.until && !(pl.once.name === 'receive' && sp > 1.3) && !(pl.once.run && sp < 0.6)); // приём не держит позу, если игрок уже побежал
   pl.withBall = B.state === 'owned' && B.owner === (who0 || (pl === shooter ? 'me' : 'mate')) && sp > 1.4;
   if (!busy) { loco(pl, sp, dt, P); autoMoves(pl, P, sp, dt, who0 || (pl === shooter ? 'me' : 'mate')); }
+  { // корпус ведёт поворот: куда хочет бежать (P.wx, P.wz) против того, куда смотрит таз; только в беге и ведении
+    const wl = Math.hypot(P.wx || 0, P.wz || 0); let want = 0;
+    if (pl.name === 'loco' && !pl.mv && wl > 0.6) { let d = Math.atan2(P.wx, P.wz) - P.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); want = THREE.MathUtils.clamp(d, -1.1, 1.1) * 0.6; }
+    pl.twist = (pl.twist || 0) + (want - (pl.twist || 0)) * (1 - Math.exp(-dt * (Math.abs(want) > Math.abs(pl.twist || 0) ? 14 : 7))); // в поворот — быстро, обратно — мягче
+    if (pl.name !== 'loco' && Math.abs(pl.twist) < 0.3) pl.twist *= Math.exp(-dt * 20); }
   tickPlayer(pl, dt);
   // касания при ведении — в такт шагу: правая нога проходит вперёд на ~62–69% цикла бега (замер записи jog_forward);
   // на медленном шаге (бег почти не смешан) — когда носок у мяча; и не реже раза в touchMax
   const who = who0 || (pl === shooter ? 'me' : 'mate');
-  if (B.state === 'owned' && B.owner === who && sp > 0.6 && B.touchCd <= 0) {
+  if (B.state === 'owned' && B.owner === who && sp > 0.6 && B.touchCd <= 0 && !(B.turnPending && !B.turnPending.ready)) { // поворот: ждём, пока корпус довернёт
     const L = pl.loco, jogW = L ? L.jog.getEffectiveWeight() : 0, ph = L ? (L.jog.time / L.jog.getClip().duration) % 1 : 0;
     const phT = B.foot < 0 ? 0.12 : 0.62, stepNow = jogW > 0.5 && L.lastPh !== undefined && L.lastPh < phT && ph >= phT; // левая нога выходит вперёд на полцикла раньше
     const toe = (B.foot < 0 ? pl.toeL : pl.toeR).getWorldPosition(tmpB).distanceTo(B.p) - R; // носок той ноги, что ведёт мяч
-    if (stepNow || (jogW <= 0.5 && toe < 0.12) || B.touchCd < -(BP.CFG.control.touchMax - BP.CFG.control.touchMin)) { BP.touch(B, P); sfx.touch(); if (who === 'me' && run) run.meTouchT = simT; }
+    // поворот: касание, как только нога у мяча (или не позже чем через 0,12 с) — мяч уходит в новую сторону сам
+    const turnNow = B.turnPending && B.turnPending.ready && (toe < 0.25 || B.turnPending.t > 0.12);
+    if (turnNow || stepNow || (jogW <= 0.5 && toe < 0.12) || B.touchCd < -(BP.CFG.control.touchMax - BP.CFG.control.touchMin)) { BP.touch(B, P); sfx.touch(); if (who === 'me' && run) run.meTouchT = simT; }
   }
   if (pl.loco) pl.loco.lastPh = (pl.loco.jog.time / pl.loco.jog.getClip().duration) % 1;
   return sp;
@@ -2221,7 +2244,7 @@ function afterKick(dt) {
   }
   tickPlayer(shooter, dt);
 }
-function prepStrike() { STRIKE = prepContact('strike', 0.2); PASS = prepContact('pass', 0.15); if (TRACE) window.__contact = { STRIKE, PASS }; }
+function prepStrike() { STRIKE = prepContact('strike', 0.2); PASS = prepContact('pass', 0.15); STRIKE_L = prepContact('strike_L', 0.2); PASS_L = prepContact('pass_L', 0.15); if (TRACE) window.__contact = { STRIKE, PASS, STRIKE_L, PASS_L }; }
 // когда в записи нога бьёт по мячу (самая быстрая стопа) и где стопа в этот момент относительно таза
 function prepContact(clipName, tMin, pl = shooter) {
   const a = pl.mixer.clipAction(pl.hs && pl.hs !== 1 ? variant(clipName, 1, 1, pl.hs) : clipOf(clipName)); pl.mixer.stopAllAction(); a.reset().play(); // та же запись, что играет play()
@@ -2242,16 +2265,21 @@ function prepContact(clipName, tMin, pl = shooter) {
 }
 // касание удара для этой модели (своя модель — свой замер, один раз)
 const CONTACT = {};
-function strikeOf(pl) { if (!pl || !pl.own) return STRIKE; return CONTACT.own || (CONTACT.own = prepContact('strike', 0.2, pl)); }
+// L — левой ногой (зеркальная запись): своё время и своя точка касания (у левой стопы)
+const leftNow = () => (B.sideK ?? 1) < 0; // мяч сейчас у левой стопы того, кто им владеет
+// замер касания останавливает все записи игрока (prepContact) — поэтому обе ноги меряются сразу, до начала замаха,
+// а не «лениво» посреди удара (иначе запись удара обрывалась, и удар не происходил)
+function strikeOf(pl, L = false) { if (!pl || !pl.own) return L ? STRIKE_L : STRIKE; if (!CONTACT.own) { CONTACT.own = prepContact('strike', 0.2, pl); CONTACT.ownL = prepContact('strike_L', 0.2, pl); } return L ? CONTACT.ownL : CONTACT.own; }
 // касание при пасе — тоже по своей модели (как у удара: у своей модели другая длина ног и момент касания)
-function passOf(pl) { if (!pl || !pl.own) return PASS; return CONTACT.ownPass || (CONTACT.ownPass = prepContact('pass', 0.15, pl)); }
+function passOf(pl, L = false) { if (!pl || !pl.own) return L ? PASS_L : PASS; if (!CONTACT.ownPass) { CONTACT.ownPass = prepContact('pass', 0.15, pl); CONTACT.ownPassL = prepContact('pass_L', 0.15, pl); } return L ? CONTACT.ownPassL : CONTACT.ownPass; }
+const isL = (S) => !!S && S.foot === 'LeftFoot'; // замер касания этой записи — левой ногой
 // Пас — только когда носок у мяча (как удар). Мяча у ноги нет (сразу после приёма он ещё в метре) — нога ждёт до 0,35 с,
 // потом пас отменяется и мяч остаётся у игрока. Раньше пас «срабатывал» по времени записи: нога проходила мимо, мяч выпадал.
 // Возвращает true — бить сейчас, 'cancel' — отменить, false — ждать.
 function passContact(pl, job, P, who, dt) {
   job.age = (job.age || 0) + dt; if (job.age > 1.2) return 'cancel'; // страховка: пас не висит (иначе следующие нажатия блокируются)
   if (pl.name !== 'pass') { // запись паса перебита другой (замер серии: 1 пас из 10 терялся) — мяч ещё у ноги: замах заново
-    if (B.state === 'strike' && B.owner === who && (job.restarts = (job.restarts || 0) + 1) <= 2) { const S = job.S || PASS; play(pl, 'pass', { t: Math.max(0, S.tc - 0.12), fade: 0.04, speed: 1.15, follow: true }); job.dPrev = undefined; if (TRACE) console.log('passRestart', JSON.stringify({ who, t: +simT.toFixed(2) })); return false; }
+    if (B.state === 'strike' && B.owner === who && (job.restarts = (job.restarts || 0) + 1) <= 2) { const S = job.S || PASS; play(pl, 'pass', { mirror: isL(S), t: Math.max(0, S.tc - 0.12), fade: 0.04, speed: 1.15, follow: true }); job.dPrev = undefined; if (TRACE) console.log('passRestart', JSON.stringify({ who, t: +simT.toFixed(2) })); return false; }
     return 'cancel';
   }
   const S = job.S || PASS, c = strikeContact(pl, S, job), cp = BP.controlPoint(P, B);
@@ -2761,8 +2789,8 @@ function botWithBall(a, mates, foes) {
   ai.want = { x: dx, z: dz };
 }
 function botShoot(a, tx, pw) {
-  const S = strikeOf(a.pl), ai = a.ai; ai.strike = { pw, tx, S }; B.state = 'strike'; B.strikeAt = S.at;
-  play(a.pl, 'strike', { t: Math.max(0, S.tc - 0.3), fade: a.pl.own ? 0 : 0.1, speed: 1.25, follow: true });
+  const S = strikeOf(a.pl, leftNow()), ai = a.ai; ai.strike = { pw, tx, S }; B.state = 'strike'; B.strikeAt = S.at;
+  play(a.pl, 'strike', { t: Math.max(0, S.tc - 0.3), fade: a.pl.own ? 0 : 0.1, speed: 1.25, follow: true, mirror: isL(S) });
 }
 // удар бота: в системе координат его атаки (ворота на z = 0) — та же функция удара, что у игрока
 function fireBotStrike(a) {
@@ -2977,8 +3005,8 @@ function matchPhys(h) {
       best.P.recvD = undefined;
       if (q1) {
         run.queue = null; BP.capture(B, best.P, 'me'); run.holdInp = null;
-        const r = q1.recv && q1.recv.id !== 'me' ? q1.recv : pickReceiver(best.P, input(), false, true, q1.power), S = passOf(shooter);
-        play(shooter, 'pass', { t: Math.max(0, S.tc - 0.03), fade: 0.03, speed: 1.15, follow: true });
+        const r = q1.recv && q1.recv.id !== 'me' ? q1.recv : pickReceiver(best.P, input(), false, true, q1.power), S = passOf(shooter, leftNow());
+        play(shooter, 'pass', { t: Math.max(0, S.tc - 0.03), fade: 0.03, speed: 1.15, follow: true, mirror: isL(S) });
         run.swapTo = r.id; if (TRACE) console.log('oneTouch', JSON.stringify({ t: +simT.toFixed(2), wait: +(simT - q1.t).toFixed(2) }));
         if (firePass(best.P, 'me', { power: q1.power, kind: q1.k, at: q1.at || null, S }, r.P)) { if (r.id === 'gk2') { MT.back = { t: simT }; run.swapTo = '-'; } }
         MT.last = best.team; if (MT.restart && MT.restart.kind !== 'kickoff') MT.restart = null;
@@ -3865,4 +3893,7 @@ frame();
 // для проверки ведения: носки и мяч в системе игрока (f — вперёд, s — вправо), нога ведения, время последнего касания
 if (TRACE) window.__drib = () => { const a = actorOf('me'), pl = a.pl, P = a.P, fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw);
   const loc = (v) => { const dx = v.x - P.p.x, dz = v.z - P.p.z; return [+(dx * fx + dz * fz).toFixed(3), +(dx * rx + dz * rz).toFixed(3), +v.y.toFixed(3)]; };
-  return { bv: +Math.hypot(B.v.x, B.v.z).toFixed(2), t: +simT.toFixed(3), l: loc(pl.toeL.getWorldPosition(new THREE.Vector3())), r: loc(pl.toeR.getWorldPosition(new THREE.Vector3())), b: loc(B.p), foot: B.foot || 0, sk: +(B.sideK ?? 1).toFixed(2), touch: +(run.meTouchT || 0).toFixed(3), sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(3), bs: B.state, own: B.owner, dw: pl.loco && pl.loco.dw ? +pl.loco.dw.toFixed(2) : 0, drt: pl.loco && pl.loco.drib ? +((pl.loco.drib.time / pl.loco.drib.getClip().duration) % 1).toFixed(3) : null }; };
+  return { fr: +(B.freeT || 0).toFixed(2), bl: +(B.blendT || 0).toFixed(2), tp: !!B.turnPending, tw: +(pl.twist || 0).toFixed(2), bv: +Math.hypot(B.v.x, B.v.z).toFixed(2), t: +simT.toFixed(3), l: loc(pl.toeL.getWorldPosition(new THREE.Vector3())), r: loc(pl.toeR.getWorldPosition(new THREE.Vector3())), b: loc(B.p), foot: B.foot || 0, sk: +(B.sideK ?? 1).toFixed(2), touch: +(run.meTouchT || 0).toFixed(3), sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(3), bs: B.state, own: B.owner, dw: pl.loco && pl.loco.dw ? +pl.loco.dw.toFixed(2) : 0, drt: pl.loco && pl.loco.drib ? +((pl.loco.drib.time / pl.loco.drib.getClip().duration) % 1).toFixed(3) : null }; };
+if (TRACE) window.__foot = (f) => { B.foot = f; B.sideK = f; B.footT = 0; B.turning = false; }; // для проверки: мяч под правую (1) или левую (−1)
+if (TRACE) window.__contactsL = () => ({ own: CONTACT.own, ownL: CONTACT.ownL, ownPass: CONTACT.ownPass, ownPassL: CONTACT.ownPassL, STRIKE_L, PASS_L });
+if (TRACE) window.__act = () => { const a = actorOf('me').pl.act; return a && { clip: a.getClip().name, dur: +a.getClip().duration.toFixed(2), ts: a.timeScale, en: a.enabled, paused: a.paused, run: a.isRunning(), w: +a.getEffectiveWeight().toFixed(2), time: +a.time.toFixed(3), tracks: a.getClip().tracks.length }; };
