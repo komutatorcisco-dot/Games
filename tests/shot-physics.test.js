@@ -298,3 +298,18 @@ test('ведение касаниями: дрожащий палец и зигз
   const zig = touchRun((t) => (Math.floor(t / 0.8) % 2 ? { x: -0.7, y: 0.7 } : { x: 0.7, y: 0.7 }), 4);
   assert.equal(jit.lost + zig.lost, 0);
 });
+test('с мячом игрок бежит туда, куда держат джойстик (поворот с места на 45–180°), а не кругами за мячом', () => {
+  const { CFG } = M;
+  for (let a = 45; a <= 180; a += 22.5) for (const s of [-1, 1]) {
+    const P = M.newPlayer({ x: 0, z: 35 }, Math.PI), b = M.newBall(M.controlPoint(P, null)); M.capture(b, P, 'me'); b.trapT = 1; b.trapDur = 0;
+    const r = s * a * Math.PI / 180, inp = { x: Math.sin(r), y: Math.cos(r) }, jx = inp.x, jz = -inp.y;
+    let t = 0, worst = 0, lost = 0;
+    while (t < 2) { M.playerStep(P, inp, CFG.dt, true);
+      if (b.state === 'owned') { if (!b.tm && b.touchCd <= 0 && Math.hypot(P.v.x, P.v.z) > 0.6) M.touch(b, P); if (M.controlStep(b, P, CFG.dt) === 'lost') lost++; }
+      t += CFG.dt; const vl = Math.hypot(P.v.x, P.v.z); if (t > 0.8 && vl > 0.5) worst = Math.max(worst, Math.acos(Math.max(-1, Math.min(1, (P.v.x * jx + P.v.z * jz) / vl))) * 57.3); }
+    const prog = (P.p.x) * jx + (P.p.z - 35) * jz;
+    assert.equal(lost, 0, `потеря на ${s * a}°`);
+    assert.ok(worst < 25, `на ${s * a}° ход отклоняется от джойстика на ${worst.toFixed(0)}°`);
+    assert.ok(prog > 3, `на ${s * a}° за 2 с пройдено ${prog.toFixed(1)} м`);
+  }
+});

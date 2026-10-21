@@ -447,7 +447,7 @@ export function capture(b, P, who) {
   b.p.y = CFG.R; b.v.y = 0; b.stopped = false; b.touchFirst = false;
   // нога, к которой пришёл мяч: с какой стороны от игрока он (без скачка точки контроля через корпус)
   const lat = (b.p.x - P.p.x) * -Math.cos(P.yaw) + (b.p.z - P.p.z) * Math.sin(P.yaw);
-  b.foot = lat >= 0 ? 1 : -1; b.sideK = Math.max(-1, Math.min(1, lat / C.side)); b.footT = 0; b.wsx = undefined; b.tm = false; b.hurry = false; b.turning = false;
+  b.foot = lat >= 0 ? 1 : -1; b.sideK = Math.max(-1, Math.min(1, lat / C.side)); b.footT = 0; b.wsx = undefined; b.tm = false; b.hurry = false; b.turning = false; b.springT = 0;
   return rel;
 }
 // мяч догоняет бегущего игрока сзади (или сзади-сбоку, почти по его следу): ещё не у ноги — приём ждёт, пока мяч выкатится
@@ -552,6 +552,7 @@ export function dribbleStep(b, P, h) {
   const C = CFG.control, D = C.drib, sp = Math.hypot(P.v.x, P.v.z), want = Math.hypot(P.wx || 0, P.wz || 0);
   // запись движения ведёт игрока (разворот 180°, финт) — мяч у стопы «пружиной» (стопа уводит его вместе с корпусом)
   const ok = !b.touchFirst && !b.strikeAt && !b.feintOff && !P.drive && want > 0.5 && (sp > D.vOn || (b.tm && sp > D.vOff));
+  if (b.springT > 0) { b.springT -= h; P.steer = null; return false; } // мяч возвращается к ноге «пружиной» (игрок обогнал его на повороте)
   if (!ok) { if (b.tm) b.tmEnd = 0.8; b.tm = false; b.hurry = false; P.steer = null; if (b.tmEnd > 0) b.tmEnd -= h; return false; }
   const cph = b.foot < 0 ? 0.12 : 0.62;
   if (!b.tm) { b.tm = true; b.missT = 0; b.cycN = 0; b.gph = (cph + 0.97) % 1; b.gpar = b.gpar || 0; } // начал вести — первое касание сразу (шаг подстраивается под мяч)
@@ -624,8 +625,10 @@ export function dribbleStep(b, P, h) {
   }
   // поворот ждёт касания, а мяч впереди стопы — игрок подбегает к нему (P.steer → playerStep), не дольше steerT с
   // (мяч убежал — отпустил рывок после длинного толчка — подбегает дольше, до missT с)
-  if (b.hurry) { b.steerT = (b.steerT || 0) + h; const dx = b.p.x - P.p.x, dz = b.p.z - P.p.z, dl = Math.hypot(dx, dz) || 1;
-    P.steer = b.steerT < (b.missT > 0.12 ? D.missT : D.steerT) && dl > 0.3 ? { x: dx / dl, z: dz / dl, k: b.missT > 0.12 ? 0.85 : 0.75, v: Math.max(1.2, Math.hypot(b.v.x, b.v.z) + (dl - 0.35) * 4) } : null; } else { b.steerT = 0; P.steer = null; }
+  // игрок бежит туда, куда держат джойстик: к мячу подворачивает, только если мяч впереди по ходу джойстика (не назад и не вбок)
+  const jl = Math.hypot(P.wx0 ?? 0, P.wz0 ?? 0), jx = jl > 0.3 ? P.wx0 / jl : fx, jz = jl > 0.3 ? P.wz0 / jl : fz;
+  if (b.hurry) { b.steerT = (b.steerT || 0) + h; const dx = b.p.x - P.p.x, dz = b.p.z - P.p.z, dl = Math.hypot(dx, dz) || 1, ahead = (dx * jx + dz * jz) / dl > 0.6;
+    P.steer = ahead && b.steerT < (b.missT > 0.12 ? D.missT : D.steerT) && dl > 0.3 ? { x: dx / dl, z: dz / dl, k: b.missT > 0.12 ? 0.85 : 0.75, v: Math.max(1.2, Math.hypot(b.v.x, b.v.z) + (dl - 0.35) * 4) } : null; } else { b.steerT = 0; P.steer = null; }
   // между касаниями мяч катится сам и тормозит (трение травы); вращение — по скорости (ниже, в controlStep)
   const bs = Math.hypot(b.v.x, b.v.z); if (bs > 1e-6) { const k = Math.max(0, bs - (b.drag || D.drag) * h) / bs; b.v.x *= k; b.v.z *= k; }
   b.v.y = 0;
@@ -635,6 +638,9 @@ export function dribbleStep(b, P, h) {
     b.missT = ef > gmax || ef < -D.reachB || el > D.reach + 0.15 ? (b.missT || 0) + h : 0; }
   if (b.missT > 0.12 && !b.hurry) { b.hurry = true; b.steerT = 0; } // мяч не у ноги (резко сменил ход) — подбежать к нему и коснуться
   if (b.missT > D.missT) { b.tm = false; return false; }
+  // мяч не у ноги и не впереди по джойстику (игрок обогнал его, развернулся) — бежать за ним назад нельзя: мяч подтягивается
+  // к стопе «пружиной», игрок продолжает бег по джойстику; потом снова касания
+  if (b.missT > 0.12) { const dx = b.p.x - P.p.x, dz = b.p.z - P.p.z, dl = Math.hypot(dx, dz) || 1; if ((dx * jx + dz * jz) / dl < 0.6) { b.tm = false; b.hurry = false; P.steer = null; b.springT = 0.4; b.tmEnd = 0.8; return false; } }
   return true;
 }
 export function controlStep(b, P, h, obstacles) {
@@ -703,7 +709,7 @@ export function controlStep(b, P, h, obstacles) {
 // отпустить мяч (удар, потеря); lock — сколько секунд бывший владелец не может его снова взять
 export function release(b, who, t, lock = CFG.control.regrab, mustClear = true) {
   b.lockOwner = who ?? b.owner; b.lockUntil = t + lock; b.mustClear = mustClear;
-  b.state = 'free'; b.owner = null; b.push = 0; b.stopped = false; b.trapT = 1; b.strikeAt = null; b.feintOff = null; b.touchFirst = false; b.wsx = undefined; b.tm = false; b.hurry = false; b.turning = false;
+  b.state = 'free'; b.owner = null; b.push = 0; b.stopped = false; b.trapT = 1; b.strikeAt = null; b.feintOff = null; b.touchFirst = false; b.wsx = undefined; b.tm = false; b.hurry = false; b.turning = false; b.springT = 0;
 }
 
 // ---------- удар ----------
