@@ -119,6 +119,10 @@ export const CFG = {
     // мелкие поправки ногу не меняют, и не чаще раза в footHold с. Мяч переходит под другую ногу непрерывно —
     // перед корпусом (b.sideK плавно от +1 к −1 за ~2/footRate с), а не скачком и не сквозь ноги.
     footTurn: 0.85, footHold: 0.35, footRate: 7, footCross: 0.07,
+    // перекладывание (вид; движение игрока не меняется): мяч под другую ногу переводит внутренней стороной стопы та
+    // нога, у которой он был, — в её шаг (касание): мяч сразу уходит вбок перед корпусом и за xferT с (~0,28) оказывается у
+    // другой стопы. Шага этой ноги нет дольше xferWait с (шагом, стоя) — мяч переходит плавно, как раньше
+    xferT: 0.28, xferWait: 0.7,
     // первое касание при приёме паса (firstTouch): стопа гасит скорость прилёта и направляет мяч дальше — по джойстику,
     // а без джойстика — туда, куда смотрит корпус (мягкая подушка). Потом мяч катится сам и лишь затем плавно
     // переходит в ведение — без «магнита» к стопе
@@ -430,7 +434,7 @@ export function canCapture(b, P, who, t) {
 }
 export function capture(b, P, who) {
   const C = CFG.control, rel = Math.hypot(b.v.x - P.v.x, b.v.z - P.v.z, b.v.y);
-  b.state = 'owned'; b.owner = who; b.trapT = 0; b.trapDur = C.trapBase + C.trapPerV * rel; b.push = 0; b.tp = null; b.tpOff = 0; b.tpV = 0; b.touchCd = C.touchMin;
+  b.state = 'owned'; b.owner = who; b.trapT = 0; b.trapDur = C.trapBase + C.trapPerV * rel; b.push = 0; b.tp = null; b.tpOff = 0; b.tpV = 0; b.ffx = 0; b.ffz = 0; b.xfer = null; b.xferV = 0; b.footNext = undefined; b.touchCd = C.touchMin;
   b.p.y = CFG.R; b.v.y = 0; b.stopped = false; b.touchFirst = false;
   // нога, к которой пришёл мяч: с какой стороны от игрока он (без скачка точки контроля через корпус)
   const lat = (b.p.x - P.p.x) * -Math.cos(P.yaw) + (b.p.z - P.p.z) * Math.sin(P.yaw);
@@ -492,8 +496,10 @@ export function updateClear(b, P, who) {
 // касание при ведении: мяч отходит вперёд (на рывке дальше)
 export function touch(b, P, T) {
   const C = CFG.control, sp = Math.hypot(P.v.x, P.v.z);
+  // поворот ждёт перекладывания: этот шаг ноги с мячом — внутренней стороной стопы мяч уходит к другой ноге
+  if (b.footNext !== undefined) { b.xfer = { t: 0, T: C.xferT, s0: b.sideK, s1: b.footNext }; b.foot = b.footNext; b.footNext = undefined; b.xferN = (b.xferN || 0) + 1; }
   // T — через сколько секунд следующий шаг этой ноги (из анимации бега): толчок с качением до него
-  if (T > 0) { b.tp = { t: 0, T: Math.min(0.9, Math.max(0.25, T)), A: Math.min(C.touchAMax, C.touchA0 + C.touchAPerV * sp) * (P.dribK || 1) }; b.push = 0; b.roll = 0;
+  if (T > 0) { b.tp = { t: 0, T: Math.min(0.9, Math.max(0.25, T)), A: Math.min(C.touchAMax, C.touchA0 + C.touchAPerV * sp) * (P.dribK || 1) * (b.xfer && b.xfer.t === 0 ? 0.5 : 1) }; // перекладывание — мяч больше вбок, чем вперёд b.push = 0; b.roll = 0;
     b.touchCd = Math.max(C.touchMin, Math.min(C.touchMax, 0.62 - sp * 0.045)); return; }
   b.push = (C.touchPush + C.touchPushPerSpeed * sp) * (P.dribK || 1); b.roll = C.rollTime || 0; // dribK — дриблинг карточки
   b.touchCd = Math.max(C.touchMin, Math.min(C.touchMax, 0.62 - sp * 0.045));
@@ -514,9 +520,14 @@ export function footStep(b, P, h) {
     if (Math.abs(a) > C.footTurn && !b.turning) {
       const cr = P.v.x * P.wz - P.v.z * P.wx; // как и запись разворота (autoMoves): > 0 — через левое плечо
       const side = Math.abs(a) > 2.6 ? (Math.abs(cr) > 0.3 ? Math.sign(cr) : -b.foot) : Math.sign(a); // > 0 — влево
-      b.foot = side > 0 ? -1 : 1; b.footT = 0; b.turning = true; b.touchCd = Math.min(b.touchCd, 0); }
+      const nf = side > 0 ? -1 : 1; b.footT = 0; b.turning = true; b.touchCd = Math.min(b.touchCd, 0);
+      if (nf !== b.foot && !b.xfer) { b.footNext = nf; b.footNextT = 0; } else if (nf === b.foot) b.footNext = undefined; }
   }
-  const d = b.foot - b.sideK, m = C.footRate * h; b.sideK += Math.max(-m, Math.min(m, d));
+  // ждём шага ноги с мячом (перекладывание касанием, touch); не дождались, замах паса/удара — мяч переходит сам, плавно
+  if (b.footNext !== undefined && ((b.footNextT += h) > C.xferWait || b.strikeAt)) { b.foot = b.footNext; b.footNext = undefined; }
+  if (b.xfer) { const X = b.xfer; X.t += h; const u = Math.min(1, X.t / X.T); b.sideK = X.s0 + (X.s1 - X.s0) * (1 - (1 - u) * (1 - u)); // быстро от стопы, к другой — замедляясь (катится)
+    b.xferV = u < 1 ? (X.s1 - X.s0) * 2 * (1 - u) / X.T : 0; if (u >= 1) b.xfer = null; return; }
+  b.xferV = 0; const d = b.foot - b.sideK, m = C.footRate * h; b.sideK += Math.max(-m, Math.min(m, d));
 }
 export function controlStep(b, P, h, obstacles) {
   const C = CFG.control, R = CFG.R;
@@ -542,6 +553,7 @@ export function controlStep(b, P, h, obstacles) {
     else { const u = Math.min(1, (b.trapT - b.trapDur) / C.touchBlend); blend = u * u * (3 - 2 * u);
       if (u >= 1 && (Math.hypot(ex, ez) < 0.3 || b.trapT > 1.8)) b.touchFirst = false; } // мяч ещё не у ноги — ведение не включается в полную силу
   }
+  let ffx = 0, ffz = 0;
   if (free) {
     const sp = Math.hypot(b.v.x, b.v.z), ns = Math.max(0, sp - C.touchDecel * h), f = sp > 1e-6 ? ns / sp : 0; b.v.x *= f; b.v.z *= f; b.v.y = 0;
   } else {
@@ -552,15 +564,18 @@ export function controlStep(b, P, h, obstacles) {
     const far = b.touchFirst && !soft ? Math.max(0.15, Math.min(1, 1 - (Math.hypot(ex, ez) - 0.3) / 0.45)) : 1;
     const mc = C.maxCorr * (soft ? 0.6 : (0.25 + 0.75 * blend) * far), cl = Math.hypot(cx, cz); if (cl > mc) { cx *= mc / cl; cz *= mc / cl; }
     if (soft && Math.hypot(ex, ez) < 0.3) b.touchFirst = false; // мяч у ноги — обычное ведение
-    const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), dvx = P.v.x + cx + fx * tpV, dvz = P.v.z + cz + fz * tpV;
-    // толчок виден сразу: изменение скорости «качения» передаётся мячу без сглаживания (стопа ударила — мяч поехал)
-    const dV = tpV - (b.tpV || 0), kick = b.tp && b.tp.t <= h * 1.5; // толчок — сразу; торможение — сразу; иначе (касание запоздало) мяч плавно, без рывка
-    if (kick || dV < 0) { b.v.x += fx * dV; b.v.z += fz * dV; }
+    // скорость от касаний: вперёд (качение tpV) и вбок (перекладывание: ширина постановки ноги × скорость перехода sideK)
+    const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), sw = Math.max(C.sideMin ?? C.side, C.side - (C.sidePerSpeed || 0) * Math.hypot(P.v.x, P.v.z)), latV = sw * (b.xferV || 0);
+    ffx = fx * tpV - Math.cos(P.yaw) * latV; ffz = fz * tpV + Math.sin(P.yaw) * latV; const dvx = P.v.x + cx + ffx, dvz = P.v.z + cz + ffz;
+    // толчок виден сразу: изменение скорости от касания передаётся мячу без сглаживания (стопа ударила — мяч поехал);
+    // торможение — тоже сразу; иначе (касание запоздало) мяч плавно, без рывка
+    const kick = (b.tp && b.tp.t <= h * 1.5) || (b.xfer && b.xfer.t <= h * 1.5), dX = ffx - (b.ffx || 0), dZ = ffz - (b.ffz || 0);
+    if (kick || Math.hypot(ffx, ffz) < Math.hypot(b.ffx || 0, b.ffz || 0)) { b.v.x += dX; b.v.z += dZ; }
     // приём: сначала мяч живёт своей скоростью, контроль включается плавно (сильный прилёт гасится дольше)
     const k = 1 - Math.exp(-h * C.resp * (soft ? 0.6 : b.touchFirst ? 0.1 + 0.9 * blend : 0.15 + 0.85 * ease));
     b.v.x += (dvx - b.v.x) * k; b.v.z += (dvz - b.v.z) * k; b.v.y = 0;
   }
-  b.tpV = free ? 0 : tpV;
+  b.tpV = free ? 0 : tpV; if (free) { b.ffx = 0; b.ffz = 0; } else { b.ffx = ffx; b.ffz = ffz; }
   b.p.x += b.v.x * h; b.p.z += b.v.z * h; b.p.y = R;
   // не сквозь ноги: мяч не ближе bodyR к центру игрока
   let rx = b.p.x - P.p.x, rz = b.p.z - P.p.z, rl = Math.hypot(rx, rz);
@@ -591,7 +606,7 @@ export function controlStep(b, P, h, obstacles) {
 // отпустить мяч (удар, потеря); lock — сколько секунд бывший владелец не может его снова взять
 export function release(b, who, t, lock = CFG.control.regrab, mustClear = true) {
   b.lockOwner = who ?? b.owner; b.lockUntil = t + lock; b.mustClear = mustClear;
-  b.state = 'free'; b.owner = null; b.push = 0; b.tp = null; b.tpOff = 0; b.tpV = 0; b.stopped = false; b.trapT = 1; b.strikeAt = null; b.feintOff = null; b.touchFirst = false;
+  b.state = 'free'; b.owner = null; b.push = 0; b.tp = null; b.tpOff = 0; b.tpV = 0; b.ffx = 0; b.ffz = 0; b.xfer = null; b.xferV = 0; b.footNext = undefined; b.stopped = false; b.trapT = 1; b.strikeAt = null; b.feintOff = null; b.touchFirst = false;
 }
 
 // ---------- удар ----------
