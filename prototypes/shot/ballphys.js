@@ -73,6 +73,7 @@ export const CFG = {
     charging: 0.55,         // пока копишь удар — медленнее (джойстик в это время целится)
     accel: 3.2, decel: 5.5, // разгон и торможение (скорость приближения к желаемой, 1/с) — у игрока есть вес
     turn: 9,                // скорость разворота корпуса, 1/с
+    turnMax: 7.5,           // но не быстрее, рад/с (на рывке — на 40 % медленнее)
     curve: 11, curveMin: 4, // на бегу направление скорости поворачивается не быстрее (curve − скорость), но не медленнее curveMin, рад/с
     turnAtSprint: 0.55,     // на полном ходу разворачивается медленнее (доля)
     bounds: { x: 30, zMin: 1.2, zMax: 42 },
@@ -378,7 +379,10 @@ export function playerStep(P, inp, h, withBall) {
   const face = P.face && !withBall && !P.sprint && sp < C.jog * 1.15 ? P.face : null;
   if (face || sp > 0.3) {
     let d = (face ? Math.atan2(face.x - P.p.x, face.z - P.p.z) : Math.atan2(P.v.x, P.v.z)) - P.yaw; d = Math.atan2(Math.sin(d), Math.cos(d));
-    const rate = C.turn * (1 - (1 - C.turnAtSprint) * Math.min(1, sp / C.sprint)), step = d * (1 - Math.exp(-h * rate));
+    const rate = C.turn * (1 - (1 - C.turnAtSprint) * Math.min(1, sp / C.sprint));
+    // не быстрее, чем может повернуться человек: ~430°/с стоя, ~260°/с на рывке (было без предела — разворот на 180° за
+    // ~0,1 с, корпус на экране «щёлкал»; замер: 6 таких поворотов в секунду на поле)
+    const wMax = C.turnMax * (1 - 0.4 * Math.min(1, sp / C.sprint)), step = Math.max(-wMax * h, Math.min(wMax * h, d * (1 - Math.exp(-h * rate))));
     P.yaw += step; P.yawRate = step / h;
   }
   return P;
@@ -433,7 +437,7 @@ export function firstTouch(b, P, who, intent, again = false) {
   // с джойстиком: мяч уходит не дальше чем на ~2 м/с быстрее игрока; если игрок бежит в другую сторону — короткое касание
   // (он развернётся и заберёт), иначе мяч уезжал от него на 5+ м/с и сразу считался потерянным
   const pv = P.v.x * dx + P.v.z * dz;
-  const s = il > 0.2 ? (pv < 0.5 ? Math.min(1.2, 0.5 + C.touchOut * 0.5 * Math.min(1, il)) : Math.min(pv + 2.2, pv + C.touchOut * Math.min(1, il) + C.touchKeep * Math.min(rel, 8))) : Math.min(1.2, Math.max(0, P.v.x * dx + P.v.z * dz) * 0.45 + C.touchSoft * 0.5); // скорость прилёта гасится целиком: мяч и тормозящий игрок останавливаются вместе
+  const s = il > 0.2 ? (pv < 0.5 ? Math.min(1.2, 0.5 + C.touchOut * 0.5 * Math.min(1, il)) : Math.min(pv + 1.3, pv + C.touchOut * Math.min(1, il) + C.touchKeep * Math.min(rel, 8))) : Math.min(1.2, Math.max(0, P.v.x * dx + P.v.z * dz) * 0.45 + C.touchSoft * 0.5); // скорость прилёта гасится целиком: мяч и тормозящий игрок останавливаются вместе
   b.v.x = dx * s; b.v.z = dz * s; b.w.x = b.v.z / CFG.R; b.w.y = 0; b.w.z = -b.v.x / CFG.R;
   b.trapT = 0; b.trapDur = C.touchFree + C.touchFreePerV * rel; b.touchFirst = true; b.touchSoft = !(il > 0.2);
   return rel;

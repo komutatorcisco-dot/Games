@@ -570,7 +570,7 @@ const heroReady = Q.get('hero') === '0' ? Promise.resolve(null) : Promise.all([l
 // Запись с перемещением: заранее считаем, куда и как быстро движется таз (м/с в осях игрока: x — влево, z — вперёд)
 // и насколько поворачивается корпус. Поворот (YAW_OUT) вынимаем из записи: его делает сам игрок (поворот всей модели),
 // иначе после разворота запись и бег смотрели бы в разные стороны. У торможения поворот просто убираем — останавливается прямо.
-const YAW_OUT = { h_turn_180: 'apply', h_run_to_stop: 'drop' };
+const YAW_OUT = { h_turn_180: 'apply', h_run_to_stop: 'drop', h_back_turn: 'apply', h_turn_run: 'apply', h_run_turn: 'apply' };
 function prepMoves(g, clips) {
   const keep = g.scene.scale.x; g.scene.scale.setScalar(HERO.scale); g.scene.updateMatrixWorld(true);
   const hips = g.scene.getObjectByName('Hips'), pm = hips.parent.matrixWorld, pq = hips.parent.getWorldQuaternion(new THREE.Quaternion()), pqi = pq.clone().invert();
@@ -599,7 +599,9 @@ function prepMoves(g, clips) {
 const lerpAt = (ts, vs, t) => { const n = ts.length; if (!n) return 0; if (t <= ts[0]) return vs[0]; if (t >= ts[n - 1]) return vs[n - 1]; let i = 1; while (ts[i] < t) i++; const u = (t - ts[i - 1]) / (ts[i] - ts[i - 1]); return vs[i - 1] + (vs[i] - vs[i - 1]) * u; };
 // скорость таза в записи в момент t (м/с, оси игрока) — по соседним кадрам ±0,05 с
 const rootVel = (c, t) => { const I = c.userData, a = Math.max(0, t - 0.05), b = Math.min(c.duration, t + 0.05), dt = b - a || 1; return [(lerpAt(I.t, I.x, b) - lerpAt(I.t, I.x, a)) / dt, (lerpAt(I.t, I.z, b) - lerpAt(I.t, I.z, a)) / dt]; };
-const DRIB_SPEED = 2.62 * 0.01 * HERO.scale / 1.767; // м/с при обычной скорости записи
+// ведение: за цикл записи (1,767 с) опорная стопа уходит назад на 4,35 м (замер __stride) — 2,46 м/с при обычной скорости.
+// Было 2,62·0,01·… ≈ 0,03 м/с — запись всегда играла на пределе ×1,7, и на средней скорости ноги перебирали вдвое быстрее
+const DRIB_SPEED = 4.35 / 1.767;
 async function player(kit, mine = false) { // общая полная модель — без упрощения; своя команда — своя модель (если загрузилась)
   await baseReady; if (mine) await heroReady;
   const own = mine && hero, src = own ? hero : base;
@@ -626,16 +628,19 @@ async function player(kit, mine = false) { // общая полная модел
 // футболка, шорты или гетры — по высоте точки на теле в исходной позе (ниже колена — гетры, до пояса — шорты).
 function heroKitShader(o) {
   const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); const bb = g.boundingBox, mt = o.material;
-  const U = { uKitOn: { value: 0 }, uShirt: { value: new THREE.Color('#ffffff') }, uShorts: { value: new THREE.Color('#ffffff') }, uSocks: { value: new THREE.Color('#ffffff') }, uKitY: { value: new THREE.Vector2(bb.min.y, bb.max.y - bb.min.y) } };
+  const U = { uKitOn: { value: 0 }, uShirt: { value: new THREE.Color('#ffffff') }, uShorts: { value: new THREE.Color('#ffffff') }, uSocks: { value: new THREE.Color('#ffffff') }, uSkin: { value: new THREE.Vector3(1, 1, 1) }, uKitY: { value: new THREE.Vector2(bb.min.y, bb.max.y - bb.min.y) } };
   mt.userData.kitU = U;
   mt.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = 'varying float vKitY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vKitY = position.y;');
-    sh.fragmentShader = 'varying float vKitY;\nuniform float uKitOn; uniform vec3 uShirt, uShorts, uSocks; uniform vec2 uKitY;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+    sh.fragmentShader = 'varying float vKitY;\nuniform float uKitOn; uniform vec3 uShirt, uShorts, uSocks, uSkin; uniform vec2 uKitY;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
   { vec3 c = diffuseColor.rgb; float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), sat = mx > 1e-3 ? (mx - mn) / mx : 0.0;
     float m = uKitOn * smoothstep(0.16, 0.34, mx) * (1.0 - smoothstep(0.1, 0.24, sat));
     float h = (vKitY - uKitY.x) / uKitY.y; vec3 k = h < 0.3 ? uSocks : h < 0.56 ? uShorts : uShirt;
-    diffuseColor.rgb = mix(c, k * clamp(mx / 0.82, 0.0, 1.15), m); }`);
+    diffuseColor.rgb = mix(c, k * clamp(mx / 0.82, 0.0, 1.15), m);
+    // тон кожи (у всех одна модель — чтобы игроки не были на одно лицо): тёплые места текстуры (кожа), не жёлтые бутсы
+    float sk = smoothstep(0.25, 0.4, sat) * (1.0 - smoothstep(0.78, 0.9, c.g / max(c.r, 1e-3))) * step(c.b, c.g) * smoothstep(0.03, 0.08, mx);
+    diffuseColor.rgb *= mix(vec3(1.0), uSkin, sk); }`);
   };
   mt.customProgramCacheKey = () => 'heroKit';
 }
@@ -644,6 +649,9 @@ const myKit = hexKit(Q.get('kit')); // без ?kit= — своя белая фо
 const gkKit = { shirt: '#ffd23f', shorts: '#2a2d3a', socks: '#ffd23f' };
 const wallKit = () => ({ shirt: '#e0303c', shorts: '#ffffff', socks: '#e0303c' });
 // перекрасить форму (футболка, шорты, гетры) — складки и швы текстуры остаются
+// тон кожи своей модели (множитель цвета кожи в текстуре): разные у игроков, по номеру в составе
+const SKIN = [[1, 1, 1], [0.62, 0.56, 0.52], [1.22, 1.16, 1.1], [0.8, 0.74, 0.7], [1.12, 1.05, 0.98], [0.5, 0.45, 0.42]];
+function skinTone(pl, i) { pl.model.traverse((o) => { const U = o.isMesh && o.material.userData.kitU; if (U) U.uSkin.value.fromArray(SKIN[i % SKIN.length]); }); }
 function recolor(pl, kit) { if (pl && kit) pl.model.traverse((o) => { if (!o.isMesh) return; const U = o.material.userData.kitU;
   if (U) { const white = /^#?f[0-9a-f]f[0-9a-f]f/i.test(kit.shirt || '') && kit.shirt === kit.shorts; U.uKitOn.value = white ? 0 : 1; U.uShirt.value.set(kit.shirt); U.uShorts.value.set(kit.shorts || kit.shirt); U.uSocks.value.set(kit.socks || kit.shirt); return; } // своя модель — перекраска шейдером
   const part = PART[o.name]; if (part && kit[part]) o.material.color.set(kit[part]); }); }
@@ -1001,7 +1009,7 @@ const variants = new Map();
 // копия движения: смещение таза по сторонам (fx) и вперёд (fz) умножено — вратарь долетает ровно до мяча и не выбегает из ворот
 // Бег и стойка своей модели (записи общей модели): высоту таза подбираем по замеру — за весь цикл стопа не уходит
 // в газон и не висит над ним. Замер — на невидимой копии своей модели, один раз на запись.
-const HERO_FIT = new Set(['idle', 'jog', 'jog_back', 'jog_strafe_left', 'jog_strafe_right']);
+const HERO_FIT = new Set(['idle', 'jog', 'jog_back', 'jog_strafe_left', 'jog_strafe_right', 'jog_forward_diagonal', 'jog_forward_diagonal_2', 'jog_backward_diagonal', 'jog_backward_diagonal_2']);
 // удар: высота таза подгоняется по каждому ключу записи — опорная стопа всё время на газоне. Иначе на своей модели
 // опорная нога уходила под газон (до 0,77 м), «защита от провала» поднимала всё тело, и ударная стопа проходила над мячом
 const HERO_FIT_KEYS = new Set(['strike']);
@@ -1061,13 +1069,21 @@ const JOG_SPEED = 2.48;
 // Бег по направлениям (как «пространство смешивания» в больших играх): вперёд, назад, боком влево/вправо — по скорости
 // в осях корпуса. Все записи бега идут в одной фазе шага (время ставим сами), поэтому ноги не путаются при смешивании.
 // Метров за цикл записи (замер смещения таза): вперёд 2,15, назад 1,90, влево 2,11, вправо 1,76.
+// Бег в 8 направлениях (замер __stride: опорная стопа относительно таза): угол движения относительно корпуса (вправо — +),
+// метров за цикл у своей модели и у общей, фаза — когда левый носок ниже всего (доля цикла). Фазы разные у разных записей:
+// раньше все играли с одной фазой, и при смешивании (диагональ, поворот) ноги путались; длина шага была одна на обе модели
+// (у общей шаг на 20 % короче — ноги проскальзывали). Записи диагоналей раньше не использовались.
+const LOCO8 = [
+  ['jog', 0, 2.075, 1.731, 0.365], ['jog_forward_diagonal', 45, 2.255, 1.806, 0.0], ['jog_strafe_right', 90, 1.555, 1.345, 0.957], ['jog_backward_diagonal', 140, 1.686, 0.775, 0.978],
+  ['jog_back', 180, 1.962, 1.514, 0.655], ['jog_backward_diagonal_2', -135, 2.331, 1.728, 0.596], ['jog_strafe_left', -90, 2.006, 1.584, 0.67], ['jog_forward_diagonal_2', -44, 2.268, 1.845, 0.058],
+];
 const LOCO_DIRS = [['jog', 2.15], ['jog_back', 1.9], ['jog_strafe_left', 2.11], ['jog_strafe_right', 1.76]];
 // своя модель: быстрый бег и рывок — метров за цикл (замер таза: 3,08 и 3,47) и сдвиг фазы, чтобы левая нога
 // выходила вперёд в тот же момент, что и в трусце (у трусцы — на 27% цикла, у быстрого бега — на 22%, у рывка — на 21%)
-const RUN_CLIPS = [['h_fast_run', 3.08, -0.05], ['h_sprint', 3.47, -0.065]];
+const RUN_CLIPS = [['h_fast_run', 3.046, 0.567 - 0.365], ['h_sprint', 3.296, 0.469 - 0.365]]; // метров за цикл и фаза — замер __stride (как у LOCO8)
 function loco(pl, sp, dt, P) {
   const hs = pl.hs || 1, L = pl.loco || (pl.loco = { idle: pl.mixer.clipAction(variant('idle', 1, 1, hs)), jog: pl.mixer.clipAction(variant('jog', 1, 1, hs)), dirs: null, f: 1, prev: null, ph: 0 });
-  if (MATCH_ON && !L.dirs) L.dirs = LOCO_DIRS.map(([n, m]) => ({ a: n === 'jog' ? L.jog : pl.mixer.clipAction(variant(n, 1, 1, hs)), m }));
+  if (MATCH_ON && !L.dirs) L.dirs = LOCO8.map(([n, ang, mo, mb, ph]) => ({ a: n === 'jog' ? L.jog : pl.mixer.clipAction(variant(n, 1, 1, hs)), ang: ang * Math.PI / 180, m: pl.own ? mo : mb, off: ph - LOCO8[0][4], w: 0 }));
   if (pl.own && heroDrib && !L.drib) { L.drib = pl.mixer.clipAction(heroDrib); L.dw = 0; } // своя модель: ведение мяча — своя запись
   if (pl.own && heroMoves && !L.run) L.run = RUN_CLIPS.map(([n, m, off]) => ({ a: pl.mixer.clipAction(heroMoves[n]), m, off })); // своя модель: быстрый бег и рывок
   const all = (L.dirs ? [L.idle, ...L.dirs.map((d) => d.a)] : [L.idle, L.jog]).concat(L.drib ? [L.drib] : [], L.run ? L.run.map((r) => r.a) : []);
@@ -1084,22 +1100,26 @@ function loco(pl, sp, dt, P) {
   if (L.prev && !all.includes(L.prev)) { L.prev.setEffectiveWeight(1 - L.f); if (L.f >= 1) { L.prev.stop(); L.prev = null; } }
   // ведение (своя модель, мяч у ноги, бежит): плавно переходит с бега на запись ведения
   // на рывке с мячом (быстрее 4 м/с) — не ведение в два раза быстрее (семенит), а настоящий бег и рывок: мяч толкает вперёд
-  let dw = 0; if (L.drib) { const want = pl.withBall ? 1 - (L.run ? THREE.MathUtils.smoothstep(sp, 4.0, 4.8) : 0) : 0; L.dw += (want - L.dw) * Math.min(1, dt * 6); dw = L.dw; L.drib.timeScale = THREE.MathUtils.clamp(sp / DRIB_SPEED, 0.7, 1.7); L.drib.setEffectiveWeight(w * dw * L.f); }
+  let dw = 0; if (L.drib) { const want = pl.withBall ? 1 - (L.run ? THREE.MathUtils.smoothstep(sp, 4.0, 4.8) : 0) : 0; L.dw += (want - L.dw) * Math.min(1, dt * 6); dw = L.dw; L.drib.timeScale = THREE.MathUtils.clamp(sp / DRIB_SPEED, 0.5, 1.9); L.drib.setEffectiveWeight(w * dw * L.f); }
   // быстрый бег и рывок (своя модель): чем быстрее бежит вперёд, тем больше этих записей вместо трусцы; шаг — в той же фазе
   const fwd = !P || sp < 0.05 ? 1 : Math.max(0, (P.v.x * Math.sin(P.yaw) + P.v.z * Math.cos(P.yaw)) / sp);
   const wr = L.run ? THREE.MathUtils.smoothstep(sp, 4.0, 5.2) * fwd * fwd : 0, wsp = THREE.MathUtils.smoothstep(sp, 5.4, 6.3);
   const runW = (ph) => { if (!L.run) return; const ww = [1 - wsp, wsp];
     L.run.forEach((r, i) => { r.a.timeScale = 0; r.a.time = (((ph + r.off) % 1) + 1) % 1 * r.a.getClip().duration; r.a.setEffectiveWeight(w * L.f * (1 - dw) * wr * ww[i]); }); };
   if (!L.dirs || !P) { L.jog.setEffectiveWeight(w * L.f * (1 - dw) * (1 - wr)); L.jog.timeScale = THREE.MathUtils.clamp(sp / JOG_SPEED, 0.75, 2.1); runW((L.jog.time / L.jog.getClip().duration) % 1); return; } // на рывке частоту ног ограничиваем
-  // скорость в осях корпуса: вперёд и вправо (правая сторона при взгляде вдоль +z — это −x)
+  // направление движения относительно корпуса (вправо — +): смешиваем две соседние записи из восьми по углу
   const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), vf = sp > 0.05 ? (P.v.x * fx + P.v.z * fz) / sp : 1, vr = sp > 0.05 ? (-P.v.x * fz + P.v.z * fx) / sp : 0;
-  const s = Math.abs(vf) + Math.abs(vr) || 1, ws = [Math.max(0, vf) / s, Math.max(0, -vf) / s, Math.max(0, -vr) / s, Math.max(0, vr) / s];
-  // шагов в секунду — по смеси записей; ограничение то же, что было (не семенить на рывке)
-  let cps = 0; for (let i = 0; i < 4; i++) cps += ws[i] * (sp / L.dirs[i].m);
+  const ang = Math.atan2(vr, vf), D = L.dirs, n8 = D.length; let best = 0, bd = 9;
+  for (let i = 0; i < n8; i++) { const d = Math.atan2(Math.sin(ang - D[i].ang), Math.cos(ang - D[i].ang)); if (d >= 0 && d < bd) { bd = d; best = i; } } // ближайшая запись «слева» по углу
+  const j = (best + 1) % n8, span = Math.atan2(Math.sin(D[j].ang - D[best].ang), Math.cos(D[j].ang - D[best].ang)) || 1, u = THREE.MathUtils.clamp(bd / span, 0, 1);
+  // веса меняются плавно (за ~0,1 с), а не скачком при резком повороте скорости
+  const kw = 1 - Math.exp(-dt * 12); for (let i = 0; i < n8; i++) { const t = i === best ? 1 - u : i === j ? u : 0; D[i].w += (t - D[i].w) * kw; }
+  // шагов в секунду — чтобы опорная стопа стояла: скорость / метров за цикл (по смеси записей)
+  let cps = 0, ws = 0; for (const d of D) { cps += d.w * (sp / d.m); ws += d.w; } cps /= ws || 1;
   if (wr > 0) cps = cps * (1 - wr) + wr * sp / (L.run[0].m * (1 - wsp) + L.run[1].m * wsp); // у рывка шаг длиннее
-  cps = THREE.MathUtils.clamp(cps, 0.75 / 0.87, 2.1 / 0.87);
+  cps = THREE.MathUtils.clamp(cps, 0.55 / 0.87, 2.1 / 0.87); // медленнее нижней границы — ноги уже не скользят заметно
   L.ph = (L.ph + cps * dt) % 1;
-  for (let i = 0; i < 4; i++) { const d = L.dirs[i]; d.a.timeScale = 0; d.a.time = L.ph * d.a.getClip().duration; d.a.setEffectiveWeight(w * ws[i] * L.f * (1 - dw) * (1 - wr)); }
+  for (const d of D) { d.a.timeScale = 0; d.a.time = ((((L.ph + d.off) % 1) + 1) % 1) * d.a.getClip().duration; d.a.setEffectiveWeight(w * (d.w / (ws || 1)) * L.f * (1 - dw) * (1 - wr)); }
   runW(L.ph);
 }
 // таз в мировых координатах ↔ в координатах скелета (у скелета Mixamo свой поворот и масштаб 0,01)
@@ -2024,7 +2044,9 @@ function keeperAI(h) {
 function startMove(pl, P, name, { t = 0, speed = 1, end, k = 1, yaw = P.yaw, drive = true, fade = 0.12, onTick = null } = {}) {
   const c = heroMoves && heroMoves[name]; if (!c || !pl.own) return false;
   play(pl, name, { t, fade, speed, follow: true }); pl.once = { name, until: end };
-  P.yaw = yaw; pl.mv = { c, name, yaw0: yaw, k, drive, end, onTick, t0: t, P };
+  // начинаем с середины записи — корпус в ней уже повёрнут: отсчёт поворота от текущего направления, без скачка
+  const y0 = yaw - (c.userData.yt && c.userData.yt.length ? lerpAt(c.userData.yt, c.userData.yaw, t) : 0);
+  P.yaw = yaw; pl.mv = { c, name, yaw0: y0, k, drive, end, onTick, t0: t, P };
   return true;
 }
 function endMove(pl, P) { pl.mv = null; P.drive = null; P.lockYaw = 0; if (pl.once && pl.once.name === pl.name) pl.once = null; }
@@ -2048,10 +2070,22 @@ function autoMoves(pl, P, sp, dt, who) {
   const raw = who === 'me' ? input() : null, rawM = raw ? Math.hypot(raw.x, raw.y) : 0;
   const receiving = (B.state === 'free' && (run.chase || passInFlight())) || (mine && B.touchFirst);
   if (who === 'me' && !receiving && rawM > 0.6 && sp > 2.4 && pl.pk > 3.3 && want > 2 && !P.charging && (P.wx * P.v.x + P.wz * P.v.z) / (want * sp) < -0.6 && (raw.x * P.v.x - raw.y * P.v.z) / (rawM * sp) < -0.6) {
-    pl.mvCd = 0.9; startMove(pl, P, 'h_turn_180', { t: 0.04, speed: 1.2, end: 0.55, k: THREE.MathUtils.clamp(pl.pk / 4.2, 0.7, 1.3), fade: 0.1 }); return;
+    // разворот в сторону, куда тянут джойстик: вправо — h_turn_180, влево — h_run_turn (бег с разворотом через левое плечо,
+    // берём отрезок самого разворота). Раньше разворот был всегда через правое плечо.
+    const side = P.v.x * P.wz - P.v.z * P.wx; // > 0 — нужно повернуть влево
+    pl.mvCd = 0.9;
+    if (side > 0 && heroMoves.h_run_turn) startMove(pl, P, 'h_run_turn', { t: 0.55, speed: 1.45, end: 1.3, k: THREE.MathUtils.clamp(pl.pk / 4.2, 0.7, 1.3), fade: 0.12 });
+    else startMove(pl, P, 'h_turn_180', { t: 0.04, speed: 1.2, end: 0.55, k: THREE.MathUtils.clamp(pl.pk / 4.2, 0.7, 1.3), fade: 0.1 });
+    return;
+  }
+  // с места резко вправо-назад (джойстик на 75–150° правее корпуса, мяча нет): поворот с разбегом из записи (h_turn_run),
+  // а не вращение на месте с проскальзывающими ногами
+  if (who === 'me' && !receiving && !mine && rawM > 0.6 && sp < 0.8 && heroMoves.h_turn_run && !P.charging) {
+    const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), wx = raw.x, wz = -raw.y; let a = Math.atan2(wx, wz) - P.yaw; a = Math.atan2(Math.sin(a), Math.cos(a));
+    if (a < -1.3 && a > -2.6) { pl.mvCd = 0.8; startMove(pl, P, 'h_turn_run', { t: 0.42, speed: 1.3, end: 1.12, k: 1, fade: 0.12, onTick: (q, PP, t) => (t > 0.8 && Math.hypot(PP.wx || 0, PP.wz || 0) < 0.5 ? 'end' : null) }); return; }
   }
   // торможение: бежал быстро и отпустил (без мяча) — запись остановки; снова побежал — сразу бег
-  if (!mine && P.stopping && pl.pk > 4.4 && sp > 1.6 && sp < pl.pk - 0.5) {
+  if (who === 'me' && !mine && P.stopping && pl.pk > 4.4 && sp > 1.6 && sp < pl.pk - 0.5) { // только у меня: боты то останавливались, то сразу бежали (10 «рывков» в минуту)
     pl.mvCd = 1.2; startMove(pl, P, 'h_run_to_stop', { t: 0.06, speed: THREE.MathUtils.clamp(sp / 3, 0.9, 1.35), end: 0.74, drive: false, fade: 0.15,
       onTick: (q, PP) => (!PP.stopping && Math.hypot(PP.wx || 0, PP.wz || 0) > 1 ? 'end' : null) });
   }
@@ -2802,7 +2836,7 @@ function matchPhys(h) {
     BP.updateClear(B, A[i].P, A[i].id);
   }
   // мяч у кого-то из полевых: ведение (мяч упирается в тела соперников), удары и пасы в момент касания ногой
-  if (run.queue && run.queue.settle && B.state === 'owned' && B.owner === 'me' && !run.pass && !run.strike) { if (simT - run.queue.t > 0.7) run.queue = null; else if (ballAtFoot()) runQueue(); }
+  if (run.queue && run.queue.settle && B.state === 'owned' && B.owner === 'me' && !run.pass && !run.strike) { if (simT - run.queue.t > 1.0) run.queue = null; else if (ballAtFoot()) runQueue(); } // мяч ещё подкатывается к ноге — ждём до 1 с
   const own = owning() ? actorOf(B.owner) : null;
   if (own) {
     const near = (a) => Math.abs(a.P.p.x - B.p.x) < 3 && Math.abs(a.P.p.z - B.p.z) < 3; // мяч упирается только в тех, кто рядом
@@ -2863,7 +2897,10 @@ function matchPhys(h) {
         // только если и мяч, и сам получатель идут туда же: стоящий лицом к мячу не уводит его себе за спину (замер: потеря в серии пасов)
         if (rl > 0.3 && (r.x * B.v.x - r.y * B.v.z) / (rl * bl) > 0.35 && (r.x * hx - r.y * hz) / rl > 0.3) { ji = r; run.holdInp = null; }
       }
-      const intent = best.id === 'me' ? (Math.hypot(ji.x, ji.y) > 0.2 ? { x: ji.x, z: -ji.y } : null) : botIntent(best);
+      // пас уже нажат (ждёт касания), а в одно касание не вышло — мягкий приём у ноги: мяч не убегает, пас сразу следом
+      // (раньше касание по джойстику отправляло мяч вперёд быстрее игрока, и команда паса истекала)
+      const queuedPass = best.id === 'me' && run.queue && run.queue.kind === 'pass';
+      const intent = best.id === 'me' ? (!queuedPass && Math.hypot(ji.x, ji.y) > 0.2 ? { x: ji.x, z: -ji.y } : null) : botIntent(best);
       const vin = Math.hypot(B.v.x, B.v.z), rel = BP.firstTouch(B, best.P, best.id, intent); sfx.touch(); if (best.id === 'me' && rel > 5) sfx.buzz('light');
       // приём паса на месте или шагом — запись приёма: наклон и остановка мяча стопой (receive, с 0,65 с)
       receiveAnim(best, vin, intent);
@@ -3128,7 +3165,8 @@ function resetMatch() {
   mk(shooter, myKit || KIT_US, 'me'); card(shooter, LINEUP[0], 1, '', myKit || KIT_US, numFor(LINEUP[0], 9));
   const GUEST_H = [178, 184, 187, 175, 182, 189, 180, 176, 186, 183]; // рост гостей (своих карточек у них нет)
   const ours = ourW.map((pl, i) => { const id = i === 0 ? 'mate' : 't' + (i + 1); mk(pl, myKit || KIT_US, id); card(pl, LINEUP[i + 1], 1, '', myKit || KIT_US, numFor(LINEUP[i + 1], [7, 11, 8, 6, 10, 3, 2, 4, 5][i % 9])); const b = bot(pl, id, i); b.hxy = hxyOf(LINEUP[i + 1]); return b; });
-  const opp = oppW.map((pl, i) => { const id = 'o' + (i + 1); mk(pl, KIT_THEM, id); card(pl, { name: 'Гость', st: [76, 74, 73, 73, 70, 72], h: GUEST_H[i % GUEST_H.length] }, DIFF.spd, '', KIT_THEM, [9, 7, 11, 8, 6, 10, 3, 2, 4, 5][i % 10]); return bot(pl, id, i); });
+  ourW.forEach((pl, i) => skinTone(pl, i + 1)); // (меня — исходный тон)
+  const opp = oppW.map((pl, i) => { const id = 'o' + (i + 1); mk(pl, KIT_THEM, id); skinTone(pl, i + 3); card(pl, { name: 'Гость', st: [76, 74, 73, 73, 70, 72], h: GUEST_H[i % GUEST_H.length] }, DIFF.spd, '', KIT_THEM, [9, 7, 11, 8, 6, 10, 3, 2, 4, 5][i % 10]); return bot(pl, id, i); });
   recolor(gk2, KIT_GK2); gk2.holder.visible = true; gk2.nick = LINEUP[N - 1] ? LINEUP[N - 1].name : 'Игрок клуба';
   setHeight(gk2, heightOf(LINEUP[N - 1], 'GK')); setHeight(GK[0].pl, 191);
   backPrint(gk2, LINEUP[N - 1] ? LINEUP[N - 1].name : '', (LINEUP[N - 1] && LINEUP[N - 1].num) || 1, KIT_GK2); backPrint(GK[0].pl, '', 1, GK[0].pl.kit || { shirt: '#e8d33a' }); // вратари: свой — по карточке, у гостей — 191 см
@@ -3440,7 +3478,7 @@ function frame() {
   for (let i = 0; i < steps; i++) gameStep(BP.CFG.dt);
   // позы — каждый кадр
   if (LESSON && state !== 'load') lessonTick(dt);
-  if (MATCH_ON && run) matchAnim(dt);
+  if (MATCH_ON && run) { matchAnim(dt); if (TRACE && window.__smoothOn) smoothTick(dt); }
   else if (FREE() && run) runAnim(dt);
   else if (state === 'aim') tickPlayer(shooter, dt);
   else if (state === 'runup') { tickPlayer(shooter, dt); keeperRead(dt); if (shooter.t >= KICK.tc) launch(); }
@@ -3541,6 +3579,42 @@ if (TRACE) window.__clipMove = (name) => { const pl = shooter, h = pl.holder, ke
   return [+(p1.x - p0.x).toFixed(2), +(p1.z - p0.z).toFixed(2)]; }; // смещение записи при взгляде вдоль +z (право — это −x)
 if (TRACE) window.__pose = (name, t) => { const pl = shooter; pl.mixer.stopAllAction(); const a = pl.mixer.clipAction(clipOf(name)); a.reset().play(); pl.mixer.setTime(t); pl.act = a; pl.name = 'pose'; pl.follow = false; pl.lock = null; window.__freeze = true; };
 if (TRACE) window.__clips = () => base.animations.map((c) => { const t = c.tracks.find((x) => x.name === 'Hips.position'), v = t ? t.values : [0, 0, 0], n = v.length; return [c.name, +c.duration.toFixed(2), t ? [+(v[n - 3] - v[0]).toFixed(0), +(v[n - 2] - v[1]).toFixed(0), +(v[n - 1] - v[2]).toFixed(0)] : null]; });
+// замер плавности (только для проверки, ?trace=1): по каждому полевому игроку — скорость поворота корпуса на экране,
+// скольжение стоящей стопы по газону, вертикальные скачки таза, смены движения
+const SM = { ex: [], ex2: [], n: 0, yawFast: 0, yawMax: 0, slide: 0, slideN: 0, slideBad: 0, pop: 0, sw: 0, swBack: 0, wJump: 0, per: {} };
+function smoothTick(dt) {
+  if (dt <= 0 || state !== 'play') return; SM.n++;
+  for (const a of actors()) { if (window.__smoothOnly && a.id !== window.__smoothOnly) continue; const pl = a.pl, h = pl.holder, st = pl.sm || (pl.sm = {});
+    { const jx = st.px === undefined ? 0 : Math.hypot(h.position.x - st.px, h.position.z - st.pz); st.px = h.position.x; st.pz = h.position.z; if (jx > 0.6 || MT.st !== 'play') { st.yaw = undefined; st.low = null; st.hy = undefined; st.ww = null; continue; } } // перестановка (розыгрыш) — не считаем
+    const yaw = h.rotation.y; if (st.yaw !== undefined) { let d = yaw - st.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); const w = Math.abs(d) / dt; if (w > 9) SM.yawFast++; SM.yawMax = Math.max(SM.yawMax, w); } st.yaw = yaw;
+    if (pl.toeL && pl.toeR) { const l = pl.toeL.getWorldPosition(new THREE.Vector3()), r = pl.toeR.getWorldPosition(new THREE.Vector3()), low = l.y < r.y ? l : r, k = l.y < r.y ? 'l' : 'r', q = st.low;
+      if (q && q.k === k && low.y < 0.05) { const v = Math.hypot(low.x - q.x, low.z - q.z) / dt, sp = Math.hypot(a.P.v.x, a.P.v.z), angv = sp > 0.3 ? Math.abs(Math.atan2(Math.sin(Math.atan2(a.P.v.x, a.P.v.z) - a.P.yaw), Math.cos(Math.atan2(a.P.v.x, a.P.v.z) - a.P.yaw))) : 0, bin = (sp < 0.5 ? 'stand' : sp < 2.5 ? 'walk' : sp < 4.5 ? 'jog' : 'run') + (sp < 0.5 ? '' : angv < 0.5 ? '-f' : angv < 2.1 ? '-s' : '-b') + (pl.withBall ? '+b' : '') + (pl.name !== 'loco' ? '#' + pl.name : '');
+        SM.slide += v; SM.slideN++; if (v > 1.2) { SM.slideBad++; if (SM.ex && SM.ex.length < 40 && SM.n % 7 === 0) SM.ex.push([a.id, pl.name, +v.toFixed(2), +sp.toFixed(2), +low.y.toFixed(3), pl.own ? 1 : 0, +(pl.act && pl.act.timeScale || 0).toFixed(2)]); } const B2 = SM.per[bin] || (SM.per[bin] = [0, 0]); B2[0] += v; B2[1]++; }
+      st.low = { x: low.x, z: low.z, k }; }
+    const hy = pl.hips.getWorldPosition(v3).y; if (st.hy !== undefined && Math.abs(hy - st.hy) / dt > 2.2) { SM.pop++; if (SM.ex2 && SM.ex2.length < 30) SM.ex2.push(['pop', a.id, pl.name, +(hy - st.hy).toFixed(3), +(pl.t || 0).toFixed(2), +pl.model.position.y.toFixed(3), pl.glb]); } st.hy = hy;
+    if (st.name !== undefined && st.name !== pl.name) { SM.sw++; if (st.prev === pl.name && st.swT < 0.25) { SM.swBack++; if (SM.ex2 && SM.ex2.length < 60) SM.ex2.push(['back', a.id, st.prev, st.name, +st.swT.toFixed(2), +(st.lt || 0).toFixed(2), pl.t !== undefined ? +pl.t.toFixed(2) : null, st.t0]); } st.prev = st.name; st.swT = 0; } if (st.name !== pl.name) st.t0 = +(pl.t || 0).toFixed(2); st.name = pl.name; st.lt = pl.t; st.swT = (st.swT || 0) + dt;
+    const ww = pl.loco ? [pl.loco.idle, ...(pl.loco.dirs || []).map((d) => d.a), ...(pl.loco.run || []).map((r) => r.a), pl.loco.drib].filter(Boolean).map((x) => x.getEffectiveWeight()) : null;
+    if (ww && st.ww && pl.name === 'loco') { let j = 0; ww.forEach((x, i) => (j += Math.abs(x - (st.ww[i] || 0)))); if (j / dt > 12) SM.wJump++; } st.ww = ww;
+  }
+}
+if (TRACE) window.__dropBall = (x = 33, z = 2) => { B.state = 'free'; B.owner = null; B.p.set(x, R, z); B.v.set(0, 0, 0); B.w.set(0, 0, 0); ballPrev.copy(B.p); MT.restart = null; };
+// длина шага записи (метров за цикл): записанная стопа в опоре уходит назад относительно таза — с какой скоростью
+if (TRACE) window.__stride = (name, own) => { const a0 = actors().find((q) => !!q.pl.own === !!own && q.id !== 'me'), pl = a0.pl, hs = name.startsWith('h_') ? 1 : pl.hs || 1;
+  const c = name === 'drib' ? heroDrib : name.startsWith('h_') ? heroMoves[name] : variant(name, 1, 1, hs); if (!c) return null;
+  const was = pl.mv; pl.mixer.stopAllAction(); const ac = pl.mixer.clipAction(c); ac.reset().play(); ac.timeScale = 1; ac.setEffectiveWeight(1); const dur = c.duration, yaw = pl.holder.rotation.y, fx = Math.sin(yaw), fz = Math.cos(yaw), rx = -Math.cos(yaw), rz = Math.sin(yaw);
+  const pts = []; for (let t = 0; t < dur; t += 1 / 240) { pl.mixer.setTime(t); pl.model.updateMatrixWorld(true); const hp = pl.hips.getWorldPosition(new THREE.Vector3()), l = pl.toeL.getWorldPosition(new THREE.Vector3()), r = pl.toeR.getWorldPosition(new THREE.Vector3());
+    pts.push({ t, l: [(l.x - hp.x) * fx + (l.z - hp.z) * fz, (l.x - hp.x) * rx + (l.z - hp.z) * rz, l.y], r: [(r.x - hp.x) * fx + (r.z - hp.z) * fz, (r.x - hp.x) * rx + (r.z - hp.z) * rz, r.y] }); }
+  const minY = Math.min(...pts.map((q) => Math.min(q.l[2], q.r[2])));
+  let sf = 0, ss = 0, n = 0; for (let i = 1; i < pts.length; i++) { const q = pts[i], p0 = pts[i - 1], k = q.l[2] < q.r[2] ? 'l' : 'r'; if (q[k][2] > minY + 0.03 || (p0.l[2] < p0.r[2] ? 'l' : 'r') !== k) continue; sf += (q[k][0] - p0[k][0]) * 240; ss += (q[k][1] - p0[k][1]) * 240; n++; }
+  pl.mixer.stopAllAction(); pl.name = ''; pl.loco = null; pl.mv = was;
+  let ph = 0, mn = 1e9; for (const q of pts) if (q.l[2] < mn) { mn = q.l[2]; ph = q.t / dur; } return { name, own: !!own, phaseL: +ph.toFixed(3), dur: +dur.toFixed(3), stanceFrac: +(n / pts.length).toFixed(2), mPerCycleFwd: +(-sf / Math.max(1, n) * dur).toFixed(3), mPerCycleSide: +(-ss / Math.max(1, n) * dur).toFixed(3) }; };
+if (TRACE) window.__pc = (n, own) => { const pl = own ? shooter : actors().find((q) => !q.pl.own) ? actors().find((q) => !q.pl.own).pl : GK[1].pl; const r = prepContact(n, 0.15, pl); return { n, tc: +r.tc.toFixed(3), dur: +r.dur.toFixed(3), foot: r.foot, at: r.at }; };
+if (TRACE) window.__moveInfo = () => Object.keys(heroMoves || {}).map((n) => { const c = heroMoves[n], I = c.userData; const rv = (t) => rootVel(c, t); let dist = 0; for (let t = 0; t < c.duration; t += 0.05) { const [vx, vz] = rv(t); dist += Math.hypot(vx, vz) * 0.05; } return { n, dur: +c.duration.toFixed(2), yawEnd: Math.round(I.yaw[I.yaw.length - 1] * 57.3), yawMid: Math.round(lerpAt(I.yt, I.yaw, c.duration / 2) * 57.3), dist: +dist.toFixed(2), v0: rv(0.05).map((x) => +x.toFixed(2)), vEnd: rv(c.duration - 0.05).map((x) => +x.toFixed(2)) }; });
+if (TRACE) window.__moveProf = (n) => { const c = heroMoves[n], I = c.userData, r = []; for (let t = 0; t < c.duration; t += 0.1) { const [vx, vz] = rootVel(c, t); r.push([+t.toFixed(1), +vx.toFixed(1), +vz.toFixed(1), Math.round(lerpAt(I.yt, I.yaw, t) * 57.3)]); } return r; };
+if (TRACE) window.__contacts = () => ({ STRIKE, PASS, own: CONTACT.own, ownPass: CONTACT.ownPass });
+if (TRACE) window.__feet = () => { const pl = actorOf('me').pl, l = pl.toeL.getWorldPosition(new THREE.Vector3()), r = pl.toeR.getWorldPosition(new THREE.Vector3()), fl = pl.footL.getWorldPosition(new THREE.Vector3()), fr = pl.footR.getWorldPosition(new THREE.Vector3()), P = actorOf('me').P; return { t: simT, l: [l.x, l.y, l.z], r: [r.x, r.y, r.z], fl: [fl.x, fl.y, fl.z], fr: [fr.x, fr.y, fr.z], p: [P.p.x, P.p.z], ph: pl.loco ? pl.loco.ph : null }; };
+if (TRACE) window.__smooth = (reset) => { const r = { frames: SM.n, yawFastPerS: +(SM.yawFast / Math.max(1, SM.n) * 30).toFixed(2), yawMaxDegS: Math.round(SM.yawMax * 57.3), footSlideMS: +(SM.slide / Math.max(1, SM.slideN)).toFixed(3), slideBadPct: +(100 * SM.slideBad / Math.max(1, SM.slideN)).toFixed(1), hipPops: SM.pop, switches: SM.sw, switchBack: SM.swBack, blendJumps: SM.wJump, ex: SM.ex, ex2: SM.ex2, slideBy: Object.fromEntries(Object.entries(SM.per).sort((x, y) => y[1][1] - x[1][1]).map(([k, v]) => [k, [+(v[0] / v[1]).toFixed(2), v[1]]])) };
+  if (reset) Object.assign(SM, { n: 0, yawFast: 0, yawMax: 0, slide: 0, slideN: 0, slideBad: 0, pop: 0, sw: 0, swBack: 0, wJump: 0, per: {}, ex: [], ex2: [] }); window.__smoothOn = true; return r; };
 if (TRACE) window.__run = (id, fx, fz) => { const q = actorOf(id); if (!q || !q.ai) return; q.ai.tx = q.P.p.x + fx * 30; q.ai.tz = q.P.p.z + fz * 30; q.ai.thinkT = 9; q.ai.run = null; }; // для проверки: бот бежит в сторону (fx, fz)
 if (TRACE) window.__pos = (id, x, z) => { const q = actorOf(id); if (!q) return; q.P.p.x = x; q.P.p.z = z; q.P.v.x = q.P.v.z = 0; if (q.ai) { q.ai.tx = x; q.ai.tz = z; q.ai.thinkT = 9; q.ai.run = null; } };
 if (TRACE) window.__ids = () => actors().map((q) => q.id);
@@ -3564,7 +3638,7 @@ if (TRACE) window.__ball = (x, z, vx = 0, vz = 0) => { if (B.state === 'owned' |
 // ---------- старт ----------
 (async () => {
   const bar = $('#loadbar');
-  const all = [player(myKit, true), player(gkKit), ...Array.from({ length: MATCH_ON ? 2 * NSIDE - 2 : 4 }, (_, i) => player(wallKit(), MATCH_ON && i < NSIDE - 2))]; // матч: партнёры (своя модель), соперники и наш вратарь
+  const all = [player(myKit, true), player(gkKit), ...Array.from({ length: MATCH_ON ? 2 * NSIDE - 2 : 4 }, (_, i) => player(wallKit(), MATCH_ON && i < 2 * NSIDE - 3))]; // матч: партнёры и соперники — своя модель (вдвое легче общей, с рывком, ведением, разворотами), наш вратарь — общая
   let done = 0; all.forEach((p) => p.then(() => { done++; if (bar) bar.style.width = (done / all.length) * 100 + '%'; }));
   const got = await Promise.all(all);
   [shooter, keeper] = got; shooter0 = shooter; wall.push(...got.slice(2)); blob(ball, 0.45); makeSpheres(keeper, 'gk'); makeSpheres(shooter, 'me'); makeSpheres(wall[0], 'mate');
