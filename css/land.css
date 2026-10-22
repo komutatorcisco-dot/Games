@@ -36,67 +36,95 @@
   .tabbar[hidden] { display: none !important; }
   body:has(#tabbar[hidden]) #app { padding-bottom: calc(var(--l-bot) + 8px) !important; }
 
-  /* нижняя панель разделов, как в FC Mobile: в строку, значок и подпись рядом, активный — бирюзовый */
-  .tabbar { position: fixed !important; left: calc(10px + var(--l-sl)) !important; right: calc(10px + var(--l-sr)) !important; top: auto !important; bottom: var(--l-bot) !important;
+  /* нижняя панель разделов, 1 в 1 с FC Mobile: тёмная полоса во всю ширину, значок и подпись в строку, тонкие
+     разделители; магазин — последним, бирюзовой плашкой (как STORE); открытый раздел — салатовая черта снизу */
+  .tabbar { position: fixed !important; left: calc(8px + var(--l-sl)) !important; right: calc(8px + var(--l-sr)) !important; top: auto !important; bottom: var(--l-bot) !important;
     height: var(--l-nav) !important; display: flex !important; flex-direction: row !important; align-items: stretch !important; gap: 0 !important; padding: 0 !important;
-    border-radius: 0 !important; background: linear-gradient(180deg, rgba(14,20,28,.94), rgba(6,10,14,.96)) !important; box-shadow: 0 -1px 0 rgba(255,255,255,.08) !important; z-index: 60; }
-  .tab { flex: 1 1 0 !important; max-width: none !important; min-height: 0 !important; flex-direction: row !important; justify-content: center !important; align-items: center !important; gap: 8px !important;
-    padding: 0 6px !important; border-radius: 0 !important; font: 800 13px/1 "Rubik", sans-serif !important; font-style: normal !important; text-transform: uppercase !important; letter-spacing: .03em;
-    color: #e8eef2 !important; background: none !important; box-shadow: none !important; }
-  .tab.on { background: linear-gradient(180deg, #17d3a8, #0e9f80) !important; color: #fff !important; }
-  .tab.on span svg { color: #fff !important; }
-  .tab span { height: auto !important; } .tab span svg { width: 20px !important; height: 20px !important; }
+    border-radius: 0 0 6px 6px !important; background: linear-gradient(180deg, rgba(18,26,34,.96), rgba(8,13,18,.98)) !important; box-shadow: 0 -1px 0 rgba(255,255,255,.07) !important;
+    backdrop-filter: none !important; z-index: 60; }
+  .tab { flex: 1 1 0 !important; max-width: none !important; min-height: 0 !important; flex-direction: row !important; justify-content: center !important; align-items: center !important; gap: 9px !important;
+    padding: 0 6px !important; border-radius: 0 !important; font: 600 15px/1 "Rubik", sans-serif !important; font-style: normal !important; text-transform: uppercase !important; letter-spacing: .01em;
+    color: #f2f5f7 !important; background: none !important; box-shadow: inset -1px 0 0 rgba(255,255,255,.08) !important; transform: none !important; clip-path: none !important; }
+  .tab > * { transform: none !important; }
+  .tab.on { background: none !important; color: #fff !important; box-shadow: inset -1px 0 0 rgba(255,255,255,.08), inset 0 -3px 0 #c8ff3c !important; }
+  .tab span svg { width: 19px !important; height: 19px !important; color: #fff !important; }
+  .tab span { height: auto !important; }
+  #tab-shop { order: 9; flex: 0 0 19% !important; background: linear-gradient(90deg, #0f5f63, #0f6e6e) !important; color: #fff !important; box-shadow: none !important; }
+  #tab-shop span svg { color: #ffd23c !important; }
 
-  /* шапка: профиль слева, клуб и монеты справа — без рамок, как полоса FC */
-  .hub-head { position: relative !important; margin: 0 !important; padding: 0 !important; background: none !important; }
-  .hub-head .mh { min-height: 0 !important; gap: 10px !important; }
-  .mh-me, .mh-chip, .hub-head .coins { border-radius: 8px !important; background: rgba(8,12,18,.55) !important; box-shadow: none !important; }
-
-  /* ---------- главная ---------- */
-  #hub { gap: 6px !important; }
-  #home2 { height: calc(100dvh - var(--l-top) - var(--l-bot) - var(--l-nav) - 70px) !important; min-height: 150px !important; padding: 0 !important;
-    display: grid !important; gap: 10px !important;
-    grid-template-columns: auto minmax(0, 1.25fr) minmax(0, .62fr) minmax(0, .62fr); grid-template-rows: minmax(0, 1.25fr) minmax(0, 1fr); }
-  #home2 .h2-arena, #home2 .h2-cta, #home2 .h2-side { display: contents !important; }
-  #home2 .h2-ev, #home2 .h2-bg { display: none !important; }
-  /* слева — колонка квадратных плиток (как ACTIVITIES / FEATURED / STARPASS) */
-  /* по две плитки в столбик; больше — следующий столбик (колонка становится шире, баннер — уже) */
-  #home2 .h2-side.l, #home2 .h2-side.r { display: grid !important; grid-auto-flow: column; grid-template-rows: repeat(2, minmax(0, 1fr)); grid-auto-columns: 66px; gap: 6px !important;
-    position: static !important; grid-column: 1; min-height: 0; }
-  #home2 .h2-side.l { grid-row: 1; } #home2 .h2-side.r { grid-row: 2; }
-  #home2 .h2-side:empty { display: none !important; }
-  #home2 .h2-sb { position: relative; width: 66px !important; height: 100% !important; min-height: 0 !important; display: grid !important; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: center; gap: 1px; padding: 3px 2px 3px !important;
-    border-radius: 8px !important; transform: none !important; background: linear-gradient(180deg, rgba(40,70,120,.75), rgba(14,22,40,.9)) !important;
-    box-shadow: inset 0 0 0 1px rgba(160,200,255,.22), 0 4px 10px rgba(0,0,0,.35) !important; }
-  #home2 .h2-sb.hot { box-shadow: inset 0 0 0 1px rgba(200,255,60,.7), 0 4px 10px rgba(0,0,0,.35) !important; }
-  #home2 .h2-sbi { width: auto !important; height: 100% !important; max-height: 38px; aspect-ratio: 1; margin: 0 !important; min-height: 0; }
-  #home2 .h2-sbi img, #home2 .h2-sbi svg { width: 100% !important; height: 100% !important; }
-  #home2 .h2-sb b { position: static !important; font: 800 8.5px/1.05 "Rubik", sans-serif !important; text-transform: uppercase; text-align: center; white-space: normal !important; -webkit-text-stroke: 0 !important; color: #e8f0ff; }
-  /* центр — большой баннер с выбранной игрой (как «The Club is Yours») */
-  #home2 .h2-game { grid-column: 2; grid-row: 1 / 3; width: 100% !important; height: 100% !important; container-type: size; padding: 0 !important; align-content: center !important;
-    --W: min(52cqw, 60cqh) !important; border-radius: 6px; overflow: hidden;
-    background: radial-gradient(120% 90% at 30% 20%, color-mix(in srgb, var(--c1) 55%, #0b3a1e), #06140c 70%), repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 34px, transparent 34px 68px) !important;
-    box-shadow: inset 0 0 0 1px rgba(255,255,255,.1), 0 10px 26px rgba(0,0,0,.45) !important; }
-  #home2 .h2-game .h2-pitch, #home2 .h2-game .h2-ped, #home2 .h2-game .h2-shadow { display: none !important; }
-  /* справа сверху — баннер события: путь к следующему открытию */
-  #home2 .h2-road { grid-column: 3 / 5; grid-row: 1; display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto 1fr auto; align-items: center; gap: 6px 10px;
-    padding: 12px 14px !important; border-radius: 6px !important; transform: none !important;
-    background: linear-gradient(120deg, #1a2fb0 0%, #4a1d8f 48%, #c4122f 100%) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 10px 26px rgba(0,0,0,.45) !important; }
-  #home2 .h2-road::before { content: 'ПУТЬ ТРОФЕЕВ'; grid-column: 1 / -1; grid-row: 1; font: italic 900 18px/1 "Rubik", sans-serif; color: #fff; letter-spacing: .02em; text-shadow: 0 2px 0 rgba(0,0,0,.35); }
-  #home2 .h2-road > * { transform: none !important; }
-  #home2 .h2-tro { grid-row: 2; } #home2 .h2-bar { grid-row: 3; grid-column: 1 / 3; } #home2 .h2-ni { grid-row: 2 / 4; grid-column: 3; }
-  #home2 .h2-ni { position: relative; } #home2 .h2-ni > img, #home2 .h2-ni > svg { width: 52px !important; height: 52px !important; }
-  #home2 .h2-ni em { position: absolute; right: -4px; bottom: -4px; width: 20px !important; height: 20px !important; } #home2 .h2-ni em svg { width: 20px !important; height: 20px !important; }
-  /* справа снизу — «ИГРЫ» (тёмная, как CLUB) и «ИГРАТЬ» (салатовая, как PLAY) */
-  #home2 .h2-all, #home2 .h2-play { grid-row: 2; height: 100% !important; transform: none !important; border-radius: 6px !important; display: grid !important; overflow: hidden; position: relative; }
-  #home2 .h2-all { grid-column: 3; align-content: space-between !important; justify-items: start !important; padding: 10px 12px !important;
-    background: linear-gradient(135deg, #0f2a8a 0%, #0f2a8a 45%, #10a06a 46%, #0b6e4a 100%) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), 0 10px 22px rgba(0,0,0,.4) !important; }
-  #home2 .h2-all b { order: -1; font: italic 900 20px/1 "Rubik", sans-serif !important; -webkit-text-stroke: 0 !important; color: #fff; }
-  #home2 .h2-all span { justify-self: end; } #home2 .h2-all svg { width: 34px !important; height: 34px !important; }
-  #home2 .h2-play { grid-column: 4; align-content: start !important; justify-items: start !important; padding: 10px 12px !important;
-    background: linear-gradient(135deg, #e6ff5a 0%, var(--fc-lime) 40%, #5fd13a 100%) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.4), 0 10px 22px rgba(0,0,0,.4) !important; }
-  #home2 .h2-play::after { content: '⚽'; position: absolute; right: -6px; bottom: -10px; font-size: 64px; line-height: 1; filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); }
-  #home2 .h2-play span { font: italic 900 24px/1 "Rubik", sans-serif !important; color: #0c1a08 !important; -webkit-text-stroke: 0 !important; text-shadow: none !important; letter-spacing: .01em; }
+  /* ---------- главная (лёжа): своя разметка .fch (js/home.js fcHome), всё старое на главной скрыто ---------- */
+  body.at-home { background: #0b1016 !important; }
+  body.at-home #h2-wall, body.at-home .hub-head { display: none !important; }
+  body.at-home #app { padding: 0 !important; }
+  #home2 > :not(.fch) { display: none !important; }
+  #panel-home > :not(#home2) { display: none !important; }
+  #home2 { height: auto !important; min-height: 0 !important; display: block !important; padding: 0 !important; }
+  .fch { position: fixed; z-index: 5; left: calc(8px + var(--l-sl)); right: calc(8px + var(--l-sr)); top: var(--l-top); bottom: calc(var(--l-bot) + var(--l-nav));
+    display: grid; grid-template-columns: 4.5% 56px 2.2% minmax(0, 1.04fr) 1.3% minmax(0, .5fr) 1.3% minmax(0, .5fr) 6%;
+    grid-template-rows: 42px 4% minmax(0, 1fr) 2.6% minmax(0, .44fr) 3%;
+    border-radius: 6px 6px 0 0; overflow: hidden; color: #fff;
+    background:
+      radial-gradient(60% 55% at 22% 70%, rgba(20,190,120,.38), transparent 70%),
+      radial-gradient(40% 45% at 8% 30%, rgba(30,120,200,.30), transparent 70%),
+      radial-gradient(45% 50% at 62% 92%, rgba(200,230,40,.20), transparent 70%),
+      linear-gradient(60deg, transparent 49.6%, rgba(255,255,255,.035) 50%, transparent 50.4%) 0 0 / 86px 150px,
+      linear-gradient(-60deg, transparent 49.6%, rgba(255,255,255,.035) 50%, transparent 50.4%) 0 0 / 86px 150px,
+      #0d141b; }
+  .fch button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .fch svg, .fch img { display: block; }
+  /* верх: аватар-квадрат, ник, трофеи; «газета»; справа валюта с «+» и значки */
+  .fc-top { grid-column: 2 / 9; grid-row: 1; display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .fc-me { display: flex !important; align-items: center; gap: 8px; }
+  .fc-ava { width: 32px; height: 32px; display: grid; place-items: center; background: #11161c; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); font-size: 18px; }
+  .fc-who { display: grid; text-align: left; gap: 2px; }
+  .fc-who b { font: 600 15px/1 "Rubik", sans-serif; text-transform: uppercase; letter-spacing: .01em; }
+  .fc-who small { display: flex; align-items: center; gap: 5px; font: 500 10px/1 "Rubik", sans-serif; color: #cfd6dc; }
+  .fc-who small i { font-style: normal; background: #18c25a; color: #fff; padding: 2px 4px; display: inline-flex; gap: 2px; align-items: center; } .fc-who small i svg { width: 10px; height: 10px; }
+  .fc-news { display: grid !important; justify-items: center; gap: 2px; } .fc-news span svg { width: 22px; height: 22px; color: #e9eef2; } .fc-news small { font: 600 8px/1 "Rubik", sans-serif; text-transform: uppercase; }
+  .fc-sp { flex: 1; }
+  .fc-cur { display: flex !important; align-items: center; gap: 6px; font: 500 13px/1 "Rubik", sans-serif; }
+  .fc-cur .coin { width: 18px; height: 18px; } .fc-cur i { font-style: normal; width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; background: #59616a; color: #10161c; font: 800 13px/1 sans-serif; }
+  .fc-ic svg { width: 22px; height: 22px; color: #e9eef2; }
+  /* слева: колонка плиток — рамка с картинкой, подпись внизу, значки «!» и NEW */
+  .fc-side { grid-column: 2; grid-row: 3 / 6; display: flex; flex-direction: column; gap: 7px; min-height: 0; overflow: hidden; }
+  .fc-t { position: relative; flex: 0 1 62px; min-height: 0; display: grid !important; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: end; padding: 3px 2px 3px !important;
+    background: linear-gradient(180deg, rgba(60,90,120,.55), rgba(18,26,36,.85)) !important; box-shadow: inset 0 0 0 1px rgba(160,190,220,.35), 0 3px 8px rgba(0,0,0,.4) !important; }
+  .fc-ti { width: 100%; height: 100%; min-height: 0; display: grid; place-items: center; } .fc-ti img, .fc-ti svg, .fc-ti > * { max-width: 40px; max-height: 100%; width: auto; height: 100%; object-fit: contain; }
+  .fc-t b { font: 600 7.5px/1.05 "Rubik", sans-serif; text-transform: uppercase; text-align: center; letter-spacing: .02em; }
+  .fc-dot, .fc-new { position: absolute; top: -4px; right: -3px; font: 800 8px/1 "Rubik", sans-serif; font-style: normal; color: #fff; padding: 2px 4px; border-radius: 6px; background: #e3283c; }
+  .fc-new { background: #ff7a1a; }
+  /* центр: большой баннер — кадр из нашей игры, крупная белая надпись, стрелки карусели */
+  .fc-hero { grid-column: 4; grid-row: 2 / 6; position: relative; overflow: hidden; display: block !important; text-align: left;
+    background: #0b1a10 url(../img/bg/home_hero.webp?v=2) 78% 100% / cover no-repeat !important; box-shadow: 0 10px 24px rgba(0,0,0,.45); }
+  .fc-hero::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4,10,8,.55), transparent 55%), linear-gradient(0deg, rgba(0,0,0,.35), transparent 40%); }
+  .fc-hero-t { position: absolute; left: 44%; top: 15%; font: 600 clamp(22px, 8.2vh, 36px)/1 "Golos Text", "Rubik", sans-serif; letter-spacing: -.02em; text-align: left; text-shadow: 0 2px 10px rgba(0,0,0,.45); }
+  .fc-hero-t small { font: inherit; }
+  .fc-hero-ico { display: none; }
+  .fc-arr { position: absolute; left: 50%; bottom: 9%; display: flex; gap: 6px; } .fc-arr i { width: 54px; height: 16px; border-bottom: 1.5px solid rgba(255,255,255,.75); position: relative; }
+  .fc-arr i::after { content: ''; position: absolute; right: 0; bottom: -7px; width: 12px; height: 12px; border-right: 1.5px solid rgba(255,255,255,.75); border-top: 1.5px solid rgba(255,255,255,.75); transform: rotate(45deg); }
+  /* справа сверху: баннер события, сине-красный со светом, белая надпись, три значка, точка карусели */
+  .fc-ev { grid-column: 6 / 9; grid-row: 3; position: relative; overflow: hidden; display: grid !important; grid-template-rows: auto minmax(0, 1fr) auto; padding: 8px 10px 10px !important; text-align: left;
+    background: radial-gradient(70% 90% at 18% 70%, rgba(20,80,255,.9), transparent 70%), radial-gradient(60% 90% at 95% 30%, rgba(255,20,40,.95), transparent 70%),
+      linear-gradient(115deg, #0b1e8a 0%, #3a1270 50%, #b0081e 100%) !important; box-shadow: inset 0 0 0 1px rgba(150,200,255,.5), 0 10px 24px rgba(0,0,0,.45) !important; }
+  .fc-ev::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(100deg, transparent 0 22px, rgba(255,255,255,.05) 22px 24px); pointer-events: none; }
+  .fc-ev > b { font: 700 clamp(13px, 4.6vh, 19px)/1 "Rubik", sans-serif; text-transform: uppercase; letter-spacing: .01em; text-shadow: 0 2px 0 rgba(0,0,0,.3); }
+  .fc-ems { display: flex; justify-content: space-around; align-items: center; min-height: 0; }
+  .fc-em { display: grid; justify-items: center; gap: 2px; min-height: 0; } .fc-em i { width: clamp(30px, 13vh, 54px); height: clamp(30px, 13vh, 54px); filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
+  .fc-em i > * { width: 100% !important; height: 100% !important; } .fc-em small { display: flex; gap: 2px; align-items: center; font: 700 9px/1 "Rubik", sans-serif; } .fc-em small svg { width: 10px; height: 10px; }
+  .fc-bar { position: relative; z-index: 1; height: 4px; background: rgba(0,0,0,.4); } .fc-bar i { display: block; height: 100%; background: #c8ff3c; }
+  .fc-pg { position: absolute; right: 8px; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: #fff; }
+  /* справа снизу: тёмная «ИГРЫ» (как CLUB: щиток с числом, знак справа) и салатовая «ИГРАТЬ» (как PLAY, мяч справа) */
+  .fc-club, .fc-play { grid-row: 5; position: relative; overflow: hidden; display: block !important; text-align: left; box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 8px 18px rgba(0,0,0,.4) !important; }
+  .fc-club { grid-column: 6; background: linear-gradient(118deg, #0d2f6e 0%, #0e3a6a 52%, #0f8a4c 52.4%, #087a40 70%, #06401f 100%) !important; }
+  .fc-play { grid-column: 8; background: radial-gradient(70% 120% at 85% 80%, #2fa83a, transparent 60%), linear-gradient(110deg, #d8ff3a 0%, #b9f23a 45%, #3db64a 100%) !important; }
+  .fc-club b, .fc-play b { position: absolute; left: 8px; top: 6px; font: 700 clamp(13px, 4.6vh, 19px)/1 "Rubik", sans-serif; text-transform: uppercase; }
+  .fc-play b { color: #071a06; }
+  .fc-ovr { position: absolute; left: 10px; bottom: 7px; width: 34px; height: 38px; display: grid; place-content: center; text-align: center; font: 800 15px/1 "Rubik", sans-serif;
+    background: linear-gradient(180deg, #1d3fa8, #0b1f66); clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%); box-shadow: inset 0 0 0 2px #e6c25a; }
+  .fc-ovr small { font: 700 7px/1 "Rubik", sans-serif; color: #e6c25a; }
+  .fc-logo { position: absolute; right: 10px; bottom: 9px; width: 34px; height: 34px; display: grid; place-items: center; background: #0b0f14; transform: rotate(45deg) scale(.85); }
+  .fc-logo svg { width: 22px; height: 22px; transform: rotate(-45deg); color: #fff; }
+  .fc-play img { position: absolute; right: -6%; bottom: -14%; width: 64%; max-width: 86px; filter: drop-shadow(0 6px 8px rgba(0,0,0,.4)); }
 
   /* ---------- экраны: шире, сетками ---------- */
   #app > .screen > .topbar { top: var(--l-top) !important; }

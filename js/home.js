@@ -79,10 +79,49 @@ const Home = (() => {
       ${g ? `<div class="h2-cta"><button class="h2-play" ${attrs(g.data)}><span>ИГРАТЬ</span></button>
         <button class="h2-all" data-h2="pick"><span>${Ui.get('gamepad')}</span><b>Игры</b></button></div>` : ''}`;
     if (typeof Icons !== 'undefined') Icons.fill(box);
+    fcHome(box, g, t, nx, pct, dlyDone, cards, pend, packReady);
     fit();
     island(); wall();
     if (typeof Coach !== 'undefined') later(() => Coach.maybe(), 1800);
     later(checkUnlocks, 500);
+  }
+  // Горизонтальная главная — раскладка главного экрана FC Mobile (кадр из обучающего ролика EA, 20.10): сверху профиль и
+  // валюта, слева колонка плиток, в центре баннер, справа баннер события и две плитки (тёмная и салатовая), снизу —
+  // панель разделов (это #tabbar, css/land.css). Видна только лёжа (CSS); в вертикальном окне — обычная главная.
+  function fcHome(box, g, t, nx, pct, dlyDone, cards, pend, packReady) {
+    const u = (Store.d && Store.d.user) || {}, ART = (k) => Art.img(k, '', 96);
+    const tile = (act, art, label, cls = '', badge = '') => `<button class="fc-t ${cls}" data-act="${act}"><span class="fc-ti art">${art}</span>${badge}<b>${label}</b></button>`;
+    const tiles = [
+      tile('dly', ART('daily'), 'Игрок дня', dlyDone ? '' : 'hot', dlyDone ? '' : '<em class="fc-dot">!</em>'),
+      typeof CONFIG !== 'undefined' && CONFIG.stage ? tile('football', ART('qplay'), '3 на 3', 'hot', '<em class="fc-new">NEW</em>') : '',
+      cards ? tile('squad', ART('squad'), 'Состав') : '',
+      cards ? tile('wheel', ART('qpack'), packReady ? 'Пак дня' : 'Завтра', packReady ? 'hot' : '', packReady ? '<em class="fc-dot">!</em>' : '') : '',
+      Release.isOut('ng:duel') ? tile('online', ART('online'), 'Онлайн') : '',
+      cards && pend ? tile('rw-packs', PackOpen.art(0, 'rs'), 'За победы', 'hot', `<em class="fc-dot">${pend}</em>`) : '',
+    ].join('');
+    const nexts = Release.UNLOCKS.filter((x) => x[0] > t).slice(0, 3).map((x) => { const k = x[2][0]; return `<span class="fc-em"><i>${FEAT[k] ? Ui.get(FEAT[k].ui) : icon(catalog().get(k) || {})}</i><small>${Ui.get('trophy')} ${x[0]}</small></span>`; }).join('');
+    const nOpen = games().filter((x) => open(x)).length, title = g ? esc(g.title.split(':')[0]) : 'Игры';
+    let el = $('.fch', box); if (!el) { el = document.createElement('div'); el.className = 'fch'; box.append(el); }
+    el.innerHTML = `
+      <header class="fc-top">
+        <button class="fc-me" data-act="profile"><span class="fc-ava">${esc(u.emoji || '⚽')}</span><span class="fc-who"><b>${esc(u.nick || 'Игрок')}</b><small><i>${Ui.get('trophy')} ${t}</i>${nx ? `${t}/${nx.need}` : ''}</small></span></button>
+        <button class="fc-news" data-act="dly"><span>${Ui.get('scroll')}</span><small>Игрок дня</small></button>
+        <span class="fc-sp"></span>
+        <button class="fc-cur" data-act="coins-info"><span class="coin" aria-hidden="true"></span><b class="coin-count">${Store.d.coins}</b><i>+</i></button>
+        <button class="fc-ic" data-act="myclub" aria-label="Клуб">${Ui.get('users')}</button>
+        <button class="fc-ic" data-act="board" aria-label="Таблица">${Ui.get('league')}</button>
+        <button class="fc-ic" data-act="profile" aria-label="Настройки">${Ui.get('gear')}</button>
+      </header>
+      <nav class="fc-side">${tiles}</nav>
+      <button class="fc-hero" data-h2="pick" style="--c1:${g ? g.c1 : '#3ee6a8'}">
+        <span class="fc-hero-t">${title}<br><small>ждёт тебя</small></span>
+        <span class="fc-hero-ico">${g ? icon(g) : ''}</span>
+        <span class="fc-arr"><i></i><i></i></span>
+      </button>
+      <button class="fc-ev" data-act="road"><b>Путь трофеев</b><span class="fc-ems">${nexts || `<span class="fc-em"><i>${Ui.get('crown')}</i><small>Всё открыто</small></span>`}</span><span class="fc-bar"><i style="width:${pct}%"></i></span><u class="fc-pg"></u></button>
+      <button class="fc-club" data-h2="pick"><b>Игры</b><span class="fc-ovr"><small>ОТКР</small>${nOpen}</span><span class="fc-logo">${Ui.get('gamepad')}</span></button>
+      ${g ? `<button class="fc-play" ${attrs(g.data)}><b>Играть</b><img src="img/ui/ball.webp" alt="" aria-hidden="true"></button>` : '<span></span>'}`;
+    if (typeof Icons !== 'undefined') Icons.fill(el);
   }
   // фон главной: наклонная стена из карточек твоей коллекции; чего ещё нет — рубашка «ДЖ». Медленно едет по диагонали
   let wallSig = '';
