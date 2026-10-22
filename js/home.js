@@ -102,6 +102,9 @@ const Home = (() => {
     const nexts = Release.UNLOCKS.filter((x) => x[0] > t).slice(0, 3).map((x) => { const k = x[2][0]; return `<span class="fc-em"><i>${FEAT[k] ? Ui.get(FEAT[k].ui) : icon(catalog().get(k) || {})}</i><small>${Ui.get('trophy')} ${x[0]}</small></span>`; }).join('');
     const nOpen = games().filter((x) => open(x)).length, title = g ? esc(g.title.split(':')[0]) : 'Игры';
     let el = $('.fch', box); if (!el) { el = document.createElement('div'); el.className = 'fch'; box.append(el); }
+    // вариант оформления (выбор из 10, 22.10): ?fcv=N в адресе — запоминается на этом телефоне
+    let V = '1'; try { const q = new URLSearchParams(location.search).get('fcv'); if (q) localStorage.setItem('fcv', q); V = localStorage.getItem('fcv') || '1'; } catch (e) { /* без памяти — первый */ }
+    el.dataset.v = V;
     el.innerHTML = `
       <header class="fc-top">
         <button class="fc-me" data-act="profile"><span class="fc-ava">${esc(u.emoji || '⚽')}</span><span class="fc-who"><b>${esc(u.nick || 'Игрок')}</b><small><i>${Ui.get('trophy')} ${t}</i>${nx ? `${t}/${nx.need}` : ''}</small></span></button>

@@ -62,6 +62,7 @@
   .fch { position: fixed; z-index: 5; left: calc(8px + var(--l-sl)); right: calc(8px + var(--l-sr)); top: var(--l-top); bottom: calc(var(--l-bot) + var(--l-nav));
     display: grid; grid-template-columns: 4.5% 56px 2.2% minmax(0, 1.04fr) 1.3% minmax(0, .5fr) 1.3% minmax(0, .5fr) 6%;
     grid-template-rows: 42px 4% minmax(0, 1fr) 2.6% minmax(0, .44fr) 3%;
+    grid-template-areas: ". top top top top top top top ." ". . . hero . . . . ." ". side . hero . ev ev ev ." ". side . hero . . . . ." ". side . hero . club . play ." ". . . . . . . . .";
     border-radius: 6px 6px 0 0; overflow: hidden; color: #fff;
     background:
       radial-gradient(60% 55% at 22% 70%, rgba(20,190,120,.38), transparent 70%),
@@ -73,7 +74,7 @@
   .fch button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; -webkit-tap-highlight-color: transparent; }
   .fch svg, .fch img { display: block; }
   /* верх: аватар-квадрат, ник, трофеи; «газета»; справа валюта с «+» и значки */
-  .fc-top { grid-column: 2 / 9; grid-row: 1; display: flex; align-items: center; gap: 14px; min-width: 0; }
+  .fc-top { grid-area: top; display: flex; align-items: center; gap: 14px; min-width: 0; }
   .fc-me { display: flex !important; align-items: center; gap: 8px; }
   .fc-ava { width: 32px; height: 32px; display: grid; place-items: center; background: #11161c; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); font-size: 18px; }
   .fc-who { display: grid; text-align: left; gap: 2px; }
@@ -86,7 +87,7 @@
   .fc-cur .coin { width: 18px; height: 18px; } .fc-cur i { font-style: normal; width: 15px; height: 15px; border-radius: 50%; display: grid; place-items: center; background: #59616a; color: #10161c; font: 800 13px/1 sans-serif; }
   .fc-ic svg { width: 22px; height: 22px; color: #e9eef2; }
   /* слева: колонка плиток — рамка с картинкой, подпись внизу, значки «!» и NEW */
-  .fc-side { grid-column: 2; grid-row: 3 / 6; display: flex; flex-direction: column; gap: 7px; min-height: 0; overflow: hidden; }
+  .fc-side { grid-area: side; display: flex; flex-direction: column; gap: 7px; min-height: 0; overflow: hidden; }
   .fc-t { position: relative; flex: 0 1 62px; min-height: 0; display: grid !important; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: end; padding: 3px 2px 3px !important;
     background: linear-gradient(180deg, rgba(60,90,120,.55), rgba(18,26,36,.85)) !important; box-shadow: inset 0 0 0 1px rgba(160,190,220,.35), 0 3px 8px rgba(0,0,0,.4) !important; }
   .fc-ti { width: 100%; height: 100%; min-height: 0; display: grid; place-items: center; } .fc-ti img, .fc-ti svg, .fc-ti > * { max-width: 40px; max-height: 100%; width: auto; height: 100%; object-fit: contain; }
@@ -94,7 +95,7 @@
   .fc-dot, .fc-new { position: absolute; top: -4px; right: -3px; font: 800 8px/1 "Rubik", sans-serif; font-style: normal; color: #fff; padding: 2px 4px; border-radius: 6px; background: #e3283c; }
   .fc-new { background: #ff7a1a; }
   /* центр: большой баннер — кадр из нашей игры, крупная белая надпись, стрелки карусели */
-  .fc-hero { grid-column: 4; grid-row: 2 / 6; position: relative; overflow: hidden; display: block !important; text-align: left;
+  .fc-hero { grid-area: hero; position: relative; overflow: hidden; display: block !important; text-align: left;
     background: #0b1a10 url(../img/bg/home_hero.webp?v=2) 78% 100% / cover no-repeat !important; box-shadow: 0 10px 24px rgba(0,0,0,.45); }
   .fc-hero::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(4,10,8,.55), transparent 55%), linear-gradient(0deg, rgba(0,0,0,.35), transparent 40%); }
   .fc-hero-t { position: absolute; left: 44%; top: 15%; font: 600 clamp(22px, 8.2vh, 36px)/1 "Golos Text", "Rubik", sans-serif; letter-spacing: -.02em; text-align: left; text-shadow: 0 2px 10px rgba(0,0,0,.45); }
@@ -103,7 +104,7 @@
   .fc-arr { position: absolute; left: 50%; bottom: 9%; display: flex; gap: 6px; } .fc-arr i { width: 54px; height: 16px; border-bottom: 1.5px solid rgba(255,255,255,.75); position: relative; }
   .fc-arr i::after { content: ''; position: absolute; right: 0; bottom: -7px; width: 12px; height: 12px; border-right: 1.5px solid rgba(255,255,255,.75); border-top: 1.5px solid rgba(255,255,255,.75); transform: rotate(45deg); }
   /* справа сверху: баннер события, сине-красный со светом, белая надпись, три значка, точка карусели */
-  .fc-ev { grid-column: 6 / 9; grid-row: 3; position: relative; overflow: hidden; display: grid !important; grid-template-rows: auto minmax(0, 1fr) auto; padding: 8px 10px 10px !important; text-align: left;
+  .fc-ev { grid-area: ev; position: relative; overflow: hidden; display: grid !important; grid-template-rows: auto minmax(0, 1fr) auto; padding: 8px 10px 10px !important; text-align: left;
     background: radial-gradient(70% 90% at 18% 70%, rgba(20,80,255,.9), transparent 70%), radial-gradient(60% 90% at 95% 30%, rgba(255,20,40,.95), transparent 70%),
       linear-gradient(115deg, #0b1e8a 0%, #3a1270 50%, #b0081e 100%) !important; box-shadow: inset 0 0 0 1px rgba(150,200,255,.5), 0 10px 24px rgba(0,0,0,.45) !important; }
   .fc-ev::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(100deg, transparent 0 22px, rgba(255,255,255,.05) 22px 24px); pointer-events: none; }
@@ -114,9 +115,9 @@
   .fc-bar { position: relative; z-index: 1; height: 4px; background: rgba(0,0,0,.4); } .fc-bar i { display: block; height: 100%; background: #c8ff3c; }
   .fc-pg { position: absolute; right: 8px; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: #fff; }
   /* справа снизу: тёмная «ИГРЫ» (как CLUB: щиток с числом, знак справа) и салатовая «ИГРАТЬ» (как PLAY, мяч справа) */
-  .fc-club, .fc-play { grid-row: 5; position: relative; overflow: hidden; display: block !important; text-align: left; box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 8px 18px rgba(0,0,0,.4) !important; }
-  .fc-club { grid-column: 6; background: linear-gradient(118deg, #0d2f6e 0%, #0e3a6a 52%, #0f8a4c 52.4%, #087a40 70%, #06401f 100%) !important; }
-  .fc-play { grid-column: 8; background: radial-gradient(70% 120% at 85% 80%, #2fa83a, transparent 60%), linear-gradient(110deg, #d8ff3a 0%, #b9f23a 45%, #3db64a 100%) !important; }
+  .fc-club, .fc-play { position: relative; overflow: hidden; display: block !important; text-align: left; box-shadow: inset 0 0 0 1px rgba(255,255,255,.22), 0 8px 18px rgba(0,0,0,.4) !important; }
+  .fc-club { grid-area: club; background: linear-gradient(118deg, #0d2f6e 0%, #0e3a6a 52%, #0f8a4c 52.4%, #087a40 70%, #06401f 100%) !important; }
+  .fc-play { grid-area: play; background: radial-gradient(70% 120% at 85% 80%, #2fa83a, transparent 60%), linear-gradient(110deg, #d8ff3a 0%, #b9f23a 45%, #3db64a 100%) !important; }
   .fc-club b, .fc-play b { position: absolute; left: 8px; top: 6px; font: 700 clamp(13px, 4.6vh, 19px)/1 "Rubik", sans-serif; text-transform: uppercase; }
   .fc-play b { color: #071a06; }
   .fc-ovr { position: absolute; left: 10px; bottom: 7px; width: 34px; height: 38px; display: grid; place-content: center; text-align: center; font: 800 15px/1 "Rubik", sans-serif;
