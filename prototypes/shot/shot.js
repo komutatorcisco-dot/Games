@@ -1241,6 +1241,22 @@ function cutStep(pl, P, dt) {
   PB[3].getWorldPosition(cutP.toe); c.err = Math.hypot(cutP.toe.x - cx, cutP.toe.z - cz); // где носок после подстройки — достал ли мяч
   return true;
 }
+// Вес тела на поворотах и торможении (с мячом и без, своя модель): чем больше боковое ускорение и торможение, тем ниже
+// таз (колени сгибаются, стопы на месте — та же подстройка ног, что в подрезе), корпус наклоняется в поворот и
+// отклоняется назад при торможении. Только кости поверх записи бега.
+const WT = { crouch: 0.08, side: 0.14, back: 0.14, full: 9 };
+function weightLayer(pl, P, dt) {
+  const load = THREE.MathUtils.clamp((Math.abs(pl.aLat || 0) + 0.8 * (pl.brake || 0)) / WT.full, 0, 1);
+  pl.load = (pl.load || 0) + (load - (pl.load || 0)) * (1 - Math.exp(-dt * (load > (pl.load || 0) ? 12 : 5)));
+  if (!pl.own || pl.name !== 'loco' || pl.mv || pl.load < 0.03) return;
+  const w = pl.load, LB = legBones(pl, 'Left'), RB = legBones(pl, 'Right'); if (LB.some((x) => !x) || RB.some((x) => !x)) return;
+  pl.model.updateMatrixWorld(true);
+  LB[2].getWorldPosition(cutP.L); RB[2].getWorldPosition(cutP.R); LB[2].getWorldQuaternion(cutP.qL); RB[2].getWorldQuaternion(cutP.qR);
+  const hips = pl.hips; hips.getWorldPosition(cutP.h); cutP.h.y -= WT.crouch * w; hips.position.copy(hips.parent.worldToLocal(cutP.h.clone())); hips.updateMatrixWorld(true);
+  const sp = pl.model.getObjectByName('Spine'), bk = THREE.MathUtils.clamp((pl.brake || 0) / 8, 0, 1), side = THREE.MathUtils.clamp((pl.aLat || 0) / 8, -1, 1);
+  if (sp) { ikV.set(-Math.cos(P.yaw), 0, Math.sin(P.yaw)); rotW(sp, ikV, -WT.back * bk); ikV.set(Math.sin(P.yaw), 0, Math.cos(P.yaw)); rotW(sp, ikV, -WT.side * side); sp.updateMatrixWorld(true); }
+  legIK(pl, 'Left', cutP.L, cutP.qL, P); legIK(pl, 'Right', cutP.R, cutP.qR, P);
+}
 // Газон твёрдый: ни одна часть тела не уходит под него (падения, подкаты, прыжки вратаря, а у своей модели — и записи
 // с другого скелета). Берём суставы с «толщиной» тела вокруг; если самый низкий ниже газона — вся модель сразу
 // приподнимается на эту величину, потом плавно опускается обратно. Толщина у стоп — по ровной стойке (стоя подъёма нет).
@@ -2254,7 +2270,11 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
   h.position.set(P.p.x, 0, P.p.z); h.rotation.y = pl.vyaw;
   // наклон: на повороте — внутрь, при разгоне — вперёд
   // (наклон — вокруг точки на газоне: сильнее 0,18 рад внутренняя стопа уходила бы в газон и тело приподнималось)
-  const lean = Math.max(-0.18, Math.min(0.18, -P.yawRate * sp * 0.03)), pitch = Math.max(-0.06, Math.min(0.1, P.acc * 0.02));
+  // вес: боковое ускорение (поворот хода × скорость) и торможение — по ним наклон корпуса и присед (weightLayer)
+  { const hv = sp > 0.8 ? Math.atan2(P.v.x, P.v.z) : pl.hv0 ?? 0; let dh = hv - (pl.hv0 ?? hv); dh = Math.atan2(Math.sin(dh), Math.cos(dh)); pl.hv0 = hv;
+    const aLat = dt > 0 ? (dh / dt) * sp : 0, brake = Math.max(0, -(P.acc || 0)), ka = 1 - Math.exp(-dt * 10);
+    pl.aLat = (pl.aLat || 0) + (THREE.MathUtils.clamp(aLat, -14, 14) - (pl.aLat || 0)) * ka; pl.brake = (pl.brake || 0) + (Math.min(12, brake) - (pl.brake || 0)) * ka; }
+  const lean = Math.max(-0.2, Math.min(0.2, -(pl.aLat || 0) * 0.028)), pitch = Math.max(-0.1, Math.min(0.1, P.acc * 0.02));
   const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
   // замах занят до конца движения ноги; запись может закончиться раньше этого запаса — тогда до её конца (иначе поза застывает навсегда)
   const busyTill = (C, extra) => Math.min(C.tc + extra, C.dur - 0.05);
@@ -2288,6 +2308,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
       B.tp.T = B.tp.t + Math.max(0.08, (((phT - ph) % 1) + 1) % 1 * cy); }
     pl.footSeen = B.foot;
     if (!cutStep(pl, P, dt)) xferPose(pl, P); }
+  if (!pl.cut) weightLayer(pl, P, dt);
   if (pl.loco) pl.loco.lastPh = (pl.loco.jog.time / pl.loco.jog.getClip().duration) % 1;
   return sp;
 }

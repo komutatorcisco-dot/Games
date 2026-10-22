@@ -310,6 +310,9 @@ test('управление с мячом: реакция, следование �
   for (const k of [1, 3]) assert.ok(out[k].resp < 0.25, `старт: реакция ${out[k].resp} с (0,17)`);
   for (const k of [2, 4, 8]) assert.ok(out[k].stopT !== null && out[k].stopT < 0.8, `остановка ${out[k].stopT} с (0,53)`);
   assert.ok(max(out[5].dev.slice(10)) < 15, `круг стиком: отклонение ${max(out[5].dev.slice(10)).toFixed(0)}° (≈0)`);
-  assert.ok(mean(out[6].dev) < 22, `зигзаг: среднее отклонение ${mean(out[6].dev).toFixed(0)}° (17)`);
+  // зигзаг: с весом (22.10) ход догоняет стик с задержкой — среднее отклонение ~23° (было 17° без инерции); но поперёк
+  // или против стика ход не уходит никогда
+  assert.ok(mean(out[6].dev) < 30, `зигзаг: среднее отклонение ${mean(out[6].dev).toFixed(0)}° (23)`);
+  assert.ok(max(out[6].dev) < 85, `зигзаг: ход ушёл поперёк стика (${max(out[6].dev).toFixed(0)}°)`);
   assert.ok(out[7].resp < 0.4, `рывок: реакция ${out[7].resp} с`);
 });

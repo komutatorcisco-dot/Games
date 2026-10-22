@@ -74,10 +74,13 @@ export const CFG = {
     accel: 3.2, decel: 5.5, // разгон и торможение (скорость приближения к желаемой, 1/с) — у игрока есть вес
     turn: 9,                // скорость разворота корпуса, 1/с
     turnMax: 7.5,           // но не быстрее, рад/с (на рывке — на 40 % медленнее)
-    curve: 11, curveMin: 4, // на бегу направление скорости поворачивается не быстрее (curve − скорость), но не медленнее curveMin, рад/с
+    // вес на поворотах (после проверки на телефоне: «слишком быстро и легко разворачивается, нет тяжести»): на бегу
+    // направление скорости поворачивается не быстрее (curve − curveK·скорость), но не медленнее curveMin, рад/с — 90° на
+    // беге ~0,35 с, на рывке ~0,5 с (было 0,18 и 0,26); шагом и с места — по-прежнему сразу
+    curve: 6.6, curveK: 0.75, curveMin: 2.3, turnBrake: 10,
     turnAtSprint: 0.55,     // на полном ходу разворачивается медленнее (доля)
-    turnSlow: 0.3,          // резкий поворот на скорости: вес — темп падает до (1 − turnSlow) на 90° и больше на рывке
-                            // (на месте и на малой скорости почти не падает); после поворота — обычный разгон
+    turnSlow: 0.6,          // резкий поворот на скорости: вес — темп падает до (1 − turnSlow) на 90° и больше, уже с бега
+                            // (на малой скорости почти не падает); после поворота — обычный разгон
     bounds: { x: 30, zMin: 1.2, zMax: 42 },
   },
   control: {
@@ -379,9 +382,10 @@ export function playerStep(P, inp, h, withBall) {
     // разворот больше ~120° — как раньше (торможение и разворот)
     let d = 0; if (sp0 > 1.8 && want > 0.5) { d = Math.atan2(wx, wz) - Math.atan2(P.v.x, P.v.z); d = Math.atan2(Math.sin(d), Math.cos(d)); }
     if (d !== 0 && Math.abs(d) < 2.1) {
-      const slow = 1 - (C.turnSlow || 0) * Math.min(1, Math.abs(d) / 1.57) * Math.min(1, sp0 / C.sprint), want2 = want * slow; // вес: на крутом повороте темп ниже
-      const k2 = 1 - Math.exp(-h * (want2 > sp0 ? C.accel * (P.boost || 1) * (P.accK || 1) : C.decel));
-      const maxW = Math.max(C.curveMin, C.curve - sp0), a = Math.atan2(P.v.x, P.v.z) + Math.max(-maxW * h, Math.min(maxW * h, d)), m = sp0 + (want2 - sp0) * k2;
+      P.tl = Math.max((P.tl || 0) - h * 2, Math.abs(d)); // «нагрузка» поворота держится, пока игрок доворачивает (тормозит весь поворот, а не только его начало)
+      const slow = 1 - (C.turnSlow || 0) * Math.min(1, P.tl / 1.57) * Math.min(1, sp0 / C.jog), want2 = want * slow; // вес: на крутом повороте темп ниже
+      const k2 = 1 - Math.exp(-h * (want2 > sp0 ? C.accel * (P.boost || 1) * (P.accK || 1) : (C.turnBrake ?? C.decel))); // на повороте тормозит упором — резче, чем просто отпустив джойстик
+      const maxW = Math.max(C.curveMin, C.curve - (C.curveK ?? 1) * sp0), a = Math.atan2(P.v.x, P.v.z) + Math.max(-maxW * h, Math.min(maxW * h, d)), m = sp0 + (want2 - sp0) * k2;
       P.v.x = Math.sin(a) * m; P.v.z = Math.cos(a) * m;
     } else { P.v.x += (wx - P.v.x) * k; P.v.z += (wz - P.v.z) * k; } }
   const nx = P.p.x + P.v.x * h, nz = P.p.z + P.v.z * h;
