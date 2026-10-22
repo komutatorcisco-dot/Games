@@ -104,26 +104,28 @@ const Home = (() => {
     const nOpen = games().filter((x) => open(x)).length, title = g ? esc(g.title.split(':')[0]) : 'Игры';
     let el = $('.fch', box); if (!el) { el = document.createElement('div'); el.className = 'fch'; box.append(el); }
     const keepVid = $('.fc-vid', el);
+    const ARR = '<i class="fc-go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></i>';
+    const xp = nx ? Math.round(pct) : 100, sub = g ? esc((g.sub || '').split('.')[0] || 'Новые награды ждут тебя') : '';
     el.innerHTML = `
       <header class="fc-top">
-        <button class="fc-me" data-act="profile"><span class="fc-ava">${esc(u.emoji || '⚽')}</span><span class="fc-who"><b>${esc(u.nick || 'Игрок')}</b><small><i>${Ui.get('trophy')} ${t}</i>${nx ? `${t}/${nx.need}` : ''}</small></span></button>
+        <button class="fc-me" data-act="profile"><span class="fc-ava">${esc(u.emoji || '⚽')}</span><span class="fc-who"><b>${esc(u.nick || 'Игрок')}</b><small><i>${Ui.get('trophy')} ${t}</i><span>${nx ? `${t}/${nx.need}` : t}</span></small><u class="fc-xp"><s style="width:${xp}%"></s></u></span></button>
         <button class="fc-news" data-act="dly"><span>${Ui.get('scroll')}</span><small>Игрок дня</small></button>
         <span class="fc-sp"></span>
         <button class="fc-cur" data-act="coins-info"><span class="coin" aria-hidden="true"></span><b class="coin-count">${Store.d.coins}</b><i>+</i></button>
         <button class="fc-ic" data-act="myclub" aria-label="Клуб">${Ui.get('users')}</button>
-        <button class="fc-ic" data-act="board" aria-label="Таблица">${Ui.get('league')}</button>
+        <button class="fc-ic" data-act="board" aria-label="Таблица">${Ui.get('shield')}</button>
         <button class="fc-ic" data-act="profile" aria-label="Настройки">${Ui.get('gear')}</button>
       </header>
       <nav class="fc-side">${tiles}</nav>
       <button class="fc-hero" data-h2="pick" style="--c1:${g ? g.c1 : '#3ee6a8'}">
         <video class="fc-vid" poster="img/bg/home_hero_poster.webp" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"><source src="img/bg/home_hero.mp4" type="video/mp4"><source src="img/bg/home_hero.webm" type="video/webm"></video>
-        <span class="fc-hero-t">${title}<br><small>ждёт тебя</small></span>
-        <span class="fc-hero-ico">${g ? icon(g) : ''}</span>
-        <span class="fc-arr"><i></i><i></i></span>
+        <span class="fc-hero-t"><b>${title}</b><em>ждёт тебя</em><small>${sub || 'Новые награды ждут тебя'}</small></span>
+        <span class="fc-playc" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>
+        <span class="fc-dash"><i class="on"></i><i></i><i></i><i></i></span>${ARR}
       </button>
-      <button class="fc-ev" data-act="road"><b>Путь трофеев</b><span class="fc-ems">${nexts || `<span class="fc-em"><i>${Ui.get('crown')}</i><small>Всё открыто</small></span>`}</span><span class="fc-bar"><i style="width:${pct}%"></i></span><u class="fc-pg"></u></button>
-      <button class="fc-club" data-h2="pick"><b>Игры</b><span class="fc-ovr"><small>ОТКР</small>${nOpen}</span><span class="fc-logo3">${I3('shield_red')}</span></button>
-      ${g ? `<button class="fc-play" ${attrs(g.data)}><b>Играть</b><img src="img/ui/ball.webp" alt="" aria-hidden="true"></button>` : '<span></span>'}`;
+      <button class="fc-ev" data-act="road"><b>Путь <span>трофеев</span></b><small class="fc-evs">Играй · Получай трофеи · Открывай игры</small>${ARR}<span class="fc-ems">${nexts || `<span class="fc-em"><i>${I3('cup_gold')}</i><small>Всё открыто</small></span>`}</span><span class="fc-bar"><i style="width:${pct}%"></i></span></button>
+      <button class="fc-club" data-h2="pick"><b>Игры</b><span class="fc-ovr"><small>ОТКР</small>${nOpen}</span><span class="fc-logo3">${I3('shield_red')}</span>${ARR}</button>
+      ${g ? `<button class="fc-play" ${attrs(g.data)}><b>Играть</b><small>${title}</small>${ARR}</button>` : '<span></span>'}`;
     if (keepVid) { const nv = $('.fc-vid', el); if (nv) nv.replaceWith(keepVid); }
     { const v = $('.fc-vid', el); if (v) { v.muted = true; const pr = v.play && v.play(); if (pr && pr.catch) pr.catch(() => {}); } }
     if (typeof Icons !== 'undefined') Icons.fill(el);
