@@ -2314,6 +2314,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
   // замах занят до конца движения ноги; запись может закончиться раньше этого запаса — тогда до её конца (иначе поза застывает навсегда)
   const busyTill = (C, extra) => Math.min(C.tc + extra, C.dur - 0.05);
   const busy = (pl.name === 'strike' && pl.t < busyTill((pl.own && CONTACT.own) || STRIKE, 0.3)) || (pl.name === 'pass' && pl.t < busyTill((pl.own && CONTACT.ownPass) || PASS, 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele) || (pl.once && pl.name === pl.once.name && pl.t < pl.once.until && !(pl.once.name === 'receive' && sp > 1.3) && !(pl.once.run && sp < 0.6)); // приём не держит позу, если игрок уже побежал
+  fallTick(pl, P, dt);
   pl.withBall = B.state === 'owned' && B.owner === (who0 || (pl === shooter ? 'me' : 'mate')) && sp > 1.4;
   if (!busy) { loco(pl, sp, dt, P); autoMoves(pl, P, sp, dt, who0 || (pl === shooter ? 'me' : 'mate')); }
   { // корпус ведёт поворот: куда хочет бежать (P.wx, P.wz) против того, куда смотрит таз; только в беге и ведении
@@ -2344,6 +2345,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
     pl.footSeen = B.foot;
     if (!cutStep(pl, P, dt)) xferPose(pl, P); }
   { const mine = B.state === 'owned' && B.owner === who; if (!pl.cut && !soleLayer(pl, P, dt, sp, mine)) weightLayer(pl, P, dt); }
+  staggerLayer(pl, P, dt);
   if (pl.loco) pl.loco.lastPh = (pl.loco.jog.time / pl.loco.jog.getClip().duration) % 1;
   return sp;
 }
@@ -2658,7 +2660,8 @@ function trySlide(a) {
   if (owning() && actorOf(B.owner) && actorOf(B.owner).team === a.team) return false; // мяч у своих — не подкатываемся
   const tx = B.p.x + B.v.x * 0.35 - P.p.x, tz = B.p.z + B.v.z * 0.35 - P.p.z, d = Math.hypot(tx, tz);
   if (d > SLIDE.maxD) return false;
-  const name = d < 1.4 ? 'h_tackle_2' : d < 2.6 && Math.random() < 0.35 ? 'h_tackle_1' : 'h_tackle', S = SLIDE[name];
+  // бросок в сторону (h_tackle_2) убран: выглядел как прыжок вратаря; близко — обычный подкат покороче
+  const name = d > 1.4 && d < 2.6 && Math.random() < 0.35 ? 'h_tackle_1' : 'h_tackle', S = SLIDE[name];
   const yaw = name === 'h_tackle_2' ? Math.atan2(tz, -tx) : Math.atan2(tx, tz); // бросок в сторону — мяч справа от игрока
   const k = S.reach ? THREE.MathUtils.clamp(d / S.reach, 0.6, 1.35) : 1;
   ai.tkCd = SLIDE.cd; pl.mvCd = SLIDE.cd;
@@ -2680,7 +2683,7 @@ function trySlide(a) {
       const O = own.P, rx = PP.p.x - O.p.x, rz = PP.p.z - O.p.z, rl = Math.hypot(rx, rz) || 1, front = (Math.sin(O.yaw) * rx + Math.cos(O.yaw) * rz) / rl;
       if (Math.random() > Math.min(0.97, (front > -0.4 ? 0.9 : 0.6) * (a.pl.defK || 1) * (own.pl.physK || 1))) return;
       cancelOwnerAction(own.id); BP.release(B, own.id, simT, 0.7, false); MST().tackles[a.team]++; MT.passPend = null;
-      if (Math.random() < 0.7) { play(own.pl, 'soccer_trip', { t: 0.15, fade: 0.1, speed: 1.25, follow: true }); own.pl.once = { name: 'soccer_trip', until: 1.3 }; const oa = own.id === 'me' ? run.meAI : own.ai; if (oa) oa.slowT = 1; }
+      { if (Math.random() < 0.45) fallDown(own); else stagger(own); const oa = own.id === 'me' ? run.meAI : own.ai; if (oa) oa.slowT = 1; } // подкат: иногда падает через ногу, чаще теряет равновесие
     }
     const sp = 3 + Math.random() * 2, side = (Math.random() - 0.5) * 2;
     B.v.set(fx * sp - fz * side, 0.35, fz * sp + fx * side); B.w.set(0, 0, 0); MT.last = a.team; sfx.touch();
@@ -2691,6 +2694,34 @@ function trySlide(a) {
   if (TRACE) console.log('slideStart', JSON.stringify({ id: a.id, name, d: +d.toFixed(2), k: +k.toFixed(2) }));
   return true;
 }
+// ---- падения ----
+// Раньше у кого отобрали мяч, в 60–70 % случаев проигрывалось одно «падение» (кувырок с ногами вверх, скольжение по
+// газону), а через 1,3 с игрок мгновенно оказывался на ногах. Теперь:
+//  • обычно — потеря равновесия (stagger): корпус клюёт вперёд и выпрямляется, игрок на миг замедляется, не падает;
+//  • настоящее падение (fallDown) — фол, иногда подкат или отбор: падение → лежит ~0,4 с → встаёт по записи
+//    standing_up → бег. Пока падает и лежит, скорость гасится (не скользит по газону) и управления нет.
+function fallDown(a) {
+  const pl = a.pl, P = a.P; if (pl.fall || pl.off) return;
+  play(pl, 'soccer_trip', { t: 0.15, fade: 0.1, speed: 1.35, follow: true }); pl.once = { name: 'soccer_trip', until: 9 };
+  pl.fall = { st: 'trip', t: 0, vx: P.v.x * 0.6, vz: P.v.z * 0.6 }; pl.stag = null;
+  if (pl.mv) endMove(pl, P);
+}
+function stagger(a) { if (!a.pl.fall) a.pl.stag = { t: 0 }; }
+// запись падения — только до касания газона (дальше в ней кувырок через голову), потом лёжа (fallen_idle)
+function fallTick(pl, P, dt) {
+  const F = pl.fall; if (!F) return;
+  F.t += dt; const k = Math.exp(-dt * 5); F.vx *= k; F.vz *= k; P.drive = { x: F.vx, z: F.vz }; P.lockYaw = 0.1;
+  if (F.st === 'trip' && (pl.name !== 'soccer_trip' || pl.t >= 0.52)) { play(pl, 'fallen_idle', { t: 0.3, fade: 0.25, follow: true }); pl.once = { name: 'fallen_idle', until: 9 }; F.st = 'lie'; F.t = 0; }
+  else if (F.st === 'lie' && F.t > 0.55) { play(pl, 'standing_up', { t: 0.2, fade: 0.3, speed: 1.35, follow: true }); pl.once = { name: 'standing_up', until: 1.55 }; F.st = 'up'; F.t = 0; }
+  else if (F.st === 'up' && (pl.name !== 'standing_up' || pl.t >= 1.5)) { pl.fall = null; P.drive = null; P.lockYaw = 0; pl.once = null; }
+  if (pl.fall && F.t > 3) { pl.fall = null; P.drive = null; P.lockYaw = 0; pl.once = null; } // страховка
+}
+// потеря равновесия: корпус вперёд (до ~29°) и обратно за ~0,5 с — поверх записи бега
+function staggerLayer(pl, P, dt) {
+  const S = pl.stag; if (!S) return; S.t += dt; if (S.t > 0.5 || pl.fall) { pl.stag = null; return; }
+  const w = Math.sin(Math.PI * S.t / 0.5), sp = pl.model.getObjectByName('Spine'), sp2 = pl.model.getObjectByName('Spine1'); if (!sp) return;
+  pl.holder.updateMatrixWorld(true); ikV.set(-Math.cos(P.yaw), 0, Math.sin(P.yaw)); rotW(sp, ikV, 0.32 * w); if (sp2) rotW(sp2, ikV, 0.18 * w);
+}
 // ---- фолы и карточки ----
 // Свисток: штрафной с места фола или пенальти (фол в своей штрафной). Карточка — по тому, как сфолил: подкат сзади —
 // почти всегда жёлтая, иногда красная; обычный отбор — редко. Вторая жёлтая — красная: игрок уходит с поля.
@@ -2699,7 +2730,7 @@ function callFoul(a, v, slide, behind) {
   if (!MATCH_ON || MT.st !== 'play' || state !== 'play' || (MT.restart && MT.restart.kind !== 'kickoff')) return;
   const S = MST(); S.fouls[a.team]++;
   if (owning()) { cancelOwnerAction(B.owner); BP.release(B, B.owner, simT, 0.3, false); }
-  play(v.pl, 'soccer_trip', { t: 0.15, fade: 0.1, speed: 1.25, follow: true }); v.pl.once = { name: 'soccer_trip', until: 1.3 };
+  fallDown(v);
   const r = Math.random(), red = slide && behind && r < 0.1, yellow = !red && r < (slide ? (behind ? 0.65 : 0.25) : (behind ? 0.18 : 0.06));
   const x = v.P.p.x, z = v.P.p.z, pen = inBoxOf(a.team, x, z), nm = a.pl.nick || 'Игрок';
   let card = '';
@@ -2734,12 +2765,18 @@ function tackleTick(a, h) {
       const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), d = Math.hypot(P.p.x + fx * 0.55 - B.p.x, P.p.z + fz * 0.55 - B.p.z), O = own.P;
       const rx = P.p.x - O.p.x, rz = P.p.z - O.p.z, rl = Math.hypot(rx, rz) || 1, front = (Math.sin(O.yaw) * rx + Math.cos(O.yaw) * rz) / rl;
       const shield = segDist(P.p.x, P.p.z, B.p.x, B.p.z, O.p.x, O.p.z) < 0.28; // между ногой и мячом — корпус владельца
-      const p = Math.min(0.97, (d > 1.0 ? 0 : d < 0.45 ? 0.92 : d < 0.75 ? 0.72 : 0.35) * (front > 0.3 ? 1 : front > -0.55 ? 0.78 : 0.45) * (shield ? 0.7 : 1) * (Math.hypot(O.v.x, O.v.z) > 5 ? 0.85 : 1) * (a.pl.defK || 1) * (own.pl.physK || 1));
-      if (TRACE) console.log('tackle', JSON.stringify({ id: a.id, d: +d.toFixed(2), front: +front.toFixed(2), shield, p: +p.toFixed(2) }));
-      if (Math.random() < p) { // выбил: мяч свободен, катится к ногам отбиравшего
+      // баланс (22.10): откуда отбор — спереди как было, сбоку чуть хуже, сбоку-сзади заметно, прямо сзади почти никогда
+      // (раньше сбоку-сзади — 0,7: бот догонял ведущего со спины и чисто забирал мяч); мяч закрыт корпусом — вдвое хуже;
+      // мяч у самой ноги владельца — труднее, откатился после касания (b.tpOff) — легче: важно поймать момент
+      const dirK = front > 0.3 ? 1 : front > -0.3 ? 0.85 : front > -0.65 ? 0.5 : 0.15;
+      const ocp = BP.controlPoint(O, null), loose = Math.hypot(B.p.x - ocp.x, B.p.z - ocp.z) + (B.tpOff || 0), looseK = loose < 0.18 ? 0.75 : loose > 0.35 ? 1.2 : 1;
+      const p = Math.min(0.97, (d > 1.0 ? 0 : d < 0.45 ? 0.92 : d < 0.75 ? 0.72 : 0.35) * dirK * (shield ? 0.5 : 1) * looseK * (Math.hypot(O.v.x, O.v.z) > 5 ? 0.85 : 1) * (a.pl.defK || 1) * (own.pl.physK || 1));
+      const won = Math.random() < p;
+      if (TRACE) console.log('tackle', JSON.stringify({ id: a.id, on: own.id, d: +d.toFixed(2), front: +front.toFixed(2), shield, p: +p.toFixed(2), won }));
+      if (won) { // выбил: мяч свободен, катится к ногам отбиравшего
         ok = true; cancelOwnerAction(own.id); BP.release(B, own.id, simT, 0.7, false); MST().tackles[a.team]++; MT.passPend = null;
-        // у кого отобрали — спотыкается (запись soccer_trip) и на секунду теряет скорость
-        if (Math.random() < 0.6) { play(own.pl, 'soccer_trip', { t: 0.15, fade: 0.1, speed: 1.25, follow: true }); own.pl.once = { name: 'soccer_trip', until: 1.3 }; const oa = own.id === 'me' ? run.meAI : own.ai; if (oa) oa.slowT = 0.9; }
+        // у кого отобрали — теряет равновесие (корпус вперёд) и на миг скорость; изредка падает
+        { if (Math.random() < 0.1) fallDown(own); else stagger(own); const oa = own.id === 'me' ? run.meAI : own.ai; if (oa) oa.slowT = 0.6; } // отбор стоя: обычно теряет равновесие, редко падает
         B.v.set(fx * 1.2 + P.v.x * 0.45, 0.15, fz * 1.2 + P.v.z * 0.45); B.w.set(0, 0, 0); MT.last = a.team; sfx.touch();
         if (a.id === 'me' || own.id === 'me') sfx.buzz('medium');
       }
@@ -2988,7 +3025,9 @@ function botDefend(a, mates, foes) {
     ai.sprint = d > 3.5; ai.pace = d < 2 ? 0.75 : 1;
     if (carrier && carrier.team !== team && d < 2.6) {
       const bx = B.p.x - P.p.x, bz = B.p.z - P.p.z, bl = Math.hypot(bx, bz) || 1, face = (bx * Math.sin(P.yaw) + bz * Math.cos(P.yaw)) / bl;
-      if (bl < 2.2 && face > 0.3 && Math.random() < DF(team).tackle) tryTackle(a);
+      // со спины владельца бот в отбор почти не идёт (забегает спереди — presser целится между мячом и воротами)
+      const Oc = carrier.P, rbx = P.p.x - Oc.p.x, rbz = P.p.z - Oc.p.z, frontC = (Math.sin(Oc.yaw) * rbx + Math.cos(Oc.yaw) * rbz) / (Math.hypot(rbx, rbz) || 1);
+      if (bl < 2.2 && face > 0.3 && Math.random() < DF(team).tackle * (frontC < -0.4 ? 0.25 : 1)) tryTackle(a);
     }
     // свои (своя модель) иногда подкатываются с 2,5–3,8 м, если бегут на владельца
     if (carrier && carrier.team !== team && a.pl.own && d >= 2.5 && d < 3.8 && Math.hypot(P.v.x, P.v.z) > 3 && Math.random() < DF(team).tackle * 0.08) {
@@ -3885,6 +3924,8 @@ if (TRACE) window.__duel = (mx, mz, ox, oz, fx, fz) => { const A = actors(); MT.
   o.p.x = ox; o.p.z = oz; o.yaw = Math.atan2(fx, fz); o.v.x = fx * 4; o.v.z = fz * 4; A[2].ai.thinkT = 9; A[2].ai.tx = ox + fx * 30; A[2].ai.tz = oz + fz * 30; A[2].ai.strike = A[2].ai.pass = null;
   placeBall(BP.controlPoint(o, null)); BP.capture(B, o, 'o1'); B.trapDur = 0; ballPrev.copy(B.p); };
 if (TRACE) window.__tackle = () => tryTackle(actorOf('me'));
+if (TRACE) window.__clipList = () => ({ base: base ? base.animations.map((c) => [c.name, +c.duration.toFixed(2)]) : [], hero: heroMoves ? Object.values(heroMoves).map((c) => [c.name, +c.duration.toFixed(2)]) : [], alias: ALIAS });
+if (TRACE) window.__trip = (id, soft) => { const a = actorOf(id); if (soft) stagger(a); else fallDown(a); }; // посмотреть падение
 if (TRACE) window.__slide = () => trySlide(actorOf('me'));
 if (TRACE) window.__park = () => { for (const a of actors()) if (a.team === 1) { a.P.p.x = -30 + (+a.id.slice(1)) * 5; a.P.p.z = 100; a.P.v.x = a.P.v.z = 0; a.ai.thinkT = 999; a.ai.tx = a.P.p.x; a.ai.tz = 100; a.ai.run = null; } };
 if (TRACE) window.__meYaw = (y) => { run.P.yaw = y; const a = actorOf('me'); if (a) a.pl.vyaw = y; };
