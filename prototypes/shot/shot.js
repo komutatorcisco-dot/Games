@@ -3464,7 +3464,7 @@ function resetMatch() {
   // места: наши — me (shooter), mate (wall[0]), t2… (wall[1…N−3]); соперники o1… (дальше); наш вратарь — последняя модель
   const N = NSIDE, ourW = wall.slice(0, N - 2), oppW = wall.slice(N - 2, 2 * N - 3), gk2 = wall[wall.length - 1];
   // кто есть кто: имена и характеристики с карточек (у соперников — средние, скорость — по сложности); при смене имя едет с моделью
-  const card = (pl, c, k = 1, pos = '', kit = null, num = 0) => { pl.nick = c ? c.name : 'Игрок клуба'; cardStats(pl, c ? c.st : null, k); setHeight(pl, heightOf(c, pos || (c && c.pos)), c && c.st ? c.st[5] : 65);
+  const card = (pl, c, k = 1, pos = '', kit = null, num = 0) => { pl.nick = c ? c.name : 'Игрок клуба'; faceFor(pl); cardStats(pl, c ? c.st : null, k); setHeight(pl, heightOf(c, pos || (c && c.pos)), c && c.st ? c.st[5] : 65);
     backPrint(pl, c && c.name !== 'Гость' && c.name !== 'Игрок клуба' ? c.name : '', (c && c.num) || num, kit); };
   const bot = (pl, id, home) => ({ id, pl, home, P: BP.newPlayer({ x: 0, z: L / 2 }, 0), st: 'support', hold: 0, pass: null, fire: false, plan: null, planT: 0, pick: -1, pickT: 0, tkCd: 0, slowT: 0 });
   mk(shooter, myKit || KIT_US, 'me'); card(shooter, LINEUP[0], 1, '', myKit || KIT_US, numFor(LINEUP[0], 9));
@@ -3763,6 +3763,28 @@ function gameStep(h) {
   if (kick.post && vel.z > 0 && B.p.z > 0.8) return finish(false, kick.post, 'miss'); // отскочил от штанги в поле
   if (B.p.z > 40 || Math.abs(B.p.x) > 30 || kick.t > 4 || (B.stopped && kick.t > 1)) finish(false, 'Мимо', 'miss');
 }
+// Свои головы игроков (модель из FaceBuilder, assets/<файл>.glb): у этого игрока родная голова своей модели сжимается
+// в точку (кость Head), на её место ставится отдельная голова и каждый кадр повторяет положение и поворот кости Head.
+// Только у игрока с этим именем; у остальных ничего не меняется. top — высота макушки над точкой крепления в файле, м.
+const FACES = [{ re: /мбаппе|mbapp/i, file: 'assets/mbappe_head.glb' }], faceCache = {}, faceSwaps = [];
+function faceFor(pl) {
+  if (!pl || !pl.own || !pl.model || pl.face) return; const F = FACES.find((f) => f.re.test(pl.nick || '')); if (!F) return;
+  pl.face = { F };
+  (faceCache[F.file] ||= loader.loadAsync(F.file)).then((g) => {
+    const hb = pl.model.getObjectByName('Head'), ht = pl.model.getObjectByName('HeadTop_End'); if (!hb || !ht || pl.face.mesh) return;
+    pl.model.updateMatrixWorld(true); const a = hb.getWorldPosition(new THREE.Vector3()), b = ht.getWorldPosition(new THREE.Vector3());
+    const mesh = g.scene.clone(true), top = (g.scene.children[0] && g.scene.children[0].userData.top) || 0.16;
+    mesh.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+    pl.face = { F, mesh, hb, k: a.distanceTo(b) / pl.model.scale.y / top }; scene.add(mesh); faceSwaps.push(pl);
+  }).catch(() => {});
+}
+const fcP = new THREE.Vector3(), fcQ = new THREE.Quaternion(), fcS = new THREE.Vector3(), FACE_FIX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.16); // у своей модели кость Head смотрит чуть вверх — голову опускаем на ~9°
+function faceSync() {
+  for (const pl of faceSwaps) { const f = pl.face; if (!f || !f.mesh) continue;
+    f.mesh.visible = pl.holder.visible !== false && pl.model.visible !== false;
+    f.hb.scale.setScalar(0.01); pl.holder.updateMatrixWorld(true); f.hb.matrixWorld.decompose(fcP, fcQ, fcS);
+    f.mesh.position.copy(fcP); f.mesh.quaternion.copy(fcQ).multiply(FACE_FIX); f.mesh.scale.setScalar(f.k * pl.model.scale.y); }
+}
 function frame() {
   requestAnimationFrame(frame);
   const now = performance.now() / 1000, raw = Math.min(BP.CFG.maxFrame, now - last); last = now;
@@ -3825,7 +3847,7 @@ function frame() {
   if (window.__cam) { cam.position.fromArray(window.__cam.p); cam.lookAt(tmpA.fromArray(window.__cam.l)); if (window.__cam.fov) { cam.fov = window.__cam.fov; cam.updateProjectionMatrix(); } }
   const pT1 = PROF ? performance.now() : 0;
   offMarker();
-  if (!NO_RENDER) ren.render(scene, cam);
+  faceSync(); if (!NO_RENDER) ren.render(scene, cam);
   if (PROF) { PROF.logic += pT1 - pT0; PROF.render += performance.now() - pT1; PROF.n++; }
   // ?trace=1 — покадровая запись для проверки движения (мяч на экране и в физике, игрок, камера, поза); в обычной игре выключено
   if (TRACE && run) {
