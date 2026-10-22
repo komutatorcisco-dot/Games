@@ -3272,6 +3272,9 @@ function matchPhys(h) {
       if (best.ai) { best.ai.holdT = 0; best.ai.pass = null; best.ai.strike = null; }
       if (best.id === 'me') runQueue(); else run.queue = null;
       }
+      // мяч взял свой бот (отбор, подбор, перехват) — управление сразу у него, как в FC Mobile. Раньше это делала автосмена
+      // заранее, по ходу мяча; после правки автосмены (22.10) бот мог убежать с мячом без меня
+      if (MATCH_ON && !AUTOPLAY && state === 'play' && best.team === 0 && best.id !== 'me' && B.owner === best.id) { run.swapWhy = 'gotBall'; swapControl(best.id); run.chasePlan = null; run.swapT = simT; }
     }
   }
   // вратари: в своей системе координат; бросок в ноги владельцу мяча
