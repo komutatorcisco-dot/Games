@@ -2683,7 +2683,7 @@ function trySlide(a) {
       const O = own.P, rx = PP.p.x - O.p.x, rz = PP.p.z - O.p.z, rl = Math.hypot(rx, rz) || 1, front = (Math.sin(O.yaw) * rx + Math.cos(O.yaw) * rz) / rl;
       if (Math.random() > Math.min(0.97, (front > -0.4 ? 0.9 : 0.6) * (a.pl.defK || 1) * (own.pl.physK || 1))) return;
       cancelOwnerAction(own.id); BP.release(B, own.id, simT, 0.7, false); MST().tackles[a.team]++; MT.passPend = null;
-      { if (Math.random() < 0.45) fallDown(own); else stagger(own); const oa = own.id === 'me' ? run.meAI : own.ai; if (oa) oa.slowT = 1; } // подкат: иногда падает через ногу, чаще теряет равновесие
+      { if (Math.random() < 0.45) fallDown(own); else stagger(own); const oa = own.id === 'me' ? run.meAI : own.ai; if (oa) { oa.slowT = 1; oa.tkCd = Math.max(oa.tkCd || 0, 1.2); } } // подкат: иногда падает через ногу, чаще теряет равновесие
     }
     const sp = 3 + Math.random() * 2, side = (Math.random() - 0.5) * 2;
     B.v.set(fx * sp - fz * side, 0.35, fz * sp + fx * side); B.w.set(0, 0, 0); MT.last = a.team; sfx.touch();
@@ -2768,7 +2768,7 @@ function tackleTick(a, h) {
       // баланс (22.10): откуда отбор — спереди как было, сбоку чуть хуже, сбоку-сзади заметно, прямо сзади почти никогда
       // (раньше сбоку-сзади — 0,7: бот догонял ведущего со спины и чисто забирал мяч); мяч закрыт корпусом — вдвое хуже;
       // мяч у самой ноги владельца — труднее, откатился после касания (b.tpOff) — легче: важно поймать момент
-      const dirK = front > 0.3 ? 1 : front > -0.3 ? 0.85 : front > -0.65 ? 0.5 : 0.15;
+      const dirK = front > 0.3 ? 1 : front > -0.3 ? 0.65 : front > -0.65 ? 0.4 : 0.15;
       const ocp = BP.controlPoint(O, null), loose = Math.hypot(B.p.x - ocp.x, B.p.z - ocp.z) + (B.tpOff || 0), looseK = loose < 0.18 ? 0.75 : loose > 0.35 ? 1.2 : 1;
       const p = Math.min(0.97, (d > 1.0 ? 0 : d < 0.45 ? 0.92 : d < 0.75 ? 0.72 : 0.35) * dirK * (shield ? 0.5 : 1) * looseK * (Math.hypot(O.v.x, O.v.z) > 5 ? 0.85 : 1) * (a.pl.defK || 1) * (own.pl.physK || 1));
       const won = Math.random() < p;
@@ -2776,17 +2776,18 @@ function tackleTick(a, h) {
       if (won) { // выбил: мяч свободен, катится к ногам отбиравшего
         ok = true; cancelOwnerAction(own.id); BP.release(B, own.id, simT, 0.7, false); MST().tackles[a.team]++; MT.passPend = null;
         // у кого отобрали — теряет равновесие (корпус вперёд) и на миг скорость; изредка падает
-        { if (Math.random() < 0.1) fallDown(own); else stagger(own); const oa = own.id === 'me' ? run.meAI : own.ai; if (oa) oa.slowT = 0.6; } // отбор стоя: обычно теряет равновесие, редко падает
+        { if (Math.random() < 0.1) fallDown(own); else stagger(own); const oa = own.id === 'me' ? run.meAI : own.ai; if (oa) { oa.slowT = 0.6; oa.tkCd = Math.max(oa.tkCd || 0, 1.2); } } // отбор стоя: обычно теряет равновесие, редко падает; 1,2 с без отбора — не отбирает сразу обратно
         B.v.set(fx * 1.2 + P.v.x * 0.45, 0.15, fz * 1.2 + P.v.z * 0.45); B.w.set(0, 0, 0); MT.last = a.team; sfx.touch();
         if (a.id === 'me' || own.id === 'me') sfx.buzz('medium');
       }
       // фол: не достал мяч, но врезался в соперника (сзади — чаще); или выбил, но сзади через ногу
       const body = Math.hypot(P.p.x - O.p.x, P.p.z - O.p.z);
-      if (!ok && body < 0.95 && Math.random() < (front < -0.4 ? 0.5 : front < 0.3 ? 0.2 : 0.07)) foulBy = { own, behind: front < -0.4 };
-      else if (ok && front < -0.55 && Math.random() < 0.2) foulBy = { own, behind: true };
+      // (22.10: реже — было 0,5 / 0,2 / 0,07 и 0,2; фолов выходило 1–3 за 90 с, каждый — свисток и падение)
+      if (!ok && body < 0.95 && Math.random() < (front < -0.4 ? 0.35 : front < 0.3 ? 0.1 : 0.03)) foulBy = { own, behind: front < -0.4 };
+      else if (ok && front < -0.55 && Math.random() < 0.15) foulBy = { own, behind: true };
     }
     if (foulBy) { callFoul(a, foulBy.own, false, foulBy.behind); return; }
-    if (!ok) { ai.slowT = 0.45; P.v.x *= 0.5; P.v.z *= 0.5; } // промахнулся — потерял темп
+    if (!ok) { ai.slowT = 0.45; P.v.x *= 0.5; P.v.z *= 0.5; if (a.id !== 'me') ai.tkCd = 1.6; } // промахнулся — потерял темп; бот не повторяет сразу
   }
   if (tk.t > 0.5) ai.tk = null;
 }
@@ -3020,14 +3021,28 @@ function botDefend(a, mates, foes) {
   const presser = NSIDE > 3 ? ai.role === 'press' : (team === 0 && btn.second && (m.id === 'me' || dC(P) <= dC(m.P))) || !m || (ai.role === 'press' ? dC(P) < dC(m.P) + 2 : dC(P) + 2 < dC(m.P)) || (m.id === 'me' && !(btn.press) && dC(P) < dC(m.P) + 1.5 && dC(m.P) > 6);
   ai.role = presser ? 'press' : 'cover';
   if (presser) {
-    const gx = G.x - C.x, gz = G.z - C.z, gl = Math.hypot(gx, gz) || 1, d = dC(P), off = d > 3 ? 1.3 : 0.75, lead = carrier && d > 2 ? Math.min(0.6, d / 8) : 0;
-    ai.tx = C.x + (carrier ? carrier.P.v.x * lead : 0) + (gx / gl) * off; ai.tz = C.z + (carrier ? carrier.P.v.z * lead : 0) + (gz / gl) * off; // наперерез: где владелец будет чуть позже
-    ai.sprint = d > 3.5; ai.pace = d < 2 ? 0.75 : 1;
+    const d = dC(P), off = d > 3 ? 1.3 : 0.75, lead = carrier && d > 2 ? Math.min(0.6, d / 8) : 0;
+    let gx = G.x - C.x, gz = G.z - C.z, gl = Math.hypot(gx, gz) || 1; gx /= gl; gz /= gl;
+    let behind = false;
+    if (carrier && carrier.team !== team) {
+      // встать перед владельцем, а не за спиной: точка — по ходу владельца с поправкой к своим воротам (22.10; раньше —
+      // только «между мячом и воротами», и при ведении поперёк или назад бот оказывался сзади и отбирал со спины)
+      const O = carrier.P, ov = Math.hypot(O.v.x, O.v.z), hx = ov > 1 ? O.v.x / ov : Math.sin(O.yaw), hz = ov > 1 ? O.v.z / ov : Math.cos(O.yaw);
+      let ux = hx + gx * 0.8, uz = hz + gz * 0.8; const ul = Math.hypot(ux, uz); if (ul > 0.2) { gx = ux / ul; gz = uz / ul; }
+      // бот сзади-сбоку и близко — обходит по дуге (точка сбоку-впереди владельца со своей стороны), а не бежит сквозь него
+      const rx = P.p.x - C.x, rz = P.p.z - C.z, rl = Math.hypot(rx, rz) || 1, fr = (hx * rx + hz * rz) / rl;
+      if (fr < -0.2 && d < 5) { behind = true; const side = hx * rz - hz * rx > 0 ? -1 : 1, px = hz * side, pz = -hx * side;
+        ai.tx = C.x + O.v.x * 0.35 + hx * 0.8 + px * 1.5; ai.tz = C.z + O.v.z * 0.35 + hz * 0.8 + pz * 1.5; }
+    }
+    if (!behind) { ai.tx = C.x + (carrier ? carrier.P.v.x * lead : 0) + gx * off; ai.tz = C.z + (carrier ? carrier.P.v.z * lead : 0) + gz * off; } // наперерез: где владелец будет чуть позже
+    ai.sprint = d > 3.5 || behind; ai.pace = d < 2 && !behind ? 0.75 : 1;
     if (carrier && carrier.team !== team && d < 2.6) {
       const bx = B.p.x - P.p.x, bz = B.p.z - P.p.z, bl = Math.hypot(bx, bz) || 1, face = (bx * Math.sin(P.yaw) + bz * Math.cos(P.yaw)) / bl;
       // со спины владельца бот в отбор почти не идёт (забегает спереди — presser целится между мячом и воротами)
       const Oc = carrier.P, rbx = P.p.x - Oc.p.x, rbz = P.p.z - Oc.p.z, frontC = (Math.sin(Oc.yaw) * rbx + Math.cos(Oc.yaw) * rbz) / (Math.hypot(rbx, rbz) || 1);
-      if (bl < 2.2 && face > 0.3 && Math.random() < DF(team).tackle * (frontC < -0.4 ? 0.25 : 1)) tryTackle(a);
+      // выбирает момент: мяч у самой ноги владельца — ждёт (держит позицию перед ним), откатился после касания — идёт в ногу
+      const ocp = BP.controlPoint(Oc, null), loose = Math.hypot(B.p.x - ocp.x, B.p.z - ocp.z) + (B.tpOff || 0), timeK = loose < 0.18 ? 0.25 : loose > 0.35 ? 1.2 : 0.7;
+      if (bl < 2.2 && face > 0.3 && Math.random() < DF(team).tackle * timeK * (frontC < -0.4 ? 0.25 : 1)) tryTackle(a);
     }
     // свои (своя модель) иногда подкатываются с 2,5–3,8 м, если бегут на владельца
     if (carrier && carrier.team !== team && a.pl.own && d >= 2.5 && d < 3.8 && Math.hypot(P.v.x, P.v.z) > 3 && Math.random() < DF(team).tackle * 0.08) {
