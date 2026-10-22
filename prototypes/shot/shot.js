@@ -2011,6 +2011,13 @@ function stepToBall(P, inp, who) {
     // разогнавшись, убегал от мяча — потеря на ровном месте)
     B.touchFirst = false; B.trapT = 1; BP.touch(B, P);
   }
+  // принял в ход и сразу резко повёл в сторону (больше ~50° от того, куда катится мяч), мяч ещё рядом — нога вторым
+  // касанием переводит мяч в новую сторону (раньше мяч катился по старому ходу, а игрок с весом разворачивался и
+  // отставал — мяч уходил на 1,2–1,3 м, удар ждал, пока игрок его догонит)
+  else if (!B.touchSoft && im > 0.5 && B.trapT < 0.5 && Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z) < 0.75) {
+    const bv = Math.hypot(B.v.x, B.v.z), cosA = bv > 0.5 ? (inp.x * B.v.x - inp.y * B.v.z) / (im * bv) : 1;
+    if (cosA < Math.cos(0.87)) { BP.firstTouch(B, P, who, { x: inp.x, z: -inp.y }, true); if (who === 'me') sfx.touch(); B.touchFirst = false; B.trapT = 1; BP.touch(B, P); }
+  }
   const cp = BP.controlPoint(P, null), ex = B.p.x - cp.x, ez = B.p.z - cp.z, e = Math.hypot(ex, ez);
   const dx = B.p.x - P.p.x, dz = B.p.z - P.p.z, d = Math.hypot(dx, dz) || 1, mag = Math.hypot(inp.x, inp.y);
   if (e < 0.25 || d < 0.5) return B.touchSoft && mag > 0.5 ? { x: 0, y: 0 } : inp; // мяч у ноги — дальше обычное ведение (после мягкого приёма — ждём разворота)
@@ -3044,7 +3051,7 @@ function receiveAnim(a, vin, intent) {
   const pl = a.pl; if (pl.name === 'strike' || pl.name === 'pass' || pl.mv || vin < 2.5) return;
   const sp = Math.hypot(a.P.v.x, a.P.v.z);
   if (sp < 1.2 && !intent) { play(pl, 'receive', { t: 0.65, fade: 0.1, speed: 1.35, follow: true }); pl.once = { name: 'receive', until: 1.2 }; }
-  else if (clipOf('receive_soccerball')) { play(pl, 'receive_soccerball', { t: 0.4, fade: 0.06, speed: 1.2, follow: true }); pl.once = { name: 'receive_soccerball', until: 0.85, run: true }; }
+  else if (clipOf('receive_soccerball')) { play(pl, 'receive_soccerball', { t: 0.4, fade: 0.15, speed: 1.2, follow: true }); pl.once = { name: 'receive_soccerball', until: 0.85, run: true }; }
 }
 // игрок лежит (подкат, падение) — мяч не берёт и не застревает в нём
 const isDown = (pl) => (pl.mv && SLIDE[pl.mv.name] && pl.t > SLIDE[pl.mv.name].win[0]) || pl.name === 'soccer_trip' || pl.name === 'fallen_idle' || pl.name === 'standing_up';

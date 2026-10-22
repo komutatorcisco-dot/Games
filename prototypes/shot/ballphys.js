@@ -490,7 +490,12 @@ export function firstTouch(b, P, who, intent, again = false) {
   const PC = CFG.player, vBall = (P.sprint ? PC.sprint : PC.jog) * PC.withBall * (P.spd || 1);
   const pv = P.v.x * dx + P.v.z * dz, pw = Math.max(pv, Math.min(vBall, il > 0.2 ? (P.wx || 0) * dx + (P.wz || 0) * dz : 0));
   const s = il > 0.2 && !back ? (pw < 0.5 ? Math.min(1.2, 0.5 + C.touchOut * 0.5 * Math.min(1, il)) : Math.min(pw + 0.8, Math.max(pv, pw * 0.85) + C.touchOut * Math.min(1, il) + C.touchKeep * Math.min(rel, 8))) : Math.min(1.2, Math.max(0, P.v.x * dx + P.v.z * dz) * 0.45 + C.touchSoft * 0.5); // скорость прилёта гасится целиком: мяч и тормозящий игрок останавливаются вместе
-  b.v.x = dx * s; b.v.z = dz * s; b.w.x = b.v.z / CFG.R; b.w.y = 0; b.w.z = -b.v.x / CFG.R;
+  // повторное касание (перевод мяча в новую сторону сразу после приёма): не быстрее, чем игрок реально побежит туда —
+  // на повороте он теряет скорость (вес), и мяч иначе убегал от него
+  // то же при первом касании в сторону от хода (приём поперёк бега): игрок туда ещё не бежит — мяч не быстрее, чем он
+  // успеет разогнаться (по ходу — как раньше: pv ≈ pw)
+  const s2 = il > 0.2 && !back ? Math.min(s, again ? Math.max(1.3, pv + 1.0) : Math.max(1.3, pv + 1.0) + Math.max(0, pw - pv) * 0.4) : s;
+  b.v.x = dx * s2; b.v.z = dz * s2; b.w.x = b.v.z / CFG.R; b.w.y = 0; b.w.z = -b.v.x / CFG.R;
   b.trapT = 0; b.trapDur = C.touchFree + C.touchFreePerV * rel; b.touchFirst = true; b.touchSoft = !(il > 0.2) || back;
   return rel;
 }
