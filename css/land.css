@@ -57,9 +57,9 @@
   #home2 .h2-ev { display: none; }
   /* плитки обеих боковых колонок — в одну сетку справа (2 × 3), сколько бы их ни было */
   #home2 .h2-arena { grid-area: arena; display: grid !important; grid-template-columns: minmax(0, 1.2fr) minmax(0, .55fr) minmax(0, .55fr); grid-template-rows: repeat(3, minmax(0, 1fr));
-    grid-auto-flow: row; gap: 8px 10px; place-items: stretch !important; container-type: normal !important; }
+    grid-auto-flow: row; gap: 8px 10px; place-items: stretch !important; container-type: size !important; }
   #home2 .h2-bg { display: none; }
-  #home2 .h2-game { grid-column: 1; grid-row: 1 / -1; height: 100% !important; width: 100% !important; --W: min(46vh, 38vw) !important; padding: 0 !important; align-content: center !important;
+  #home2 .h2-game { grid-column: 1; grid-row: 1 / -1; height: 100% !important; width: 100% !important; --W: min(46cqw, 66cqh) !important; /* по размеру самой колонки: шестиугольник и название целиком при любой высоте */ padding: 0 !important; align-content: center !important;
     border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--c1) 26%, transparent), rgba(10,12,30,.55)) !important;
     box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); clip-path: polygon(16px 0, 100% 0, calc(100% - 16px) 100%, 0 100%); }
   #home2 .h2-side { display: contents !important; }

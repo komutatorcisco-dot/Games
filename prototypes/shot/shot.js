@@ -3887,10 +3887,11 @@ function gameStep(h) {
 // Свои головы игроков (модель из FaceBuilder, assets/<файл>.glb): у этого игрока родная голова своей модели сжимается
 // в точку (кость Head), на её место ставится отдельная голова и каждый кадр повторяет положение и поворот кости Head.
 // Только у игрока с этим именем; у остальных ничего не меняется. top — высота макушки над точкой крепления в файле, м.
-const FACES = [{ re: /мбаппе|mbapp/i, file: 'assets/mbappe_head.glb' }], faceCache = {}, faceSwaps = [];
+const FACES = [{ re: /мбаппе|mbapp/i, file: 'assets/mbappe_head.glb' }, { re: /ямал|yamal/i, file: 'assets/yamal_head.glb', skin: [0.8, 0.72, 0.66] }], faceCache = {}, faceSwaps = [];
 function faceFor(pl) {
   if (!pl || !pl.own || !pl.model || pl.face) return; const F = FACES.find((f) => f.re.test(pl.nick || '')); if (!F) return;
   pl.face = { F };
+  if (F.skin) pl.model.traverse((o) => { const U = o.isMesh && o.material.userData.kitU; if (U) U.uSkin.value.fromArray(F.skin); }); // шея и руки — в тон головы
   (faceCache[F.file] ||= loader.loadAsync(F.file)).then((g) => {
     const hb = pl.model.getObjectByName('Head'), ht = pl.model.getObjectByName('HeadTop_End'); if (!hb || !ht || pl.face.mesh) return;
     pl.model.updateMatrixWorld(true); const a = hb.getWorldPosition(new THREE.Vector3()), b = ht.getWorldPosition(new THREE.Vector3());
