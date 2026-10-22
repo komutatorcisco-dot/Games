@@ -102,9 +102,7 @@ const Home = (() => {
     const nexts = Release.UNLOCKS.filter((x) => x[0] > t).slice(0, 3).map((x) => { const k = x[2][0]; return `<span class="fc-em"><i>${FEAT[k] ? Ui.get(FEAT[k].ui) : icon(catalog().get(k) || {})}</i><small>${Ui.get('trophy')} ${x[0]}</small></span>`; }).join('');
     const nOpen = games().filter((x) => open(x)).length, title = g ? esc(g.title.split(':')[0]) : 'Игры';
     let el = $('.fch', box); if (!el) { el = document.createElement('div'); el.className = 'fch'; box.append(el); }
-    // вариант оформления (выбор из 10, 22.10): ?fcv=N в адресе — запоминается на этом телефоне
-    let V = '1'; try { const q = new URLSearchParams(location.search).get('fcv'); if (q) localStorage.setItem('fcv', q); V = localStorage.getItem('fcv') || '1'; } catch (e) { /* без памяти — первый */ }
-    el.dataset.v = V;
+    const keepVid = $('.fc-vid', el);
     el.innerHTML = `
       <header class="fc-top">
         <button class="fc-me" data-act="profile"><span class="fc-ava">${esc(u.emoji || '⚽')}</span><span class="fc-who"><b>${esc(u.nick || 'Игрок')}</b><small><i>${Ui.get('trophy')} ${t}</i>${nx ? `${t}/${nx.need}` : ''}</small></span></button>
@@ -117,6 +115,7 @@ const Home = (() => {
       </header>
       <nav class="fc-side">${tiles}</nav>
       <button class="fc-hero" data-h2="pick" style="--c1:${g ? g.c1 : '#3ee6a8'}">
+        <video class="fc-vid" poster="img/bg/home_hero_poster.webp" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"><source src="img/bg/home_hero.mp4" type="video/mp4"><source src="img/bg/home_hero.webm" type="video/webm"></video>
         <span class="fc-hero-t">${title}<br><small>ждёт тебя</small></span>
         <span class="fc-hero-ico">${g ? icon(g) : ''}</span>
         <span class="fc-arr"><i></i><i></i></span>
@@ -124,6 +123,8 @@ const Home = (() => {
       <button class="fc-ev" data-act="road"><b>Путь трофеев</b><span class="fc-ems">${nexts || `<span class="fc-em"><i>${Ui.get('crown')}</i><small>Всё открыто</small></span>`}</span><span class="fc-bar"><i style="width:${pct}%"></i></span><u class="fc-pg"></u></button>
       <button class="fc-club" data-h2="pick"><b>Игры</b><span class="fc-ovr"><small>ОТКР</small>${nOpen}</span><span class="fc-logo">${Ui.get('gamepad')}</span></button>
       ${g ? `<button class="fc-play" ${attrs(g.data)}><b>Играть</b><img src="img/ui/ball.webp" alt="" aria-hidden="true"></button>` : '<span></span>'}`;
+    if (keepVid) { const nv = $('.fc-vid', el); if (nv) nv.replaceWith(keepVid); }
+    { const v = $('.fc-vid', el); if (v) { v.muted = true; const pr = v.play && v.play(); if (pr && pr.catch) pr.catch(() => {}); } }
     if (typeof Icons !== 'undefined') Icons.fill(el);
   }
   // фон главной: наклонная стена из карточек твоей коллекции; чего ещё нет — рубашка «ДЖ». Медленно едет по диагонали

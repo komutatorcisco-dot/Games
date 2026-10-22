@@ -138,3 +138,69 @@
   .xd-pitch, .sq-pitch, .nat-pitch { width: min(100%, calc((100dvh - 110px) * .78)) !important; margin-inline: auto !important; }
   .g48, .flood, .ws, .slide { width: min(100%, calc(100dvh - 110px)) !important; margin-inline: auto !important; }
 }
+
+/* ---------- Главная (лёжа), «живая» версия (22.10): видео в баннере, полупрозрачные плашки (матовое стекло) поверх
+   медленно плывущего цветного света, пробегающий блик, покачивающиеся значки, вращающийся мяч ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  .fch { isolation: isolate; }
+  .fch::before, .fch::after { content: ''; position: absolute; z-index: -1; pointer-events: none; border-radius: 50%; filter: blur(40px); opacity: .55; }
+  .fch::before { width: 55%; height: 75%; left: -8%; top: 22%; background: radial-gradient(circle, #10c87a, transparent 65%); animation: fcBlobA 14s ease-in-out infinite alternate; }
+  .fch::after { width: 45%; height: 65%; right: -6%; bottom: -10%; background: radial-gradient(circle, #c8ff3c, transparent 65%); opacity: .3; animation: fcBlobB 18s ease-in-out infinite alternate; }
+  @keyframes fcBlobA { to { transform: translate(18%, -12%) scale(1.15); } }
+  @keyframes fcBlobB { to { transform: translate(-25%, -20%) scale(1.2); } }
+
+  /* баннер: видео из игры на всю плашку, затемнение слева и снизу под надпись, тонкая светлая рамка */
+  .fc-hero { background: #0b1a10 url(../img/bg/home_hero_poster.webp) center / cover no-repeat !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 14px 30px rgba(0,0,0,.5) !important; }
+  .fc-vid { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 30% 60%; }
+  .fc-hero::before { z-index: 1; background: linear-gradient(270deg, rgba(4,10,8,.6), transparent 60%), linear-gradient(0deg, rgba(0,0,0,.45), transparent 45%) !important; }
+  .fc-hero-t, .fc-arr { z-index: 2; }
+  .fc-hero-t { left: auto !important; right: 6%; text-align: right; animation: fcRise .9s cubic-bezier(.2,.8,.2,1) both; }
+  .fc-arr i { animation: fcArr 1.6s ease-in-out infinite; } .fc-arr i + i { animation-delay: .2s; }
+  @keyframes fcArr { 0%, 100% { transform: translateX(0); opacity: .6; } 50% { transform: translateX(6px); opacity: 1; } }
+  @keyframes fcRise { from { transform: translateY(14px); opacity: 0; } }
+
+  /* стекло: полупрозрачно, размытие того, что под плашкой, светлая кромка сверху */
+  .fc-t, .fc-ev, .fc-club, .fc-play, .fc-ava, .fc-cur, .tabbar {
+    -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3) !important; }
+  .fc-t { background: linear-gradient(180deg, rgba(120,170,220,.22), rgba(20,30,44,.35)) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 0 0 1px rgba(170,210,255,.28), 0 6px 14px rgba(0,0,0,.35) !important; }
+  .fc-ev { background: radial-gradient(70% 90% at 18% 70%, rgba(20,80,255,.62), transparent 70%), radial-gradient(60% 90% at 95% 30%, rgba(255,20,40,.62), transparent 70%),
+      linear-gradient(115deg, rgba(11,30,138,.55), rgba(58,18,112,.45) 50%, rgba(176,8,30,.55)) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.4), inset 0 0 0 1px rgba(150,200,255,.45), 0 14px 30px rgba(0,0,0,.45) !important; }
+  .fc-club { background: linear-gradient(118deg, rgba(13,47,110,.72) 0%, rgba(14,58,106,.6) 52%, rgba(15,138,76,.66) 52.4%, rgba(8,122,64,.6) 70%, rgba(6,64,31,.7) 100%) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 0 0 1px rgba(255,255,255,.2), 0 10px 22px rgba(0,0,0,.4) !important; }
+  .fc-play { background: radial-gradient(70% 120% at 85% 80%, rgba(47,168,58,.8), transparent 60%), linear-gradient(110deg, rgba(216,255,58,.92), rgba(185,242,58,.85) 45%, rgba(61,182,74,.85)) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.6), inset 0 0 0 1px rgba(255,255,255,.35), 0 10px 26px rgba(150,230,40,.25) !important; }
+  .fc-ava, .fc-cur { background: rgba(20,30,40,.4) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.18); }
+  .fc-cur { padding: 4px 6px 4px 4px !important; border-radius: 14px; }
+  .tabbar { background: linear-gradient(180deg, rgba(18,26,34,.62), rgba(8,13,18,.78)) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.12) !important; }
+
+  /* пробегающий блик по плашкам (по очереди) */
+  .fc-ev::before, .fc-club::before, .fc-play::before, .fc-t::before { content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+    background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,.28) 50%, transparent 62%); background-size: 260% 100%; background-position: 140% 0; animation: fcShine 6s ease-in-out infinite; }
+  .fc-club::before { animation-delay: .6s; } .fc-play::before { animation-delay: 1.2s; } .fc-t::before { animation-delay: 2s; }
+  .fc-t:nth-child(2)::before { animation-delay: 2.3s; } .fc-t:nth-child(3)::before { animation-delay: 2.6s; } .fc-t:nth-child(4)::before { animation-delay: 2.9s; }
+  @keyframes fcShine { 0%, 55% { background-position: 140% 0; } 80%, 100% { background-position: -40% 0; } }
+
+  /* «3D»: значки события и плиток покачиваются в объёме, мяч на «Играть» вращается, «!» пульсирует */
+  .fc-ems { perspective: 400px; }
+  .fc-em i { animation: fcFloat 3.2s ease-in-out infinite; transform-style: preserve-3d; } .fc-em:nth-child(2) i { animation-delay: .4s; } .fc-em:nth-child(3) i { animation-delay: .8s; }
+  @keyframes fcFloat { 0%, 100% { transform: translateY(0) rotateY(-14deg); } 50% { transform: translateY(-5px) rotateY(14deg); } }
+  .fc-ti { animation: fcBob 4s ease-in-out infinite; } .fc-t:nth-child(2) .fc-ti { animation-delay: .5s; } .fc-t:nth-child(3) .fc-ti { animation-delay: 1s; } .fc-t:nth-child(4) .fc-ti { animation-delay: 1.5s; }
+  @keyframes fcBob { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-2px) scale(1.06); } }
+  .fc-play img { animation: fcSpin 7s linear infinite; }
+  @keyframes fcSpin { to { transform: rotate(360deg); } }
+  .fc-dot { animation: fcPulse 1.8s ease-in-out infinite; } @keyframes fcPulse { 50% { transform: scale(1.18); } }
+  .fc-ovr { animation: fcFloat 4s ease-in-out infinite; }
+  .fc-bar i { position: relative; overflow: hidden; } .fc-bar i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.7), transparent); animation: fcBar 2.4s linear infinite; }
+  @keyframes fcBar { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  /* нажатие — плашка «вдавливается» */
+  .fc-t, .fc-ev, .fc-club, .fc-play, .fc-hero { transition: transform .12s ease; } .fc-t:active, .fc-ev:active, .fc-club:active, .fc-play:active, .fc-hero:active { transform: scale(.97); }
+  /* появление при входе на главную — плашки выезжают по очереди */
+  .fc-side .fc-t, .fc-ev, .fc-club, .fc-play { animation-name: fcIn; animation-duration: .6s; animation-timing-function: cubic-bezier(.2,.8,.2,1); animation-fill-mode: both; }
+  .fc-ev { animation-delay: .05s; } .fc-club { animation-delay: .12s; } .fc-play { animation-delay: .18s; }
+  @keyframes fcIn { from { opacity: 0; transform: translateX(18px); } }
+}
+@media (orientation: landscape) and (max-height: 620px) and (prefers-reduced-motion: reduce) {
+  .fch *, .fch::before, .fch::after { animation: none !important; }
+}
