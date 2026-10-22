@@ -412,7 +412,7 @@ export function controlPoint(P, b, out = vec()) {
   // во время замаха мяч ведётся туда, где окажется ударная стопа в момент касания (b.strikeAt — из анимации удара)
   if (b && b.strikeAt) { const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw); return set(out, P.p.x + f.x * b.strikeAt.f + rx * b.strikeAt.s, CFG.R, P.p.z + f.z * b.strikeAt.f + rz * b.strikeAt.s); }
   const sk = b && b.sideK !== undefined ? b.sideK : 1; // +1 — у правой стопы, −1 — у левой; между ними — мяч переходит перед корпусом
-  const reach = C.reach + C.reachPerSpeed * sp + (b ? b.push + (b.tpOff || 0) : 0) + C.footCross * (1 - Math.abs(sk)), side = Math.max(C.sideMin ?? C.side, C.side - (C.sidePerSpeed || 0) * sp) * sk;
+  const reach = (C.reach + C.reachPerSpeed * sp) * (1 - 0.45 * (b && b.cutK || 0)) + (b ? b.push + (b.tpOff || 0) : 0) + C.footCross * (1 - Math.abs(sk)), side = Math.max(C.sideMin ?? C.side, C.side - (C.sidePerSpeed || 0) * sp) * sk;
   // правая сторона: при взгляде вдоль +z правая рука — это −x, т. е. вектор (−cos yaw, 0, sin yaw)
   const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw), fo = b && b.feintOff; // финт: стопа уводит мяч в сторону (плавно, без телепорта)
   return set(out, P.p.x + f.x * reach + rx * side + (fo ? fo.x : 0), CFG.R, P.p.z + f.z * reach + rz * side + (fo ? fo.z : 0));
@@ -503,6 +503,14 @@ export function touch(b, P, T) {
     b.touchCd = Math.max(C.touchMin, Math.min(C.touchMax, 0.62 - sp * 0.045)); return; }
   b.push = (C.touchPush + C.touchPushPerSpeed * sp) * (P.dribK || 1); b.roll = C.rollTime || 0; // dribK — дриблинг карточки
   b.touchCd = Math.max(C.touchMin, Math.min(C.touchMax, 0.62 - sp * 0.045));
+}
+// перекладывание сразу (своя модель: нога тянется к мячу сама, шага ждать не нужно) — мяч уходит под другую ногу;
+// T — длительность цикла бега (качение вперёд до следующего шага). false — перекладывать нечего
+export function xferNow(b, P, T) {
+  if (b.footNext === undefined || b.state !== 'owned') return false;
+  const C = CFG.control, sp = Math.hypot(P.v.x, P.v.z); b.xfer = { t: 0, T: C.xferT, s0: b.sideK, s1: b.footNext }; b.foot = b.footNext; b.footNext = undefined; b.xferN = (b.xferN || 0) + 1;
+  if (T > 0 && sp > 1.5) b.tp = { t: 0, T: Math.min(0.9, Math.max(0.25, T * 0.5)), A: Math.min(C.touchAMax, C.touchA0 + C.touchAPerV * sp) * 0.5 * (P.dribK || 1) };
+  b.touchCd = Math.max(C.touchMin, b.touchCd); return true;
 }
 // шаг ведения: мяч мягко следует за точкой контроля (демпфированная «пружина» с ограничением), без телепортаций.
 // obstacles — шары тел соперника: мяч в них упирается, а не проходит насквозь. Возвращает 'lost', если владение потеряно.

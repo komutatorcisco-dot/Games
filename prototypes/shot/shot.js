@@ -1141,6 +1141,7 @@ function loco(pl, sp, dt, P) {
   let cps = 0, ws = 0; for (const d of D) { cps += d.w * (sp / d.m); ws += d.w; } cps /= ws || 1;
   if (wr > 0) cps = cps * (1 - wr) + wr * sp / (L.run[0].m * (1 - wsp) + L.run[1].m * wsp); // у рывка шаг длиннее
   cps = THREE.MathUtils.clamp(cps, 0.55 / 0.87, 2.1 / 0.87); // медленнее нижней границы — ноги уже не скользят заметно
+  if (pl.cut) { const t = pl.cut.t; cps *= 1 + (CUT.cad - 1) * THREE.MathUtils.smoothstep(t, 0, 0.1) * (1 - THREE.MathUtils.smoothstep(t, CUT.dur - 0.2, CUT.dur)); } // поворот: шаги короче и чаще
   L.ph = (L.ph + cps * dt) % 1; L.cps = cps;
   for (const d of D) { d.a.timeScale = 0; d.a.time = ((((L.ph + d.off) % 1) + 1) % 1) * d.a.getClip().duration; d.a.setEffectiveWeight(w * (d.w / (ws || 1)) * L.f * (1 - dw) * (1 - wr)); }
   runW(L.ph);
@@ -1188,6 +1189,57 @@ function xferPose(pl, P) {
   const foot = pl.model.getObjectByName((push > 0 ? 'Right' : 'Left') + 'Foot');
   if (foot && kf > 0.01) rotW(foot, twU, (push > 0 ? -1 : 1) * XP.foot * kf); // носок наружу: правая — вправо, левая — влево
   if (kl > 0.01) { const sp = pl.model.getObjectByName('Spine'); xpF.set(Math.sin(P.yaw), 0, Math.cos(P.yaw)); if (sp) rotW(sp, xpF, -push * XP.lean * kl); } // наклон к опорной ноге
+}
+// Поворот с перекладыванием (своя модель; запись EA «Dribbling», 44,7–45,0 и 45,5–45,9 с: на смене направления игрок
+// опускает таз, сгибает колени, шагает коротко и часто, корпус отклоняется назад и в сторону поворота, мяч уходит
+// внутренней стороной стопы под другую ногу). Слой поверх записи бега, только кости: таз ниже, ноги подгибаются так,
+// что стопы остаются где были (двухзвенная подстройка бедро — колено — голеностоп), нога с мячом тянется к его внешнему
+// боку и толкает (BP.xferNow в CUT.tc), корпус наклоняется. Движение игрока не меняется (за это отвечает тест управления).
+const CUT = { tc: 0.12, tcMax: 0.25, dur: 0.5, crouch: 0.09, back: 0.16, side: 0.14, foot: 0.5, cad: 1.35 };
+const ikA = new THREE.Vector3(), ikB = new THREE.Vector3(), ikC = new THREE.Vector3(), ikT = new THREE.Vector3(), ikD = new THREE.Vector3(), ikN = new THREE.Vector3(), ikV = new THREE.Vector3(), ikQ = new THREE.Quaternion(), ikQ2 = new THREE.Quaternion(), ikQ3 = new THREE.Quaternion();
+const legBones = (pl, L) => (pl.ik || (pl.ik = {}))[L] || (pl.ik[L] = ['UpLeg', 'Leg', 'Foot', 'ToeBase'].map((n) => pl.model.getObjectByName(L + n)));
+function setWorldQ(bone, qW) { bone.parent.getWorldQuaternion(ikQ2).invert(); bone.quaternion.copy(ikQ2.multiply(qW)); bone.updateMatrixWorld(true); }
+// голеностоп ноги L — в точку tgt (мир), стопа сохраняет мировой поворот footQ (подошва не заваливается)
+function legIK(pl, L, tgt, footQ, P) {
+  const [up, leg, foot] = legBones(pl, L); if (!up || !leg || !foot) return;
+  up.getWorldPosition(ikA); leg.getWorldPosition(ikB); foot.getWorldPosition(ikC);
+  const a = ikA.distanceTo(ikB), b = ikB.distanceTo(ikC), c = THREE.MathUtils.clamp(ikA.distanceTo(tgt), Math.abs(a - b) + 1e-3, a + b - 1e-3);
+  ikN.subVectors(ikA, ikB).cross(ikV.subVectors(ikC, ikB)); if (ikN.lengthSq() < 1e-8) ikN.set(-Math.cos(P.yaw), 0, Math.sin(P.yaw)); ikN.normalize();
+  const cur = ikV.subVectors(ikA, ikB).angleTo(ikD.subVectors(ikC, ikB)), want = Math.acos(THREE.MathUtils.clamp((a * a + b * b - c * c) / (2 * a * b), -1, 1));
+  leg.getWorldQuaternion(ikQ3); setWorldQ(leg, ikQ.setFromAxisAngle(ikN, want - cur).multiply(ikQ3)); // колено
+  foot.getWorldPosition(ikC); up.getWorldQuaternion(ikQ3); setWorldQ(up, ikQ.setFromUnitVectors(ikV.subVectors(ikC, ikA).normalize(), ikD.subVectors(tgt, ikA).normalize()).multiply(ikQ3)); // бедро
+  setWorldQ(foot, footQ);
+}
+const cutP = { L: new THREE.Vector3(), R: new THREE.Vector3(), qL: new THREE.Quaternion(), qR: new THREE.Quaternion(), h: new THREE.Vector3(), toe: new THREE.Vector3() };
+function cutStep(pl, P, dt) {
+  if (!pl.own) return false;
+  if (!pl.cut && B.footNext !== undefined && !B.strikeAt) { let a = Math.atan2(P.wx || 0, P.wz || 0) - P.yaw; a = Math.atan2(Math.sin(a), Math.cos(a)); pl.cut = { t: 0, push: B.foot, turn: Math.sign(a) || 1, done: false }; }
+  const c = pl.cut; if (!c) return false;
+  c.t += dt; const sm = THREE.MathUtils.smoothstep;
+  // касание — когда стопа достаёт мяч (игрок набежал на него: мяч ближе к ногам, B.cutK), но не позже tcMax
+  if (!c.done && c.t >= 0.06 && ((c.err ?? 9) < 0.16 || c.t >= CUT.tcMax)) { c.done = true; c.tc = c.t; BP.xferNow(B, P, stepCycle(pl.loco)); sfx.touch(); if (run) run.meTouchT = simT; }
+  if (c.t >= (c.tc ?? CUT.tcMax) + CUT.dur - CUT.tc || B.strikeAt) { pl.cut = null; B.cutK = 0; return false; }
+  const end = (c.tc ?? CUT.tcMax) + CUT.dur - CUT.tc, w = sm(c.t, 0, 0.1) * (1 - sm(c.t, end - 0.2, end)), r = !c.done ? sm(c.t, 0, 0.08) : 1 - sm(c.t, c.tc, c.tc + 0.14);
+  B.cutK = !c.done ? w : Math.max(0, 1 - (c.t - c.tc) / 0.15) * w; // до касания мяч ближе к ногам, после — обычно
+  pl.model.updateMatrixWorld(true);
+  // где стопы по записи бега (до правок) — опорные остаются там же
+  const LB = legBones(pl, 'Left'), RB = legBones(pl, 'Right'); if (LB.some((x) => !x) || RB.some((x) => !x)) return false;
+  LB[2].getWorldPosition(cutP.L); RB[2].getWorldPosition(cutP.R); LB[2].getWorldQuaternion(cutP.qL); RB[2].getWorldQuaternion(cutP.qR);
+  // 1) таз ниже
+  const hips = pl.hips; hips.getWorldPosition(cutP.h); cutP.h.y -= CUT.crouch * w; hips.position.copy(hips.parent.worldToLocal(cutP.h.clone())); hips.updateMatrixWorld(true);
+  // 2) корпус: назад и в сторону поворота
+  const sp = pl.model.getObjectByName('Spine'); if (sp) { ikV.set(-Math.cos(P.yaw), 0, Math.sin(P.yaw)); rotW(sp, ikV, -CUT.back * w); ikV.set(Math.sin(P.yaw), 0, Math.cos(P.yaw)); rotW(sp, ikV, -c.turn * CUT.side * w); sp.updateMatrixWorld(true); }
+  // 3) ноги: опорная — стопа на месте; толкающая — к внешнему боку мяча (носок к нему), носок наружу (толчок внутренней стороной)
+  const pushL = c.push < 0 ? 'Left' : 'Right', PB = pushL === 'Left' ? LB : RB, keep = pushL === 'Left' ? cutP.R : cutP.L, keepQ = pushL === 'Left' ? cutP.qR : cutP.qL;
+  legIK(pl, pushL === 'Left' ? 'Right' : 'Left', keep, keepQ, P);
+  const ank = pushL === 'Left' ? cutP.L : cutP.R, ankQ = (pushL === 'Left' ? cutP.qL : cutP.qR).clone();
+  PB[3].getWorldPosition(cutP.toe); const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw), out = c.push; // внешний бок мяча — со стороны толкающей ноги
+  ikT.set(B.p.x + rx * out * (R + 0.04) - cutP.toe.x, 0, B.p.z + rz * out * (R + 0.04) - cutP.toe.z); if (ikT.length() > 0.45) ikT.setLength(0.45);
+  const cx = B.p.x + rx * out * (R + 0.04), cz = B.p.z + rz * out * (R + 0.04), tgt = ank.clone().addScaledVector(ikT, r); tgt.y = Math.max(tgt.y, 0.09);
+  ankQ.premultiply(ikQ.setFromAxisAngle(twU, -c.push * CUT.foot * Math.max(r, w * 0.5)));
+  legIK(pl, pushL, tgt, ankQ, P);
+  PB[3].getWorldPosition(cutP.toe); c.err = Math.hypot(cutP.toe.x - cx, cutP.toe.z - cz); // где носок после подстройки — достал ли мяч
+  return true;
 }
 // Газон твёрдый: ни одна часть тела не уходит под него (падения, подкаты, прыжки вратаря, а у своей модели — и записи
 // с другого скелета). Берём суставы с «толщиной» тела вокруг; если самый низкий ниже газона — вся модель сразу
@@ -2235,7 +2287,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
     if (B.tp && pl.footSeen !== undefined && pl.footSeen !== B.foot && cy > 0) { const L = pl.loco, ph = (L.jog.time / L.jog.getClip().duration) % 1, phT = B.foot < 0 ? 0.12 : 0.62;
       B.tp.T = B.tp.t + Math.max(0.08, (((phT - ph) % 1) + 1) % 1 * cy); }
     pl.footSeen = B.foot;
-    xferPose(pl, P); }
+    if (!cutStep(pl, P, dt)) xferPose(pl, P); }
   if (pl.loco) pl.loco.lastPh = (pl.loco.jog.time / pl.loco.jog.getClip().duration) % 1;
   return sp;
 }
@@ -3927,4 +3979,5 @@ if (TRACE) window.__drib = () => { const a = actorOf('me'), pl = a.pl, P = a.P, 
   return { xn: B.xferN || 0, fn: B.footNext ?? 0, tp: B.tp ? [+B.tp.t.toFixed(2), +B.tp.T.toFixed(2), +B.tp.A.toFixed(2)] : null, cps: pl.loco ? pl.loco.cps : null, jts: pl.loco ? +pl.loco.jog.timeScale.toFixed(2) : null, rv: +((B.v.x - P.v.x) * fx + (B.v.z - P.v.z) * fz).toFixed(2), push: +(B.push || 0).toFixed(3), tw: +(pl.twist || 0).toFixed(2), bv: +Math.hypot(B.v.x, B.v.z).toFixed(2), t: +simT.toFixed(3), l: loc(pl.toeL.getWorldPosition(new THREE.Vector3())), r: loc(pl.toeR.getWorldPosition(new THREE.Vector3())), b: loc(B.p), foot: B.foot || 0, sk: +(B.sideK ?? 1).toFixed(2), touch: +(run.meTouchT || 0).toFixed(3), sp: +Math.hypot(P.v.x, P.v.z).toFixed(2), yaw: +P.yaw.toFixed(3), bs: B.state, own: B.owner, dw: pl.loco && pl.loco.dw ? +pl.loco.dw.toFixed(2) : 0, drt: pl.loco && pl.loco.drib ? +((pl.loco.drib.time / pl.loco.drib.getClip().duration) % 1).toFixed(3) : null }; };
 if (TRACE) window.__foot = (f) => { B.foot = f; B.sideK = f; B.footT = 0; B.turning = false; }; // для проверки: мяч под правую (1) или левую (−1)
 if (TRACE) window.__contactsL = () => ({ own: CONTACT.own, ownL: CONTACT.ownL, ownPass: CONTACT.ownPass, ownPassL: CONTACT.ownPassL, STRIKE_L, PASS_L });
+if (TRACE) window.__pl = () => actorOf('me').pl; // для разработки анимаций
 if (TRACE) window.__act = () => { const a = actorOf('me').pl.act; return a && { clip: a.getClip().name, dur: +a.getClip().duration.toFixed(2), ts: a.timeScale, en: a.enabled, paused: a.paused, run: a.isRunning(), w: +a.getEffectiveWeight().toFixed(2), time: +a.time.toFixed(3), tracks: a.getClip().tracks.length }; };
