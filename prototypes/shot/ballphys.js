@@ -126,6 +126,7 @@ export const CFG = {
     // нога, у которой он был, — в её шаг (касание): мяч сразу уходит вбок перед корпусом и за xferT с (~0,28) оказывается у
     // другой стопы. Шага этой ноги нет дольше xferWait с (шагом, стоя) — мяч переходит плавно, как раньше
     xferT: 0.28, xferWait: 0.7,
+    utA: 2.3,               // разворот назад больше ~132° от корпуса на ходу — мяч гасится подошвой у ног (b.ut)
     // первое касание при приёме паса (firstTouch): стопа гасит скорость прилёта и направляет мяч дальше — по джойстику,
     // а без джойстика — туда, куда смотрит корпус (мягкая подушка). Потом мяч катится сам и лишь затем плавно
     // переходит в ведение — без «магнита» к стопе
@@ -416,7 +417,7 @@ export function controlPoint(P, b, out = vec()) {
   // во время замаха мяч ведётся туда, где окажется ударная стопа в момент касания (b.strikeAt — из анимации удара)
   if (b && b.strikeAt) { const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw); return set(out, P.p.x + f.x * b.strikeAt.f + rx * b.strikeAt.s, CFG.R, P.p.z + f.z * b.strikeAt.f + rz * b.strikeAt.s); }
   const sk = b && b.sideK !== undefined ? b.sideK : 1; // +1 — у правой стопы, −1 — у левой; между ними — мяч переходит перед корпусом
-  const reach = (C.reach + C.reachPerSpeed * sp) * (1 - 0.45 * (b && b.cutK || 0)) + (b ? b.push + (b.tpOff || 0) : 0) + C.footCross * (1 - Math.abs(sk)), side = Math.max(C.sideMin ?? C.side, C.side - (C.sidePerSpeed || 0) * sp) * sk;
+  const reach = (C.reach + C.reachPerSpeed * sp) * (1 - Math.max(0.45 * (b && b.cutK || 0), 0.55 * (b && b.ut ? b.ut.k : 0))) + (b ? b.push + (b.tpOff || 0) : 0) + C.footCross * (1 - Math.abs(sk)), side = Math.max(C.sideMin ?? C.side, C.side - (C.sidePerSpeed || 0) * sp) * sk;
   // правая сторона: при взгляде вдоль +z правая рука — это −x, т. е. вектор (−cos yaw, 0, sin yaw)
   const rx = -Math.cos(P.yaw), rz = Math.sin(P.yaw), fo = b && b.feintOff; // финт: стопа уводит мяч в сторону (плавно, без телепорта)
   return set(out, P.p.x + f.x * reach + rx * side + (fo ? fo.x : 0), CFG.R, P.p.z + f.z * reach + rz * side + (fo ? fo.z : 0));
@@ -438,7 +439,7 @@ export function canCapture(b, P, who, t) {
 }
 export function capture(b, P, who) {
   const C = CFG.control, rel = Math.hypot(b.v.x - P.v.x, b.v.z - P.v.z, b.v.y);
-  b.state = 'owned'; b.owner = who; b.trapT = 0; b.trapDur = C.trapBase + C.trapPerV * rel; b.push = 0; b.tp = null; b.tpOff = 0; b.tpV = 0; b.ffx = 0; b.ffz = 0; b.xfer = null; b.xferV = 0; b.footNext = undefined; b.touchCd = C.touchMin;
+  b.state = 'owned'; b.owner = who; b.trapT = 0; b.trapDur = C.trapBase + C.trapPerV * rel; b.push = 0; b.tp = null; b.tpOff = 0; b.tpV = 0; b.ffx = 0; b.ffz = 0; b.xfer = null; b.xferV = 0; b.footNext = undefined; b.ut = null; b.touchCd = C.touchMin;
   b.p.y = CFG.R; b.v.y = 0; b.stopped = false; b.touchFirst = false;
   // нога, к которой пришёл мяч: с какой стороны от игрока он (без скачка точки контроля через корпус)
   const lat = (b.p.x - P.p.x) * -Math.cos(P.yaw) + (b.p.z - P.p.z) * Math.sin(P.yaw);
@@ -532,9 +533,16 @@ export function footStep(b, P, h) {
     if (Math.abs(a) > C.footTurn && !b.turning) {
       const cr = P.v.x * P.wz - P.v.z * P.wx; // как и запись разворота (autoMoves): > 0 — через левое плечо
       const side = Math.abs(a) > 2.6 ? (Math.abs(cr) > 0.3 ? Math.sign(cr) : -b.foot) : Math.sign(a); // > 0 — влево
-      const nf = side > 0 ? -1 : 1; b.footT = 0; b.turning = true; b.touchCd = Math.min(b.touchCd, 0);
+      let nf = side > 0 ? -1 : 1; b.footT = 0; b.turning = true; b.touchCd = Math.min(b.touchCd, 0);
+      // разворот назад на ходу (запись FIFA, 15,0–15,5 с): мяч гасится подошвой у самых ног той ноги, у которой он, игрок
+      // упирается и разворачивается рядом с мячом, потом уводит его в новую сторону — без перекладывания
+      if (Math.abs(a) > C.utA && Math.hypot(P.v.x, P.v.z) > 1.2) { nf = b.foot; b.ut = { t: 0, k: 0, end: false }; b.tp = null; b.xfer = null; }
       if (nf !== b.foot && !b.xfer) { b.footNext = nf; b.footNextT = 0; } else if (nf === b.foot) b.footNext = undefined; }
   }
+  // разворот с подошвой: мяч ближе к ногам (b.ut.k → точка ведения), пока корпус не развернулся к джойстику; потом плавно — обычно
+  if (b.ut) { const U = b.ut; U.t += h; let a2 = wl > 0.3 ? Math.atan2(P.wx, P.wz) - P.yaw : 0; a2 = Math.atan2(Math.sin(a2), Math.cos(a2));
+    if (!U.end && (Math.abs(a2) < 0.6 || U.t > 1 || wl < 0.3 || b.strikeAt)) U.end = true;
+    U.k = U.end ? Math.max(0, U.k - h / 0.25) : Math.min(1, U.k + h / 0.1); if (U.end && U.k <= 0) b.ut = null; }
   // ждём шага ноги с мячом (перекладывание касанием, touch); не дождались, замах паса/удара — мяч переходит сам, плавно
   if (b.footNext !== undefined && ((b.footNextT += h) > C.xferWait || b.strikeAt)) { b.foot = b.footNext; b.footNext = undefined; }
   if (b.xfer) { const X = b.xfer; X.t += h; const u = Math.min(1, X.t / X.T); b.sideK = X.s0 + (X.s1 - X.s0) * (1 - (1 - u) * (1 - u)); // быстро от стопы, к другой — замедляясь (катится)
@@ -618,7 +626,7 @@ export function controlStep(b, P, h, obstacles) {
 // отпустить мяч (удар, потеря); lock — сколько секунд бывший владелец не может его снова взять
 export function release(b, who, t, lock = CFG.control.regrab, mustClear = true) {
   b.lockOwner = who ?? b.owner; b.lockUntil = t + lock; b.mustClear = mustClear;
-  b.state = 'free'; b.owner = null; b.push = 0; b.tp = null; b.tpOff = 0; b.tpV = 0; b.ffx = 0; b.ffz = 0; b.xfer = null; b.xferV = 0; b.footNext = undefined; b.stopped = false; b.trapT = 1; b.strikeAt = null; b.feintOff = null; b.touchFirst = false;
+  b.state = 'free'; b.owner = null; b.push = 0; b.tp = null; b.tpOff = 0; b.tpV = 0; b.ffx = 0; b.ffz = 0; b.xfer = null; b.xferV = 0; b.footNext = undefined; b.ut = null; b.stopped = false; b.trapT = 1; b.strikeAt = null; b.feintOff = null; b.touchFirst = false;
 }
 
 // ---------- удар ----------

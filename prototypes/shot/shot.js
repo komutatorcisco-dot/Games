@@ -1241,6 +1241,34 @@ function cutStep(pl, P, dt) {
   PB[3].getWorldPosition(cutP.toe); c.err = Math.hypot(cutP.toe.x - cx, cutP.toe.z - cz); // где носок после подстройки — достал ли мяч
   return true;
 }
+// Подошва на мяч (своя модель): разворот назад с мячом (B.ut) и остановка с мячом — стопа той ноги, у которой мяч,
+// ставится на мяч сверху (мяч гасится подошвой), опорная нога на месте, таз ниже, корпус назад. Только кости.
+const SOLE = { crouch: 0.07, back: 0.14, lift: 0.06, stopDur: 0.45 };
+function soleLayer(pl, P, dt, sp, mine) {
+  if (!pl.own || pl.name !== 'loco' || pl.mv) { pl.sole = null; return false; }
+  if (!pl.sole && mine) {
+    if (B.ut && !B.ut.end) pl.sole = { t: 0, kind: 'ut', foot: B.foot };
+    else if (P.stopping && Math.hypot(P.wx || 0, P.wz || 0) < 0.3 && sp < 1.8 && (pl.pk || 0) > 2.6 && !pl.soleStopped) pl.sole = { t: 0, kind: 'stop', foot: B.foot };
+  }
+  if (sp > 2.2) pl.soleStopped = false; // снова бежит — следующая остановка опять с подошвой
+  const S = pl.sole; if (!S) return false;
+  S.t += dt; const sm = THREE.MathUtils.smoothstep;
+  const dur = S.kind === 'ut' ? (B.ut && !B.ut.end ? S.t + 0.2 : (S.endT ??= S.t) + 0.2) : SOLE.stopDur;
+  if (!mine || S.t >= dur || B.strikeAt) { if (S.kind === 'stop') pl.soleStopped = true; pl.sole = null; return false; }
+  const w = sm(S.t, 0, 0.1) * (1 - sm(S.t, dur - 0.18, dur));
+  const LB = legBones(pl, 'Left'), RB = legBones(pl, 'Right'); if (LB.some((x) => !x) || RB.some((x) => !x)) return false;
+  pl.model.updateMatrixWorld(true);
+  LB[2].getWorldPosition(cutP.L); RB[2].getWorldPosition(cutP.R); LB[2].getWorldQuaternion(cutP.qL); RB[2].getWorldQuaternion(cutP.qR);
+  const hips = pl.hips; hips.getWorldPosition(cutP.h); cutP.h.y -= SOLE.crouch * w; hips.position.copy(hips.parent.worldToLocal(cutP.h.clone())); hips.updateMatrixWorld(true);
+  const spn = pl.model.getObjectByName('Spine'); if (spn) { ikV.set(-Math.cos(P.yaw), 0, Math.sin(P.yaw)); rotW(spn, ikV, -SOLE.back * w); spn.updateMatrixWorld(true); }
+  const sole = S.foot < 0 ? 'Left' : 'Right', keep = sole === 'Left' ? cutP.R : cutP.L, keepQ = sole === 'Left' ? cutP.qR : cutP.qL;
+  legIK(pl, sole === 'Left' ? 'Right' : 'Left', keep, keepQ, P);
+  // голеностоп — над мячом (подошва сверху), чуть со стороны игрока
+  const ank = sole === 'Left' ? cutP.L : cutP.R, ankQ = sole === 'Left' ? cutP.qL : cutP.qR, dx = P.p.x - B.p.x, dz = P.p.z - B.p.z, dl = Math.hypot(dx, dz) || 1;
+  ikT.set(B.p.x + (dx / dl) * 0.05, B.p.y + R + SOLE.lift, B.p.z + (dz / dl) * 0.05); const tgt = ank.clone().lerp(ikT, w);
+  legIK(pl, sole, tgt, ankQ, P);
+  return true;
+}
 // Вес тела на поворотах и торможении (с мячом и без, своя модель): чем больше боковое ускорение и торможение, тем ниже
 // таз (колени сгибаются, стопы на месте — та же подстройка ног, что в подрезе), корпус наклоняется в поворот и
 // отклоняется назад при торможении. Только кости поверх записи бега.
@@ -2237,7 +2265,7 @@ function autoMoves(pl, P, sp, dt, who) {
   // автоподбор у мяча запускал его сам — получатель уезжал спиной от паса
   const raw = who === 'me' ? input() : null, rawM = raw ? Math.hypot(raw.x, raw.y) : 0;
   const receiving = (B.state === 'free' && (run.chase || passInFlight())) || (mine && B.touchFirst);
-  if (who === 'me' && !receiving && rawM > 0.6 && sp > 2.4 && pl.pk > 3.3 && want > 2 && !P.charging && (P.wx * P.v.x + P.wz * P.v.z) / (want * sp) < -0.6 && (raw.x * P.v.x - raw.y * P.v.z) / (rawM * sp) < -0.6) {
+  if (who === 'me' && !receiving && !mine && rawM > 0.6 && sp > 2.4 && pl.pk > 3.3 && want > 2 && !P.charging && (P.wx * P.v.x + P.wz * P.v.z) / (want * sp) < -0.6 && (raw.x * P.v.x - raw.y * P.v.z) / (rawM * sp) < -0.6) {
     // разворот в сторону, куда тянут джойстик: вправо — h_turn_180, влево — h_run_turn (бег с разворотом через левое плечо,
     // берём отрезок самого разворота). Раньше разворот был всегда через правое плечо.
     const side = P.v.x * P.wz - P.v.z * P.wx; // > 0 — нужно повернуть влево
@@ -2308,7 +2336,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
       B.tp.T = B.tp.t + Math.max(0.08, (((phT - ph) % 1) + 1) % 1 * cy); }
     pl.footSeen = B.foot;
     if (!cutStep(pl, P, dt)) xferPose(pl, P); }
-  if (!pl.cut) weightLayer(pl, P, dt);
+  { const mine = B.state === 'owned' && B.owner === who; if (!pl.cut && !soleLayer(pl, P, dt, sp, mine)) weightLayer(pl, P, dt); }
   if (pl.loco) pl.loco.lastPh = (pl.loco.jog.time / pl.loco.jog.getClip().duration) % 1;
   return sp;
 }
