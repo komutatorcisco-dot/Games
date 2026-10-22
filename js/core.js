@@ -66,6 +66,15 @@ function syncSafeTop() {
   document.documentElement.style.setProperty('--safe-top', t + 'px');
 }
 syncSafeTop();
+// Горизонтальный бот (22.10, тестовая версия): на телефоне в Telegram — во весь экран и только лёжа. Вертикально
+// показываем «Поверните телефон» (css/land.css), лёжа — закрепляем ориентацию (Telegram 8.0+).
+const TG_MOBILE = !!(TG && ['ios', 'android'].includes(TG.platform));
+if (TG_MOBILE) {
+  document.documentElement.classList.add('tgmob'); document.addEventListener('DOMContentLoaded', () => document.body.classList.add('tgmob'));
+  try { if (TG.requestFullscreen && !TG.isFullscreen && (!TG.isVersionAtLeast || TG.isVersionAtLeast('8.0'))) TG.requestFullscreen(); } catch (e) { /* старый Telegram */ }
+  const relock = () => { try { if (innerWidth > innerHeight && TG.lockOrientation) TG.lockOrientation(); } catch (e) { /* старый Telegram */ } };
+  addEventListener('resize', relock); relock();
+}
 try { if (TG && TG.onEvent) ['safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged', 'viewportChanged'].forEach((ev) => TG.onEvent(ev, syncSafeTop)); } catch (e) { /* старый Telegram */ }
 
 // Гасит следующий клик по странице: нужен, когда выбор делается по отпусканию пальца,

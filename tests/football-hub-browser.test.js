@@ -68,7 +68,7 @@ const tg=()=>{const noop=new Proxy(function(){},{get:(t,k)=>k==='isVisible'?fals
     await page.waitForFunction(()=>document.body.dataset.scr==='hub');
     assert.equal(await page.evaluate(()=>window.__backs),1,'«Назад» передан игре');
     assert.equal(await page.getAttribute('#football-frame','src'),null,'фрейм выгружен');
-    assert.equal(await page.evaluate(()=>Telegram.WebApp.isFullscreen),false,'после матча — обычный вид Telegram');
+    assert.equal(await page.evaluate(()=>Telegram.WebApp.isFullscreen),true,'после матча бот остаётся во весь экран (горизонтальный бот, 22.10)');
     assert.deepEqual(errors,[]);await page.close();
     const prod=await open('');await prod.page.waitForTimeout(500);
     await prod.page.waitForSelector('#home2',{timeout:15000});

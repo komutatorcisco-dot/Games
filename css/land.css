@@ -1,0 +1,91 @@
+/* Горизонтальный бот (22.10, тестовая версия): весь хаб — в альбомной ориентации, в духе главного экрана FC Mobile.
+   Слой поверх старых стилей: меню — левой колонкой, сверху — тонкая панель профиля и монет, главная — крупные плитки,
+   экраны — шире, сетками. Работает только когда экран лежит (телефон повёрнут) и невысокий; на компьютере и в
+   вертикальном окне всё как было. В Telegram на телефоне в вертикальном положении — просьба повернуть телефон. */
+
+/* ---------- просьба повернуть ---------- */
+.rot-hint { display: none; }
+@media (orientation: portrait) {
+  body.tgmob .rot-hint { position: fixed; inset: 0; z-index: 9999; display: grid; place-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center;
+    background: radial-gradient(120% 80% at 50% 30%, #1b2a5c 0%, #0b0b1a 60%, #06060c 100%); color: #fff; }
+  body.tgmob .rot-hint i { width: 64px; height: 108px; border: 4px solid #3ee6a8; border-radius: 14px; box-shadow: 0 0 24px rgba(62,230,168,.45); animation: rotHint 2.2s ease-in-out infinite; }
+  body.tgmob .rot-hint b { font: italic 900 24px/1.1 "Rubik", sans-serif; text-transform: uppercase; letter-spacing: .02em; }
+  body.tgmob .rot-hint small { font: 500 14px/1.35 "Golos Text", sans-serif; color: rgba(255,255,255,.7); max-width: 260px; }
+}
+@keyframes rotHint { 0%, 20% { transform: rotate(0); } 50%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+
+@media (orientation: landscape) and (max-height: 620px) {
+  :root {
+    --rail: 78px;
+    --l-sl: max(env(safe-area-inset-left, 0px), var(--tg-safe-area-inset-left, 0px));
+    --l-sr: max(env(safe-area-inset-right, 0px), var(--tg-safe-area-inset-right, 0px));
+    --l-top: max(6px, env(safe-area-inset-top, 0px), calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px) + 4px));
+    --l-bot: max(8px, env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
+  }
+  /* ---------- оболочка ---------- */
+  #app { max-width: none !important; margin: 0 !important;
+    padding: var(--l-top) calc(14px + var(--l-sr)) var(--l-bot) calc(var(--rail) + 22px + var(--l-sl)) !important; }
+  #app > .screen { max-width: 980px; margin: 0 auto; width: 100%; }
+  #app > .screen:not(#hub):not(#profile):not(#shop):not(#runner) { min-height: calc(100dvh - var(--l-top) - var(--l-bot)) !important; }
+  .safe-cap { display: none !important; }
+  /* в играх меню скрыто (как и раньше) — игра на всю ширину */
+  .tabbar[hidden] { display: none !important; }
+  body:has(#tabbar[hidden]) #app { padding-left: calc(14px + var(--l-sl)) !important; }
+
+  /* меню — левая колонка, как боковая панель FC Mobile */
+  .tabbar { position: fixed !important; left: calc(8px + var(--l-sl)) !important; right: auto !important; top: var(--l-top) !important; bottom: var(--l-bot) !important;
+    width: var(--rail) !important; height: auto !important; display: flex !important; flex-direction: column !important; justify-content: center !important; align-items: stretch !important;
+    gap: 6px !important; padding: 8px 6px !important; border-radius: 20px !important; z-index: 60; }
+  .tab { flex: 0 1 64px !important; max-width: none !important; width: 100% !important; min-height: 0 !important; justify-content: center !important;
+    padding: 6px 2px !important; font: italic 800 9.5px/1.05 "Rubik", sans-serif !important; text-transform: uppercase !important; letter-spacing: .02em; transform: skewX(-6deg); }
+  .tab > * { transform: skewX(6deg); }
+  .tab span svg { width: 22px !important; height: 22px !important; }
+
+  /* шапка: тонкая полоса — профиль слева, монеты и клуб справа */
+  .hub-head { position: relative !important; margin: 0 0 6px !important; padding: 0 !important; background: none !important; }
+  .hub-head .mh { min-height: 0 !important; gap: 8px !important; }
+  .mh-me, .mh-chip, .hub-head .coins { transform: skewX(-8deg); border-radius: 10px !important; }
+  .mh-me > *, .mh-chip > *, .hub-head .coins > * { transform: skewX(8deg); }
+
+  /* ---------- главная: слева — выбранная игра и «Играть», справа — плитки ---------- */
+  #hub { gap: 6px !important; }
+  #home2 { height: calc(100dvh - var(--l-top) - var(--l-bot) - 64px) !important; min-height: 250px !important;
+    display: grid !important; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; gap: 8px 14px !important;
+    grid-template-areas: "road road" "arena arena" "cta cta"; padding: 0 !important; }
+  #home2 .h2-road { grid-area: road; padding: 4px 8px !important; transform: skewX(-8deg); border-radius: 12px !important; }
+  #home2 .h2-road > * { transform: skewX(8deg); }
+  #home2 .h2-ev { display: none; }
+  /* плитки обеих боковых колонок — в одну сетку справа (2 × 3), сколько бы их ни было */
+  #home2 .h2-arena { grid-area: arena; display: grid !important; grid-template-columns: minmax(0, 1.2fr) minmax(0, .55fr) minmax(0, .55fr); grid-template-rows: repeat(3, minmax(0, 1fr));
+    grid-auto-flow: row; gap: 8px 10px; place-items: stretch !important; container-type: normal !important; }
+  #home2 .h2-bg { display: none; }
+  #home2 .h2-game { grid-column: 1; grid-row: 1 / -1; height: 100% !important; width: 100% !important; --W: min(46vh, 38vw) !important; padding: 0 !important; align-content: center !important;
+    border-radius: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--c1) 26%, transparent), rgba(10,12,30,.55)) !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.12); clip-path: polygon(16px 0, 100% 0, calc(100% - 16px) 100%, 0 100%); }
+  #home2 .h2-side { display: contents !important; }
+  #home2 .h2-sb { width: 100% !important; height: 100% !important; min-height: 0 !important; grid-column: auto / span 1; display: grid !important; grid-template-columns: auto minmax(0, 1fr); align-items: center; justify-items: start; gap: 8px;
+    padding: 6px 10px !important; border-radius: 12px !important; transform: skewX(-8deg); background: linear-gradient(135deg, rgba(40,48,110,.85), rgba(16,18,46,.85)) !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 6px 16px rgba(0,0,0,.35) !important; }
+  #home2 .h2-sb > * { transform: skewX(8deg); }
+  #home2 .h2-sb.hot { background: linear-gradient(135deg, rgba(62,230,168,.42), rgba(16,40,60,.9)) !important; box-shadow: inset 0 0 0 1px rgba(62,230,168,.6), 0 6px 16px rgba(0,0,0,.35) !important; }
+  #home2 .h2-sbi { width: 44px !important; height: 44px !important; margin: 0 !important; }
+  #home2 .h2-sbi img, #home2 .h2-sbi svg { width: 44px !important; height: 44px !important; }
+  #home2 .h2-sb b { position: static !important; font: italic 900 12px/1.05 "Rubik", sans-serif !important; text-transform: uppercase; text-align: left; white-space: normal !important; }
+  #home2 .h2-cta { grid-area: cta; grid-template-columns: minmax(0, 1fr) 150px !important; gap: 10px !important; padding: 0 !important; }
+  #home2 .h2-play, #home2 .h2-all { height: 54px !important; border-radius: 12px !important; transform: skewX(-10deg); }
+  #home2 .h2-play > *, #home2 .h2-all > * { transform: skewX(10deg); }
+  #home2 .h2-play span { font-size: 30px !important; }
+  #home2 .h2-all { grid-auto-flow: column; justify-content: center !important; gap: 8px !important; }
+  #home2 .h2-all svg { width: 26px !important; height: 26px !important; }
+
+  /* ---------- экраны: шире, сетками ---------- */
+  #app > .screen > .topbar { top: var(--l-top) !important; }
+  .tiles { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)) !important; }
+  .online-game-list { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .cat-nav { flex-wrap: wrap; }
+  .modal-card { max-height: calc(100dvh - 24px) !important; overflow: auto; }
+  /* игровые поля — по высоте экрана, а не по ширине (иначе поле выше экрана и его приходится листать) */
+  .ttt-grid { width: min(100%, calc((100dvh - 96px) * 1.2)) !important; margin-inline: auto !important; }
+  .xd-pitch, .sq-pitch, .nat-pitch { width: min(100%, calc((100dvh - 110px) * .78)) !important; margin-inline: auto !important; }
+  .g48, .flood, .ws, .slide { width: min(100%, calc(100dvh - 110px)) !important; margin-inline: auto !important; }
+}
