@@ -100,7 +100,7 @@ const Home = (() => {
       cards && pend ? tile('rw-packs', I3('chest'), 'За победы', 'hot', `<em class="fc-dot">${pend}</em>`) : '',
     ].join('');
     // три следующих открытия: кубки (бронза, серебро, золото), подпись — название открытия из Release.UNLOCKS и трофеи
-    const nexts = Release.UNLOCKS.filter((x) => x[0] > t).slice(0, 3).map((x, i) => `<span class="fc-em"><i>${I3(['cup_bronze', 'cup_silver', 'cup_gold'][i])}</i><small>${Ui.get('trophy')} ${x[0]}</small><em>${esc(x[1]).replace(/-/g, '\u2011')}</em></span>`).join('');
+    const nexts = Release.UNLOCKS.filter((x) => x[0] > t).slice(0, 3).map((x, i) => `<span class="fc-em"><i>${I3(['cup_bronze', 'cup_silver', 'cup_gold'][i])}<u class="fc-lock">${Ui.get('lock')}</u></i><small>${Ui.get('trophy')} ${x[0]}</small><em>${esc(x[1]).replace(/-/g, '\u2011')}</em></span>`).join('');
     const title = g ? esc(g.title.split(':')[0]) : '', sub = g && g.sub ? esc(g.sub) : '';
     const wk = typeof Rewards !== 'undefined' && Rewards.weekend();
     let el = $('.fch', box); if (!el) { el = document.createElement('div'); el.className = 'fch'; box.append(el); }
@@ -108,7 +108,7 @@ const Home = (() => {
     const ARR = '<i class="fc-go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></i>';
     el.innerHTML = `
       <header class="fc-top">
-        <button class="fc-me" data-act="profile"><span class="fc-ava">${esc(u.emoji || '⚽')}</span><span class="fc-who"><b>${esc(u.nick || 'Игрок')}</b><small>${Ui.get('trophy')} ${t}</small></span></button>
+        <button class="fc-me" data-act="profile"><span class="fc-ava">${u.emoji && u.emoji !== '⚽' ? esc(u.emoji) : I3('ball')}</span><span class="fc-who"><b>${esc(u.nick || 'Игрок')}</b><small>${Ui.get('trophy')} ${t}</small></span></button>
         <span class="fc-sp"></span>
         <button class="fc-chip" data-act="myclub"><span>${Ui.get('users')}</span><b>Клуб</b></button>
         <button class="fc-cur" data-act="coins-info"><span class="coin" aria-hidden="true"></span><b class="coin-count">${Store.d.coins}</b><i aria-hidden="true">+</i></button>
@@ -118,9 +118,9 @@ const Home = (() => {
         <video class="fc-vid" poster="img/bg/home_hero_poster.webp" autoplay muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1"><source src="img/bg/home_hero.mp4" type="video/mp4"><source src="img/bg/home_hero.webm" type="video/webm"></video>
         <span class="fc-hero-t"><b>${title}</b>${sub ? `<small>${sub}</small>` : ''}</span>${ARR}
       </button>` : '<span class="fc-hero"></span>'}
-      <button class="fc-ev" data-act="road"><span class="fc-evh"><b>Путь</b>${wk ? `<em class="fc-wk">${Ui.get('bolt')} Выходные: ×2 трофея за игры</em>` : ''}<small class="fc-evn">${Ui.get('trophy')} ${nx ? `${t} / ${nx.need}` : 'Всё открыто'}</small></span>${ARR}<span class="fc-ems">${nexts}</span><span class="fc-bar"><i style="width:${pct}%"></i></span></button>
+      <button class="fc-ev" data-act="road"><span class="fc-evh"><b>Путь трофеев</b><small class="fc-evn">${Ui.get('trophy')} ${t}</small>${wk ? `<em class="fc-wk">${Ui.get('bolt')} Выходные: ×2 трофея за игры</em>` : ''}</span>${ARR}<span class="fc-ems">${nexts}</span><span class="fc-prog"><span class="fc-bar"><i style="width:${pct}%"></i></span><small>${nx ? `До «${esc(nx.title)}» — ещё <b>${nx.need - t}</b>` : '<b>Дорога пройдена!</b>'}</small></span></button>
       <button class="fc-club" data-h2="pick"><b>Игры</b><span class="fc-pad">${Ui.get('gamepad')}</span><span class="fc-logo3">${I3('shield_red')}</span>${ARR}</button>
-      ${g ? `<button class="fc-play" ${attrs(g.data)}><b>Играть</b><small>${title}</small>${ARR}</button>` : '<span></span>'}`;
+      ${g ? `<button class="fc-play" ${attrs(g.data)} aria-label="Играть: ${title}"><b>Играть</b>${ARR}</button>` : '<span></span>'}`;
     if (keepVid) { const nv = $('.fc-vid', el); if (nv) nv.replaceWith(keepVid); }
     { const v = $('.fc-vid', el); if (v) { v.muted = true; const pr = v.play && v.play(); if (pr && pr.catch) pr.catch(() => {}); } }
     if (typeof Icons !== 'undefined') Icons.fill(el);
