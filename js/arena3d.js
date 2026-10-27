@@ -555,8 +555,90 @@ const Arena3D = (() => {
     };
   }
 
+  // ---------- фон нового вида (как FC Mobile): ночной стадион, лучи прожекторов, пыль в свете, камера плывёт ----------
+  // Один холст на всё меню; камера переезжает между ракурсами разделов (view). 30 кадров в секунду, пауза вне меню.
+  // project(x, z) — точка поля на экране: по ней «Команда» ставит карточки на настоящий газон.
+  const VIEWS = {
+    play: { p: [0, 20, 66], l: [0, 2, 0], orbit: 18 },
+    team: { p: [-W / 2 - 16, 46, 0], l: [4, -14, 0], shift: 0.15 },
+    events: { p: [W / 2 - 18, 6, -22], l: [W / 2 + 40, 16, 34], orbit: 6 },
+    quests: { p: [-20, 30, -50], l: [10, 4, 10], orbit: 10 },
+    store: { p: [-W / 2 + 6, 7, 24], l: [-W / 2 - 40, 14, -30], orbit: 6 },
+  };
+  let bd = null;
+  async function backdrop(host, visible) {
+    if (!supported()) return null;
+    await three();
+    if (bd) { host.appendChild(bd.canvas); bd.size(); return bd; }
+    const V = setup(host, { dpr: 1.5 }), { scene, camera, renderer } = V;
+    renderer.toneMappingExposure = 1.05;
+    scene.background = new THREE.Color(0x060a1c); scene.fog = new THREE.Fog(0x060a1c, 120, 300);
+    scene.add(new THREE.HemisphereLight(0x9fb2ff, 0x18301c, 0.55));
+    const key = new THREE.DirectionalLight(0xfff1d6, 0.9); key.position.set(-40, 90, 50); scene.add(key);
+    const grass = new THREE.Mesh(new THREE.PlaneGeometry(W + 8, H + 8), new THREE.MeshStandardMaterial({ map: pitchTexture(renderer, ['#2f9e4a', '#298c41']), roughness: 0.92 }));
+    grass.rotation.x = -Math.PI / 2; scene.add(grass);
+    const apron = new THREE.Mesh(new THREE.PlaneGeometry(W + 22, H + 22), new THREE.MeshStandardMaterial({ color: 0x1a5e2f, roughness: 1 })); apron.rotation.x = -Math.PI / 2; apron.position.y = -0.03; scene.add(apron);
+    [goal(1), goal(-1)].forEach((g) => scene.add(g));
+    const ads = adBoards(scene, '  JACKSON GAMES  ·  СТАРИКИ ДЖЕКСОНЫ  ·  @OLDJACKSONS  ·', '#ffffff', '#11204f');
+    bowl(scene, '#2a5bd7');
+    // прожекторы: светящийся диск, ореол и конус света до поля
+    const glowC = cv(128, 128), gx = glowC.getContext('2d'), gr = gx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,250,235,1)'); gr.addColorStop(0.25, 'rgba(255,236,190,.55)'); gr.addColorStop(1, 'rgba(255,220,160,0)'); gx.fillStyle = gr; gx.fillRect(0, 0, 128, 128);
+    const glowT = new THREE.CanvasTexture(glowC), beams = [];
+    [[1, 1], [1, -1], [-1, 1], [-1, -1]].forEach(([sx, sz], i) => {
+      const src = new THREE.Vector3(sx * (W / 2 + 26), 38, sz * (H / 2 + 24)), dst = new THREE.Vector3(sx * 12, 0, sz * 6);
+      const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowT, color: 0xfff2d8, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); halo.position.copy(src); halo.scale.set(16, 16, 1); scene.add(halo);
+      const len = src.distanceTo(dst), cone = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 15, len, 24, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xfff0c8, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      cone.position.copy(src).lerp(dst, 0.5); cone.lookAt(dst); cone.rotateX(-Math.PI / 2); scene.add(cone);
+      beams.push({ halo, cone, ph: i * 1.7 });
+    });
+    // пыль в свете прожекторов
+    const N = 260, pp = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) { pp[i * 3] = (Math.random() - 0.5) * (W + 20); pp[i * 3 + 1] = Math.random() * 26; pp[i * 3 + 2] = (Math.random() - 0.5) * (H + 20); }
+    const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pp, 3));
+    const dust = new THREE.Points(pg, new THREE.PointsMaterial({ map: glowT, color: 0xffe9b8, size: 0.7, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false }));
+    scene.add(dust);
+
+    let view = 'play', last = 0, adT = 0, tBase = 0;
+    const cp = new THREE.Vector3(...VIEWS.play.p), cl = new THREE.Vector3(...VIEWS.play.l), tp = new THREE.Vector3(), tl = new THREE.Vector3();
+    let shift = 0;
+    function place(dt, t) {
+      const v = VIEWS[view] || VIEWS.play, o = RM ? 0 : Math.sin(t * 0.07) * (v.orbit || 0);
+      tp.set(v.p[0] + o, v.p[1] + (RM ? 0 : Math.sin(t * 0.11) * 0.8), v.p[2] + (RM ? 0 : Math.cos(t * 0.07) * (v.orbit || 0) * 0.3)); tl.set(...v.l);
+      const k = dt ? 1 - Math.exp(-dt * 2.4) : 1; cp.lerp(tp, k); cl.lerp(tl, k); shift += ((v.shift || 0) - shift) * k;
+      camera.position.copy(cp); camera.lookAt(cl);
+      const w = host.clientWidth || 1, h = host.clientHeight || 1;
+      if (Math.abs(shift) > 0.002) camera.setViewOffset(w, h, -shift * w, 0, w, h); else camera.clearViewOffset();
+      camera.fov = 42; camera.far = 600; camera.updateProjectionMatrix();
+    }
+    const api = {
+      canvas: V.canvas, size: V.size, onFrame: null,
+      view(name, now) { view = VIEWS[name] ? name : 'play'; if (now) place(0, tBase); },
+      settled: () => cp.distanceTo(tp) < 0.3,
+      project(x, z, y = 0) { const v = new THREE.Vector3(x, y, z).project(camera), w = host.clientWidth, h = host.clientHeight; return { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h, d: camera.position.distanceTo(new THREE.Vector3(x, y, z)) }; },
+      W, H,
+    };
+    let raf = 0;
+    const step = (now) => {
+      raf = requestAnimationFrame(step);
+      if (!V.canvas.isConnected || document.hidden || (visible && !visible())) { last = now; return; }
+      if (now - last < 32) return; // ~30 кадров: фону больше не нужно, батарея целее
+      const dt = Math.min(0.1, (now - last) / 1000); last = now; const t = now / 1000; tBase = t;
+      place(dt, t);
+      beams.forEach((b) => { const f = RM ? 1 : 0.85 + Math.sin(t * 1.3 + b.ph) * 0.15; b.cone.material.opacity = 0.045 * f; b.halo.scale.setScalar(15 + f * 3); });
+      if (!RM) { const a = pg.attributes.position.array; for (let i = 0; i < N; i++) { a[i * 3 + 1] += dt * (0.4 + (i % 5) * 0.12); a[i * 3] += Math.sin(t * 0.5 + i) * dt * 0.3; if (a[i * 3 + 1] > 26) a[i * 3 + 1] = 0; } pg.attributes.position.needsUpdate = true; }
+      adT += dt; if (adT > 0.08) { ads(adT * 0.5); adT = 0; } // бегущая строка — реже, текстура большая
+      renderer.render(scene, camera);
+      if (api.onFrame) try { api.onFrame(); } catch (e) { /* карточки — не повод ронять фон */ }
+    };
+    raf = requestAnimationFrame(step);
+    bd = api;
+    return api;
+  }
+
   // выбранный мяч и какие открыты: классика сразу, остальные — за турнир драфта
   const BALL_NEED = { classic: 0, noir: 2, ivory: 3, gold: 4 };
   const ballState = () => { const u = Store.d.ui || (Store.d.ui = {}); if (!u.balls) u.balls = ['classic']; if (!u.ball) u.ball = 'classic'; return u; };
-  return { supported, three, menu, match, ball, BALLS, BALL_NEED, ballState };
+  return { supported, three, menu, match, backdrop, ball, BALLS, BALL_NEED, ballState };
 })();

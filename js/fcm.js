@@ -10,6 +10,7 @@ const FCM = (() => {
   const UI = () => Store.d.ui || (Store.d.ui = {});
   const on = () => !UI().fcmOff;
   let tab = 'play', sub = { quests: 'day', store: 'coins', events: 'jg' };
+  let bg3 = null; // 3D-стадион за меню (Arena3D.backdrop), null — нет WebGL или ещё грузится
 
   const TABS = [
     ['team', 'Команда', 'squad'], ['events', 'События', 'daily'], ['play', 'Играть', 'qplay'], ['quests', 'Задания', 'quests'], ['store', 'Магазин', 'shop'],
@@ -66,23 +67,44 @@ const FCM = (() => {
   }
 
   // ---------- Команда ----------
-  function team() {
-    const s = Squad.S(), F = XD.FORMATIONS[s.form], keys = s.xi.map((k) => (k && Cards.get(k) ? k : null));
-    const cards = keys.map((k) => k && Cards.get(k)), have = cards.filter(Boolean);
+  // Есть 3D-фон — карточки стоят на настоящем газоне (позиции считает Arena3D.project), слева панель как в FC.
+  // Нет WebGL — плоское поле, как раньше.
+  function teamData() {
+    const s = Squad.S(), F = XD.FORMATIONS[s.form], cards = s.xi.map((k) => (k && Cards.get(k) ? Cards.get(k) : null)), have = cards.filter(Boolean);
     const ovr = have.length ? Math.round(have.reduce((a, c) => a + c.r, 0) / have.length) : 0;
     const owned = Cards.all().filter((c) => Cards.spare && Cards.spare(c.key) > 0).length;
+    return { s, F, cards, have, ovr, owned };
+  }
+  function team() {
+    const { s, F, cards, have, ovr, owned } = teamData(), u = Store.d.user || {};
+    const panel = `<div class="fm-tside">
+        <div class="fm-club"><span class="fm-crest">${esc(u.emoji || '⚽')}</span><span class="fm-ovr"><small>ОБЩ</small><b>${ovr || '—'}</b></span></div>
+        <div class="fm-stats"><span><small>Схема</small><b>${esc(s.form)}</b></span><span><small>Состав</small><b>${have.length}/11</b></span><span><small>Карточек</small><b>${owned}</b></span></div>
+        <button class="fm-btn gold" data-act="squad">Изменить состав</button>
+        <button class="fm-btn" data-act="collection">Коллекция</button>
+        <button class="fm-btn" data-act="sbc">Испытания (ИПК)</button>
+      </div>`;
+    if (bg3) return `<div class="fm-team is3d">${panel}<div class="fm-cards">${F.slots.map((sl, i) => { const c = cards[i];
+      return `<button class="fm-slot3 ${c ? 'on' : ''}" data-act="squad" data-i="${i}">${c ? Cards.html(c, { w: 64 }) : '<i>+</i>'}<em>${esc(XD.RU[sl.pos] || sl.pos)}</em></button>`; }).join('')}</div></div>`;
     // поле лёжа: атака вправо — вертикальная координата схемы становится горизонтальной
     return `<div class="fm-team">
       <div class="fm-pitch"><i class="fm-pl"></i>${F.slots.map((sl, i) => { const c = cards[i];
         return `<span class="fm-slot ${c ? 'on' : ''}" style="left:${100 - sl.y}%;top:${sl.x}%">${c ? Cards.html(c, { w: 46 }) : `<i>+</i><small>${esc(XD.RU[sl.pos] || sl.pos)}</small>`}</span>`; }).join('')}</div>
-      <div class="fm-tside">
-        <div class="fm-stats"><span><small>Рейтинг</small><b>${ovr || '—'}</b></span><span><small>Схема</small><b>${esc(s.form)}</b></span><span><small>В составе</small><b>${have.length}/11</b></span></div>
-        <button class="fm-btn gold" data-act="squad">Изменить состав</button>
-        <button class="fm-btn" data-act="collection">Коллекция · ${owned}</button>
-        <button class="fm-btn" data-act="sbc">Испытания (ИПК)</button>
-        <button class="fm-btn off" disabled>${lock} Тренировка игроков — скоро</button>
-      </div>
+      ${panel}
     </div>`;
+  }
+  // карточки на 3D-газоне: точка схемы → точка поля → экран; дальние меньше, ближние крупнее
+  function placeCards() {
+    if (!bg3 || tab !== 'team' || !root) return;
+    const els = root.querySelectorAll('.fm-slot3'); if (!els.length) return;
+    const F = XD.FORMATIONS[Squad.S().form], W = bg3.W, H = bg3.H;
+    els.forEach((el) => {
+      const sl = F.slots[+el.dataset.i]; if (!sl) return;
+      const x = -W / 2 + 15 + ((93 - sl.y) / 77) * W * 0.52, z = ((sl.x - 50) / 100) * H * 0.86;
+      const p = bg3.project(x, z), k = Math.max(0.62, Math.min(1.05, 60 / p.d));
+      el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -92%) scale(${k.toFixed(3)})`;
+      el.style.zIndex = String(Math.round(1000 - p.d));
+    });
   }
 
   // ---------- События ----------
@@ -156,6 +178,7 @@ const FCM = (() => {
     root.dataset.view = tab;
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
     if (typeof Coins !== 'undefined') Coins.render();
+    if (bg3) { bg3.view(tab); bg3.onFrame = tab === 'team' ? placeCards : null; placeCards(); }
   }
   function setOn(v) {
     UI().fcmOff = !v; Store.save();
@@ -175,8 +198,16 @@ const FCM = (() => {
     root = document.createElement('div'); root.id = 'fcm'; root.className = 'fcm';
     insets();
     try { if (TG && TG.onEvent) ['safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged'].forEach((ev) => TG.onEvent(ev, insets)); } catch (e) { /* старый Telegram */ }
+    // 3D-стадион — отдельный слой под оболочкой: render() переписывает оболочку, холст остаётся
+    const bgHost = document.createElement('div'); bgHost.className = 'fcm-bg'; bgHost.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(bgHost);
     document.body.appendChild(root);
     document.body.classList.toggle('fcm-on', on());
+    const land = window.matchMedia ? matchMedia('(orientation: landscape) and (max-height: 620px)') : { matches: true };
+    const shown = () => on() && land.matches && (!document.body.dataset.scr || document.body.dataset.scr === 'hub') && !(typeof Modal !== 'undefined' && Modal.isOpen);
+    if (typeof Arena3D !== 'undefined') Arena3D.backdrop(bgHost, shown).then((b) => {
+      if (!b) return; bg3 = b; b.view(tab, true); document.body.classList.add('fm3d'); render();
+    }).catch((e) => console.warn('FCM 3D', e));
     // старый вид: маленькая кнопка «Новый вид» поверх старой главной
     const back = document.createElement('button'); back.className = 'fcm-back-new'; back.textContent = 'Новый вид'; back.dataset.fmNew = '1'; document.body.appendChild(back);
     render();

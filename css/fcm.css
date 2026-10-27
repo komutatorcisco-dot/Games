@@ -183,3 +183,64 @@
   .fm-mode small { display: none; } .fm-path { gap: 8px; } .fm-node small { display: none; }
   .fm-split { grid-template-columns: 120px minmax(0, 1fr); } .fm-ev-card { display: none; } .fm-ev-head { padding: 8px 12px; } .fm-ev-t b { font-size: 22px; } .fm-rail button { padding: 8px 10px !important; }
 }
+
+/* ---------- 3D-стадион за меню (Arena3D.backdrop), свечение и движение — 27.10 ---------- */
+.fcm-bg { display: none; }
+@media (orientation: landscape) and (max-height: 620px) {
+  body.fcm-on:is(:not([data-scr]), [data-scr="hub"]) .fcm-bg { display: block; position: fixed; inset: 0; z-index: 39; pointer-events: none; }
+  .fcm-bg canvas { width: 100% !important; height: 100% !important; display: block; }
+  /* 3D готов: оболочка прозрачная, сверху и снизу затемнение, чтобы читались шапка и меню */
+  body.fm3d .fcm { background: linear-gradient(180deg, rgba(4,8,20,.78) 0%, rgba(4,8,20,.15) 22%, rgba(4,8,20,.05) 55%, rgba(4,8,20,.7) 100%); }
+  body.fm3d .fcm::before { display: none; }
+  /* у каждого раздела своё настроение поверх стадиона, как в событиях FC Mobile */
+  .fcm::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; transition: background .6s; }
+  body.fm3d .fcm[data-view="events"]::after { background: radial-gradient(80% 90% at 85% 40%, rgba(150,30,90,.45), transparent 70%), linear-gradient(110deg, rgba(40,6,40,.75), rgba(120,12,40,.35) 60%, rgba(10,6,30,.5)); }
+  body.fm3d .fcm[data-view="quests"]::after { background: linear-gradient(120deg, rgba(4,30,40,.82), rgba(6,14,30,.55) 60%, rgba(25,211,176,.12)); }
+  body.fm3d .fcm[data-view="store"]::after { background: linear-gradient(115deg, rgba(4,12,26,.85) 30%, rgba(8,60,70,.45) 70%, rgba(25,211,176,.18)); }
+  body.fm3d .fcm[data-view="play"]::after { background: radial-gradient(60% 70% at 50% 110%, rgba(198,255,61,.08), transparent 70%); }
+  /* световые полосы по диагонали медленно проходят по экрану */
+  .fcm .fm-main { position: relative; }
+  .fcm::after, .fm-streak { will-change: auto; }
+  body.fm3d .fcm[data-view]:not([data-view="team"]) .fm-main::before { content: ''; position: fixed; inset: -20% -40%; z-index: -1; pointer-events: none;
+    background: linear-gradient(115deg, transparent 42%, rgba(120,220,255,.07) 46%, rgba(198,255,61,.06) 48%, transparent 52%); animation: fm-streak 9s ease-in-out infinite; }
+  @keyframes fm-streak { 0% { transform: translateX(-30%); } 100% { transform: translateX(30%); } }
+
+  /* стекло панелей и светящиеся края */
+  body.fm3d :is(.fm-mode, .fm-sq, .fm-rail button, .fm-node, .fm-gc, .fm-q, .fm-of, .fm-stats span) { background-color: rgba(8,16,32,.72) !important; }
+  .fm-hero { isolation: isolate; }
+  .fm-hero::before { content: ''; position: absolute; inset: -60%; z-index: -1; background: conic-gradient(from 0deg, transparent 0 70%, rgba(200,160,255,.9) 80%, transparent 90%); animation: fm-spin 6s linear infinite; }
+  .fm-hero::after { content: ''; position: absolute; inset: 2px; z-index: -1; border-radius: 9px; background: radial-gradient(80% 90% at 20% 50%, rgba(140,60,255,.4), transparent 70%), linear-gradient(135deg, #2a1462, #120a34 60%, #0b0f2a); }
+  @keyframes fm-spin { to { transform: rotate(1turn); } }
+  .fm-hero-card { animation: fm-float 4s ease-in-out infinite; filter: drop-shadow(0 10px 18px rgba(120,60,255,.55)); }
+  @keyframes fm-float { 50% { transform: translateY(-5px) rotate(-1deg); } }
+  .fm-hero-t .fm-go, .fm-tab.play, .fm-btn.gold { position: relative; overflow: hidden; }
+  .fm-hero-t .fm-go::after, .fm-tab.play::after, .fm-btn.gold::after { content: ''; position: absolute; top: 0; bottom: 0; width: 40%; left: -60%; transform: skewX(-20deg);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); animation: fm-shine 3.2s ease-in-out infinite; }
+  @keyframes fm-shine { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+  .fm-mode.lime { animation: fm-pulse 2.6s ease-in-out infinite; }
+  @keyframes fm-pulse { 50% { box-shadow: inset 0 0 0 1px rgba(198,255,61,.8), 0 0 22px rgba(160,255,60,.28), 0 8px 18px -6px rgba(0,0,0,.6); } }
+  .fm-mi { transition: transform .3s; } .fm-mode:hover .fm-mi { transform: translateY(-50%) rotate(-2deg) scale(1.06); }
+  .fm-sq.hot img { animation: fm-bob 1.6s ease-in-out infinite; } @keyframes fm-bob { 50% { transform: translateY(-3px) scale(1.05); } }
+  .fm-dot { animation: fm-ping 1.5s ease-out infinite; } @keyframes fm-ping { 0% { box-shadow: 0 0 0 0 rgba(255,61,79,.7), 0 0 0 2px #0a1222; } 100% { box-shadow: 0 0 0 8px rgba(255,61,79,0), 0 0 0 2px #0a1222; } }
+
+  /* плитки режимов: текст не наезжает на значок (было «11 на 11 · тест» и «Тренировки» поверх мяча) */
+  .fm-mode:not(.big) b { padding-right: 58px; } .fm-mode:not(.big) .fm-mi { max-height: 52px; height: 62%; right: 6px; }
+  .fm-mode:not(.big) small { max-width: calc(100% - 58px); }
+
+  /* ---------- Команда на 3D-газоне: слева панель клуба, карточки стоят на поле ---------- */
+  .fm-team.is3d { display: block; position: static; }
+  .fm-team.is3d .fm-tside { position: relative; z-index: 2; width: 220px; padding: 12px; border-radius: 12px; background: linear-gradient(180deg, rgba(14,24,48,.88), rgba(6,12,26,.9));
+    box-shadow: inset 0 0 0 1.5px rgba(120,140,255,.35), 0 0 24px rgba(80,120,255,.15); }
+  .fm-club { display: flex; align-items: center; justify-content: space-around; padding: 2px 0 6px; border-bottom: 1px solid rgba(150,200,255,.15); }
+  .fm-crest { width: 54px; height: 60px; display: grid; place-items: center; font-size: 30px; clip-path: polygon(0 0, 100% 0, 100% 70%, 50% 100%, 0 70%); background: linear-gradient(180deg, #2a5bd7, #142a6a); }
+  .fm-ovr { width: 56px; height: 62px; display: grid; place-items: center; align-content: center; clip-path: polygon(0 0, 100% 0, 100% 72%, 50% 100%, 0 72%); background: linear-gradient(180deg, #e8334a, #8e1424); }
+  .fm-ovr small { font: 800 11px/1 "Barlow Condensed", sans-serif; } .fm-ovr b { font: italic 800 26px/1 "Barlow Condensed", sans-serif; }
+  .fm-cards { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+  .fm-slot3 { position: absolute !important; left: 0; top: 0; display: grid !important; justify-items: center; gap: 2px; pointer-events: auto; transform-origin: 50% 92%; will-change: transform; }
+  .fm-slot3 .cc { animation: none; filter: drop-shadow(0 8px 10px rgba(0,0,0,.55)); }
+  .fm-slot3 > i { width: 52px; height: 70px; display: grid; place-items: center; border-radius: 8px; font: 800 24px/1 sans-serif; font-style: normal; background: rgba(0,0,0,.35); box-shadow: inset 0 0 0 2px rgba(255,255,255,.4); }
+  .fm-slot3 em { padding: 1px 8px; border-radius: 9px; background: rgba(4,14,24,.85); color: #3dff8a; font: 800 11px/1.3 "Barlow Condensed", sans-serif; box-shadow: inset 0 0 0 1px rgba(61,255,138,.35); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fcm *, .fcm *::before, .fcm *::after { animation: none !important; }
+}
