@@ -55,7 +55,7 @@ const PackOpen = (() => {
     $('.po-k', el).textContent = top.isNew ? 'Новая карточка' : 'Повтор';
     const nm = $('.po-name', el); nm.textContent = Cards.RAR[top.c.rar].n; nm.classList.toggle('long', nm.textContent.length > 13); slam(nm);
     $('.po-steps', el).innerHTML = '';
-    const big = Math.min(240, Math.floor(innerWidth * 0.6));
+    const big = Math.min(240, Math.floor(innerWidth * 0.6), Math.floor((innerHeight - 170) / 1.45)); // лёжа карточка влезает по высоте
     stage.innerHTML = `<div class="po-walk"><div class="po-flip" style="--w:${big}px"><div class="po-back ${top.c.rar}"><b>ДЖ</b></div><div class="po-front">${Cards.html(top.c, { w: big })}</div></div>
       <div class="po-tag ${top.isNew ? 'new' : ''}">${top.isNew ? 'NEW' : `+${top.coins} <i class="coin"></i>`}</div></div>`;
     if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(stage);
@@ -83,8 +83,11 @@ const PackOpen = (() => {
     // 2) все карточки сеткой
     el.dataset.phase = 'grid';
     setCol(el, RCOL[top.c.rar]);
-    const n = list.length, cols = n <= 3 ? 3 : n <= 8 || innerWidth < 420 ? 4 : 5;
-    const W = Math.min(480, innerWidth) - 32, w = Math.floor((W - (cols - 1) * 8) / cols);
+    const n = list.length, land = innerWidth > innerHeight; // лёжа — шире ряд, карточки по высоте экрана
+    const cols = land ? Math.min(n, n <= 6 ? Math.max(3, n) : Math.ceil(n / 2)) : n <= 3 ? 3 : n <= 8 || innerWidth < 420 ? 4 : 5;
+    const W = Math.min(land ? 900 : 480, innerWidth) - 32;
+    let w = Math.floor((W - (cols - 1) * 8) / cols);
+    if (land) w = Math.max(48, Math.min(w, 150, Math.floor((innerHeight - 190) / Math.ceil(n / cols) / 1.45) - 10));
     const nNew = list.filter((x) => x.isNew).length;
     $('.po-k', el).textContent = `${n} ${plural(n, 'карточка', 'карточки', 'карточек')}`;
     nm.textContent = nNew ? `НОВЫХ: ${nNew}` : 'НОВЫХ НЕТ'; nm.classList.remove('long'); slam(nm);

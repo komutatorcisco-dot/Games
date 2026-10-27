@@ -283,3 +283,126 @@
 }
 /* совсем низкая карточка «Путь трофеев» (iPhone SE в Telegram с шапкой): остаётся полоска прогресса, без строки под ней */
 @media (orientation: landscape) and (max-height: 330px) { .fch .fc-prog small { display: none; } .fch .fc-evh { flex-wrap: nowrap; } .fch .fc-wk { display: none; } }
+
+/* ---------- Все экраны лёжа (27.10): то, что раньше приходилось листать, разложено в две колонки ----------
+   Слева — главное (поле, вопрос, карточка), справа — ответы и кнопки. Шапка экрана — во всю ширину. */
+@media (orientation: landscape) and (max-height: 620px) {
+  /* высота под содержимое экрана без шапки (шапка 56 + отступы) */
+  :root { --l-body: calc(100dvh - var(--l-top) - var(--l-bot) - 84px); }
+
+  /* окно ника при первом входе: смайлы в одну строку — кнопка «Играть» видна без прокрутки */
+  .nick-emoji { grid-template-columns: repeat(12, 1fr) !important; gap: 4px; }
+  .nick-emoji button { font-size: 18px; border-radius: 9px; }
+  .modal-card:has(.nick-emoji) h2 { margin-bottom: 2px; }
+  .modal-card:has(.nick-emoji) .nick-input { padding: 10px 14px; margin: 6px 0 8px; }
+  .modal-card:has(.nick-emoji) { width: min(560px, calc(100vw - 32px)) !important; max-width: none !important; }
+
+  /* открытие пака: шапка ниже и компактнее, пак по высоте экрана */
+  .po-top { padding-top: max(10px, var(--l-top)); min-height: 0; gap: 4px; }
+  .po-name { font-size: clamp(22px, 8vh, 34px); }
+  .po-foot { min-height: 0; padding-bottom: max(10px, var(--l-bot)); gap: 6px; }
+  .fpk.xxl { --pw: min(230px, calc((100dvh - 150px) / 1.39)); }
+  .po-walk { gap: 10px; }
+  .po-grid { max-height: calc(100dvh - 150px); }
+  .po-take { max-width: 320px; }
+
+  /* Мой состав: поле во всю высоту слева, рейтинг, химия, схема и кнопки — колонкой справа */
+  #sq-body { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(210px, 1fr); grid-template-rows: auto auto 1fr; column-gap: 18px; align-items: start; }
+  #sq-body .sq-pitch { grid-column: 1; grid-row: 1 / span 3; aspect-ratio: auto !important; height: calc(var(--l-body) - 10px); width: min(100%, calc(var(--l-body) * 1.25)) !important; margin: 4px auto 0 !important; }
+  #sq-body .sq-slot { scale: .84; }
+  #sq-body .sq-head { grid-column: 2; grid-row: 1; margin: 4px 0 0; gap: 8px; }
+  #sq-body .sq-k b, #sq-body .sq-form b { font-size: 20px; }
+  #sq-body .sq-act { grid-column: 2; grid-row: 2; grid-template-columns: 1fr; gap: 8px; margin: 12px 0 0; }
+  #sq-body .sq-note { grid-column: 2; grid-row: 3; margin: 10px 2px 0; text-align: left; font-size: 12px; }
+
+  /* «Куда перешёл?»: карточка слева, варианты ответа — столбиком справа */
+  #transfer:not([hidden]):not(:has(.vs-mid)) { display: grid !important; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); column-gap: 18px; align-content: start; }
+  #transfer:not([hidden]):not(:has(.vs-mid)) > .topbar { grid-column: 1 / -1; }
+  #transfer:not([hidden]):not(:has(.vs-mid)) > #transfer-lives { grid-column: 1; grid-row: 2; }
+  #transfer:not([hidden]):not(:has(.vs-mid)) > #transfer-stage { grid-column: 1; grid-row: 3; }
+  #transfer:not([hidden]):not(:has(.vs-mid)) > #transfer-opts { grid-column: 2; grid-row: 2 / span 2; grid-template-columns: 1fr !important; align-self: center; }
+  /* «Дороже или дешевле», «Кто выше», «Кто дороже»: две карточки рядом, кнопки — под ними */
+  :is(#transfer-stage, #compare-stage):has(.vs-mid) { flex-direction: row !important; align-items: stretch; gap: 10px; }
+  :is(#transfer-stage, #compare-stage):has(.vs-mid) > :is(.tcard, .pcard) { flex: 1 1 0; min-width: 0; margin: 0 !important; }
+  :is(#transfer-stage, #compare-stage) > .vs-mid { align-self: center; flex: none; margin: 0 !important; }
+  #transfer:not([hidden]):has(.vs-mid) > #transfer-lives { margin: 0; min-height: 0; }
+
+  /* «Угадай карьеру»: клубы в две колонки слева, ввод — справа */
+  #career:not([hidden]) { display: grid !important; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); column-gap: 18px; align-content: start; }
+  #career:not([hidden]) > .topbar { grid-column: 1 / -1; }
+  #career:not([hidden]) > #career-path { grid-column: 1; grid-row: 2 / span 5; display: grid !important; grid-template-columns: 1fr 1fr; gap: 6px; align-content: start; }
+  #career:not([hidden]) > #career-path .step { margin: 0 !important; grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 8px 10px; }
+  #career:not([hidden]) > #career-path .step .club { font-size: 16px; }
+  #career:not([hidden]) > :not(.topbar):not(#career-path) { grid-column: 2; }
+  /* «Угадай клуб»: подсказки в две колонки */
+  #club-clues { display: grid !important; grid-template-columns: 1fr 1fr; gap: 6px; }
+  #club-clues .clue { margin: 0 !important; }
+
+  /* «Игрок дня»: фото слева, подсказки и ввод — справа */
+  #dly:not([hidden]) { display: grid !important; grid-template-columns: minmax(170px, .6fr) minmax(0, 1.4fr); column-gap: 18px; align-content: start; }
+  #dly:not([hidden]) > .topbar { grid-column: 1 / -1; }
+  #dly:not([hidden]) > .dly-top { grid-column: 1; grid-row: 2 / span 3; align-self: start; position: sticky; top: calc(var(--l-top) + 62px); }
+  #dly:not([hidden]) > :not(.topbar):not(.dly-top) { grid-column: 2; }
+
+  /* «Угадай сборную»: поле слева, варианты справа */
+  #nation:not([hidden]) { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 18px; align-content: start; }
+  #nation:not([hidden]) > .topbar { grid-column: 1 / -1; }
+  #nation:not([hidden]) > #nation-stage { grid-column: 1; grid-row: 2 / span 2; }
+  #nation:not([hidden]) > #nation-lives { grid-column: 2; grid-row: 2; }
+  #nation:not([hidden]) > #nation-opts { grid-column: 2; grid-row: 3; grid-template-columns: 1fr !important; align-self: start; }
+
+  /* «Тики-Така-Той»: сетка слева, ввод справа */
+  #ttt:not([hidden]) { display: grid !important; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); column-gap: 18px; align-content: start; }
+  #ttt:not([hidden]) > .topbar { grid-column: 1 / -1; }
+  #ttt:not([hidden]) > #ttt-grid { grid-column: 1; grid-row: 2 / span 4; width: min(100%, calc(var(--l-body) * 1.1)) !important; margin: 0 auto !important; }
+  #ttt:not([hidden]) > :not(.topbar):not(#ttt-grid) { grid-column: 2; }
+  #ttt:not([hidden]) > .actions { justify-content: stretch; } #ttt:not([hidden]) > .actions .btn { flex: 1; min-height: 0; }
+  #ttt-grid .tg-cell, #ttt-grid .tg-head { aspect-ratio: auto !important; height: calc((var(--l-body) - 30px) / 4); }
+
+  /* мини-игры (#ng): Wordle — сетка слева, клавиатура справа; «Состав дня» — поле слева; «Связи» — плитки ниже; дуэль — режимы справа */
+  .ng-wordle { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) !important; column-gap: 18px; align-items: start; }
+  .ng-wordle > .wd-grid { grid-column: 1; grid-row: 1 / span 3; }
+  .ng-wordle > :not(.wd-grid) { grid-column: 2; }
+  .ng-lineup { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; column-gap: 18px; align-items: start; }
+  .ng-lineup > .ng-pitch { grid-column: 1; grid-row: 1 / span 5; }
+  .ng-lineup > :not(.ng-pitch) { grid-column: 2; }
+  /* «Связи»: плитки плоские (фото слева от имени) — вся сетка 4×4 и кнопки помещаются по высоте */
+  .ng-connect { row-gap: 6px !important; }
+  .ng-connect > .ng-lead { margin: 0; font-size: 12px; }
+  .ng-connect .cn-tile { min-height: 0 !important; height: max(34px, calc((var(--l-body) - 118px) / 4)); padding: 2px 8px !important;
+    display: flex !important; align-items: center; justify-content: flex-start; gap: 8px; text-align: left; }
+  .ng-connect .cn-solved { padding: 5px 10px; }
+  .ng-connect > .ng-row .btn { min-height: 40px !important; }
+  .ng-duel { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; column-gap: 18px; align-items: start; }
+  .ng-duel > .du-modes { grid-template-columns: 1fr !important; }
+
+  /* «Кто легендарнее?»: клубы в 4 колонки */
+  .pick-clubs { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+
+  /* вкладки главной «Игры» и «С другом»: разделы колонками, а не одной узкой лентой */
+  #panel-games:not([hidden]) { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 14px; align-items: start; }
+  #panel-games:not([hidden]) > .games-mode-switch { grid-column: 1 / -1; }
+  #panel-games:not([hidden]) > .cat .tiles { grid-template-columns: 1fr !important; }
+  #panel-friends:not([hidden]) { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 16px; align-items: start; }
+  #panel-friends:not([hidden]) > .duel-hero { grid-row: 1 / span 3; }
+  #panel-friends:not([hidden]) > :not(.duel-hero) { grid-column: 2; }
+  #panel-friends:not([hidden]) > .tiles { grid-template-columns: 1fr !important; }
+
+  /* поля «Угадай сборную» и «Состав дня» лёжа — горизонтальные (атака вправо), как сам матч: влезают по высоте */
+  .nat-pitch { flex-direction: row-reverse !important; height: var(--l-body); min-height: 0 !important; width: 100% !important; max-width: none !important; padding: 8px 10px !important; gap: 4px !important; }
+  .nat-pitch .nat-row { flex-direction: column; justify-content: space-evenly; flex: 1 1 0; min-width: 0; gap: 2px; }
+  .nat-pitch .nat-slot { zoom: .84; }
+  .nat-pitch .nat-row:has(> :nth-child(5)) .nat-slot { zoom: .72; }
+  .nat-pitch::after { left: 50%; right: auto; top: 0; bottom: 0; border-top: 0 !important; border-left: 2px solid rgba(255,255,255,.45); }
+  .nat-pitch::before { width: auto; height: 30%; }
+  #dly .dly-clue { min-height: 0 !important; padding-top: 6px !important; padding-bottom: 6px !important; }
+  #dly .dly-clues { gap: 4px !important; }
+  /* вкладки хаба без отступов #app (главная лёжа — во весь экран): свои поля по краям и под вырезами */
+  body.at-home :is(#panel-games, #panel-friends):not([hidden]) { padding: var(--l-top) calc(14px + var(--l-sr)) calc(var(--l-nav) + var(--l-bot) + 10px) calc(14px + var(--l-sl)) !important; }
+  /* низкие экраны (≤400 px): игроки на горизонтальном поле мельче */
+}
+@media (orientation: landscape) and (max-height: 400px) {
+  .nat-pitch .nat-slot { zoom: .72; }
+  .ng-pitch .nat-slot { zoom: .64; }
+  .nat-pitch .nat-row:has(> :nth-child(5)) .nat-slot { zoom: .6; }
+}
