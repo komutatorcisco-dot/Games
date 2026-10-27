@@ -63,7 +63,10 @@ const Release = (() => {
 
   // Игры и разделы открываются за трофеи, как в Brawl Stars: сначала немного, дальше по шагу.
   // [трофеи, название, ключи] — 'feat:cards' (паки и галерея) и 'feat:pass' (пропуск и задания) — разделы, не игры.
-  const UNLOCKS = [
+  // Новый вид «как FC Mobile» (27.10): в FC Mobile разделы не открываются за трофеи — ALL_OPEN ставит все пороги в 0,
+  // всё доступно с первого входа. Награды дороги трофеев (Rewards ROAD) не меняются; пропадают только пункты открытий.
+  const ALL_OPEN = true;
+  const STEPS = [
     [0, 'Первые игры', ['act:auction-bot', 'act:auction-duo', 'ng:wordle', 'act:nation', 'act:pick-bot', 'act:pick-duo']],
     [40, 'Тики-така', ['act:ttt', 'act:ttt-duo']],
     [60, 'Пропуск и задания', ['feat:pass']],
@@ -75,6 +78,7 @@ const Release = (() => {
     // дальше — по новой игре каждые 200 трофеев
     ...QUEUE.map((q, i) => [500 + i * 200, q[1], q[2]]),
   ];
+  const UNLOCKS = ALL_OPEN ? STEPS.map((u) => [0, u[1], u[2]]) : STEPS;
   const trophies = () => { try { return (Store.d.rw && Store.d.rw.trophies) || 0; } catch (e) { return 0; } };
   const out = new Set();
   let cur = null, nxt = null;
