@@ -9,7 +9,7 @@
 const FCM = (() => {
   const UI = () => Store.d.ui || (Store.d.ui = {});
   const on = () => !UI().fcmOff;
-  let tab = 'play', sub = { quests: 'day', store: 'coins', events: 'jg' };
+  let tab = 'play', sub = { quests: 'day', store: 'top', events: 'jg' };
   let focusI = -1; // игрок, на которого наехала камера в «Команде»
   let bg3 = null; // 3D-стадион за меню (Arena3D.backdrop), null — нет WebGL или ещё грузится
 
@@ -175,17 +175,68 @@ const FCM = (() => {
       <button class="fm-btn fm-pass" data-act="rewards">Пропуск и путь трофеев ›</button></div></div>`;
   }
 
-  // ---------- Магазин ----------
+  // ---------- Магазин (как в FC Mobile): слева разделы, паки крупно со свечением, перед покупкой — окно пака ----------
+  // Цены, состав и шансы — прежние (StarShop, Cards.PACKS); меняется только вид и путь до покупки.
+  const PKIMG = ['pk-silver', 'pk-blue', 'pk-purple', 'pk-gold', 'pk-black'];
+  function packList() {
+    const out = [], by = {};
+    StarShop.COIN_PACKS.forEach((x) => { by[x.id] = { ...x }; out.push(by[x.id]); });
+    StarShop.ITEMS.filter((x) => x.level !== undefined).forEach((x) => { if (by[x.id]) by[x.id].stars = x.stars; else { by[x.id] = { ...x }; out.push(by[x.id]); } });
+    return out;
+  }
+  const RRU = { bronze: 'бронза', silver: 'серебро', gold: 'золото', legend: 'легенда', jack: '«Джексон»' };
+  function chips(x) {
+    const P = Cards.PACKS[x.level], n = P.n * (x.count || 1), sure = {};
+    P.sure.forEach((r) => { sure[r] = (sure[r] || 0) + (x.count || 1); });
+    return [`${n} ${plural(n, 'карта', 'карты', 'карт')}`, ...Object.entries(sure).reverse().map(([r, k]) => `${k} × ${RRU[r] || r}`)];
+  }
+  const price = (x) => `${x.coins ? `<span class="fm-pr c">${coin}${x.coins}</span>` : ''}${x.stars ? `<span class="fm-pr s">${StarShop.free() ? 0 : x.stars} ⭐</span>` : ''}`;
+  const pkCard = (x, big) => `<button class="fm-pk lv${x.level} ${big ? 'big' : ''}" data-fm-pk="${x.id}">
+      <i class="fm-pk-glow"></i><img class="fm-pk-img" src="img/icons/${PKIMG[x.level]}-360.webp" alt="" loading="lazy" draggable="false">
+      <span class="fm-pk-t"><b>${esc(x.name)}</b><span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span></span>
+      <span class="fm-pk-p">${price(x)}</span></button>`;
   function store() {
-    const L = [['coins', 'За монеты'], ['stars', 'За звёзды'], ['skins', 'Скины']];
+    const L = [['top', 'Главное'], ['packs', 'Паки'], ['stars', 'За звёзды'], ['skins', 'Скины']];
+    if (!L.some((l) => l[0] === sub.store)) sub.store = 'top';
+    const list = packList(), day = typeof Wheel !== 'undefined' && Wheel.ready();
     let body = '';
-    if (sub.store === 'coins') body = `<div class="fm-offers">${StarShop.COIN_PACKS.map((x) => `<div class="fm-of lv${x.level}"><span class="fm-of-art">${x.art()}</span><b>${esc(x.name)}</b><small>${esc(x.sub)}</small><button class="fm-btn gold" data-coinpack="${x.id}">${coin}${x.coins}</button></div>`).join('')}</div>`;
-    else if (sub.store === 'stars') body = `<div class="fm-offers">${StarShop.ITEMS.map((x) => `<div class="fm-of lv${x.level === undefined ? 0 : x.level}"><span class="fm-of-art">${x.art()}</span><b>${esc(x.name)}</b><small>${esc(x.sub)}</small><button class="fm-btn star" data-ss="${x.id}">${x.stars} ⭐</button></div>`).join('')}</div>`;
+    if (sub.store === 'top') {
+      const jack = list.find((x) => x.id === 'jack'), rest = list.filter((x) => ['basic', 'gold', 'legend'].includes(x.id));
+      body = `<div class="fm-st-top">
+        ${jack ? `<button class="fm-st-hero" data-fm-pk="jack"><i class="fm-st-rays"></i><img src="img/icons/pk-black-360.webp" alt="" draggable="false">
+          <span><small>Лучший пак</small><b>${esc(jack.name)}</b><em>${esc(jack.sub)}</em><span class="fm-pk-p">${price(jack)}</span></span></button>` : ''}
+        <div class="fm-st-col">
+          <button class="fm-daypk ${day ? 'hot' : ''}" data-act="wheel">${Art.img('qpack', '', 96)}<span><b>Пак дня</b><small>${day ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${day ? 'Забрать' : 'Завтра'}</em></button>
+          <div class="fm-st-mini">${rest.map((x) => pkCard(x)).join('')}</div>
+        </div></div>`;
+    } else if (sub.store === 'packs') body = `<div class="fm-pks">${list.map((x) => pkCard(x)).join('')}</div>`;
+    else if (sub.store === 'stars') body = `<div class="fm-offers">${StarShop.ITEMS.filter((x) => x.level === undefined).map((x) => `<div class="fm-of"><span class="fm-of-art">${x.art()}</span><b>${esc(x.name)}</b><small>${esc(x.sub)}</small><button class="fm-btn star" data-ss="${x.id}">${x.stars} ⭐</button></div>`).join('')}</div>`;
     else body = `<div class="fm-skins">${StarShop.skinsHtml()}</div>`;
-    const day = typeof Wheel !== 'undefined' && Wheel.ready();
-    return `<div class="fm-split">${rail(L, 'store')}<div class="fm-body">
-      ${sub.store === 'coins' ? `<button class="fm-daypk ${day ? 'hot' : ''}" data-act="wheel">${Art.img('qpack', '', 96)}<span><b>Пак дня</b><small>${day ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${day ? 'Забрать' : 'Завтра'}</em></button>` : ''}
-      ${body}</div></div>`;
+    return `<div class="fm-split">${rail(L, 'store')}<div class="fm-body">${body}</div></div>`;
+  }
+  // окно пака: пак крупно, что внутри, шансы, кнопки цены
+  function packSheet(id) {
+    const x = packList().find((p) => p.id === id); if (!x) return;
+    const P = Cards.PACKS[x.level], tot = P.w.reduce((a, w) => a + w[1], 0);
+    const el = document.createElement('div'); el.className = `fm-sheet lv${x.level}`;
+    el.innerHTML = `<div class="fm-sh-card">
+        <div class="fm-sh-art"><i class="fm-st-rays"></i><img src="img/icons/${PKIMG[x.level]}-360.webp" alt="" draggable="false"></div>
+        <div class="fm-sh-info">
+          <small>Пак</small><b>${esc(x.name)}</b>
+          <span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span>
+          <p class="fm-sh-h">Шанс в каждом случайном слоте</p>
+          <div class="fm-odds">${P.w.map(([r, n]) => `<span class="${r}"><small>${esc(Cards.RAR[r].n)}</small><i><u style="width:${Math.max(2, (n / tot) * 100)}%"></u></i><b>${n}%</b></span>`).join('')}</div>
+          <p class="fm-sh-n">Повторы дают монеты. ИПК-карты из паков не выпадают.</p>
+          <div class="fm-sh-buy">${x.coins ? `<button class="fm-btn gold" data-fm-buyc="${x.id}">${coin}${x.coins}</button>` : ''}${x.stars ? `<button class="fm-btn star" data-fm-buys="${x.id}">${StarShop.free() ? 0 : x.stars} ⭐</button>` : ''}</div>
+        </div>
+        <button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
+    document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
+    const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); };
+    el.addEventListener('click', (e) => {
+      if (e.target === el || e.target.closest('.fm-sh-x')) { Sound.play('tap'); return close(); }
+      const c = e.target.closest('[data-fm-buyc]'); if (c) { Sound.play('tap'); if (StarShop.buyCoinsNow(c.dataset.fmBuyc)) { close(); setTimeout(render, 400); } return; }
+      const st = e.target.closest('[data-fm-buys]'); if (st) { Sound.play('tap'); close(); document.dispatchEvent(new CustomEvent('ss-buy', { detail: st.dataset.fmBuys })); }
+    });
   }
 
   // ---------- сборка ----------
@@ -237,6 +288,7 @@ const FCM = (() => {
       if (e.target.closest('[data-fm-unfocus]')) { Sound.play('tap'); return focusOn(-1); }
       const stp = e.target.closest('[data-fm-step]'); if (stp) { Sound.play('tap'); const xi = Squad.S().xi, d = +stp.dataset.fmStep; let i = focusI;
         for (let n = 0; n < 11; n++) { i = (i + d + 11) % 11; if (Cards.get(xi[i])) break; } return focusOn(i); }
+      const pk = e.target.closest('[data-fm-pk]'); if (pk) { Sound.play('tap'); return packSheet(pk.dataset.fmPk); }
       const m = e.target.closest('[data-fm-mode]'); if (m) { Sound.play('tap'); return startMode(m.dataset.fmMode); }
       const tr = e.target.closest('[data-fm-train]'); if (tr) { Sound.play('tap'); return App.openFootball('fk', tr.dataset.fmTrain); }
       const c = e.target.closest('[data-fm-claim]'); if (c) { Rewards.claimQuest(c.dataset.fmClaim); return render(); }

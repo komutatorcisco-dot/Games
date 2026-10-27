@@ -410,5 +410,5 @@ const Cards = (() => {
     const rest = $$('.gl-h, .gl-ready, .gl-almost, .gl-list, .rw-note.gl-foot');
     rest.forEach((el) => { el.hidden = (view.q || '').trim().length >= 2; });
   }
-  return { onInput, reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, PACKS, details, spare, use, owned, surname, freshN: () => S().fresh.length, clearFresh: () => { S().fresh = []; Store.save(); }, RAR };
+  return { onInput, reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, crestOf: (c) => c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : ''), PACKS, details, spare, use, owned, surname, freshN: () => S().fresh.length, clearFresh: () => { S().fresh = []; Store.save(); }, RAR };
 })();

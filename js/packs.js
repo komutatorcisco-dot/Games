@@ -65,6 +65,8 @@ const PackOpen = (() => {
       if (face.decode) await Promise.race([face.decode().catch(() => {}), wait(250)]);
     }
     const flip = $('.po-flip', stage), special = top.c.rar === 'legend' || top.c.rar === 'jack' || top.c.rar === 'future' || top.c.rar === 'forgotten';
+    // выход как в FC: золото и выше — сначала страна, позиция, клуб, потом карточка
+    if (ORDER.indexOf(top.c.rar) >= ORDER.indexOf('gold') || top.c.rar === 'jg') await walkIntro(el, top.c, special);
     // подъём и прозрачность — у обёртки, поворот — у самой карточки: так 3D не сплющивается
     const dur = special ? 1500 : 1000;
     anim($('.po-walk', stage), [{ transform: 'translateY(60vh) scale(.4)', opacity: 0 }, { transform: 'translateY(-4vh) scale(1.08)', opacity: 1, offset: 0.75 }, { transform: 'none', opacity: 1 }], { duration: dur, easing: 'cubic-bezier(.2,.8,.2,1)' });
@@ -105,6 +107,44 @@ const PackOpen = (() => {
     el.removeEventListener('pointerdown', skip);
     if (entry) entry.cancel();
     return finish(el, list, { onDone, take, coins });
+  }
+  // три удара перед карточкой: флаг, позиция, эмблема клуба (нажатие пропускает)
+  async function walkIntro(el, c, special) {
+    if (reduce) return;
+    const box = document.createElement('div'); box.className = 'po-wi'; el.appendChild(box);
+    let skip = false; const sk = () => { skip = true; }; el.addEventListener('pointerdown', sk);
+    const cr = Cards.crestOf ? Cards.crestOf(c) : '';
+    const beats = [
+      `<span class="po-wi-flag">${esc(c.flag || '🏳️')}</span><b>${esc(c.nat || '')}</b>`,
+      `<span class="po-wi-pos">${esc(c.pos || '')}</span><b>Позиция</b>`,
+      cr ? `<img class="po-wi-crest" src="${esc(cr)}" alt=""><b>${esc(c.club || c.series || '')}</b>` : `<span class="po-wi-pos">${c.r}</span><b>${esc(c.club || c.series || 'Рейтинг')}</b>`,
+    ];
+    for (const html of beats) {
+      if (skip) break;
+      box.innerHTML = `<div class="po-wi-beat">${html}</div>`;
+      flash(el, false); Sound.play('kick'); haptic('tap');
+      await wait(special ? 900 : 700);
+    }
+    el.removeEventListener('pointerdown', sk);
+    box.remove();
+  }
+  // купленный пак: сначала сам пак крупно, нажатие — тряска и разрыв, потом карточки
+  async function packIntro(el, lv, name) {
+    const stage = $('.po-stage', el);
+    el.dataset.phase = 'pack'; setCol(el, LV[lv].css);
+    $('.po-k', el).textContent = 'Твой пак'; const nm = $('.po-name', el); nm.textContent = name || LV[lv].name; nm.classList.toggle('long', nm.textContent.length > 13); slam(nm);
+    stage.innerHTML = `<div class="po-pack" data-lv="${lv}">${art(lv, 'xxl', true)}<i class="po-slit"></i></div>`;
+    const packEl = $('.po-pack', stage), hint = $('.po-hint', el);
+    anim(packEl, [{ transform: 'translateY(50vh) rotateX(40deg) scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,1,.3,1)' });
+    hint.textContent = 'Нажми на пак, чтобы открыть';
+    await tapOnce(el);
+    hint.textContent = ''; Sound.play('kick'); haptic('tap');
+    packEl.classList.add('shake'); await wait(650);
+    packEl.classList.remove('shake'); packEl.classList.add('torn');
+    flash(el, true); Sound.play('kick'); haptic('ok');
+    await wait(480);
+    anim(packEl, [{ transform: 'none', opacity: 1 }, { transform: 'translateY(45vh) scale(.8) rotateX(30deg)', opacity: 0 }], { duration: 480, easing: 'cubic-bezier(.5,0,.7,.4)', fill: 'forwards' });
+    await wait(360);
   }
   function finish(el, list, { onDone, take, coins }) {
     const dup = list.reduce((s, x) => s + x.coins, 0);
@@ -180,10 +220,12 @@ const PackOpen = (() => {
   }
 
   // одиночные награды (покупка, ИПК, дорога трофеев): сразу выход карточки
-  function reveal(res, onDone) {
+  // opts.pack — уровень купленного пака: тогда сначала открываем сам пак
+  async function reveal(res, onDone, opts = {}) {
     if (!res || !res.length) { onDone && onDone(); return; }
     const el = layer('cards');
     $('.po-x', el).hidden = true;
+    if (typeof opts.pack === 'number') await packIntro(el, Math.max(0, Math.min(4, opts.pack)), opts.name);
     showCards(el, res, { onDone, take: res.length > 1 ? 'В коллекцию' : 'Отлично' });
   }
 

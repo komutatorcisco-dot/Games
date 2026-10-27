@@ -16,14 +16,14 @@ const StarShop = (() => {
     ...ITEMS.filter(x => x.coins),
   ];
   const keysFor = (x) => Array.from({ length: x.count }, () => Cards.packCards(x.level)).flat();
-  function showCards(keys, beforeCommit) {
+  function showCards(keys, beforeCommit, x) {
     // Баланс/номер покупки и карты попадают в одно сохранение Cards.add до анимации.
     beforeCommit();
     const res = Cards.add(keys);
     const dup = res.reduce((n, x) => n + x.coins, 0);
     if (dup) Coins.add(dup);
     Coins.render(); Rewards.refresh();
-    PackOpen.reveal(res);
+    PackOpen.reveal(res, null, x && x.level !== undefined ? { pack: x.level, name: x.name } : {});
   }
   function buyCoins(id) {
     const x = COIN_PACKS.find(x => x.id === id); if (!x) return;
@@ -33,9 +33,17 @@ const StarShop = (() => {
         if (used) return;
         if (Store.d.coins < x.coins) { toast('Недостаточно монет'); return; }
         const keys = keysFor(x); used = true; Modal.close();
-        showCards(keys, () => { Store.d.coins -= x.coins; });
+        showCards(keys, () => { Store.d.coins -= x.coins; }, x);
       } }, { label: 'Отмена', cls: 'ghost' },
     ]);
+  }
+  // покупка за монеты без второго окна (новый магазин сам показывает состав и цену перед кнопкой)
+  function buyCoinsNow(id) {
+    const x = COIN_PACKS.find(x => x.id === id); if (!x) return false;
+    if (Store.d.coins < x.coins) { toast('Недостаточно монет'); return false; }
+    const keys = keysFor(x);
+    showCards(keys, () => { Store.d.coins -= x.coins; }, x);
+    return true;
   }
   function odds(x) {
     const p = Cards.PACKS[x.level];
@@ -47,7 +55,7 @@ const StarShop = (() => {
   function grant(item, n) {
     const key = `${item}:${n}`; if (paid().includes(key)) return false;
     const pack = ITEMS.find(x => x.id === item && x.level !== undefined);
-    if (pack) showCards(keysFor(pack), () => paid().push(key));
+    if (pack) showCards(keysFor(pack), () => paid().push(key), pack);
     else if (item === 'coins') { paid().push(key); Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(2000); }
     else if (item.startsWith('skin:') && SKINS.includes(item.slice(5))) { paid().push(key); Skins.grant(item.slice(5)); Store.save(); toast('Скин включён — сменить можно в Магазине → Скины'); }
     else return false;
@@ -98,5 +106,5 @@ const StarShop = (() => {
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-ss]'); if (b) { Sound.play('tap'); buy(b.dataset.ss); } });
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-coinpack]'); if (b) buyCoins(b.dataset.coinpack); });
   document.addEventListener('ss-buy', (e) => buy(e.detail));
-  return { COIN_PACKS, odds, open, packsHtml, skinsHtml, sync, grant, ITEMS };
+  return { COIN_PACKS, odds, open, buyCoinsNow, free, packsHtml, skinsHtml, sync, grant, ITEMS };
 })();
