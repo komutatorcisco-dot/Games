@@ -12,10 +12,11 @@ const Cards = (() => {
     gold: { n: 'ЗОЛОТО', dup: 12 },
     legend: { n: 'ЛЕГЕНДА', dup: 40 },
     jack: { n: 'ДЖЕКСОН!!', dup: 100 },
+    jg: { n: 'ОСОБАЯ', dup: 100 },
     future: { n: 'БУДУЩИЕ ЗВЁЗДЫ', dup: 100 },
     forgotten: { n: 'ЗАБЫТЫЕ ЛЕГЕНДЫ', dup: 100 },
   };
-  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten'];
+  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten', 'jg'];
   const LEAGUES = ['АПЛ', 'Ла Лига', 'Серия А', 'Бундеслига', 'Лига 1'];
   const POS = { ГК: 'ВРТ' };
 
@@ -24,7 +25,7 @@ const Cards = (() => {
     if (ALL) return ALL;
     const cur = PLAYERS.filter((p) => FACES[p.name] && FC_STATS[p.name]).map((p) => {
       const r = FC_STATS[p.name][0];
-      return { key: p.name, name: p.name, r, pos: POS[p.pos] || p.pos, club: p.club, flag: p.flag, nat: p.nat, lg: p.lg, face: FACES[p.name], rar: r >= 78 ? 'gold' : r >= 73 ? 'silver' : 'bronze' };
+      return { key: p.name, name: p.name, r, pos: POS[p.pos] || p.pos, club: p.club, flag: p.flag, nat: p.nat, lg: p.lg, face: FACES[p.name], rar: r >= 75 ? 'gold' : r >= 65 ? 'silver' : 'bronze' }; // границы как в FC: золото 75+, серебро 65–74, бронза до 64
     });
     // флаг сборной для легенд — тот же, что у действующих игроков этой страны
     const FLAG = {}; PLAYERS.forEach((p) => { if (p.nat && p.flag && !FLAG[p.nat]) FLAG[p.nat] = p.flag; });
@@ -37,7 +38,13 @@ const Cards = (() => {
     // поэтому серия не даёт химии «общий клуб». hero — как Heroes в FC: 3 химии на своей позиции, связь через сборную.
     // Характеристики Балотелли — предложение под рейтинг 95 (в базе FC его нет), утверждаются вместе с карточкой.
     const forgotten = [{ key: 'FL:mario-balotelli', name: 'Марио Балотелли', r: 95, pos: 'ФРВ', posFix: true, club: '', series: 'Забытые легенды', crestUrl: 'img/brand/fl-badge.svg', flag: '🇮🇹', nat: 'Италия', lg: '', rar: 'forgotten', sbcOnly: true, hero: true, challenge: 'fl:balotelli', walkout: 'balotelli', model3d: 'balotelli', faceUrl: 'img/players/balotelli-face.webp', st: [90, 96, 80, 89, 42, 94] }];
-    ALL = [...cur, ...legs, ...jack, ...future, ...forgotten];
+    // Сезон 1: старые особые (легенды, «Джексон», «Будущие звёзды», «Забытые легенды») не выпадают и не показываются —
+    // карточки остаются в базе, чтобы старые сохранения не ломались до вайпа
+    [...legs, ...jack, ...future, ...forgotten].forEach((c) => { c.retired = true; });
+    // особые Jackson Games: только за события, из паков не выпадают
+    const jgFace = typeof FACES !== 'undefined' ? FACES['Николас Джексон'] : null;
+    const jg = [{ key: 'JG:nicolas-jackson', name: 'Николас Джексон', r: 84, pos: 'ФРВ', club: 'Астон Вилла', flag: '🇸🇳', nat: 'Сенегал', lg: 'АПЛ', face: jgFace, rar: 'jg', sbcOnly: true, series: 'Jackson Games', st: [82, 83, 74, 84, 44, 81] }];
+    ALL = [...cur, ...legs, ...jack, ...future, ...forgotten, ...jg];
     if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
       c.positions = PlayerPositions.get(c.name, c.pos);
       if (!c.posFix) c.pos = PlayerPositions.RU[c.positions[0]] || c.pos;
@@ -91,8 +98,10 @@ const Cards = (() => {
     return list[list.length - 1];
   }
   function draw(rar) {
-    let pool = all().filter((c) => c.rar === rar && !c.sbcOnly), r = rar;
-    for (let i = ORDER.indexOf(rar) + 1; !pool.length && i < ORDER.length; i++) { r = ORDER[i]; pool = all().filter((c) => c.rar === r && !c.sbcOnly); }
+    const ok = (c) => !c.sbcOnly && !c.retired;
+    let pool = all().filter((c) => c.rar === rar && ok(c)), r = rar;
+    if (!pool.length && (rar === 'legend' || rar === 'jack')) { r = 'gold'; pool = all().filter((c) => c.rar === r && ok(c)); } // в слоте легенды и «Джексона» пака теперь золото
+    for (const up of ['silver', 'gold']) if (!pool.length && ['bronze', 'silver'].includes(r) && up !== r) { r = up; pool = all().filter((c) => c.rar === r && ok(c)); } // бронзы пока нет (база от 70) — выше
     if (!pool.length) return null;
     const fresh = pool.filter((c) => !owned(c.key));
     // треть шанса — карточка, которой ещё нет: коллекция растёт заметно
@@ -138,14 +147,26 @@ const Cards = (() => {
     if (w.length > 2 && !/^[a-zа-яё]/.test(w[1])) return n.length <= 12 ? n : w[w.length - 1];
     return w.slice(1).join(' ');
   };
+  // карточка как в FC 25/26: металлическая рамка с объёмными сотами (картинки img/cards2: фон и рамка с плашкой),
+  // между ними фото; слева сверху рейтинг и позиция, на плашке фамилия, шесть характеристик строкой, внизу флаг, лига и клуб.
+  // Маленькая (уже 110 px) — без характеристик: крупнее фамилия и значки.
+  const FRAME = { bronze: 'bronze', silver: 'silver', gold: 'gold' }; // остальные редкости — особая рамка
+  const LEAGUE_ICO = { 'АПЛ': 'apl', 'Ла Лига': 'll', 'Серия А': 'sa', 'Бундеслига': 'bl', 'Лига 1': 'l1', 'MLS': 'mls' };
+  const STN = ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'], STN_GK = ['НЫР', 'РУК', 'УДР', 'РЕА', 'СКР', 'ПОЗ'];
+  function statsOf(c) { if (c.st) return c.st; const f = typeof FC_STATS !== 'undefined' && FC_STATS[c.name]; return f ? f.slice(1, 7) : null; }
   function html(c, { w = 150, locked = false, cls = '' } = {}) {
     if (!c) return '';
-    if (locked) return `<div class="cc lock ${cls}" style="--w:${w}px" data-lock="${esc(c.key)}"><div class="cc-ph"></div><span class="cc-sil"></span><div class="cc-r">??</div><div class="cc-band"><b>???</b><small>${RAR[c.rar].n}</small></div></div>`;
-    const [k1, k2] = col(c.club), cr = c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : '');
-    return `<div class="cc ${c.rar} ${cls}" style="--w:${w}px;--k1:${k1};--k2:${k2}" data-card="${esc(c.key)}">
-      <div class="cc-ph"></div>${c.faceUrl || c.face ? `<img class="cc-face" src="${esc(c.faceUrl || img(c.face))}" alt="" loading="lazy">` : '<span class="cc-sil"></span>'}
-      <div class="cc-r">${c.r}<small>${esc(c.pos)}</small></div>${cr ? `<img class="cc-cr${c.crestUrl ? ' series' : ''}" src="${esc(cr)}" alt="" loading="lazy">` : ''}
-      <div class="cc-band"><b>${esc(surname(c.name))}</b><small>${c.flag ? c.flag + ' ' : ''}${RAR[c.rar].n}</small></div></div>`;
+    const fr = FRAME[c.rar] || 'spec', sm = w < 110 ? ' sm' : '';
+    const bg = `<div class="cc-bk" style="background-image:url(img/cards2/back-${fr}.webp)"></div>`, fg = `<div class="cc-fr" style="background-image:url(img/cards2/front-${fr}.webp)"></div>`;
+    const st0 = `--w:${w}px;--k:${(w / 228).toFixed(4)}`; // карточка собирается в 228×330 и уменьшается целиком (мелкий шрифт браузер не уменьшает)
+    if (locked) return `<div class="cc v2 lock ${fr} ${cls}${sm}" style="${st0}" data-lock="${esc(c.key)}"><div class="cc-in">${bg}<div class="cc-fw"><span class="cc-sil"></span></div>${fg}<div class="cc-r"><b>??</b></div><div class="cc-n"><b>???</b></div><div class="cc-st"><span>${RAR[c.rar].n}</span></div></div></div>`;
+    const cr = c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : ''), lg = LEAGUE_ICO[c.lg], st = statsOf(c), gk = c.pos === 'ВРТ';
+    const face = c.faceUrl || c.face ? `<img class="cc-face" src="${esc(c.faceUrl || img(c.face))}" alt="" loading="lazy">` : '<span class="cc-sil"></span>';
+    return `<div class="cc v2 ${c.rar} ${fr} ${cls}${sm}" style="${st0}" data-card="${esc(c.key)}"><div class="cc-in">${bg}<div class="cc-fw">${face}</div>${fg}
+      <div class="cc-r"><b>${c.r}</b><i>${esc(c.pos)}</i></div>${fr === 'spec' ? `<div class="cc-tag">${esc((c.series || 'Jackson Games').toUpperCase())}</div>` : ''}
+      <div class="cc-n"><b>${esc(surname(c.name))}</b></div>
+      ${st ? `<div class="cc-st">${st.map((v, i) => `<span>${(gk ? STN_GK : STN)[i]}<b>${v}</b></span>`).join('')}</div>` : ''}
+      <div class="cc-ic">${c.flag ? `<span class="cc-fl">${c.flag}</span>` : ''}${lg ? `<img src="img/leagues/${lg}.webp" alt="">` : ''}${cr ? `<img src="${esc(cr)}" alt="">` : ''}</div></div></div>`;
   }
 
   // ---------- раскрытие паков: карточки по одной, лучшая — последней ----------
@@ -194,18 +215,21 @@ const Cards = (() => {
   }
 
   // ---------- галерея как в EA FC: лиги → клубы → игроки; собрал клуб или лигу — награда ----------
-  const GROUPS = [...LEAGUES, 'Другие', 'Легенды', 'Джексон', 'Будущие звёзды', 'Забытые легенды'];
+  // Старые серии выведены из игры: видны в галерее, только если такая карта уже есть.
+  const OLD = ['Будущие звёзды', 'Забытые легенды'];
+  const GROUPS = [...LEAGUES, 'Другие', 'Особые', ...OLD];
   const GROUP_ICO = { 'АПЛ': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Ла Лига': '🇪🇸', 'Серия А': '🇮🇹', 'Бундеслига': '🇩🇪', 'Лига 1': '🇫🇷', 'Другие': Ui.get('globe'), 'Легенды': Ui.get('crown'), 'Джексон': Ui.get('flame') };
-  const groupOf = (c) => (c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : c.rar === 'forgotten' ? 'Забытые легенды' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
+  const groupOf = (c) => (c.rar === 'jg' ? 'Особые' : c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : c.rar === 'forgotten' ? 'Забытые легенды' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
   GROUP_ICO['Будущие звёзды'] = Ui.get('star');
   GROUP_ICO['Забытые легенды'] = '<img class="gl-series" src="img/brand/fl-badge.svg" alt="">';
   // серии из испытаний: карточку нельзя купить, поэтому за «сбор» серии награды нет (экономика не меняется)
-  const NOPRIZE = new Set(['Забытые легенды']);
-  const SINGLE = new Set(['Джексон', 'Забытые легенды']); // без деления на клубы
+  const NOPRIZE = new Set(['Будущие звёзды', 'Забытые легенды', 'Особые']);
+  GROUP_ICO['Особые'] = Ui.get('star');
+  const SINGLE = new Set(['Джексон', 'Забытые легенды', 'Особые']); // без деления на клубы
   // серия видна в галерее, когда сервер включил испытание или карточка уже получена
-  const shown = (g) => g !== 'Забытые легенды' || have(groupCards(g)) > 0 || (typeof Legends !== 'undefined' && Legends.enabled());
-  const hiddenCard = (c) => c.rar === 'forgotten' && !shown('Забытые легенды');
-  const groupCards = (g) => all().filter((c) => g === 'Будущие звёзды' ? c.rar === 'future' : g === 'Забытые легенды' ? c.rar === 'forgotten' : groupOf(c) === g);
+  const shown = (g) => !OLD.includes(g) || have(groupCards(g)) > 0;
+  const hiddenCard = (c) => c.retired && !owned(c.key);
+  const groupCards = (g) => all().filter((c) => (OLD.includes(g) || !c.retired) && (g === 'Будущие звёзды' ? c.rar === 'future' : g === 'Забытые легенды' ? c.rar === 'forgotten' : groupOf(c) === g));
   // награда за клуб — по числу карточек в нём; за лигу — легендарный пак и монеты
   const clubPrize = (n) => (n <= 1 ? { coins: 50 } : n <= 3 ? { coins: 150 } : n <= 7 ? { pack: 0, coins: 150 } : n <= 12 ? { pack: 1, coins: 250 } : n <= 16 ? { pack: 2, coins: 400 } : { pack: 3, coins: 600 });
   const groupPrize = (g) => (g === 'Джексон' ? { pack: 4, coins: 2000 } : g === 'Легенды' ? { pack: 4, coins: 1000 } : { pack: 4, coins: 500 });
@@ -350,6 +374,7 @@ const Cards = (() => {
       Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>${esc(c.series)}</h2><p>Награда испытания. Из паков не выпадает, за монеты не продаётся.</p>${c.model3d && typeof Model3D !== 'undefined' ? '<button class="btn ghost cd-wo" data-model3d="' + esc(c.key) + '">Посмотреть в 3D</button>' : ''}</div>`, [{ label: 'К испытанию', onClick: () => Legends.open(c.challenge) }, { label: 'Закрыть', cls: 'ghost' }]);
       return;
     }
+    if (c.rar === 'jg') { Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>Особая карточка</h2><p>Награда события Jackson Games. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'Понятно', cls: 'ghost' }]); return; }
     if (c.sbcOnly) {
       Modal.open(`<div class="cd">${html(c, { w: 180 })}<h2>${esc(c.name)} · ${c.r}</h2><p>Будущие звёзды · Барселона · левый защитник</p><p>Уникальная награда ИПК: выполни 10 составов. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'К испытанию', onClick: () => SBC.open('fs:espart') }, { label: 'Закрыть', cls: 'ghost' }]);
       return;
