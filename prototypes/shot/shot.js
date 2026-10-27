@@ -2314,7 +2314,12 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
     const aLat = dt > 0 ? (dh / dt) * sp : 0, brake = Math.max(0, -(P.acc || 0)), ka = 1 - Math.exp(-dt * 10);
     pl.aLat = (pl.aLat || 0) + (THREE.MathUtils.clamp(aLat, -14, 14) - (pl.aLat || 0)) * ka; pl.brake = (pl.brake || 0) + (Math.min(12, brake) - (pl.brake || 0)) * ka; }
   const lean = Math.max(-0.2, Math.min(0.2, -(pl.aLat || 0) * 0.028)), pitch = Math.max(-0.1, Math.min(0.1, P.acc * 0.02));
-  const kl = 1 - Math.exp(-dt * 6); h.rotation.z += (lean - h.rotation.z) * kl; h.rotation.x += (pitch - h.rotation.x) * kl;
+  // в беге наклон делает корпус (позвоночник, spineLean), а не вся модель: наклон модели вокруг точки на газоне уводил
+  // внутреннюю / заднюю стопу под газон, groundFix подбрасывал игрока на 6–16 см и потом медленно опускал («проваливается,
+  // меняется рост»). В остальных движениях — как раньше, вся модель. Наклон «вперёд» теперь — по ходу игрока, а не по оси X поля
+  const kl = 1 - Math.exp(-dt * 6), up = pl.name === 'loco' && !pl.mv, BL = pl.bodyLean || (pl.bodyLean = { z: 0, x: 0 });
+  h.rotation.z += ((up ? 0 : lean) - h.rotation.z) * kl; h.rotation.x += ((up ? 0 : pitch) - h.rotation.x) * kl;
+  BL.z += ((up ? lean : 0) - BL.z) * kl; BL.x += ((up ? pitch : 0) - BL.x) * kl;
   // замах занят до конца движения ноги; запись может закончиться раньше этого запаса — тогда до её конца (иначе поза застывает навсегда)
   const busyTill = (C, extra) => Math.min(C.tc + extra, C.dur - 0.05);
   const busy = (pl.name === 'strike' && pl.t < busyTill((pl.own && CONTACT.own) || STRIKE, 0.3)) || (pl.name === 'pass' && pl.t < busyTill((pl.own && CONTACT.ownPass) || PASS, 0.22)) || (pl === shooter && run.feint) || (pl.cele && pl.name === 'header_soccerball' && pl.t < pl.cele) || (pl.once && pl.name === pl.once.name && pl.t < pl.once.until && !(pl.once.name === 'receive' && sp > 1.3) && !(pl.once.run && sp < 0.6)); // приём не держит позу, если игрок уже побежал
@@ -2349,7 +2354,7 @@ function bodyAnim(pl, P, dt, who0) { // положение, наклон, бег
     pl.footSeen = B.foot;
     if (!cutStep(pl, P, dt)) xferPose(pl, P); }
   { const mine = B.state === 'owned' && B.owner === who; if (!pl.cut && !soleLayer(pl, P, dt, sp, mine)) weightLayer(pl, P, dt); }
-  staggerLayer(pl, P, dt); tackleLayer(pl, P, dt);
+  staggerLayer(pl, P, dt); tackleLayer(pl, P, dt); spineLean(pl);
   if (pl.loco) pl.loco.lastPh = (pl.loco.jog.time / pl.loco.jog.getClip().duration) % 1;
   return sp;
 }
@@ -2726,6 +2731,13 @@ function fallTick(pl, P, dt) {
   if (pl.fall && F.t > 3) { pl.fall = null; P.drive = null; P.lockYaw = 0; pl.once = null; } // страховка
 }
 const TKL = { dur: 0.42, peak: 0.17, crouch: 0.1, lean: 0.22, reach: 0.75 };
+// наклон корпуса в беге (bodyAnim → pl.bodyLean): z — в поворот, вокруг направления корпуса; x — вперёд при разгоне, назад при торможении
+function spineLean(pl) {
+  const L = pl.bodyLean; if (!L || (Math.abs(L.z) < 0.003 && Math.abs(L.x) < 0.003)) return;
+  const sp = pl.spineB || (pl.spineB = pl.model.getObjectByName('Spine')); if (!sp) return;
+  const y = pl.vyaw ?? 0, fx = Math.sin(y), fz = Math.cos(y);
+  ikV.set(fx, 0, fz); rotW(sp, ikV, L.z); ikV.set(fz, 0, -fx); rotW(sp, ikV, L.x); sp.updateMatrixWorld(true);
+}
 function tackleLayer(pl, P, dt) {
   const T = pl.tkl; if (!T) return; T.t += dt; if (T.t > TKL.dur || pl.fall || pl.mv) { pl.tkl = null; return; }
   const sm = THREE.MathUtils.smoothstep, w = T.t < TKL.peak ? sm(T.t, 0, TKL.peak) : 1 - sm(T.t, TKL.peak + 0.06, TKL.dur);
