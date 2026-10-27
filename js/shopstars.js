@@ -98,5 +98,5 @@ const StarShop = (() => {
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-ss]'); if (b) { Sound.play('tap'); buy(b.dataset.ss); } });
   document.addEventListener('click', (e) => { const b = e.target.closest('[data-coinpack]'); if (b) buyCoins(b.dataset.coinpack); });
   document.addEventListener('ss-buy', (e) => buy(e.detail));
-  return { open, packsHtml, skinsHtml, sync, grant, ITEMS };
+  return { COIN_PACKS, odds, open, packsHtml, skinsHtml, sync, grant, ITEMS };
 })();

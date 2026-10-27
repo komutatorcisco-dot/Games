@@ -442,5 +442,5 @@ const Rewards = (() => {
     header();
   }
 
-  return { weekend, onEnd, addTrophies, MAX_TROPHIES, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
+  return { questSync, qdef, claimQuest, DAILY, weekend, onEnd, addTrophies, MAX_TROPHIES, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
 })();

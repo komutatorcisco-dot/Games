@@ -1,0 +1,185 @@
+/* Новый вид «как FC Mobile» (js/fcm.js) — макет, только лёжа. Оболочка не листается: сверху профиль и валюта
+   (ниже кнопок Telegram), снизу меню разделов, листается только середина. */
+.fcm, .fcm-back-new { display: none; }
+
+@media (orientation: landscape) and (max-height: 620px) {
+  :root {
+    --fm-t: max(6px, env(safe-area-inset-top, 0px), calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px)), var(--safe-top, 0px));
+    --fm-l: max(10px, env(safe-area-inset-left, 0px), var(--tg-safe-area-inset-left, 0px));
+    --fm-r: max(10px, env(safe-area-inset-right, 0px), var(--tg-safe-area-inset-right, 0px));
+    --fm-b: max(0px, env(safe-area-inset-bottom, 0px), var(--tg-safe-area-inset-bottom, 0px));
+    --fm-lime: #c6ff3d; --fm-teal: #19d3b0; --fm-ink: #06101c; --fm-edge: rgba(150,200,255,.18); --fm-card: rgba(16,30,52,.86);
+  }
+  body.fcm-on:not([data-scr]) .fcm, body.fcm-on[data-scr="hub"] .fcm { display: grid; }
+  body.fcm-on:is(:not([data-scr]), [data-scr="hub"]) :is(.tabbar, #hub) { visibility: hidden !important; }
+  body:not(.fcm-on)[data-scr="hub"] .fcm-back-new { display: block; position: fixed; z-index: 45; right: calc(var(--fm-r) + 150px); top: calc(var(--fm-t) + 8px); padding: 7px 12px; border: 0; border-radius: 16px;
+    background: var(--fm-lime); color: var(--fm-ink); font: 800 13px "Barlow Condensed", "Rubik", sans-serif; text-transform: uppercase; }
+
+  .fcm { position: fixed; inset: 0; z-index: 40; grid-template-rows: auto minmax(0, 1fr) auto; color: #fff; overflow: hidden; font-family: "Barlow Condensed", "Rubik", sans-serif;
+    padding: var(--fm-t) 0 0;
+    background:
+      radial-gradient(60% 50% at 50% -10%, rgba(80,170,255,.22), transparent 70%),
+      radial-gradient(50% 60% at 100% 100%, rgba(25,211,176,.10), transparent 70%),
+      linear-gradient(180deg, #0b1830 0%, #070d1a 70%); }
+  .fcm::before { content: ''; position: absolute; inset: -20px; z-index: -1; background: url(../img/bg/home_hero_poster.webp) center 40% / cover; filter: blur(18px) saturate(.5) brightness(.28); opacity: .6; }
+  .fcm button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; -webkit-tap-highlight-color: transparent; }
+  .fcm img { display: block; }
+  .fcm b, .fcm small, .fcm em { min-width: 0; font-style: normal; }
+  .fcm :is(button, .fm-of, .fm-q):active { transform: scale(.97); }
+
+  /* Telegram во весь экран: шапка в ряду кнопок Telegram, между ними (по краям — место под его кнопки) */
+  .fcm.tgbar { padding-top: var(--fm-sa, 0px); }
+  .fcm.tgbar .fm-top { height: max(38px, var(--fm-ca, 0px)); padding-left: calc(var(--fm-l) + 118px); padding-right: calc(var(--fm-r) + 112px); }
+  /* ---------- верх ---------- */
+  .fm-top { display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 var(--fm-r) 0 var(--fm-l); }
+  .fm-me { display: flex; align-items: center; gap: 9px; }
+  .fm-ava { width: 34px; height: 34px; display: grid; place-items: center; font-size: 19px; border-radius: 7px; background: linear-gradient(180deg, #1c2a44, #0c1424); box-shadow: inset 0 0 0 1px rgba(200,220,255,.3); }
+  .fm-who { display: grid; gap: 2px; } .fm-who b { font: 800 16px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; max-width: 30vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fm-who small { display: inline-flex; align-items: center; gap: 3px; justify-self: start; padding: 1px 6px; border-radius: 3px; background: #1aa54a; font: 700 12px/1.2 "Barlow Condensed", sans-serif; } .fm-who small svg { width: 11px; height: 11px; }
+  .fm-back { width: 34px; height: 34px; display: grid !important; place-items: center; text-align: center !important; border-radius: 50% !important; background: rgba(255,255,255,.08) !important; font: 700 26px/1 sans-serif !important; padding-bottom: 3px !important; }
+  .fm-title { font: italic 800 24px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .02em; }
+  .fm-sp { flex: 1; }
+  .fm-cur { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 6px; border-radius: 15px; background: linear-gradient(180deg, rgba(20,32,52,.9), rgba(8,14,26,.9)); box-shadow: inset 0 0 0 1px var(--fm-edge); font: 700 15px/1 "Barlow Condensed", sans-serif; }
+  .fm-cur .coin { width: 20px; height: 20px; } .fm-cur svg { width: 17px; height: 17px; color: #ffd23c; }
+  .fm-old { height: 30px; padding: 0 10px !important; border-radius: 15px !important; background: rgba(255,255,255,.06) !important; font: 700 12px/1 "Barlow Condensed", sans-serif !important; text-transform: uppercase; color: rgba(255,255,255,.6) !important; }
+
+  /* ---------- середина ---------- */
+  .fm-main { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 8px var(--fm-r) 10px var(--fm-l); }
+
+  /* ---------- низ: меню разделов, «Играть» — в центре, крупнее ---------- */
+  .fm-nav { display: grid; grid-template-columns: 1fr 1fr 1.25fr 1fr 1fr; height: calc(50px + var(--fm-b)); padding: 0 var(--fm-r) var(--fm-b) var(--fm-l);
+    background: linear-gradient(180deg, rgba(14,24,42,.94), rgba(5,9,18,.98)); box-shadow: inset 0 1px 0 rgba(150,200,255,.14); }
+  .fm-tab { position: relative; display: flex !important; align-items: center; justify-content: center; gap: 7px; color: rgba(230,238,248,.6) !important; box-shadow: inset -1px 0 0 rgba(150,200,255,.08); }
+  .fm-tab b { font: 800 15px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .04em; }
+  .fm-ti { width: 28px; height: 28px; object-fit: contain; filter: saturate(.6) brightness(.85); }
+  .fm-tab.on { color: #fff !important; background: linear-gradient(180deg, rgba(198,255,61,.14), rgba(198,255,61,.02)) !important; box-shadow: inset 0 -3px 0 var(--fm-lime); }
+  .fm-tab.on .fm-ti { filter: none; }
+  .fm-tab.play { margin: -10px 4px 6px; border-radius: 10px; color: var(--fm-ink) !important; background: linear-gradient(180deg, #d8ff6a, #8fe61e) !important; box-shadow: 0 4px 14px rgba(160,255,60,.25), inset 0 1px 0 rgba(255,255,255,.6); }
+  .fm-tab.play b { font-size: 18px; font-style: italic; } .fm-tab.play .fm-ti { filter: none; }
+  .fm-tab.play.on { box-shadow: 0 4px 14px rgba(160,255,60,.35), inset 0 0 0 2px #fff; }
+  .fm-dot { position: absolute; top: 8px; right: 14%; width: 9px; height: 9px; border-radius: 50%; background: #ff3d4f; box-shadow: 0 0 0 2px #0a1222; }
+
+  /* общие кнопки */
+  .fm-btn { display: flex !important; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 14px !important; border-radius: 8px !important; text-align: center !important;
+    background: linear-gradient(180deg, rgba(40,62,98,.95), rgba(22,36,62,.95)) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.15), inset 0 0 0 1px var(--fm-edge) !important;
+    font: 800 15px/1 "Barlow Condensed", sans-serif !important; text-transform: uppercase; letter-spacing: .03em; }
+  .fm-btn.gold { color: var(--fm-ink) !important; background: linear-gradient(180deg, #d8ff6a, #8fe61e) !important; }
+  .fm-btn.star { color: #1c1400 !important; background: linear-gradient(180deg, #ffe17a, #f5b623) !important; }
+  .fm-btn.off { opacity: .5; } .fm-btn svg { width: 15px; height: 15px; } .fm-btn .coin { width: 18px; height: 18px; }
+  .fm-btn.sm { min-height: 34px; padding: 0 12px !important; font-size: 14px !important; }
+  .fm-go { font-style: normal; }
+
+  /* ---------- Играть ---------- */
+  .fm-play { display: grid; height: 100%; min-height: 250px; gap: 10px; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.5fr) 82px; }
+  .fm-hero { position: relative; overflow: hidden; display: grid !important; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px !important; border-radius: 10px;
+    background: radial-gradient(80% 90% at 20% 50%, rgba(140,60,255,.35), transparent 70%), linear-gradient(135deg, #2a1462, #120a34 60%, #0b0f2a) !important; box-shadow: inset 0 0 0 1px rgba(190,150,255,.3), 0 10px 22px -6px rgba(0,0,0,.6); }
+  .fm-hero-t { display: grid; gap: 6px; align-content: center; }
+  .fm-hero-t small { font: 700 12px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .14em; color: #c9b4ff; }
+  .fm-hero-t b { font: italic 800 clamp(20px, 6.4vh, 28px)/1 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+  .fm-hero-t em { font: 600 13px/1.25 "Barlow Condensed", sans-serif; color: #d8cdf5; }
+  .fm-hero-t .fm-go { justify-self: start; margin-top: 4px; padding: 6px 12px; border-radius: 6px; background: var(--fm-lime); color: var(--fm-ink); font: 800 14px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+  .fm-hero-card .cc { animation: none; }
+  .fm-modes { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; grid-template-rows: 1.2fr 1fr 1fr; min-height: 0; }
+  .fm-mode { position: relative; overflow: hidden; display: flex !important; flex-direction: column; justify-content: flex-end; gap: 3px; padding: 10px 12px !important; border-radius: 10px; min-height: 0;
+    background: var(--art, none) right center / auto 110% no-repeat, linear-gradient(135deg, #18304f, #0d1a30) !important; box-shadow: inset 0 0 0 1px var(--fm-edge), 0 8px 18px -6px rgba(0,0,0,.6); }
+  .fm-mode::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(5,10,20,.85), rgba(5,10,20,.35) 60%, transparent); }
+  .fm-mode > * { position: relative; }
+  .fm-mode b { font: italic 800 clamp(16px, 5vh, 22px)/1 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+  .fm-mode small { font: 600 12px/1.15 "Barlow Condensed", sans-serif; color: #c7d4e6; max-width: 80%; }
+  .fm-mode.big { grid-column: 1 / -1; }
+  .fm-mi { position: absolute !important; right: 8px; top: 50%; height: 78%; max-height: 64px; width: auto; transform: translateY(-50%) rotate(-6deg); filter: drop-shadow(0 6px 8px rgba(0,0,0,.5)); opacity: .95; }
+  .fm-mode.blue { background: radial-gradient(80% 120% at 100% 50%, rgba(60,120,255,.45), transparent 70%), linear-gradient(135deg, #16306a, #0b1838) !important; }
+  .fm-mode.lime { background: var(--art) right center / auto 120% no-repeat, linear-gradient(120deg, #0f4a22, #16762f 55%, #1d9a3f) !important; box-shadow: inset 0 0 0 1px rgba(198,255,61,.5), 0 8px 18px -6px rgba(0,0,0,.6); }
+  .fm-mode.lime::before { background: linear-gradient(90deg, rgba(6,36,14,.85), rgba(6,36,14,.3) 60%, transparent); }
+  .fm-mode.lime b { color: var(--fm-lime); font-size: clamp(20px, 7vh, 30px); }
+  .fm-side { display: grid; gap: 8px; grid-auto-rows: minmax(0, 1fr); }
+  .fm-sq { display: grid !important; justify-items: center; align-content: center; gap: 4px; padding: 6px 2px !important; border-radius: 10px; text-align: center !important;
+    background: linear-gradient(180deg, rgba(40,80,130,.55), rgba(10,20,38,.9)) !important; box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .fm-sq img { width: 38px; height: 38px; object-fit: contain; } .fm-sq b { font: 800 11px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+  .fm-sq.hot { box-shadow: inset 0 0 0 1px rgba(25,211,176,.6), 0 0 10px rgba(25,211,176,.2); }
+
+  /* ---------- Команда: поле лёжа, справа — цифры и кнопки ---------- */
+  .fm-team { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 12px; height: 100%; min-height: 240px; }
+  .fm-pitch { position: relative; border-radius: 10px; overflow: hidden;
+    background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgba(0,0,0,.5)), repeating-linear-gradient(90deg, #2c5a2a 0 6.25%, #264f25 6.25% 12.5%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.12), 0 10px 22px -6px rgba(0,0,0,.6); }
+  .fm-pl { position: absolute; inset: 6px; border: 1.5px solid rgba(255,255,255,.3); border-radius: 4px; }
+  .fm-pl::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; border-left: 1.5px solid rgba(255,255,255,.3); }
+  .fm-pl::after { content: ''; position: absolute; left: 50%; top: 50%; width: 16%; aspect-ratio: 1; transform: translate(-50%, -50%); border: 1.5px solid rgba(255,255,255,.3); border-radius: 50%; }
+  .fm-slot { position: absolute; transform: translate(-50%, -50%); display: grid; justify-items: center; }
+  .fm-slot:not(.on) { width: 38px; height: 50px; align-content: center; border-radius: 8px; background: rgba(0,0,0,.3); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.35); }
+  .fm-slot i { font: 800 20px/1 sans-serif; font-style: normal; } .fm-slot small { font: 800 9px/1 "Rubik", sans-serif; color: #ffcf3a; }
+  .fm-slot .cc { animation: none; box-shadow: 0 4px 10px rgba(0,0,0,.45); }
+  /* края схемы: вратарь и нападающие не вылезают за поле */
+  .fm-pitch { --pad: 30px; } .fm-slot { margin: 0; }
+  .fm-tside { display: grid; gap: 8px; align-content: start; }
+  .fm-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .fm-stats span { display: grid; justify-items: center; gap: 3px; padding: 8px 2px; border-radius: 8px; background: var(--fm-card); box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .fm-stats small { font: 700 11px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .06em; color: #9fb2cc; }
+  .fm-stats b { font: italic 800 22px/1 "Barlow Condensed", sans-serif; }
+
+  /* ---------- раздел с левой колонкой вкладок (События, Задания, Магазин) ---------- */
+  .fm-split { display: grid; grid-template-columns: 150px minmax(0, 1fr); gap: 12px; min-height: 100%; }
+  .fm-rail { display: grid; gap: 6px; align-content: start; position: sticky; top: 0; }
+  .fm-rail button { display: grid !important; gap: 3px; padding: 10px 12px !important; border-radius: 8px; background: var(--fm-card) !important; box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .fm-rail b { font: 800 15px/1.05 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+  .fm-rail small { font: 600 12px/1 "Barlow Condensed", sans-serif; color: #9fb2cc; }
+  .fm-rail button.on { background: linear-gradient(90deg, rgba(198,255,61,.22), rgba(198,255,61,.05)) !important; box-shadow: inset 3px 0 0 var(--fm-lime), inset 0 0 0 1px rgba(198,255,61,.3); }
+  .fm-rail button.on small { color: var(--fm-lime); }
+  .fm-body { min-width: 0; }
+  .fm-none { color: #9fb2cc; }
+
+  /* События: шапка события и путь узлов */
+  .fm-ev { display: grid; gap: 10px; }
+  .fm-ev-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px;
+    background: radial-gradient(70% 120% at 0% 50%, rgba(140,60,255,.35), transparent 70%), linear-gradient(135deg, #24125a, #0f0b2c) !important; box-shadow: inset 0 0 0 1px rgba(190,150,255,.3); }
+  .fm-ev-card .cc { animation: none; }
+  .fm-ev-t { display: grid; gap: 4px; } .fm-ev-t small { font: 700 12px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; letter-spacing: .12em; color: #c9b4ff; }
+  .fm-ev-t b { font: italic 800 26px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; } .fm-ev-t em { font: 600 13px/1.25 "Barlow Condensed", sans-serif; color: #d8cdf5; }
+  .fm-path { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+  .fm-node { position: relative; display: grid !important; justify-items: center; align-content: start; gap: 4px; padding: 10px 6px 8px !important; border-radius: 10px; text-align: center !important;
+    background: var(--fm-card) !important; box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .fm-n-ico { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 50%; font-size: 20px; font-style: normal; background: linear-gradient(180deg, #2b4a7a, #142640); box-shadow: inset 0 0 0 2px rgba(255,255,255,.25); }
+  .fm-n-ico svg { width: 18px; height: 18px; }
+  .fm-node b { font: 800 14px/1.05 "Barlow Condensed", sans-serif; text-transform: uppercase; } .fm-node small { font: 600 11px/1.15 "Barlow Condensed", sans-serif; color: #b6c4d8; }
+  .fm-node em { margin-top: 2px; padding: 2px 7px; border-radius: 4px; background: rgba(255,210,60,.15); color: #ffd23c; font: 700 11px/1.2 "Barlow Condensed", sans-serif; }
+  .fm-node u { position: absolute; right: -12px; top: 28px; width: 12px; height: 3px; background: rgba(198,255,61,.5); }
+  .fm-node:not(.lock) .fm-n-ico { background: linear-gradient(180deg, #d8ff6a, #8fe61e); color: var(--fm-ink); }
+  .fm-node.lock { opacity: .55; } .fm-node.fin { box-shadow: inset 0 0 0 1px rgba(255,79,102,.5); } .fm-node.fin .fm-n-ico { color: #ff4f66; }
+  .fm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .fm-gc { display: grid !important; justify-items: center; gap: 4px; padding: 10px 6px !important; border-radius: 10px; text-align: center !important; background: var(--fm-card) !important; box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .fm-gc img { width: 56px; height: 56px; object-fit: contain; border-radius: 10px; } .fm-gc b { font: 800 15px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; } .fm-gc small { font: 600 12px/1 "Barlow Condensed", sans-serif; color: #9fb2cc; }
+
+  /* Задания */
+  .fm-qs { display: grid; gap: 6px; }
+  .fm-q { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 10px 8px 14px; border-radius: 8px; background: var(--fm-card); box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .fm-q-t { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
+  .fm-q-t b { grid-column: 1 / -1; font: 700 15px/1.1 "Barlow Condensed", sans-serif; }
+  .fm-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; } .fm-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #19d3b0, var(--fm-lime)); }
+  .fm-q-t small { font: 700 12px/1 "Barlow Condensed", sans-serif; color: #9fb2cc; }
+  .fm-q-rw { display: grid; justify-items: end; font: italic 800 18px/1 "Barlow Condensed", sans-serif; color: #ffd23c; } .fm-q-rw small { font: 600 10px/1 "Barlow Condensed", sans-serif; color: #9fb2cc; text-transform: uppercase; }
+  .fm-q.done { box-shadow: inset 0 0 0 1px rgba(198,255,61,.5); } .fm-q.got { opacity: .5; }
+  .fm-q-ok { width: 34px; text-align: center; font-size: 20px; color: var(--fm-lime); }
+  .fm-pass { margin-top: 10px; width: 100%; }
+
+  /* Магазин: предложения в ряд, как витрина FC Mobile */
+  .fm-daypk { display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; margin-bottom: 10px; padding: 8px 14px !important; border-radius: 10px;
+    background: linear-gradient(90deg, #0f5f63, #0d3b52) !important; box-shadow: inset 0 0 0 1px rgba(25,211,176,.4); }
+  .fm-daypk img { width: 44px; height: 44px; object-fit: contain; } .fm-daypk b { display: block; font: 800 17px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; } .fm-daypk small { font: 600 13px/1.2 "Barlow Condensed", sans-serif; color: #bfe9e2; }
+  .fm-daypk em { padding: 8px 14px; border-radius: 7px; background: var(--fm-lime); color: var(--fm-ink); font: 800 14px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+  .fm-daypk:not(.hot) em { background: rgba(255,255,255,.12); color: #fff; }
+  .fm-offers { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 1fr); gap: 10px; overflow-x: auto; padding-bottom: 6px; }
+  .fm-of { display: grid; grid-template-rows: auto auto 1fr auto; justify-items: center; gap: 5px; padding: 12px 10px 10px; border-radius: 10px; text-align: center;
+    background: linear-gradient(180deg, rgba(30,52,88,.95), rgba(10,18,34,.95)); box-shadow: inset 0 0 0 1px var(--fm-edge), 0 10px 20px -8px rgba(0,0,0,.6); }
+  .fm-of.lv1 { background: linear-gradient(180deg, rgba(20,60,140,.9), rgba(10,18,40,.95)); } .fm-of.lv2 { background: linear-gradient(180deg, rgba(90,30,150,.9), rgba(16,10,40,.95)); }
+  .fm-of.lv3 { background: linear-gradient(180deg, rgba(150,110,20,.9), rgba(30,22,8,.95)); } .fm-of.lv4 { background: linear-gradient(180deg, rgba(150,20,40,.9), rgba(30,8,12,.95)); }
+  .fm-of-art { height: clamp(60px, 20vh, 92px); display: grid; place-items: center; } .fm-of-art .fpk { --pw: 62px; --ph: 86px; }
+  .fm-of b { font: italic 800 17px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; } .fm-of small { font: 600 12px/1.2 "Barlow Condensed", sans-serif; color: #c7d4e6; }
+  .fm-of .fm-btn { width: 100%; }
+  .fm-skins .ss-h { display: none; }
+}
+/* низкие экраны (Telegram с кнопками сверху, маленькие телефоны) */
+@media (orientation: landscape) and (max-height: 400px) {
+  .fm-top { height: 36px; } .fm-nav { height: calc(44px + var(--fm-b)); } .fm-tab b { font-size: 13px; } .fm-ti { width: 24px; height: 24px; } .fm-tab.play b { font-size: 16px; }
+  .fm-mode small { display: none; } .fm-path { gap: 8px; } .fm-node small { display: none; }
+  .fm-split { grid-template-columns: 120px minmax(0, 1fr); } .fm-ev-card { display: none; } .fm-ev-head { padding: 8px 12px; } .fm-ev-t b { font-size: 22px; } .fm-rail button { padding: 8px 10px !important; }
+}
