@@ -26,12 +26,13 @@ const ST = Math.max(40, Math.min(99, Number(Q.get('st')) || 82));
 const NAME = (Q.get('name') || 'ИГРОК').toUpperCase().slice(0, 14);
 // тренировки для новичка (как «Развитие навыков» в FC Mobile): основы управления, гонка с дриблингом, удары по мишеням
 const LESSON = ['basics', 'dribble', 'targets'].includes(Q.get('lesson')) ? Q.get('lesson') : null;
-let MODE = LESSON ? { basics: 'duo', dribble: 'run', targets: 'fk' }[LESSON] : ['pen', 'run', 'duo', 'match'].includes(Q.get('mode')) ? Q.get('mode') : 'fk';
-const FREE = () => MODE === 'run' || MODE === 'duo' || MODE === 'match'; // свободная игра: «1 на 1», «2 на 1» и матч
-const MATCH_ON = MODE === 'match';
+let MODE = LESSON ? { basics: 'duo', dribble: 'run', targets: 'fk' }[LESSON] : ['pen', 'run', 'duo', 'match', 'moments'].includes(Q.get('mode')) ? Q.get('mode') : 'fk';
+const FREE = () => MODE === 'run' || MODE === 'duo' || MODE === 'match' || MODE === 'moments'; // свободная игра: «1 на 1», «2 на 1» и матч
+const MOM = MODE === 'moments'; // «Моменты»: серия коротких атак на движке матча (см. «Моменты» ниже)
+const MATCH_ON = MODE === 'match' || MOM;
 const EMBED = Q.get('embed') === '1' && window.parent !== window; // открыто внутри хаба (фрейм): выход, «Назад» и вибрация — через хаб
 const FROM_MENU = EMBED; // есть куда выйти: кнопки «Пауза» и «Выйти» // «Матч 3 на 3» (экспериментальный): своё поле, двое ворот, шесть игроков; режим на странице не меняется
-const TEAM = () => MODE === 'duo' || MODE === 'match'; // есть партнёр: пас, смена
+const TEAM = () => MODE === 'duo' || MATCH_ON; // есть партнёр: пас, смена
 // поле матча: длина (ворота на z = 0 и z = L), половина ширины; время — настоящие секунды
 // состав из хаба (?p0…p(N−2) — полевые, последний — вратарь): «имя|рейтинг|шесть характеристик»; нет — «Игрок клуба» 65
 const NSIDE = MATCH_ON ? Math.max(2, Math.min(11, Number(Q.get('n')) || 3)) : 3; // игроков в команде (с вратарём): 3 — матч 3 на 3, 11 — пробный 11 на 11
@@ -126,7 +127,7 @@ scene.fog = NIGHT ? new THREE.Fog('#0d1530', 60, 140) : new THREE.Fog('#c3d4e6',
 // «2 на 1»: камера сбоку и сверху, как в трансляции (?cam=old — прежняя камера за спиной игрока, для сравнения)
 // вид «2 на 1»: ?look=a (по умолчанию) | b | old (прежний); ?cam=old — прежняя камера за спиной
 const LOOKSEL = ['a', 'b', 'old'].includes(Q.get('look')) ? Q.get('look') : 'a';
-const DUO_OLD = Q.get('cam') === 'old', TV = () => (MODE === 'duo' || MODE === 'match' || LESSON === 'dribble') && !DUO_OLD, BALL_TV = 1.2; // мяч на экране чуть крупнее в виде с трибуны (камера далеко)
+const DUO_OLD = Q.get('cam') === 'old', TV = () => (MODE === 'duo' || MATCH_ON || LESSON === 'dribble') && !DUO_OLD, BALL_TV = 1.2; // мяч на экране чуть крупнее в виде с трибуны (камера далеко)
 // Камера «с трибуны»: ~42° сверху, ~66 м до центра кадра, узкий объектив (почти без перспективного растяжения).
 // При таком ракурсе «глубина кадра × размер игрока» ≈ 1,8 / tg(наклона): ~24 м поля в глубину и ~35 м в ширину, игрок ~8% высоты кадра.
 const CAM_TV = { side: 48.8, h: 44, fov: 14, look: 0, ahead: 7, rate: 2.6, zMin: 1 }; // ~66 м, ~42°: над трибуной; узкий угол — линии поля почти не сходятся
@@ -3464,6 +3465,7 @@ function statGot(team, how = 'int') { if (MT.passPend) { if (MT.passPend.team ==
 function statShot(team, how = 'нога') { MST().shots[team]++; MT.shotPend = { team }; MT.passPend = null; MT.shotHow = how; MT.shotFrom = Math.round(Math.hypot(B.p.x, B.p.z - attackZ(team))); }
 // ---- правила: время, аут, угловой, от ворот, гол, начало с центра ----
 function matchRules(h) {
+  if (MOM) return momRules(h);
   if (MT.st === 'play' || MT.st === 'dead') { MT.clock = Math.max(0, MT.clock - h); if (MT.clock <= 0 && state === 'play') return matchOver(); }
   if (MT.restart) { MT.restart.t += h; if (MT.restart.kind === 'kickoff' && (MT.restart.t > 2.5 || Math.hypot(B.p.x, B.p.z - MATCH.L / 2) > 1.2)) MT.restart = null; } // мяч сдвинули — розыгрыш начат
   MT.stT += h;
@@ -3558,6 +3560,7 @@ function matchOver() {
 const escH = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); // имена приходят из адреса
 // итоги: голы с минутами, владение, удары, в створ, точность передач, отборы, угловые, офсайды
 function matchSummary() {
+  $('#endG').classList.remove('cols');
   const S = MST(), card = $('#endCard'), box = $('#endS'), gl = $('#endG'); if (!card || !box) return;
   card.classList.add('wide'); box.hidden = false;
   gl.innerHTML = S.goals.map((g) => `<div class="${g.team === 0 ? '' : 'them'}"><b>${g.min}'</b>${escH(g.name)}${g.team === 0 ? '' : ' · гости'}</div>`).join('');
@@ -3571,6 +3574,7 @@ function matchSummary() {
 let bannerT = 0;
 function matchBanner(text, big = false) { const m = $('#msg'); if (!m) return; m.textContent = text; m.className = 'msg on ' + (big ? 'goal' : 'miss'); clearTimeout(bannerT); bannerT = setTimeout(() => (m.className = 'msg'), big ? 2200 : 1100); }
 function matchHud(force) {
+  if (MOM) return momHud(force);
   const t = Math.ceil(MT.clock), txt = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`, key = txt + MT.score.join(':');
   if (!force && key === MT.shown) return; MT.shown = key;
   $('#score').textContent = `${MT.score[0]} : ${MT.score[1]}`; const c = $('#mclock'); if (c) c.textContent = txt;
@@ -3617,10 +3621,112 @@ function resetMatch() {
   run.mate.P.yaw = Math.PI;
   $('#end').classList.remove('on'); defShown = null;
   $('#who').textContent = 'Джексоны'; $('#dots').textContent = 'Гости';
-  state = 'play'; celebrate = -1; kickoff(0, true); matchHud(true); matchButtons();
+  state = 'play'; celebrate = -1; if (MOM) momReset(); else kickoff(0, true); matchHud(true); matchButtons();
   $('#hint').textContent = 'Джойстик слева. «Удар»: держи — сила, оттяни вбок — подкрутка, вверх — переброс. «Пас» — тому, кто в сторону джойстика, зажми и потяни вверх — верхом. «На ход» — в разрез, вверх — верхом за спину защитникам. Мяч у соперника: «Отбор» — коротко, «Прессинг» — держи, «Подкат» — скольжение к мячу (до 5 м). Пас назад к своим воротам — вратарю (он примет ногой). Мяч у нашего вратаря — одна кнопка «Отдать пас»: джойстик — кому, вверх — далеко. Навес в штрафную — удар головой сам.';
   let seen = false; try { seen = localStorage.getItem('shot.match.hint1') === '1'; localStorage.setItem('shot.match.hint1', '1'); } catch (e) { /* без памяти */ }
   $('#hint').style.opacity = seen ? 0 : 1;
+}
+// ---- «Моменты»: серия коротких атак на том же движке, что и матч (управление, физика, ИИ, вратарь) ----
+// Каждый эпизод — расстановка: кто с мячом, кто помогает, сколько защитников; лишние игроки уходят с поля так же, как
+// при красной карточке (pl.off). Атака кончается по понятным правилам: гол; вратарь надёжно забрал мяч; мяч за линией;
+// соперник владеет мячом 0,5 с; вышло время (если удар уже летит — ждём его до 3 с). Отбитый вратарём мяч и штанга атаку
+// не кончают — можно добить. Между эпизодами — короткое затемнение, без перезагрузки сцены и пролёта камеры.
+// Настройки из адреса (для событий): ep — список эпизодов через запятую, et — секунд на атаку, need — цель по голам,
+// sd — зерно (одинаковые расстановки у всех, кто играет с тем же зерном).
+const MOM_EP = {
+  // [x, z, курс] — z: расстояние от линии чужих ворот (атакуем к z = 0), x: поперёк, плюс — ближе к камере
+  '1v1': { name: 'Выход один на один', carrier: 'st', pos: (j) => { const x = j(4); return { me: [x, 27, Math.PI], o1: [x + 3, 33, Math.PI] }; } },
+  '2v1': { name: 'Двое против одного', carrier: 'st', pos: (j) => ({ me: [-5 + j(2), 30, Math.PI], mate: [8 + j(2), 29, Math.PI], o1: [1 + j(2), 21, 0] }) },
+  flank: { name: 'Атака с фланга', carrier: 'wing', pos: (j) => ({ me: [24 + j(2), 24 + j(2), Math.PI], mate: [1 + j(2), 17, Math.PI], o1: [4, 13, 0], o2: [15 + j(1), 20, 0] }) },
+  back: { name: 'Спиной к воротам', carrier: 'st', pos: (j) => { const x = j(4); return { me: [x, 22, 0], o1: [x, 20.6, 0], mate: [x + 9, 27, Math.PI] }; } },
+  '2v2': { name: 'Двое на двое у штрафной', carrier: 'st', pos: (j) => ({ me: [j(2), 31, Math.PI], mate: [11 + j(2), 28, Math.PI], o1: [-3 + j(1), 21, 0], o2: [9 + j(1), 19, 0] }) },
+};
+const MOM_CFG = (() => {
+  const list = String(Q.get('ep') || '1v1,2v1,flank,back,2v2,2v1').split(',').map((x) => x.trim()).filter((x) => MOM_EP[x]).slice(0, 20);
+  return { list: list.length ? list : ['1v1'], et: Math.max(6, Math.min(40, Number(Q.get('et')) || 14)), need: Math.max(0, Math.min(20, Number(Q.get('need')) || 0)), sd: Number(Q.get('sd')) || 0 };
+})();
+let MOMS = null, momIntro = false;
+function momRng(seed) { let s = (seed >>> 0) || 1; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+function momReset() {
+  MOMS = { i: 0, list: MOM_CFG.list, et: MOM_CFG.et, need: MOM_CFG.need, res: [], goals: 0, phase: 'wait', t: 0, ready: 0, endT: 0, lostT: 0, shots0: 0,
+    rnd: momRng(MOM_CFG.sd || (Date.now() & 0xffffff)), stPl: shooter0 || shooter, wingPl: wall[0] };
+  momSetup(0, true);
+  if (!momIntro) { // перед первой серией — условия: что будет и что нужно сделать
+    momIntro = true; MOMS.phase = 'intro'; state = 'over';
+    $('#endT').textContent = 'Моменты';
+    $('#endP').textContent = `${MOMS.list.length} атак по ${MOMS.et} с.${MOMS.need ? ` Цель — забить ${MOMS.need}.` : ''} Гол, сейв с добиванием, штанга — атака идёт, пока мяч в игре.`;
+    $('#endG').classList.add('cols'); $('#endG').innerHTML = MOMS.list.map((k, i) => `<div><b>${i + 1}</b>${MOM_EP[k].name}</div>`).join('');
+    $('#endS').hidden = true; $('#endCard').classList.remove('wide'); $('#again').textContent = 'Начать'; $('#end').classList.add('on');
+  }
+}
+function momBench(a, off) { a.pl.off = off; a.pl.holder.visible = !off; if (off) { a.P.p.x = MATCH.HW + 40; a.P.p.z = MATCH.L / 2; a.P.v.x = a.P.v.z = 0; } }
+function momSetup(i, now = false) {
+  const M = MOMS; M.phase = 'wait'; const fade = $('#fade'); if (!now && fade) fade.classList.add('on');
+  const go = () => {
+    const E = MOM_EP[M.list[i]], j = (a) => (M.rnd() * 2 - 1) * a, at = E.pos(j);
+    const want = E.carrier === 'wing' ? M.wingPl : M.stPl; if (shooter !== want && run.mate && run.mate.pl === want) swapControl('mate'); // с мячом — нужный по роли
+    actors(); const all = run._act;
+    for (const a of all) {
+      const p = at[a.id]; momBench(a, !p); if (!p) continue;
+      const P = a.P; P.p.x = p[0]; P.p.z = p[1]; P.v.x = P.v.z = 0; P.yaw = p[2]; P.drive = null; P.lockYaw = 0;
+      a.pl.holder.position.set(P.p.x, 0, P.p.z); a.pl.holder.rotation.set(0, P.yaw, 0); a.pl.vyaw = P.yaw; a.pl.cele = 0; a.pl.mv = null;
+      play(a.pl, 'idle', { loop: true, fade: 0.1, follow: true }); resetSpheres(a.pl);
+      const o = a.ai; if (o) { o.tx = undefined; o.pick = -1; o.tk = null; o.strike = null; o.pass = null; o.fire = o.sfire = false; o.slowT = 0; o.run = null; o.thinkT = a.team === 1 ? 0.5 : 0.25; }
+    }
+    run.offN = all.filter((a) => a.pl.off).length;
+    GK[0].pl.holder.position.set(0, 0, 0.4); GK[0].pl.holder.rotation.set(0, 0, 0); GK[1].pl.holder.position.set(0, 0, MATCH.L - 0.4); GK[1].pl.holder.rotation.set(0, Math.PI, 0);
+    for (let k = 0; k < 2; k++) { gkCtx(k, () => { keeperReset(); kick = null; play(keeper, 'gk_idle', { loop: true, fade: 0.2, follow: true }); }); GK[k].pl.smother = false; resetSpheres(GK[k].pl); }
+    Object.assign(MT, { gkHold: null, restart: null, next: null, off: null, back: null, cele: null, kicker: null, passPend: null, shotPend: null, st: 'play', stT: 0, last: 0 });
+    run.strike = null; run.pass = null; run.feint = null; B.feintOff = null; run.chase = false; run.chasePlan = null; run.swapNow = false; run.passTo = null; cancelCharge();
+    Object.assign(run.meAI, { strike: null, sfire: false, tk: null, slowT: 0 });
+    const me = actorOf('me'); placeBall(BP.controlPoint(me.P, null)); BP.capture(B, me.P, 'me'); B.trapDur = 0; BP.clearGoalFlags(B); B.lockOwner = null; B.mustClear = false;
+    Object.assign(M, { i, cur: { k: M.list[i], name: E.name }, t: 0, ready: 0, endT: 0, lostT: 0, shots0: MST().shots[0], phase: 'play' });
+    state = 'play'; tvCam(camAim, true); camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); momHud(true);
+    if (!now) setTimeout(() => { if (fade) fade.classList.remove('on'); sfx.whistle(); }, 60);
+  };
+  if (now) go(); else { M.pend = go; M.waitT = 0; } // затемнение 0,22 с — по игровому времени (momRules), не по часам машины
+}
+function momEnd(why, goal = false) {
+  const M = MOMS; if (M.phase !== 'play') return;
+  M.phase = 'end'; M.endT = 0; Object.assign(M.cur, { why, goal, shots: MST().shots[0] - M.shots0, t: +M.t.toFixed(1) }); M.res.push(M.cur);
+  if (goal) M.goals++; else matchBanner(why); run.chase = false; cancelCharge(); momHud(true);
+  if (TRACE) console.log('momEnd ' + JSON.stringify(M.cur));
+}
+function momRules(h) {
+  const M = MOMS; if (!M) return; MT.stT += h;
+  if (M.phase === 'end') { M.endT += h; if (M.endT > (M.cur.goal ? 1.6 : 1.1)) { if (M.i + 1 < M.list.length) momSetup(M.i + 1); else momDone(); } return; }
+  if (M.phase === 'wait' && M.pend) { M.waitT += h; if (M.waitT > 0.22) { const g = M.pend; M.pend = null; g(); } return; }
+  if (M.phase !== 'play') return;
+  if (MT.st === 'goal') return momEnd('Гол!', true);
+  if (MT.st === 'dead') { // фол на мне — штрафной или пенальти, атака продолжается (время на розыгрыш не идёт); фол мой — конец
+    const N = MT.next, ours = N && N.team === 0 && (N.kind === 'free' || N.kind === 'pen');
+    if (!ours) return momEnd(N && N.kind === 'corner' ? 'Угловой — атака окончена' : N && (N.kind === 'free' || N.kind === 'pen') ? 'Фол' : 'Мяч за линией');
+    if (MT.stT > 0.8) { MT.st = 'play'; setRestart(N); M.t = Math.min(M.t, M.et - 6); } // на розыгрыш — не меньше 6 с
+    return;
+  }
+  M.ready += h; if (M.ready > 0.5) M.t += h; // полсекунды на то, чтобы увидеть расстановку — время ещё не идёт
+  if (state !== 'play') return;
+  if (MT.gkHold && MT.gkHold.j === 0) return momEnd('Вратарь забрал мяч');
+  if (B.state !== 'held') { const side = Math.abs(B.p.x) > MATCH.HW + R, end0 = B.p.z < -R && !B.inGoal, end1 = B.p.z > MATCH.L + R && !(B.g2 && B.g2.inGoal);
+    if (side || end1) return momEnd('Мяч за линией'); if (end0) return momEnd(MT.last === 0 ? 'Мимо ворот' : 'Мяч за линией'); }
+  M.lostT = ownerTeam() === 1 ? M.lostT + h : 0; if (M.lostT > 0.5) return momEnd('Потеря мяча');
+  if (M.t > M.et) { const flying = B.state === 'free' && MT.last === 0 && Math.hypot(B.v.x, B.v.z) > 6; if (!flying || M.t > M.et + 3) return momEnd('Время вышло'); }
+}
+function momDone() {
+  const M = MOMS; M.phase = 'done'; state = 'over'; MT.st = 'over'; cancelCharge(); btn.press = false; sfx.whistle();
+  const n = M.list.length, ok = M.need ? M.goals >= M.need : null;
+  $('#endT').textContent = ok === true ? 'Задание выполнено!' : ok === false ? 'Почти получилось' : `${M.goals} из ${n}`;
+  $('#endP').textContent = `Голов: ${M.goals} из ${n} атак${M.need ? ` · цель — ${M.need}` : ''} · ударов: ${M.res.reduce((s, r) => s + r.shots, 0)}`;
+  $('#endG').classList.add('cols'); $('#endG').innerHTML = M.res.map((r, i) => `<div class="${r.goal ? '' : 'them'}"><b>${i + 1}</b>${escH(r.name)} — ${escH(r.goal ? 'гол' : r.why.toLowerCase())}</div>`).join('');
+  $('#endS').hidden = true; $('#endCard').classList.remove('wide'); $('#again').textContent = 'Ещё серия'; $('#end').classList.add('on');
+  // итог — хабу (пока только для показа; награды за моменты — следующий этап, с проверкой результата сервером)
+  if (EMBED) { try { parent.postMessage({ jg: 'football-result', mode: 'moments', goals: M.goals, n, need: M.need, list: M.res.map((r) => [r.k, r.goal ? 1 : 0]) }, location.origin); } catch (e) { /* без хаба */ } }
+}
+function momHud(force) {
+  const M = MOMS; if (!M) return; const n = M.list.length, i = Math.min(M.i + 1, n), left = Math.max(0, Math.ceil(M.et - M.t));
+  const key = `${M.goals}|${i}|${left}|${M.phase}`; if (!force && key === MT.shown) return; MT.shown = key;
+  $('#who').textContent = 'Голы'; $('#score').textContent = String(M.goals); $('#dots').textContent = `Атака ${i}/${n}`;
+  const c = $('#mclock'); if (c) c.textContent = M.phase === 'play' ? `0:${String(left).padStart(2, '0')}` : '—';
 }
 // позы всех, кроме меня и партнёра (они — в runAnim), и нашего вратаря. Тела-шары для столкновений с мячом считаются
 // только у тех, кто рядом с мячом (у дальних шары убраны под газон — с мячом они всё равно не встретятся).
@@ -4025,6 +4131,7 @@ if (TRACE) window.__clipToe = (name, useVariant = true) => { const pl = shooter,
   let prev = null; for (let t = 0; t <= a.getClip().duration; t += 1 / 30) { pl.mixer.setTime(t); pl.model.updateMatrixWorld(true); const r = pos('RightToeBase'), l = pos('LeftToeBase'), rf = pos('RightFoot'), lf = pos('LeftFoot');
     const gnd = Math.min(r.y, l.y, rf.y - 0.1, lf.y - 0.1), sp = prev ? r.distanceTo(prev) * 30 : 0; prev = r.clone(); res.push([+t.toFixed(2), +(r.y - gnd).toFixed(2), +sp.toFixed(1), +(l.y - gnd).toFixed(2)]); }
   a.stop(); pl.act = null; play(pl, 'idle', { loop: true, fade: 0, follow: true }); return { own: !!pl.own, hs: pl.hs, dur: +a.getClip().duration.toFixed(2), res }; };
+if (TRACE) window.__momDbg = () => MOMS && { phase: MOMS.phase, i: MOMS.i, t: +MOMS.t.toFixed(2), st: MT.st, stT: +MT.stT.toFixed(2), state, next: MT.next, restart: MT.restart, bs: B.state, owner: B.owner, gkHold: MT.gkHold && MT.gkHold.j };
 if (TRACE) window.__unpark = () => { for (const a of actors()) if (a.ai) a.ai.thinkT = 0; };
 if (TRACE) window.__give = (x, z) => { const me = actorOf('me'), P = me.P; MT.restart = null; MT.gkHold = null; state = 'play'; MT.st = 'play'; if (x !== undefined) { P.p.x = x; P.p.z = z; } P.v.x = P.v.z = 0; placeBall(BP.controlPoint(P, null)); BP.capture(B, P, 'me'); B.trapDur = 0; ballPrev.copy(B.p); };
 if (TRACE) window.__state = () => ({ t: +simT.toFixed(2), owner: B.owner, bs: B.state, ball: [+B.p.x.toFixed(2), +B.p.z.toFixed(2), +Math.hypot(B.v.x, B.v.z).toFixed(1)], me: (() => { const a = actorOf('me'); return [a.pl.nick, +a.P.p.x.toFixed(2), +a.P.p.z.toFixed(2), +Math.hypot(a.P.v.x, a.P.v.z).toFixed(1)]; })(), mates: actors().filter((a) => a.team === 0 && a.id !== 'me').map((a) => [a.id, +a.P.p.x.toFixed(1), +a.P.p.z.toFixed(1), a.ai && a.ai.run ? 1 : 0]), chase: !!run.chase, passTo: run.passTo ? run.passTo.id.nick : null });
