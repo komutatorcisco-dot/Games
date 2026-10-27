@@ -1,0 +1,129 @@
+<!doctype html>
+<!-- Генератор картинок паков (27.10): объёмный фольгированный пак на three.js с гербом Jackson Games.
+     Запуск: node tools/art/render.js packs — сохраняет img/packs/pk{0..4}-{360,160}.webp -->
+<html><head><meta charset="utf-8">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>html,body{margin:0;background:transparent}canvas{display:block}</style></head>
+<body><script src="../../vendor/three.min.js"></script><script>
+'use strict';
+// цвета уровней: основа (тёмная, средняя, светлая), акцент, надпись
+const TIERS = [
+  { name: 'ОБЫЧНЫЙ', base: ['#1d2f2a', '#5f8f7c', '#d9f5e8'], acc: '#7fe0a0', rim: ['#f4fff9', '#9fb8ad', '#56706a'], stars: 1 },
+  { name: 'СВЕРХРЕДКИЙ', base: ['#071a46', '#1f62d6', '#9fdcff'], acc: '#56d4ff', rim: ['#e9f7ff', '#7fb4e0', '#2b4f86'], stars: 2 },
+  { name: 'ЭПИЧЕСКИЙ', base: ['#1c0848', '#6b2fe0', '#e1c8ff'], acc: '#c59bff', rim: ['#fbf3ff', '#b796e6', '#53308f'], stars: 3 },
+  { name: 'ЛЕГЕНДАРНЫЙ', base: ['#4a2a00', '#d79a12', '#fff1b8'], acc: '#ffd24a', rim: ['#fffbe6', '#f0c24a', '#8a5a00'], stars: 4 },
+  { name: 'ДЖЕКСОН!!', base: ['#07070b', '#2a0b14', '#8a1426'], acc: '#ff4f66', rim: ['#fff6d8', '#f2c14a', '#8a5a00'], stars: 5 },
+];
+const cv = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
+const star = (g, x, y, R, r) => { g.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, q = i % 2 ? r : R; g.lineTo(x + q * Math.cos(a), y + q * Math.sin(a)); } g.closePath(); };
+function shield(g, x, y, w, h) { // щит: прямой верх со скосами, острый низ
+  g.beginPath(); g.moveTo(x - w / 2, y); g.lineTo(x - w * 0.36, y - h * 0.06); g.lineTo(x, y - h * 0.1); g.lineTo(x + w * 0.36, y - h * 0.06); g.lineTo(x + w / 2, y);
+  g.lineTo(x + w / 2, y + h * 0.5); g.quadraticCurveTo(x + w / 2, y + h * 0.8, x, y + h * 0.95); g.quadraticCurveTo(x - w / 2, y + h * 0.8, x - w / 2, y + h * 0.5); g.closePath();
+}
+function metal(g, y0, y1, c) { const gr = g.createLinearGradient(0, y0, 0, y1); gr.addColorStop(0, c[0]); gr.addColorStop(0.45, c[1]); gr.addColorStop(0.55, c[2]); gr.addColorStop(1, c[1]); return gr; }
+function front(t) {
+  const W = 1024, H = 1600, c = cv(W, H), g = c.getContext('2d'), CR = 70; // CR — высота обжима сверху и снизу
+  // основа: металлический градиент по диагонали
+  const bg = g.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, t.base[0]); bg.addColorStop(0.32, t.base[1]); bg.addColorStop(0.46, t.base[2]); bg.addColorStop(0.58, t.base[1]); bg.addColorStop(0.85, t.base[0]); bg.addColorStop(1, t.base[0]);
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  // лучи из-за герба
+  g.save(); g.translate(W / 2, H * 0.47); g.globalAlpha = 0.16;
+  for (let i = 0; i < 24; i++) { g.rotate(Math.PI / 12); g.fillStyle = i % 2 ? '#fff' : t.acc; g.beginPath(); g.moveTo(0, 0); g.lineTo(-60, -1300); g.lineTo(60, -1300); g.closePath(); g.fill(); }
+  g.restore();
+  // фольга: тонкие диагональные штрихи и соты
+  g.save(); g.globalAlpha = 0.07; g.strokeStyle = '#fff'; g.lineWidth = 2;
+  for (let i = -H; i < W + H; i += 14) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i - H * 0.6, H); g.stroke(); }
+  g.restore();
+  g.save(); g.globalAlpha = 0.08; g.strokeStyle = t.acc; g.lineWidth = 3;
+  for (let yy = 0; yy < H + 80; yy += 78) for (let xx = (yy / 78) % 2 ? 45 : 0; xx < W + 90; xx += 90) { g.beginPath(); for (let k = 0; k < 6; k++) { const a = Math.PI / 6 + k * Math.PI / 3; g.lineTo(xx + 44 * Math.cos(a), yy + 44 * Math.sin(a)); } g.closePath(); g.stroke(); }
+  g.restore();
+  // широкая диагональная полоса акцента (как на паках FUT)
+  g.save(); g.globalAlpha = 0.28; const sb = g.createLinearGradient(0, H * 0.55, W, H * 0.25); sb.addColorStop(0, 'transparent'); sb.addColorStop(0.5, t.acc); sb.addColorStop(1, 'transparent');
+  g.fillStyle = sb; g.beginPath(); g.moveTo(0, H * 0.78); g.lineTo(W, H * 0.5); g.lineTo(W, H * 0.62); g.lineTo(0, H * 0.9); g.closePath(); g.fill(); g.restore();
+  // словесный знак сверху
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = 'italic 900 70px JB'; g.fillStyle = 'rgba(255,255,255,.92)'; g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 10;
+  g.fillText('JACKSON  GAMES', W / 2, CR + 90);
+  g.shadowBlur = 0; g.fillStyle = t.acc; g.fillRect(W / 2 - 150, CR + 132, 300, 6);
+  // звёзды уровня
+  const sy = H * 0.168, n = t.stars, gap = 92;
+  for (let i = 0; i < n; i++) { const x = W / 2 + (i - (n - 1) / 2) * gap; star(g, x, sy + 4, 38, 16); g.fillStyle = 'rgba(0,0,0,.4)'; g.fill(); star(g, x, sy, 38, 16); g.fillStyle = metal(g, sy - 38, sy + 38, t.rim); g.fill(); g.strokeStyle = t.rim[2]; g.lineWidth = 3; g.stroke(); }
+  // герб: тень, обод, внутреннее поле
+  const cx = W / 2, cy = H * 0.275, sw = 700, sh = 800;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 50; g.shadowOffsetY = 24; shield(g, cx, cy, sw, sh); g.fillStyle = '#000'; g.fill(); g.restore();
+  shield(g, cx, cy, sw, sh); g.fillStyle = metal(g, cy - sh * 0.1, cy + sh, t.rim); g.fill();
+  shield(g, cx, cy + 26, sw - 64, sh - 66);
+  const inner = g.createLinearGradient(0, cy, 0, cy + sh); inner.addColorStop(0, t.base[0]); inner.addColorStop(0.5, t.base[1]); inner.addColorStop(1, t.base[0]); g.fillStyle = inner; g.fill();
+  g.save(); shield(g, cx, cy + 26, sw - 64, sh - 66); g.clip();
+  // мяч за буквами: лоскуты-пятиугольники
+  g.globalAlpha = 0.22; g.fillStyle = t.acc; g.beginPath(); g.arc(cx, cy + sh * 0.43, 210, 0, 7); g.fill();
+  g.globalAlpha = 0.35; g.fillStyle = t.base[0];
+  for (let k = 0; k < 6; k++) { const a = -Math.PI / 2 + k * Math.PI / 3, px = cx + (k ? Math.cos(a) * 150 : 0), py = cy + sh * 0.43 + (k ? Math.sin(a) * 150 : 0); g.beginPath(); for (let j = 0; j < 5; j++) { const b = -Math.PI / 2 + j * 2 * Math.PI / 5; g.lineTo(px + 46 * Math.cos(b), py + 46 * Math.sin(b)); } g.closePath(); g.fill(); }
+  // блик по верху поля
+  g.globalAlpha = 0.18; g.fillStyle = '#fff'; g.beginPath(); g.ellipse(cx - 60, cy + 80, 260, 70, -0.25, 0, 7); g.fill();
+  g.restore();
+  // монограмма JG
+  g.save(); g.font = 'italic 900 470px JB'; g.textAlign = 'center'; g.textBaseline = 'alphabetic';
+  const my = cy + sh * 0.63;
+  g.lineJoin = 'round'; g.lineWidth = 34; g.strokeStyle = 'rgba(0,0,0,.55)'; g.strokeText('JG', cx + 6, my + 12);
+  g.lineWidth = 22; g.strokeStyle = t.rim[2]; g.strokeText('JG', cx, my);
+  g.fillStyle = metal(g, my - 300, my, t.rim); g.fillText('JG', cx, my);
+  g.globalAlpha = 0.5; g.fillStyle = '#fff'; g.save(); g.beginPath(); g.rect(0, my - 360, W, 150); g.clip(); g.fillText('JG', cx, my); g.restore();
+  g.restore();
+  // лента с названием уровня
+  const by = H * 0.79, bh = 120;
+  g.save(); g.shadowColor = 'rgba(0,0,0,.5)'; g.shadowBlur = 24; g.shadowOffsetY = 10;
+  g.beginPath(); g.moveTo(60, by); g.lineTo(W - 60, by - 30); g.lineTo(W - 40, by - 30 + bh); g.lineTo(80, by + bh); g.closePath();
+  g.fillStyle = metal(g, by - 30, by + bh, t.rim); g.fill(); g.restore();
+  g.beginPath(); g.moveTo(80, by + 12); g.lineTo(W - 76, by - 16); g.lineTo(W - 60, by - 18 + bh - 12); g.lineTo(96, by + bh - 12); g.closePath(); g.fillStyle = t.base[0]; g.fill();
+  g.save(); g.translate(W / 2, by + bh / 2 - 8); g.rotate(-0.028);
+  const fs = t.name.length > 10 ? 78 : 92; g.font = `italic 900 ${fs}px JR`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = metal(g, -50, 50, t.rim); g.fillText(t.name, 0, 4); g.restore();
+  g.font = 'italic 900 40px JR'; g.fillStyle = 'rgba(255,255,255,.75)'; g.textAlign = 'center'; g.fillText('ПАК ИГРОКОВ', W / 2, H - CR - 70);
+  // обжим: вертикальные рёбра сверху и снизу, зубчатый край — прозрачный
+  [0, H - CR].forEach((y0) => {
+    const gr = g.createLinearGradient(0, y0, 0, y0 + CR); gr.addColorStop(0, t.rim[1]); gr.addColorStop(0.5, t.rim[0]); gr.addColorStop(1, t.rim[2]);
+    g.fillStyle = gr; g.fillRect(0, y0, W, CR);
+    g.globalAlpha = 0.35; for (let x = 0; x < W; x += 12) { g.fillStyle = (x / 12) % 2 ? '#000' : '#fff'; g.fillRect(x, y0, 6, CR); } g.globalAlpha = 1;
+  });
+  g.globalCompositeOperation = 'destination-out';
+  [[0, 1], [H, -1]].forEach(([y0, d]) => { g.beginPath(); g.moveTo(0, y0); for (let x = 0; x <= W; x += 32) g.lineTo(x + 16, y0 + d * 18), g.lineTo(x + 32, y0); g.closePath(); g.fill(); });
+  g.globalCompositeOperation = 'source-over';
+  return c;
+}
+function backTex(t) { const c = cv(512, 800), g = c.getContext('2d'); const bg = g.createLinearGradient(0, 0, 512, 800); bg.addColorStop(0, t.base[0]); bg.addColorStop(0.5, t.base[1]); bg.addColorStop(1, t.base[0]); g.fillStyle = bg; g.fillRect(0, 0, 512, 800); return c; }
+
+let R = null;
+async function render(lv, w, h) {
+  await Promise.all(['italic 900 40px JB', 'italic 900 40px JR'].map((f) => document.fonts.load(f, 'JGЖ'))); await document.fonts.ready;
+  const t = TIERS[lv];
+  if (!R) {
+    R = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+    R.outputEncoding = THREE.sRGBEncoding; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.05;
+    document.body.appendChild(R.domElement);
+  }
+  R.setPixelRatio(1); R.setSize(w, h); R.setClearColor(0x000000, 0);
+  const scene = new THREE.Scene();
+  // окружение для отражений: тёмная сфера и светлые «софтбоксы»
+  const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ color: 0x0a0d18, side: THREE.BackSide })));
+  [[-14, 10, 12, 0xffffff, 10, 18], [16, 4, 10, 0xffeedd, 6, 14], [0, -14, 8, 0x8899ff, 20, 4], [0, 18, -6, 0xffffff, 24, 4]].forEach(([x, y, z, col, sw, sh]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(sw, sh), new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); });
+  const pm = new THREE.PMREMGenerator(R); scene.environment = pm.fromScene(env, 0.02).texture;
+  const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(-3, 4, 6); scene.add(key);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+  // тело пака: пластина, выпуклая к центру, зубчатые края берутся из прозрачности текстуры
+  const PW = 2, PH = 3.125, geo = new THREE.PlaneGeometry(PW, PH, 64, 100), p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) { const x = p.getX(i) / (PW / 2), y = p.getY(i) / (PH / 2), crimp = Math.abs(y) > 0.9; p.setZ(i, crimp ? 0.004 : 0.16 * (1 - Math.pow(Math.abs(x), 3)) * (1 - Math.pow(Math.abs(y) / 0.9, 8))); }
+  geo.computeVertexNormals();
+  const tex = new THREE.CanvasTexture(front(t)); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 8;
+  const mat = new THREE.MeshStandardMaterial({ map: tex, metalness: lv === 4 ? 0.5 : 0.62, roughness: 0.3, envMapIntensity: 1.25, transparent: true, alphaTest: 0.5, side: THREE.FrontSide });
+  const pack = new THREE.Group(), fr = new THREE.Mesh(geo, mat); pack.add(fr);
+  const bt = new THREE.CanvasTexture(backTex(t)); bt.encoding = THREE.sRGBEncoding;
+  const back = new THREE.Mesh(geo.clone(), new THREE.MeshStandardMaterial({ map: bt, metalness: 0.5, roughness: 0.4 })); back.rotation.y = Math.PI; pack.add(back);
+  pack.rotation.set(-0.06, -0.32, 0.035); scene.add(pack);
+  const cam = new THREE.PerspectiveCamera(26, w / h, 0.1, 100); cam.position.set(0, 0, 7.4); cam.lookAt(0, 0, 0);
+  R.render(scene, cam);
+  return R.domElement.toDataURL('image/png');
+}
+window.renderPack = render;
+</script></body></html>

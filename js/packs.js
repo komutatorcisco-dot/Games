@@ -19,9 +19,10 @@ const PackOpen = (() => {
   const rollLevel = () => { let x = Math.random() * LV.reduce((s, l) => s + l.w, 0), i = 0; while ((x -= LV[i].w) > 0 && i < LV.length - 1) i++; return i; };
 
   // модель пака: лицо с голограммой и обжимом, торец, задник; cap — верхняя полоска, которую срывают
-  // рисунок пака по редкости (img/icons/pk-*.webp); объём нарисован на самой картинке
+  // рисунок пака по редкости (img/packs/pk*.webp); объём нарисован на самой картинке
   const PIMG = ['pk-silver', 'pk-blue', 'pk-purple', 'pk-gold', 'pk-black'];
-  const pimg = (lv, sz) => `img/icons/${PIMG[lv]}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp`;
+  // новые паки Jackson Games (27.10): 3D-рендер, tools/art/packs.html
+  const pimg = (lv, sz) => `img/packs/pk${lv}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp`;
   const art = (lv, sz = '', cap = false) => `<span class="fpk p${lv} ${sz} pimg"><span class="fpk-b">
       <i class="fpk-f" style="-webkit-mask-image:url(${pimg(lv, sz)});mask-image:url(${pimg(lv, sz)})"><img class="fpk-img" src="${pimg(lv, sz)}" alt="" decoding="async" draggable="false"><i class="fpk-sh"></i><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;

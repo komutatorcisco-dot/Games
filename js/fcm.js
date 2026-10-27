@@ -16,6 +16,23 @@ const FCM = (() => {
   const TABS = [
     ['team', 'Команда', 'squad'], ['events', 'События', 'daily'], ['play', 'Играть', 'qplay'], ['quests', 'Задания', 'quests'], ['store', 'Магазин', 'shop'],
   ];
+  // Свой набор значков в духе FC Mobile (27.10): белые заливки, одна толщина, вместо разнородных картинок-эмодзи
+  const IC = {
+    team: '<path d="M8.2 3 3 6.1l2.1 5 2-1V21h9.8V10.1l2 1L21 6.1 15.8 3c-.6 1.6-2 2.6-3.8 2.6S8.8 4.6 8.2 3z"/>',
+    events: '<path fill-rule="evenodd" d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zM5 9v10h14V9zm7 1 1.4 2.9 3.1.4-2.3 2.2.6 3.1L12 17l-2.8 1.6.6-3.1-2.3-2.2 3.1-.4z"/>',
+    play: '<path d="M7 4.5v15a1 1 0 0 0 1.5.9l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 7 4.5z"/>',
+    quests: '<path fill-rule="evenodd" d="M9 2h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a1 1 0 0 1 1-1zm1 2v2h4V4zm5.6 6.2-5 5-2.3-2.3-1.5 1.5 3.8 3.8 6.5-6.5z"/>',
+    store: '<path d="M2 3h3.1l.8 2.5H21l-2.3 8a2 2 0 0 1-1.9 1.5H9.3l.5 1.5H19V18.5H8.3a1 1 0 0 1-1-.7L4 5H2z"/><circle cx="9" cy="21" r="1.6"/><circle cx="17" cy="21" r="1.6"/>',
+    daily: '<circle cx="10" cy="7.5" r="4"/><path d="M2 21c0-4.4 3.6-7.5 8-7.5 1.8 0 3.4.5 4.7 1.4-.4.8-.7 1.7-.7 2.6 0 1.3.4 2.5 1.2 3.5z"/><path d="M19.2 13.2c1.6 0 2.8 1 2.8 2.4 0 1-.6 1.6-1.4 2.1-.4.3-.6.5-.6 1v.3h-1.7v-.4c0-1 .5-1.5 1.1-1.9.5-.3.8-.6.8-1 0-.5-.4-.9-1-.9s-1.1.4-1.2 1l-1.6-.3c.3-1.4 1.3-2.3 2.8-2.3zm-.9 7.3h1.8V22h-1.8z"/>',
+    online: '<path d="M13.5 2 4 13.5h6.2L9 22l10-12.2h-6.3z"/>',
+    gift: '<path d="M4 11h7v10H5a1 1 0 0 1-1-1zm9 0h7v9a1 1 0 0 1-1 1h-6zM3 7h18v3H3zm8.1-1.2C9.6 5.6 7 5 7 3.6 7 2.7 7.7 2 8.6 2c1.6 0 2.6 2.2 2.9 3.8zm1.8 0c.3-1.6 1.3-3.8 2.9-3.8.9 0 1.6.7 1.6 1.6 0 1.4-2.6 2-4.5 2.2z"/>',
+    target: '<path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 2.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>',
+    puzzle: '<path d="M10 2.5a2.5 2.5 0 0 1 2.5 2.5V6H17a1 1 0 0 1 1 1v4.5h1a2.5 2.5 0 0 1 0 5h-1V21a1 1 0 0 1-1 1h-4.5v-1.2a2.5 2.5 0 0 0-5 0V22H3a1 1 0 0 1-1-1v-4.5h1.2a2.5 2.5 0 0 0 0-5H2V7a1 1 0 0 1 1-1h4.5V5A2.5 2.5 0 0 1 10 2.5z"/>',
+    bolt: '<path d="M13.5 2 4 13.5h6.2L9 22l10-12.2h-6.3z"/>',
+    timer: '<path fill-rule="evenodd" d="M9 1h6v2H9zm3 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm0 2.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM11 8h2v5.2l3.4 2-1 1.7L11 14.3z"/>',
+    star: '<path d="m12 2 3 6.3 6.9.9-5 4.8 1.2 6.8L12 17.6l-6.1 3.2L7.1 14l-5-4.8 6.9-.9z"/>',
+  };
+  const ico = (k, cls = '') => `<svg class="fm-ic ${cls}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${IC[k] || IC.star}</svg>`;
   const coin = '<i class="coin"></i>';
   const cup = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6 3h12v2h3v3a5 5 0 0 1-4.6 5A6 6 0 0 1 13 15.9V18h3v3H8v-3h3v-2.1A6 6 0 0 1 7.6 13 5 5 0 0 1 3 8V5h3zm0 4H5v1a3 3 0 0 0 1.4 2.5A8 8 0 0 1 6 8zm12 0v1a8 8 0 0 1-.4 2.5A3 3 0 0 0 19 8V7z"/></svg>';
   const lock = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zm2 0h6V7a3 3 0 0 0-6 0z"/></svg>';
@@ -34,16 +51,16 @@ const FCM = (() => {
     </header>`;
   }
   function nav() {
-    return `<nav class="fm-nav">${TABS.map(([id, t, a]) => `<button class="fm-tab ${id === tab ? 'on' : ''} ${id === 'play' ? 'play' : ''}" data-fm-tab="${id}">${Art.img(a, 'fm-ti', 96)}<b>${t}</b>${id === 'quests' && questsReady() ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
+    return `<nav class="fm-nav">${TABS.map(([id, t, a]) => `<button class="fm-tab ${id === tab ? 'on' : ''} ${id === 'play' ? 'play' : ''}" data-fm-tab="${id}">${ico(id, 'fm-ti')}<b>${t}</b>${id === 'quests' && questsReady() ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
   }
 
   // ---------- Играть (главная) ----------
   const MODES = [
-    { id: 'mom', t: 'Моменты', d: 'Короткие атаки: забей за несколько секунд', art: 'img/ui3d/play_ball_bg.webp', ico: 'img/ui/goal.webp', cls: 'big lime' },
-    { id: '3', t: 'Матч 3 на 3', d: 'Нападающий, защитник и вратарь из твоих карточек', ico: 'img/ui3d/shield_blue.webp', cls: 'blue' },
-    { id: 'mgr', t: 'Менеджер', d: '«Мой состав» играет сам, ты смотришь', act: 'squad', ico: 'img/ui2/squad.webp', cls: 'dark' },
-    { id: '11', t: '11 на 11 · тест', d: 'Полное поле, 5 минут', ico: 'img/ui3d/shield_red.webp', cls: 'dark' },
-    { id: 'train', t: 'Тренировки', d: 'Удары, дриблинг, штрафные', ico: 'img/ui3d/ball.webp', cls: 'dark' },
+    { id: 'mom', t: 'Моменты', d: 'Короткие атаки: забей за несколько секунд', ico: 'img/fcm/mode-mom.webp', cls: 'big lime' },
+    { id: '3', t: 'Матч 3 на 3', d: 'Нападающий, защитник и вратарь из твоих карточек', ico: 'img/fcm/mode-three.webp', cls: 'blue' },
+    { id: 'mgr', t: 'Менеджер', d: '«Мой состав» играет сам, ты смотришь', act: 'squad', ico: 'img/fcm/mode-mgr.webp', cls: 'dark' },
+    { id: '11', t: '11 на 11 · тест', d: 'Полное поле, 5 минут', ico: 'img/fcm/mode-eleven.webp', cls: 'dark' },
+    { id: 'train', t: 'Тренировки', d: 'Удары, дриблинг, штрафные', ico: 'img/fcm/mode-train.webp', cls: 'dark' },
   ];
   function play() {
     const jg = Cards.get('JG:nicolas-jackson');
@@ -54,9 +71,9 @@ const FCM = (() => {
       </button>
       <div class="fm-modes">${MODES.map((m) => `<button class="fm-mode ${m.cls}" ${m.act ? `data-act="${m.act}"` : `data-fm-mode="${m.id}"`}${m.art ? ` style="--art:url(${m.art})"` : ''}>${m.ico ? `<img class="fm-mi" src="${m.ico}" alt="">` : ''}<b>${m.t}</b><small>${m.d}</small></button>`).join('')}</div>
       <div class="fm-side">
-        <button class="fm-sq" data-act="dly">${Art.img('daily', '', 96)}<b>Игрок дня</b></button>
-        ${typeof Wheel !== 'undefined' ? `<button class="fm-sq ${Wheel.ready() ? 'hot' : ''}" data-act="wheel">${Art.img('qpack', '', 96)}<b>${Wheel.ready() ? 'Пак дня' : 'Завтра'}</b></button>` : ''}
-        <button class="fm-sq" data-act="online">${Art.img('online', '', 96)}<b>Онлайн</b></button>
+        <button class="fm-sq" data-act="dly">${ico('daily')}<b>Игрок дня</b></button>
+        ${typeof Wheel !== 'undefined' ? `<button class="fm-sq ${Wheel.ready() ? 'hot' : ''}" data-act="wheel"><img class="fm-sq-pk" src="img/packs/pk0-160.webp" alt=""><b>${Wheel.ready() ? 'Пак дня' : 'Завтра'}</b></button>` : ''}
+        <button class="fm-sq" data-act="online">${ico('online')}<b>Онлайн</b></button>
       </div>
     </div>`;
   }
@@ -128,12 +145,12 @@ const FCM = (() => {
   // ---------- События ----------
   // Путь события по главам, как в FC Mobile. Макет: узлы открывают существующие режимы, награды пока не выдаются.
   const JG = [
-    { t: 'Подарок', d: 'Билет события', ico: '🎁', rw: 'Билет', gift: true },
-    { t: 'Тренировка', d: 'Основы: бег, пас, удар', ico: '🎯', rw: '50 монет', go: { train: 'basics' } },
-    { t: 'Головоломка', d: '«Куда перешёл?»', ico: '🧩', rw: '50 монет', go: { act: 'transfer' } },
-    { t: 'Моменты', d: 'Забей в коротких атаках', ico: '⚡', rw: '100 монет', go: { mode: 'mom' } },
-    { t: 'С 70-й минуты', d: 'Бавария ведёт 1:0 — переверни игру своим составом', ico: '⏱', rw: '100 монет', lock: true },
-    { t: 'Николас Джексон', d: 'Особая карточка 84', ico: '★', rw: 'Карточка', lock: true, fin: true },
+    { t: 'Подарок', d: 'Билет события', ico: 'gift', rw: 'Билет', gift: true },
+    { t: 'Тренировка', d: 'Основы: бег, пас, удар', ico: 'target', rw: '50 монет', go: { train: 'basics' } },
+    { t: 'Головоломка', d: '«Куда перешёл?»', ico: 'puzzle', rw: '50 монет', go: { act: 'transfer' } },
+    { t: 'Моменты', d: 'Забей в коротких атаках', ico: 'bolt', rw: '100 монет', go: { mode: 'mom' } },
+    { t: 'С 70-й минуты', d: 'Бавария ведёт 1:0 — переверни игру своим составом', ico: 'timer', rw: '100 монет', lock: true },
+    { t: 'Николас Джексон', d: 'Особая карточка 84', ico: 'star', rw: 'Карточка', lock: true, fin: true },
   ];
   const DAILY = [
     { t: 'Игрок дня', d: 'Угадай по подсказкам', act: 'dly', art: 'daily' },
@@ -152,9 +169,9 @@ const FCM = (() => {
             <span class="fm-ev-t"><small>Глава 1 · Знакомство</small><b>Николас Джексон</b><em>Пройди путь — в конце особая карточка 84. Макет: награды и прогресс включим на следующем шаге.</em></span></div>
           <div class="fm-path">${JG.map((n, i) => {
             const attr = n.go ? (n.go.act ? `data-act="${n.go.act}"` : n.go.train ? `data-fm-train="${n.go.train}"` : `data-fm-mode="${n.go.mode}"`) : n.gift ? 'data-fm-gift' : '';
-            return `<button class="fm-node ${n.lock ? 'lock' : ''} ${n.fin ? 'fin' : ''}" ${n.lock ? 'disabled' : attr}><i class="fm-n-ico">${n.lock ? lock : n.ico}</i><b>${n.t}</b><small>${n.d}</small><em>${n.rw}</em>${i < JG.length - 1 ? '<u></u>' : ''}</button>`; }).join('')}</div>
+            return `<button class="fm-node ${n.lock ? 'lock' : ''} ${n.fin ? 'fin' : ''}" ${n.lock ? 'disabled' : attr}><i class="fm-n-ico">${n.lock ? lock : ico(n.ico)}</i><b>${n.t}</b><small>${n.d}</small><em>${n.rw}</em>${i < JG.length - 1 ? '<u></u>' : ''}</button>`; }).join('')}</div>
         </div>`
-      : `<div class="fm-grid">${DAILY.map((g) => `<button class="fm-gc" ${g.act ? `data-act="${g.act}"` : `data-ng="${g.ng}"`}>${g.img ? `<img src="${g.img}" alt="" loading="lazy">` : Art.img(g.art, '', 96)}<b>${g.t}</b><small>${g.d}</small></button>`).join('')}</div>`;
+      : `<div class="fm-grid">${DAILY.map((g) => `<button class="fm-gc" ${g.act ? `data-act="${g.act}"` : `data-ng="${g.ng}"`}>${g.img ? `<img src="${g.img}" alt="" loading="lazy">` : ico(g.art, 'fm-gi')}<b>${g.t}</b><small>${g.d}</small></button>`).join('')}</div>`;
     return `<div class="fm-split">${rail(L, 'events')}<div class="fm-body">${body}</div></div>`;
   }
   const rail = (L, key) => `<div class="fm-rail">${L.map(([id, t, d]) => `<button class="${sub[key] === id ? 'on' : ''}" data-fm-sub="${key}:${id}"><b>${t}</b>${d !== undefined ? `<small>${d}</small>` : ''}</button>`).join('')}</div>`;
@@ -177,7 +194,6 @@ const FCM = (() => {
 
   // ---------- Магазин (как в FC Mobile): слева разделы, паки крупно со свечением, перед покупкой — окно пака ----------
   // Цены, состав и шансы — прежние (StarShop, Cards.PACKS); меняется только вид и путь до покупки.
-  const PKIMG = ['pk-silver', 'pk-blue', 'pk-purple', 'pk-gold', 'pk-black'];
   function packList() {
     const out = [], by = {};
     StarShop.COIN_PACKS.forEach((x) => { by[x.id] = { ...x }; out.push(by[x.id]); });
@@ -192,7 +208,7 @@ const FCM = (() => {
   }
   const price = (x) => `${x.coins ? `<span class="fm-pr c">${coin}${x.coins}</span>` : ''}${x.stars ? `<span class="fm-pr s">${StarShop.free() ? 0 : x.stars} ⭐</span>` : ''}`;
   const pkCard = (x, big) => `<button class="fm-pk lv${x.level} ${big ? 'big' : ''}" data-fm-pk="${x.id}">
-      <i class="fm-pk-glow"></i><img class="fm-pk-img" src="img/icons/${PKIMG[x.level]}-360.webp" alt="" loading="lazy" draggable="false">
+      <i class="fm-pk-glow"></i><img class="fm-pk-img" src="img/packs/pk${x.level}-360.webp" alt="" loading="lazy" draggable="false">
       <span class="fm-pk-t"><b>${esc(x.name)}</b><span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span></span>
       <span class="fm-pk-p">${price(x)}</span></button>`;
   function store() {
@@ -203,10 +219,10 @@ const FCM = (() => {
     if (sub.store === 'top') {
       const jack = list.find((x) => x.id === 'jack'), rest = list.filter((x) => ['basic', 'gold', 'legend'].includes(x.id));
       body = `<div class="fm-st-top">
-        ${jack ? `<button class="fm-st-hero" data-fm-pk="jack"><i class="fm-st-rays"></i><img src="img/icons/pk-black-360.webp" alt="" draggable="false">
+        ${jack ? `<button class="fm-st-hero" data-fm-pk="jack"><i class="fm-st-rays"></i><img src="img/packs/pk4-360.webp" alt="" draggable="false">
           <span><small>Лучший пак</small><b>${esc(jack.name)}</b><em>${esc(jack.sub)}</em><span class="fm-pk-p">${price(jack)}</span></span></button>` : ''}
         <div class="fm-st-col">
-          <button class="fm-daypk ${day ? 'hot' : ''}" data-act="wheel">${Art.img('qpack', '', 96)}<span><b>Пак дня</b><small>${day ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${day ? 'Забрать' : 'Завтра'}</em></button>
+          <button class="fm-daypk ${day ? 'hot' : ''}" data-act="wheel"><img src="img/packs/pk0-160.webp" alt=""><span><b>Пак дня</b><small>${day ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${day ? 'Забрать' : 'Завтра'}</em></button>
           <div class="fm-st-mini">${rest.map((x) => pkCard(x)).join('')}</div>
         </div></div>`;
     } else if (sub.store === 'packs') body = `<div class="fm-pks">${list.map((x) => pkCard(x)).join('')}</div>`;
@@ -220,7 +236,7 @@ const FCM = (() => {
     const P = Cards.PACKS[x.level], tot = P.w.reduce((a, w) => a + w[1], 0);
     const el = document.createElement('div'); el.className = `fm-sheet lv${x.level}`;
     el.innerHTML = `<div class="fm-sh-card">
-        <div class="fm-sh-art"><i class="fm-st-rays"></i><img src="img/icons/${PKIMG[x.level]}-360.webp" alt="" draggable="false"></div>
+        <div class="fm-sh-art"><i class="fm-st-rays"></i><img src="img/packs/pk${x.level}-360.webp" alt="" draggable="false"></div>
         <div class="fm-sh-info">
           <small>Пак</small><b>${esc(x.name)}</b>
           <span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span>

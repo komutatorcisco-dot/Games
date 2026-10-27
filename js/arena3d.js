@@ -643,5 +643,6 @@ const Arena3D = (() => {
   // выбранный мяч и какие открыты: классика сразу, остальные — за турнир драфта
   const BALL_NEED = { classic: 0, noir: 2, ivory: 3, gold: 4 };
   const ballState = () => { const u = Store.d.ui || (Store.d.ui = {}); if (!u.balls) u.balls = ['classic']; if (!u.ball) u.ball = 'classic'; return u; };
-  return { supported, three, menu, match, backdrop, ball, BALLS, BALL_NEED, ballState };
+  // parts — детали сцены для генератора картинок (tools/art/modes.html)
+  return { supported, three, menu, match, backdrop, ball, BALLS, BALL_NEED, ballState, parts: { player, kitFrom, goal, pitchTexture } };
 })();
