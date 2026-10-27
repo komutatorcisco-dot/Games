@@ -244,3 +244,51 @@
 @media (prefers-reduced-motion: reduce) {
   .fcm *, .fcm *::before, .fcm *::after { animation: none !important; }
 }
+
+/* ---------- Внутренние экраны в новом виде (27.10): стадион размытым фоном, шапка как в FC ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  /* за экраном — последний кадр 3D-стадиона (вне меню он не рисуется, батарея не тратится), размытый и тёмный */
+  body.fcm-on.fm3d[data-scr]:not([data-scr="hub"]):not([data-scr="football"]):not([data-scr="runner"]) .fcm-bg { display: block; position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(5px) brightness(.38) saturate(.8); transform: scale(1.04); }
+  html:has(body.fcm-on.fm3d) { background: #060a1c; }
+  body.fcm-on.fm3d[data-scr]:not([data-scr="hub"]) { background: transparent !important; }
+
+  /* шапка: круглая стрелка, крупный заголовок курсивом, как «МОЯ КОМАНДА» */
+  body.fcm-on #app > .screen > .topbar { background: none !important; border: 0 !important; box-shadow: none !important; min-height: 40px; }
+  body.fcm-on .topbar .back { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,.1); }
+  body.fcm-on .topbar-title, body.fcm-on .topbar-title > span { font: italic 800 22px/1 "Barlow Condensed", "Rubik", sans-serif !important; text-transform: uppercase; letter-spacing: .02em; }
+  body.fcm-on .topbar-title small { font: 600 12px/1.2 "Barlow Condensed", "Rubik", sans-serif !important; font-style: normal !important; text-transform: none; color: #9fb2cc; }
+  /* в Telegram во весь экран шапка встаёт в ряд его кнопок: «Назад» Telegram уже есть, своя стрелка не нужна;
+     экран получает ~70px высоты (раньше шапка шла второй строкой под кнопками Telegram) */
+  body.fcm-on.fm-tgbar { --l-body: calc(100dvh - var(--l-top) - var(--l-bot) - 14px); }
+  body.fcm-on.fm-tgbar #app > .screen > .topbar { position: fixed !important; z-index: 61; top: var(--fm-sa, 0px) !important; left: calc(var(--fm-l) + 118px); right: calc(var(--fm-r) + 112px);
+    height: max(38px, var(--fm-ca, 0px)); min-height: 0; margin: 0 !important; padding: 0 !important; grid-template-columns: 1fr auto; }
+  body.fcm-on.fm-tgbar #app > .screen > .topbar:has(.help) { grid-template-columns: 1fr auto auto; }
+  body.fcm-on.fm-tgbar #app > .screen > .topbar > .back { display: none; }
+  body.fcm-on.fm-tgbar .topbar-title { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; overflow: hidden; }
+  body.fcm-on.fm-tgbar .topbar-title > span { -webkit-line-clamp: 1; }
+  body.fcm-on.fm-tgbar .topbar .help { width: 30px; height: 30px; min-height: 0; font-size: 15px; }
+  body.fcm-on.fm-tgbar .topbar .coins { transform: scale(.85); transform-origin: right center; }
+
+  /* «Мой состав»: карточки на поле мельче — соседние больше не наезжают друг на друга */
+  body.fcm-on #sq-body .sq-slot { scale: .74; }
+  body.fcm-on #sq-body .sq-pitch { border-radius: 12px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 14px 30px -8px rgba(0,0,0,.7); }
+  body.fcm-on #sq-body :is(.sq-k, .sq-form) { background: rgba(10,20,40,.78) !important; box-shadow: inset 0 0 0 1.5px rgba(120,140,255,.35) !important; }
+
+  /* Футбол → выбор перед матчем: кнопка «Играть» больше не висит поверх карточек — стоит в потоке справа */
+  body.fcm-on #fbp { padding-bottom: 12px; }
+  body.fcm-on .fbp-go { position: sticky; bottom: 0; padding: 10px 0 4px; background: linear-gradient(180deg, transparent, rgba(6,10,28,.92) 45%); }
+  body.fcm-on #fbp:has(> .fbp-slots) { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 18px; row-gap: 8px; align-content: start; }
+  body.fcm-on #fbp:has(> .fbp-slots) > * { grid-column: 2; }
+  body.fcm-on #fbp:has(> .fbp-slots) > .fbp-slots { grid-column: 1; grid-row: 1 / span 6; align-self: center; }
+  body.fcm-on #fbp:has(> .fbp-slots) .fbp-les { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  body.fcm-on #fbp:has(> .fbp-slots) .fbp-l { padding: 6px; } body.fcm-on #fbp:has(> .fbp-slots) .fbp-none { font-size: 13px; line-height: 1.3; }
+  body.fcm-on #fbp:has(> .fbp-slots) .fbp-go { position: static; background: none; padding: 4px 0 0; justify-content: flex-start; }
+  body.fcm-on .fbp-seg button.on, body.fcm-on .fbp-go .btn { background: linear-gradient(180deg, #d8ff6a, #8fe61e) !important; color: #06101c !important; }
+}
+@media (orientation: landscape) and (max-height: 620px) {
+  body.fcm-on #sq-body .sq-pitch { height: calc(var(--l-body) - 40px) !important; margin-top: 10px !important; }
+  body.fcm-on #fbp:has(> .fbp-slots) .fbp-l { display: flex !important; align-items: center; gap: 8px; padding: 6px 8px; text-align: left; }
+  body.fcm-on #fbp:has(> .fbp-slots) .fbp-l i { width: 22px; height: 22px; flex: none; font-size: 12px; }
+  body.fcm-on #fbp:has(> .fbp-slots) .fbp-l b { font-size: 12.5px; line-height: 1.1; }
+  body.fcm-on #fbp:has(> .fbp-slots) .fbp-none { font-size: 12px; opacity: .65; }
+}

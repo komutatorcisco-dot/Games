@@ -193,6 +193,7 @@ const FCM = (() => {
     const st = document.documentElement.style;
     st.setProperty('--fm-sa', sa + 'px'); st.setProperty('--fm-ca', ca + 'px');
     if (root) root.classList.toggle('tgbar', ca > 0);
+    document.body.classList.toggle('fm-tgbar', ca > 0); // внутренние экраны тоже ставят шапку в ряд кнопок Telegram
   }
   function init() {
     root = document.createElement('div'); root.id = 'fcm'; root.className = 'fcm';
