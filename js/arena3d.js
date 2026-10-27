@@ -560,7 +560,7 @@ const Arena3D = (() => {
   // project(x, z) — точка поля на экране: по ней «Команда» ставит карточки на настоящий газон.
   const VIEWS = {
     play: { p: [0, 20, 66], l: [0, 2, 0], orbit: 18 },
-    team: { p: [-W / 2 - 16, 46, 0], l: [4, -14, 0], shift: 0.15 },
+    team: { p: [-W / 2 - 16, 46, 0], l: [4, -14, 0], shift: 0.15, sy: 0.06 },
     events: { p: [W / 2 - 18, 6, -22], l: [W / 2 + 40, 16, 34], orbit: 6 },
     quests: { p: [-20, 30, -50], l: [10, 4, 10], orbit: 10 },
     store: { p: [-W / 2 + 6, 7, 24], l: [-W / 2 - 40, 14, -30], orbit: 6 },
@@ -602,19 +602,22 @@ const Arena3D = (() => {
 
     let view = 'play', last = 0, adT = 0, tBase = 0;
     const cp = new THREE.Vector3(...VIEWS.play.p), cl = new THREE.Vector3(...VIEWS.play.l), tp = new THREE.Vector3(), tl = new THREE.Vector3();
-    let shift = 0;
+    let shift = 0, sy = 0;
     function place(dt, t) {
       const v = VIEWS[view] || VIEWS.play, o = RM ? 0 : Math.sin(t * 0.07) * (v.orbit || 0);
       tp.set(v.p[0] + o, v.p[1] + (RM ? 0 : Math.sin(t * 0.11) * 0.8), v.p[2] + (RM ? 0 : Math.cos(t * 0.07) * (v.orbit || 0) * 0.3)); tl.set(...v.l);
-      const k = dt ? 1 - Math.exp(-dt * 2.4) : 1; cp.lerp(tp, k); cl.lerp(tl, k); shift += ((v.shift || 0) - shift) * k;
+      const k = dt ? 1 - Math.exp(-dt * 2.4) : 1; cp.lerp(tp, k); cl.lerp(tl, k); shift += ((v.shift || 0) - shift) * k; sy += ((v.sy || 0) - sy) * k;
       camera.position.copy(cp); camera.lookAt(cl);
       const w = host.clientWidth || 1, h = host.clientHeight || 1;
-      if (Math.abs(shift) > 0.002) camera.setViewOffset(w, h, -shift * w, 0, w, h); else camera.clearViewOffset();
+      if (Math.abs(shift) > 0.002 || Math.abs(sy) > 0.002) camera.setViewOffset(w, h, -shift * w, -sy * h, w, h); else camera.clearViewOffset();
       camera.fov = 42; camera.far = 600; camera.updateProjectionMatrix();
     }
     const api = {
       canvas: V.canvas, size: V.size, onFrame: null,
-      view(name, now) { view = VIEWS[name] ? name : 'play'; if (now) place(0, tBase); },
+      view(name, now) { if (view === 'focus' && name === 'team') return; view = VIEWS[name] ? name : 'play'; if (now) place(0, tBase); },
+      // наезд камеры на игрока: низко сбоку от его точки, игрок — левее центра, справа место под карточку
+      focus(x, z) { VIEWS.focus = { p: [x - 20, 10, z * 0.8], l: [x + 2, 2.6, z], shift: -0.2, sy: 0.08 }; view = 'focus'; },
+      unfocus() { view = 'team'; },
       settled: () => cp.distanceTo(tp) < 0.3,
       project(x, z, y = 0) { const v = new THREE.Vector3(x, y, z).project(camera), w = host.clientWidth, h = host.clientHeight; return { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h, d: camera.position.distanceTo(new THREE.Vector3(x, y, z)) }; },
       W, H,

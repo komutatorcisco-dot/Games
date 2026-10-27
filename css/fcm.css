@@ -292,3 +292,34 @@
   body.fcm-on #fbp:has(> .fbp-slots) .fbp-l b { font-size: 12.5px; line-height: 1.1; }
   body.fcm-on #fbp:has(> .fbp-slots) .fbp-none { font-size: 12px; opacity: .65; }
 }
+
+/* ---------- «Команда»: панель компактнее (низкие телефоны), наезд камеры на игрока ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  .fm-team.is3d .fm-tside { gap: 6px; padding: 10px; max-height: 100%; }
+  .fm-team.is3d .fm-crest { width: 42px; height: 48px; font-size: 22px; } .fm-team.is3d .fm-ovr { width: 46px; height: 52px; } .fm-team.is3d .fm-ovr b { font-size: 21px; }
+  .fm-team.is3d .fm-stats span { padding: 5px 2px; } .fm-team.is3d .fm-stats b { font-size: 18px; } .fm-team.is3d .fm-stats small { font-size: 10px; }
+  .fm-team.is3d .fm-btn { min-height: 34px; font-size: 14px !important; }
+  .fm-team.is3d .fm-tside, .fm-pinfo { transition: opacity .35s, transform .45s cubic-bezier(.2,.8,.2,1); }
+  .fm-team.focus .fm-tside { opacity: 0; transform: translateX(-30px); pointer-events: none; }
+  .fm-slot3 { transition: opacity .35s; }
+  .fm-team.focus .fm-slot3:not(.sel) { opacity: 0; pointer-events: none; }
+  .fm-slot3.sel .cc { filter: drop-shadow(0 0 18px rgba(198,255,61,.45)) drop-shadow(0 14px 16px rgba(0,0,0,.6)); }
+  .fm-pinfo { position: absolute; z-index: 3; right: var(--fm-r); top: 50%; width: min(300px, 38vw); transform: translateY(-50%); display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px;
+    background: linear-gradient(180deg, rgba(14,24,48,.92), rgba(6,12,26,.94)); box-shadow: inset 0 0 0 1.5px rgba(120,140,255,.35), 0 0 30px rgba(80,120,255,.2); animation: fm-in .45s cubic-bezier(.2,.8,.2,1); }
+  @keyframes fm-in { from { opacity: 0; transform: translate(30px, -50%); } }
+  .fm-team.is3d { position: relative; height: 100%; }
+  .fm-pi-h { display: flex; align-items: center; gap: 10px; }
+  .fm-pi-r { font: italic 800 38px/1 "Barlow Condensed", sans-serif; color: var(--fm-lime); }
+  .fm-pi-h span { display: grid; gap: 2px; min-width: 0; } .fm-pi-h span b { font: 800 20px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fm-pi-h small { font: 600 12px/1.2 "Barlow Condensed", sans-serif; color: #9fb2cc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fm-pi-st { display: grid; grid-template-columns: 1fr 1fr; gap: 5px 14px; }
+  .fm-pi-st span { display: grid; grid-template-columns: 30px minmax(0, 1fr) 24px; align-items: center; gap: 6px; }
+  .fm-pi-st small { font: 700 11px/1 "Barlow Condensed", sans-serif; color: #9fb2cc; } .fm-pi-st b { font: 800 15px/1 "Barlow Condensed", sans-serif; text-align: right; }
+  .fm-pi-st i { height: 5px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .fm-pi-st u { display: block; height: 100%; border-radius: 3px; text-decoration: none; animation: fm-bar .7s cubic-bezier(.2,.8,.2,1) both; transform-origin: left; }
+  .fm-pi-st u.hi { background: var(--fm-lime); } .fm-pi-st u.mid { background: #ffd23c; } .fm-pi-st u.lo { background: #ff7a45; }
+  @keyframes fm-bar { from { transform: scaleX(0); } }
+  .fm-pi-btn { display: grid; grid-template-columns: 40px 1fr 40px; gap: 6px; } .fm-pi-btn .fm-btn { padding: 0 !important; font-size: 18px !important; min-height: 36px; }
+  .fm-pi-btn .fm-btn.gold { font-size: 15px !important; }
+  .fm-pi-x { justify-self: center; font: 700 13px/1 "Barlow Condensed", sans-serif !important; text-transform: uppercase; color: #9fb2cc !important; padding: 4px 8px !important; }
+}

@@ -10,6 +10,7 @@ const FCM = (() => {
   const UI = () => Store.d.ui || (Store.d.ui = {});
   const on = () => !UI().fcmOff;
   let tab = 'play', sub = { quests: 'day', store: 'coins', events: 'jg' };
+  let focusI = -1; // игрок, на которого наехала камера в «Команде»
   let bg3 = null; // 3D-стадион за меню (Arena3D.backdrop), null — нет WebGL или ещё грузится
 
   const TABS = [
@@ -84,14 +85,31 @@ const FCM = (() => {
         <button class="fm-btn" data-act="collection">Коллекция</button>
         <button class="fm-btn" data-act="sbc">Испытания (ИПК)</button>
       </div>`;
-    if (bg3) return `<div class="fm-team is3d">${panel}<div class="fm-cards">${F.slots.map((sl, i) => { const c = cards[i];
-      return `<button class="fm-slot3 ${c ? 'on' : ''}" data-act="squad" data-i="${i}">${c ? Cards.html(c, { w: 64 }) : '<i>+</i>'}<em>${esc(XD.RU[sl.pos] || sl.pos)}</em></button>`; }).join('')}</div></div>`;
+    if (bg3) return `<div class="fm-team is3d ${focusI >= 0 && cards[focusI] ? 'focus' : ''}">${panel}${focusI >= 0 && cards[focusI] ? pinfo(cards[focusI], F.slots[focusI]) : ''}<div class="fm-cards">${F.slots.map((sl, i) => { const c = cards[i];
+      return `<button class="fm-slot3 ${c ? 'on' : ''} ${i === focusI ? 'sel' : ''}" ${c ? `data-fm-pl="${i}"` : 'data-act="squad"'} data-i="${i}">${c ? Cards.html(c, { w: 64 }) : '<i>+</i>'}<em>${esc(XD.RU[sl.pos] || sl.pos)}</em></button>`; }).join('')}</div></div>`;
     // поле лёжа: атака вправо — вертикальная координата схемы становится горизонтальной
     return `<div class="fm-team">
       <div class="fm-pitch"><i class="fm-pl"></i>${F.slots.map((sl, i) => { const c = cards[i];
         return `<span class="fm-slot ${c ? 'on' : ''}" style="left:${100 - sl.y}%;top:${sl.x}%">${c ? Cards.html(c, { w: 46 }) : `<i>+</i><small>${esc(XD.RU[sl.pos] || sl.pos)}</small>`}</span>`; }).join('')}</div>
       ${panel}
     </div>`;
+  }
+  // точка схемы → точка поля (поле вдоль X, атака от камеры)
+  const slotWorld = (sl, W, H) => [-W / 2 + 21 + ((93 - sl.y) / 77) * W * 0.47, ((sl.x - 50) / 100) * H * 0.86];
+  // панель игрока при наезде камеры: цифры карточки, замена, листание по составу
+  function pinfo(c, sl) {
+    const gk = sl.pos === 'GK', N = gk ? ['НЫР', 'РУК', 'УДР', 'РЕА', 'СКР', 'ПОЗ'] : ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'], st = c.st || Array(6).fill(c.r);
+    return `<div class="fm-pinfo">
+      <div class="fm-pi-h"><b class="fm-pi-r">${c.r}</b><span><b>${esc(c.name)}</b><small>${esc(XD.RU[sl.pos] || sl.pos)} · ${esc(c.club || c.series || '')}</small><small>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</small></span></div>
+      <div class="fm-pi-st">${N.map((n, i) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[i]))}%" class="${st[i] >= 85 ? 'hi' : st[i] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[i]}</b></span>`).join('')}</div>
+      <div class="fm-pi-btn"><button class="fm-btn" data-fm-step="-1" aria-label="Предыдущий">‹</button><button class="fm-btn gold" data-act="squad">Заменить</button><button class="fm-btn" data-fm-step="1" aria-label="Следующий">›</button></div>
+      <button class="fm-pi-x" data-fm-unfocus>Весь состав</button>
+    </div>`;
+  }
+  function focusOn(i) {
+    const s = Squad.S(), F = XD.FORMATIONS[s.form];
+    if (i < 0 || !F.slots[i] || !Cards.get(s.xi[i])) { focusI = -1; if (bg3) bg3.unfocus(); render(); return; }
+    focusI = i; const [x, z] = slotWorld(F.slots[i], bg3.W, bg3.H); bg3.focus(x, z); render();
   }
   // карточки на 3D-газоне: точка схемы → точка поля → экран; дальние меньше, ближние крупнее
   function placeCards() {
@@ -100,8 +118,8 @@ const FCM = (() => {
     const F = XD.FORMATIONS[Squad.S().form], W = bg3.W, H = bg3.H;
     els.forEach((el) => {
       const sl = F.slots[+el.dataset.i]; if (!sl) return;
-      const x = -W / 2 + 15 + ((93 - sl.y) / 77) * W * 0.52, z = ((sl.x - 50) / 100) * H * 0.86;
-      const p = bg3.project(x, z), k = Math.max(0.62, Math.min(1.05, 60 / p.d));
+      const [x, z] = slotWorld(sl, W, H), sel = +el.dataset.i === focusI;
+      const p = bg3.project(x, z), k = Math.max(0.62, Math.min(sel ? 1.6 : 0.98, 60 / p.d));
       el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -92%) scale(${k.toFixed(3)})`;
       el.style.zIndex = String(Math.round(1000 - p.d));
     });
@@ -213,8 +231,12 @@ const FCM = (() => {
     const back = document.createElement('button'); back.className = 'fcm-back-new'; back.textContent = 'Новый вид'; back.dataset.fmNew = '1'; document.body.appendChild(back);
     render();
     root.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-fm-tab]'); if (t) { Sound.play('tap'); tab = t.dataset.fmTab; render(); root.querySelector('.fm-main').scrollTop = 0; return; }
+      const t = e.target.closest('[data-fm-tab]'); if (t) { Sound.play('tap'); tab = t.dataset.fmTab; if (focusI >= 0) { focusI = -1; if (bg3) bg3.unfocus(); } render(); root.querySelector('.fm-main').scrollTop = 0; return; }
       const s = e.target.closest('[data-fm-sub]'); if (s) { Sound.play('tap'); const [k, v] = s.dataset.fmSub.split(':'); sub[k] = v; render(); return; }
+      const pl = e.target.closest('[data-fm-pl]'); if (pl) { Sound.play('tap'); return focusOn(+pl.dataset.fmPl === focusI ? -1 : +pl.dataset.fmPl); }
+      if (e.target.closest('[data-fm-unfocus]')) { Sound.play('tap'); return focusOn(-1); }
+      const stp = e.target.closest('[data-fm-step]'); if (stp) { Sound.play('tap'); const xi = Squad.S().xi, d = +stp.dataset.fmStep; let i = focusI;
+        for (let n = 0; n < 11; n++) { i = (i + d + 11) % 11; if (Cards.get(xi[i])) break; } return focusOn(i); }
       const m = e.target.closest('[data-fm-mode]'); if (m) { Sound.play('tap'); return startMode(m.dataset.fmMode); }
       const tr = e.target.closest('[data-fm-train]'); if (tr) { Sound.play('tap'); return App.openFootball('fk', tr.dataset.fmTrain); }
       const c = e.target.closest('[data-fm-claim]'); if (c) { Rewards.claimQuest(c.dataset.fmClaim); return render(); }
