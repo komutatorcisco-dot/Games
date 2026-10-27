@@ -388,7 +388,9 @@ export function playerStep(P, inp, h, withBall) {
       const k2 = 1 - Math.exp(-h * (want2 > sp0 ? C.accel * (P.boost || 1) * (P.accK || 1) : (C.turnBrake ?? C.decel))); // на повороте тормозит упором — резче, чем просто отпустив джойстик
       const maxW = Math.max(C.curveMin, C.curve - (C.curveK ?? 1) * sp0), a = Math.atan2(P.v.x, P.v.z) + Math.max(-maxW * h, Math.min(maxW * h, d)), m = sp0 + (want2 - sp0) * k2;
       P.v.x = Math.sin(a) * m; P.v.z = Math.cos(a) * m;
-    } else { P.v.x += (wx - P.v.x) * k; P.v.z += (wz - P.v.z) * k; } }
+    } else { // крутой поворот на бегу (больше ~120°) — упор и тормоз, как на повороте дугой (turnBrake): иначе 135° выходил
+      // медленнее разворота на 180° (0,45 с против 0,37 с) и широкой дугой — 0,8 м, на рывке 1,2 м
+      const kk = d !== 0 ? 1 - Math.exp(-h * (C.turnBrake ?? C.decel)) : k; P.v.x += (wx - P.v.x) * kk; P.v.z += (wz - P.v.z) * kk; } }
   const nx = P.p.x + P.v.x * h, nz = P.p.z + P.v.z * h;
   P.p.x = Math.max(-C.bounds.x, Math.min(C.bounds.x, nx));
   P.p.z = Math.max(C.bounds.zMin, Math.min(C.bounds.zMax, nz));
