@@ -48,5 +48,26 @@ const { chromium } = require('playwright');
     assert.equal(fin.b, 'Ещё серия');
     assert.deepEqual(errors, [], 'без ошибок страницы');
     console.log('moments ok', ends.map((e) => `${e.k}:${e.why}`).join(' | '));
+    // руками, «один на один» (партнёра на поле нет): удар и пас кнопками — игра не падает и не замирает (27.10: после
+    // удара каждый кадр падал на поиске партнёра; пас искал получателя и тоже падал — теперь пас в свободную зону)
+    const p2 = await browser.newPage({ viewport: { width: 844, height: 390 } }); const err2 = []; p2.on('pageerror', (e) => err2.push(e.message));
+    await p2.addInitScript(() => { let t = 1000; const raf = window.requestAnimationFrame.bind(window); performance.now = () => t; window.__f = 0; window.requestAnimationFrame = (cb) => raf(() => { t += 1000 / 30; window.__f++; cb(t); }); });
+    await p2.route('**/*', async (route) => {
+      const url = new URL(route.request().url()); if (url.hostname !== 'jackson.test') return route.abort();
+      const file = path.join(process.cwd(), decodeURIComponent(url.pathname)); if (!fs.existsSync(file)) return route.fulfill({ status: 404, body: '' });
+      const contentType = { '.js': 'text/javascript', '.html': 'text/html', '.webp': 'image/webp', '.glb': 'model/gltf-binary', '.png': 'image/png', '.jpg': 'image/jpeg' }[path.extname(file)] || 'application/octet-stream';
+      return route.fulfill({ contentType, body: fs.readFileSync(file) });
+    });
+    await p2.goto('http://jackson.test/prototypes/shot/index.html?mode=moments&n=3&trace=1&q=low&nr=1&sd=7&ep=1v1,1v1');
+    await p2.waitForFunction(() => window.ready, null, { timeout: 200000 });
+    const F2 = async (n) => { const f0 = await p2.evaluate(() => window.__f); await p2.waitForFunction((x) => window.__f >= x, f0 + n, { timeout: 30000, polling: 20 }); };
+    await F2(10); await p2.evaluate(() => document.querySelector('#again').click()); await F2(30);
+    const tap = async (sel, hold) => { const b = await p2.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return [r.x + r.width / 2, r.y + r.height / 2]; }); await p2.mouse.move(b[0], b[1]); await p2.mouse.down(); await F2(hold); await p2.mouse.up(); };
+    await p2.evaluate(() => window.__joyTo(0.3, -1)); await F2(15); await tap('#b-pass', 3); await F2(30);
+    const afterPass = await p2.evaluate(() => window.__state());
+    assert.ok(afterPass.me[3] >= 0 && afterPass.owner !== 'mate', 'пас без партнёра — в зону, управление у меня');
+    await p2.evaluate(() => window.__give()); await p2.evaluate(() => window.__joyTo(0, -1)); await F2(15); await tap('#b-shot', 10); await F2(45); // кадры идут после удара
+    assert.deepEqual([...new Set(err2)], [], 'удар и пас в «один на один» без ошибок');
+    await p2.close();
   } finally { await browser.close(); }
 })().catch((e) => { console.error(e); process.exit(1); });

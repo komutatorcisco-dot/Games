@@ -1767,7 +1767,7 @@ function firePass(P, who, job, recv) {
 // мяч остаётся у того, у кого был (метки 'me'/'mate' на мяче меняются местами вместе с ролями).
 // Заряд удара, начатый пас и финт не переходят к другому игроку; удерживаемый джойстик и рывок продолжают работать.
 function swapControl(toId = 'mate') {
-  const m = run && (toId === 'mate' ? run.mate : run.allies && run.allies.find((x) => x.id === toId)); if (!m) return false;
+  const m = run && (toId === 'mate' ? run.mate : run.allies && run.allies.find((x) => x.id === toId)); if (!m || (m.pl && m.pl.off)) return false; // ушедшему с поля управление не передаём
   cancelCharge(); passIn.down = -1; const pg = $('#pass-g'); if (pg) pg.textContent = '';
   if (run.feint) run.P.drive = null; run.feint = null; B.feintOff = null; run.strike = null; run.pass = null; run.fire = false; run.passFire = false;
   if (TRACE && MATCH_ON) { const dB = (Q) => +Math.hypot(Q.p.x - B.p.x, Q.p.z - B.p.z).toFixed(1); let nb = 1e9; for (const q of actors()) if (q.team === 0) nb = Math.min(nb, dB(q.P)); console.log('swap', JSON.stringify({ t: +simT.toFixed(2), why: run.swapWhy || '?', to: toId, dOld: dB(run.P), dNew: dB(m.P), dBest: +nb.toFixed(1), ot: ownerTeam() })); run.swapWhy = null; }
@@ -1781,8 +1781,8 @@ function swapControl(toId = 'mate') {
 }
 // партнёр, ближе всех к мячу (для «Смены» и автосмены в матче); в «2 на 1» — единственный партнёр
 function nearestAlly(exceptMe = true) {
-  if (!MATCH_ON || !run.allies || !run.allies.length) return 'mate';
-  let best = 'mate', bd = 1e9; for (const a of actors()) { if (a.team !== 0 || (exceptMe && a.id === 'me')) continue; const d = switchCost(a); if (d < bd) { bd = d; best = a.id; } }
+  if (!MATCH_ON || !run.allies || !run.allies.length) return run.mate && run.mate.pl.off ? null : 'mate'; // «Моменты»: партнёра в эпизоде может не быть
+  let best = null, bd = 1e9; for (const a of actors()) { if (a.team !== 0 || (exceptMe && a.id === 'me')) continue; const d = switchCost(a); if (d < bd) { bd = d; best = a.id; } }
   return best;
 }
 // Кому переключиться (как в FC): кто раньше всех успеет к мячу — к тому месту, где мяч (или владелец) будет,
@@ -1808,8 +1808,10 @@ function switchCost(a, dir = null) {
 function pickReceiver(from, inp, withMe = false, withGK = false, pw = 0) {
   const A = actors().filter((a) => a.team === 0 && (withMe || a.id !== 'me'));
   if (withGK && MATCH_ON && GK[1]) { const k = GK[1].pl.holder.position; if (Math.hypot(k.x - from.p.x, k.z - from.p.z) < 45) A.push({ id: 'gk2', team: 0, P: { p: k, v: { x: 0, z: 0 } } }); } // пас назад своему вратарю
-  if (A.length <= 1) return A[0];
   const il = inp ? Math.hypot(inp.x, inp.y) : 0, dx = il > 0.3 ? inp.x / il : Math.sin(from.yaw), dz = il > 0.3 ? -inp.y / il : Math.cos(from.yaw);
+  // некому отдать («Моменты»: один на один) — пас в свободную зону по джойстику, управление остаётся у меня
+  if (!A.length) { const L = 8 + 10 * pw; return { id: '-', team: 0, P: { p: { x: from.p.x + dx * L, z: from.p.z + dz * L }, v: { x: 0, z: 0 } } }; }
+  if (A.length <= 1) return A[0];
   let best = A[0], bs = -1e9;
   const want = 10 + 20 * pw, opp = MATCH_ON ? actors().filter((o) => o.team === 1) : [];
   for (const a of A) {
@@ -3181,7 +3183,7 @@ function interceptOk(P, id) {
 function matchChaseOk() {
   if (!MATCH_ON) return true; if (MT.back) return false; if (MT.restart && MT.restart.taker !== 'me') return false;
   const pt = passInFlight(); if (pt && pt.team === 0) return pt.id === shooter;
-  const P = run.P, d = Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z), M = actorOf(nearestAlly()).P, dm = Math.hypot(B.p.x - M.p.x, B.p.z - M.p.z);
+  const P = run.P, d = Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z), Ma = actorOf(nearestAlly()), dm = Ma ? Math.hypot(B.p.x - Ma.P.p.x, B.p.z - Ma.P.p.z) : 1e9;
   return d < 9 || d < dm + 1;
 }
 // ---- шаг матча ----
@@ -3664,6 +3666,7 @@ function momSetup(i, now = false) {
   const M = MOMS; M.phase = 'wait'; const fade = $('#fade'); if (!now && fade) fade.classList.add('on');
   const go = () => {
     const E = MOM_EP[M.list[i]], j = (a) => (M.rnd() * 2 - 1) * a, at = E.pos(j);
+    actors(); for (const a of run._act) a.pl.off = false; run.offN = 0; // все снова в игре — лишних уберём ниже, после смены ролей
     const want = E.carrier === 'wing' ? M.wingPl : M.stPl; if (shooter !== want && run.mate && run.mate.pl === want) swapControl('mate'); // с мячом — нужный по роли
     actors(); const all = run._act;
     for (const a of all) {
