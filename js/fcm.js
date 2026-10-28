@@ -128,17 +128,49 @@ const FCM = (() => {
     if (i < 0 || !F.slots[i] || !Cards.get(s.xi[i])) { focusI = -1; if (bg3) bg3.unfocus(); render(); return; }
     focusI = i; const [x, z] = slotWorld(F.slots[i], bg3.W, bg3.H); bg3.focus(x, z); render();
   }
-  // карточки на 3D-газоне: точка схемы → точка поля → экран; дальние меньше, ближние крупнее
+  // 3D-игроки на газоне: одна модель assets3d/player.glb, форма/номер/внешность из карточки (js/playerkit.js).
+  // Игроки крупнее настоящих (MAN), иначе с высоты камеры их не видно. Нет модели — остаются одни карточки.
+  const MAN = 4.2, MAN_TOP = 1.45 * MAN;   // карточка чуть ниже макушки: подпись позиции ложится на голову
+  let men = null, menKey = '', menFail = false;
+  function syncMen() {
+    if (!bg3 || !bg3.scene || typeof PlayerKit === 'undefined' || menFail) return;
+    if (men) men.visible = tab === 'team';
+    if (tab !== 'team') return;
+    const s = Squad.S(), F = XD.FORMATIONS[s.form], key = s.form + '|' + s.xi.join(',');
+    if (key === menKey) return;
+    menKey = key;
+    PlayerKit.load().then((g) => {
+      if (menKey !== key || !bg3) return;
+      if (men) { bg3.scene.remove(men); men.traverse((o) => { if (o.userData.mixer) PlayerKit.dispose(o); }); }
+      men = new THREE.Group(); men.visible = tab === 'team';
+      const shadow = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });
+      const disc = new THREE.CircleGeometry(0.45 * MAN, 20);
+      F.slots.forEach((sl, i) => {
+        const c = s.xi[i] && Cards.get(s.xi[i]); if (!c) return;
+        const [x, z] = slotWorld(sl, bg3.W, bg3.H);
+        const w = new THREE.Group();
+        w.add(PlayerKit.make(g, PlayerKit.forCard(c), 'stand'));
+        w.scale.setScalar(MAN); w.position.set(x, 0, z);
+        w.rotation.y = -Math.PI / 2 + ((i % 3) - 1) * 0.18;   // лицом к камере, чуть вразнобой
+        const sh = new THREE.Mesh(disc, shadow); sh.rotation.x = -Math.PI / 2; sh.position.set(x, 0.02, z);
+        men.add(w, sh);
+      });
+      bg3.scene.add(men); document.body.classList.add('fm-men'); placeCards();
+    }).catch(() => { menFail = true; });   // без модели «Команда» работает как раньше — на карточках
+  }
+  // карточки на 3D-газоне: точка схемы → точка поля → экран; дальние меньше, ближние крупнее.
+  // С 3D-игроками карточка висит над головой, у выбранного (наезд камеры) — прячется, виден сам игрок.
   function placeCards() {
     if (!bg3 || tab !== 'team' || !root) return;
     const els = root.querySelectorAll('.fm-slot3'); if (!els.length) return;
-    const F = XD.FORMATIONS[Squad.S().form], W = bg3.W, H = bg3.H;
+    const F = XD.FORMATIONS[Squad.S().form], W = bg3.W, H = bg3.H, up = men && men.visible ? MAN_TOP : 0;
     els.forEach((el) => {
       const sl = F.slots[+el.dataset.i]; if (!sl) return;
-      const [x, z] = slotWorld(sl, W, H), sel = +el.dataset.i === focusI;
-      const p = bg3.project(x, z), k = Math.max(0.62, Math.min(sel ? 1.6 : 0.98, 60 / p.d));
-      el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -92%) scale(${k.toFixed(3)})`;
+      const [x, z] = slotWorld(sl, W, H), sel = +el.dataset.i === focusI, on = el.classList.contains('on');
+      const p = bg3.project(x, z, on ? up : 0), k = Math.max(0.62, Math.min(sel ? 1.6 : 0.98, 60 / p.d)) * (up && on ? 0.82 : 1);
+      el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, ${up && on ? -100 : -92}%) scale(${k.toFixed(3)})`;
       el.style.zIndex = String(Math.round(1000 - p.d));
+      el.classList.toggle('hid', !!(up && sel));
     });
   }
 
@@ -381,7 +413,7 @@ const FCM = (() => {
     root.dataset.view = tab;
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
     if (typeof Coins !== 'undefined') Coins.render();
-    if (bg3) { bg3.view(tab); bg3.onFrame = tab === 'team' ? placeCards : null; placeCards(); }
+    if (bg3) { bg3.view(tab); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
   }
   // Telegram во весь экран: сверху ряд его кнопок («Назад»/«Закрыть» слева, «⋁ …» справа). Свою шапку ставим в этот
   // же ряд — между кнопками, чтобы не терять высоту экрана лёжа.

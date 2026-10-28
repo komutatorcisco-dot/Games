@@ -224,5 +224,40 @@ const PlayerKit = (() => {
     return kit(Object.assign({ pattern: 'sleeves', c1: hex(a.shirt), c2: hex(a.sleeve), shorts: hex(a.shorts), socks: hex(a.socks), ink: a.inkCss }, extra));
   }
 
-  return { PATTERNS, SKIN, HAIR, STYLES, KITS, kit, apply, random, forCard, fromArena, numberOf, posNumber, clubKit, shirtCanvas, hash };
+  // ---------- загрузка модели (лениво, после three.js) ----------
+  // Загрузчики three r128 — свои копии в vendor/three-ext, декодер Draco — vendor/draco.
+  const MODEL = 'assets3d/player.glb?v=20261028';
+  let loading = null;
+  const addScript = (src) => new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
+  function load() {
+    if (loading) return loading;
+    loading = (window.THREE ? Promise.resolve() : Promise.reject(new Error('three.js не загружен')))
+      .then(() => THREE.GLTFLoader || addScript('vendor/three-ext/GLTFLoader.js'))
+      .then(() => THREE.DRACOLoader || addScript('vendor/three-ext/DRACOLoader.js'))
+      .then(() => THREE.SkeletonUtils || addScript('vendor/three-ext/SkeletonUtils.js'))
+      .then(() => new Promise((ok, bad) => {
+        const draco = new THREE.DRACOLoader(); draco.setDecoderPath('vendor/draco/');
+        const gl = new THREE.GLTFLoader(); gl.setDRACOLoader(draco);
+        gl.load(MODEL, ok, undefined, bad);
+      }));
+    loading.catch(() => { loading = null; });   // сеть подвела — в следующий раз попробуем снова
+    return loading;
+  }
+  // Готовый игрок: клон модели, внешность, поза (stand | run | run2 | kick | kick2)
+  function make(gltf, look, pose = 'stand') {
+    const p = THREE.SkeletonUtils.clone(gltf.scene);
+    apply(p, look);
+    const clip = THREE.AnimationClip.findByName(gltf.animations, pose) || THREE.AnimationClip.findByName(gltf.animations, 'stand');
+    if (clip) { const m = new THREE.AnimationMixer(p); m.clipAction(clip).play(); m.update(0); p.userData.mixer = m; }
+    return p;
+  }
+  // Освободить материалы и текстуры майки клона (геометрия общая с моделью — её не трогаем)
+  function dispose(root) {
+    root.traverse((o) => {
+      if (!o.isMesh) return;
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.map && m.map.isCanvasTexture) m.map.dispose(); m.dispose(); });
+    });
+  }
+
+  return { PATTERNS, SKIN, HAIR, STYLES, KITS, kit, apply, random, forCard, fromArena, numberOf, posNumber, clubKit, shirtCanvas, hash, load, make, dispose };
 })();

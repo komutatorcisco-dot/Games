@@ -621,7 +621,7 @@ const Arena3D = (() => {
       unfocus() { view = 'team'; },
       settled: () => cp.distanceTo(tp) < 0.3,
       project(x, z, y = 0) { const v = new THREE.Vector3(x, y, z).project(camera), w = host.clientWidth, h = host.clientHeight; return { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h, d: camera.position.distanceTo(new THREE.Vector3(x, y, z)) }; },
-      W, H,
+      W, H, scene,   // scene — «Команда» ставит на газон 3D-игроков (PlayerKit)
     };
     let raf = 0;
     const step = (now) => {
