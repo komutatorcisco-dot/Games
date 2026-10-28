@@ -362,8 +362,8 @@ for f in me.polygons:
 # кости пальцев удаляем. Кисть двигается целиком (запястье), пальцы не анимируются.
 import math
 from mathutils import Quaternion
-FINGER_CURL = {1: 35, 2: 50, 3: 40}
-THUMB_CURL = {2: 20, 3: 20}
+FINGER_CURL = {1: 10, 2: 16, 3: 10}   # почти прямые: у облегчённой кисти пальцы «лопаткой», сильный сгиб даёт коготь
+THUMB_CURL = {2: 6, 3: 6}
 FINGERS = [b.name for b in rig.data.bones if 'HandThumb' in b.name or any(
     'Hand%s' % f in b.name for f in ('Index', 'Middle', 'Ring', 'Pinky'))]
 for b in rig.pose.bones:
