@@ -1,8 +1,9 @@
 <!doctype html>
-<!-- Генератор картинок режимов нового вида (27.10): сцены из деталей Arena3D (футболисты, ворота, мяч) при свете стадиона.
-     Запуск: node tools/art/render.js modes — сохраняет img/fcm/mode-*.webp (прозрачный фон) -->
+<!-- Генератор картинок режимов нового вида: 3D-игроки (assets3d/player.glb + js/playerkit.js), ворота, мяч, фишки.
+     Запуск: node tools/art/render.js modes — сохраняет img/fcm/mode-*.webp (прозрачный фон).
+     Посмотреть одну сцену: tools/art/modes.html?view=mom -->
 <html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent}</style></head>
-<body><script src="../../vendor/three.min.js"></script><script src="../../js/arena3d.js"></script><script>
+<body><script src="../../vendor/three.min.js"></script><script src="../../js/arena3d.js"></script><script src="../../js/playerkit.js"></script><script>
 'use strict';
 const { goal } = Arena3D.parts;
 let R = null;
@@ -20,47 +21,48 @@ function rig(w, h) {
 const L = (h) => new THREE.Color(h).convertSRGBToLinear(); // цвета в линейном пространстве — иначе блёклые
 const std = (h, o = {}) => new THREE.MeshStandardMaterial({ color: L(h), roughness: 0.35, metalness: 0.05, ...o });
 function ballM(r = 0.38) { const b = Arena3D.ball('classic', r); b.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.material.color.convertSRGBToLinear(); } }); return b; }
-// майка: силуэт выдавлен с фаской, спереди — номер и полосы (текстура по рамке силуэта)
-function jersey(c1, c2, num, stripes) {
-  const sh = new THREE.Shape(); const P = [[-0.42, 1], [-0.16, 1.08], [0, 0.98], [0.16, 1.08], [0.42, 1], [0.78, 0.74], [0.6, 0.5], [0.44, 0.6], [0.44, -0.5], [-0.44, -0.5], [-0.44, 0.6], [-0.6, 0.5], [-0.78, 0.74]];
-  sh.moveTo(...P[0]); P.slice(1).forEach((q) => sh.lineTo(...q)); sh.closePath();
-  const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.07, bevelSize: 0.05, bevelSegments: 6, curveSegments: 8 });
-  const c = document.createElement('canvas'); c.width = 512; c.height = 512; const g = c.getContext('2d');
-  g.fillStyle = c1; g.fillRect(0, 0, 512, 512);
-  if (stripes) { g.fillStyle = c2; for (let x = 40; x < 512; x += 110) g.fillRect(x, 0, 44, 512); }
-  g.fillStyle = c2; g.fillRect(0, 0, 512, 40); // воротник
-  const gl = g.createLinearGradient(0, 0, 512, 512); gl.addColorStop(0, 'rgba(255,255,255,.25)'); gl.addColorStop(0.5, 'rgba(255,255,255,0)'); gl.addColorStop(1, 'rgba(0,0,0,.25)'); g.fillStyle = gl; g.fillRect(0, 0, 512, 512);
-  g.font = 'italic 900 230px Arial Black, Arial'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 16; g.strokeStyle = 'rgba(0,0,0,.35)'; g.strokeText(num, 256, 300); g.fillStyle = stripes ? '#fff' : c2; g.fillText(num, 256, 300);
-  const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding;
-  // UV лицевой стороны: силуэт (-0.78..0.78, -0.5..1.08) → 0..1; верх текстуры — ворот (v=1 вверху)
-  const uv = geo.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + 0.78) / 1.56, (uv.getY(i) + 0.5) / 1.58);
-  const m = new THREE.Mesh(geo, [new THREE.MeshStandardMaterial({ map: tx, roughness: 0.45 }), std(c1, { roughness: 0.5 })]); m.castShadow = true;
-  const gr = new THREE.Group(); m.position.z = -0.08; gr.add(m); return gr;
-}
 function cone(x, z, s = 1) { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.62, 32), std('#ff6a00', { roughness: 0.4 })); c.position.y = 0.31; c.castShadow = true; g.add(c);
   const band = new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.175, 0.1, 32), std('#ffffff')); band.position.y = 0.36; g.add(band);
   const base = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.05, 0.62), std('#ff6a00')); base.position.y = 0.025; base.castShadow = true; g.add(base); g.position.set(x, 0, z); g.scale.setScalar(s); return g; }
 function goalM(sc) { const gl = goal(1); gl.traverse((o) => { if (o.isMesh && o.material.color) o.material.color.convertSRGBToLinear(); }); gl.scale.setScalar(sc); return gl; }
+// 3D-игрок: внешность и поза из PlayerKit; s — масштаб (игроки чуть крупнее мяча и ворот, как на плитке)
+let G = null;
+const ready = PlayerKit.load('../../').then((g) => (G = g));
+const KIT = {
+  red: { pattern: 'plain', c1: '#e3243f', c2: '#ffffff', shorts: '#ffffff', socks: '#e3243f' },
+  redS: { pattern: 'stripes', c1: '#e3243f', c2: '#ffffff', shorts: '#111111', socks: '#e3243f' },
+  blue: { pattern: 'plain', c1: '#1f5bd8', c2: '#ffffff', shorts: '#ffffff', socks: '#1f5bd8' },
+  navy: { pattern: 'sleeves', c1: '#11204f', c2: '#c6ff3d', shorts: '#11204f', socks: '#c6ff3d' },
+};
+function man(kit, look, pose, x, z, ry, s = 1) {
+  const p = PlayerKit.make(G, PlayerKit.kit(Object.assign({}, KIT[kit], look)), pose);
+  p.scale.multiplyScalar(s); p.position.set(x, 0, z); p.rotation.y = ry;
+  p.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; } });
+  return p;
+}
 const SCENES = {
-  dribble(s) { [[-1.8, 0], [-0.6, 0], [0.6, 0], [1.8, 0]].forEach(([x, z]) => s.add(cone(x, z, 0.9)));
+  dribble(s) { [[-1.8, 0], [-0.6, 0], [0.6, 0], [1.8, 0]].forEach(([x, z]) => s.add(cone(x, z, 0.8)));
     // линия слалома: светящаяся лента змейкой между фишками
     const pts = []; for (let i = 0; i <= 60; i++) { const x = -2.4 + i * 0.08; pts.push(new THREE.Vector3(x, 0.03, Math.sin((x + 2.4) * Math.PI / 1.2) * 0.55)); }
     const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 120, 0.04, 8), new THREE.MeshBasicMaterial({ color: L('#ffd23c') })); s.add(tube);
-    const b = ballM(0.42); b.position.set(-2.1, 0.42, 0.55); b.rotation.set(0.3, 0.6, 0); s.add(b);
-    return { pos: [-0.4, 2.8, 4.6], look: [0, 0.2, 0], fov: 38 }; },
+    s.add(man('blue', { number: 7, skin: 4, style: 'afro' }, 'run2', 0.9, 0.5, Math.PI / 2 - 0.5, 1.15));
+    const b = ballM(0.2); b.position.set(1.55, 0.2, 0.55); b.rotation.set(0.3, 0.6, 0); s.add(b);
+    return { pos: [-0.4, 2.8, 5.2], look: [0.3, 0.6, 0], fov: 38 }; },
   targets(s) { const gl = goalM(0.62); gl.position.set(0, 0, -1.4); gl.rotation.y = Math.PI / 2; s.add(gl);
     // мишени-кольца в углах ворот
-    [[-1.65, 1.15], [1.65, 1.15], [-1.65, 0.45]].forEach(([x, y], i) => { const g = new THREE.Group();
+    [[-1.65, 1.15], [1.65, 1.15], [-1.65, 0.45]].forEach(([x, y]) => { const g = new THREE.Group();
       [[0.42, '#ffffff'], [0.32, '#ff3d4f'], [0.2, '#ffffff'], [0.1, '#ff3d4f']].forEach(([r, c], k) => { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 40), std(c, { roughness: 0.4, side: THREE.DoubleSide })); m.position.z = k * 0.004; g.add(m); });
       g.position.set(x, y, -1.3); s.add(g); });
-    const b = ballM(0.36); b.position.set(0.5, 0.36, 1.4); s.add(b);
-    return { pos: [0, 1.4, 4.4], look: [0, 0.9, -1], fov: 40 }; },
-  mom(s) { const gl = goalM(0.55); gl.position.set(2.2, 0, -1.6); gl.rotation.y = -Math.PI / 2 - 0.35; s.add(gl);
-    const b = ballM(0.42); b.position.set(0.6, 0.95, 0.4); b.rotation.set(0.5, 1, 0.2); s.add(b);
-    return { pos: [-0.2, 1.4, 4.6], look: [0.9, 0.85, -0.4], fov: 34 }; },
-  three(s) { [[-1.05, 0.1, -0.35, '#1f5bd8', '#ffffff', '7'], [0, 0.3, 0.2, '#1f5bd8', '#ffffff', '10'], [1.05, 0.1, -0.35, '#1f5bd8', '#ffffff', '9']].forEach(([x, y, z, a, c, n], i) => {
-    const j = jersey(a, c, n, false); j.position.set(x, 0.9 + y, z); j.rotation.set(0, (i - 1) * -0.35, (i - 1) * -0.05); s.add(j); });
-    return { pos: [0, 1.5, 5.6], look: [0, 1.15, 0], fov: 34 }; },
+    s.add(man('red', { number: 10, skin: 1, style: 'short' }, 'kick', 0.9, 1.4, Math.PI + 0.35, 1.1));   // спиной к нам — виден номер
+    const b = ballM(0.2); b.position.set(0.15, 0.75, 0.2); s.add(b);
+    return { pos: [0.3, 1.6, 5.4], look: [0.2, 0.95, -0.6], fov: 40 }; },
+  mom(s) { const gl = goalM(0.55); gl.position.set(2.4, 0, -1.8); gl.rotation.y = -Math.PI / 2 - 0.35; s.add(gl);
+    s.add(man('red', { number: 9, skin: 3, style: 'short' }, 'kick', 0.5, 1.0, 2.35, 1.15));
+    const b = ballM(0.22); b.position.set(2.75, 0.95, -1.15); b.rotation.set(0.5, 1, 0.2); s.add(b);
+    return { pos: [-0.2, 1.4, 4.9], look: [1.1, 0.9, -0.4], fov: 36 }; },
+  three(s) { [[-0.72, -0.35, 'stand', 0.45, 7, 1, 'short'], [0, 0.25, 'run', 0.05, 10, 4, 'afro'], [0.72, -0.35, 'stand', -0.45, 9, 2, 'medium']].forEach(([x, z, pose, ry, n, skin, style]) =>
+    s.add(man('blue', { number: n, skin, style }, pose, x, z, ry, 1)));
+    return { pos: [0, 1.4, 6.0], look: [0, 1.0, 0], fov: 34 }; },
   mgr(s) { const c = document.createElement('canvas'); c.width = 640; c.height = 440; const g = c.getContext('2d');
     const gg = g.createLinearGradient(0, 0, 0, 440); gg.addColorStop(0, '#2a9a4e'); gg.addColorStop(1, '#16703a'); g.fillStyle = gg; g.fillRect(0, 0, 640, 440);
     g.strokeStyle = '#eafff1'; g.lineWidth = 7; g.strokeRect(18, 18, 604, 404); g.beginPath(); g.moveTo(320, 18); g.lineTo(320, 422); g.stroke(); g.beginPath(); g.arc(320, 220, 60, 0, 7); g.stroke(); g.strokeRect(18, 130, 80, 180); g.strokeRect(542, 130, 80, 180);
@@ -70,16 +72,20 @@ const SCENES = {
     const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding;
     const frame = std('#2b303a', { metalness: 0.6, roughness: 0.3 });
     const board = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.8, 0.1), [frame, frame, frame, frame, new THREE.MeshStandardMaterial({ map: tx, roughness: 0.35 }), frame]);
-    board.position.set(0.15, 1.2, 0); board.rotation.set(-0.12, -0.32, 0); board.castShadow = true; s.add(board);
-    const j = jersey('#e3243f', '#ffffff', '8', false); j.scale.setScalar(0.62); j.position.set(-1.25, 0.55, 0.7); j.rotation.set(0, 0.45, 0.12); s.add(j);
-    return { pos: [0, 1.4, 5.4], look: [-0.1, 1.0, 0], fov: 34 }; },
-  eleven(s) { const a = jersey('#e3243f', '#ffffff', '9', true); a.position.set(-0.72, 1.05, 0); a.rotation.set(0, 0.42, 0.08); s.add(a);
-    const b = jersey('#1f5bd8', '#ffffff', '11', false); b.position.set(0.72, 1.05, 0); b.rotation.set(0, -0.42, -0.08); s.add(b);
-    const ball = ballM(0.34); ball.position.set(0, 0.34, 0.9); s.add(ball);
-    return { pos: [0, 1.4, 5.4], look: [0, 1.0, 0], fov: 34 }; },
-  train(s) { [[-1.5, -0.4], [-0.5, 0.15], [0.5, -0.4], [1.5, 0.15]].forEach(([x, z]) => s.add(cone(x, z)));
-    const b = ballM(0.5); b.position.set(-0.15, 0.5, 1.15); b.rotation.set(0.4, 0.8, 0); s.add(b);
-    return { pos: [0.2, 2.2, 5.6], look: [0.1, 0.45, 0], fov: 34 }; },
+    board.scale.setScalar(0.8); board.position.set(0.35, 1.15, -0.3); board.rotation.set(-0.12, -0.32, 0); board.castShadow = true; s.add(board);
+    s.add(man('navy', { number: 8, skin: 2, style: 'buzz' }, 'stand', -0.8, 0.7, 0.55, 1));
+    return { pos: [0, 1.4, 5.6], look: [-0.1, 1.0, 0], fov: 34 }; },
+  eleven(s) { s.add(man('redS', { number: 9, skin: 2, style: 'short' }, 'run', -0.55, 0.05, 1.2, 1.05));
+    s.add(man('blue', { number: 11, skin: 5, style: 'afro' }, 'run2', 0.55, -0.25, -1.9, 1.05));
+    const ball = ballM(0.2); ball.position.set(0.05, 0.2, 0.55); s.add(ball);
+    return { pos: [0, 1.4, 5.6], look: [0, 0.95, 0], fov: 34 }; },
+  train(s) { [[-0.95, -0.4], [-0.3, 0.1], [0.35, -0.4], [1.0, 0.1]].forEach(([x, z]) => s.add(cone(x, z, 0.7)));
+    s.add(man('navy', { number: 17, skin: 3, style: 'medium' }, 'run', 0.3, 0.9, -0.9, 1.1));
+    const b = ballM(0.2); b.position.set(-0.25, 0.2, 1.25); b.rotation.set(0.4, 0.8, 0); s.add(b);
+    return { pos: [0.2, 2.0, 5.9], look: [0.1, 0.75, 0], fov: 34 }; },
 };
-window.renderMode = (id, w, h) => { const s = rig(w, h), v = SCENES[id](s); const cam = new THREE.PerspectiveCamera(v.fov, w / h, 0.1, 100); cam.position.set(...v.pos); cam.lookAt(...v.look); R.render(s, cam); return R.domElement.toDataURL('image/png'); };
+window.renderMode = async (id, w, h) => { await ready; const s = rig(w, h), v = SCENES[id](s); const cam = new THREE.PerspectiveCamera(v.fov, w / h, 0.1, 100); cam.position.set(...v.pos); cam.lookAt(...v.look); R.render(s, cam); return R.domElement.toDataURL('image/png'); };
+// ?view=mom — показать сцену в окне (для подбора кадра)
+const VIEW = new URLSearchParams(location.search).get('view');
+if (VIEW) { document.body.style.background = '#1a2433'; window.renderMode(VIEW, 900, 600).then(() => { document.title = 'ok ' + VIEW; }, (e) => { document.title = 'error ' + e; }); }
 </script></body></html>

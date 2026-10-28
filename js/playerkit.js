@@ -229,16 +229,16 @@ const PlayerKit = (() => {
   const MODEL = 'assets3d/player.glb?v=20261028';
   let loading = null;
   const addScript = (src) => new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
-  function load() {
+  function load(base = '') {   // base — путь до корня сайта (для генераторов в tools/art: '../../')
     if (loading) return loading;
     loading = (window.THREE ? Promise.resolve() : Promise.reject(new Error('three.js не загружен')))
-      .then(() => THREE.GLTFLoader || addScript('vendor/three-ext/GLTFLoader.js'))
-      .then(() => THREE.DRACOLoader || addScript('vendor/three-ext/DRACOLoader.js'))
-      .then(() => THREE.SkeletonUtils || addScript('vendor/three-ext/SkeletonUtils.js'))
+      .then(() => THREE.GLTFLoader || addScript(base + 'vendor/three-ext/GLTFLoader.js'))
+      .then(() => THREE.DRACOLoader || addScript(base + 'vendor/three-ext/DRACOLoader.js'))
+      .then(() => THREE.SkeletonUtils || addScript(base + 'vendor/three-ext/SkeletonUtils.js'))
       .then(() => new Promise((ok, bad) => {
-        const draco = new THREE.DRACOLoader(); draco.setDecoderPath('vendor/draco/');
+        const draco = new THREE.DRACOLoader(); draco.setDecoderPath(base + 'vendor/draco/');
         const gl = new THREE.GLTFLoader(); gl.setDRACOLoader(draco);
-        gl.load(MODEL, ok, undefined, bad);
+        gl.load(base + MODEL, ok, undefined, bad);
       }));
     loading.catch(() => { loading = null; });   // сеть подвела — в следующий раз попробуем снова
     return loading;
