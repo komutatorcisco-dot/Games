@@ -1,6 +1,6 @@
 /* Новый вид «как FC Mobile» (js/fcm.js) — макет, только лёжа. Оболочка не листается: сверху профиль и валюта
    (ниже кнопок Telegram), снизу меню разделов, листается только середина. */
-.fcm, .fcm-back-new { display: none; }
+.fcm { display: none; }
 
 @media (orientation: landscape) and (max-height: 620px) {
   :root {
@@ -12,8 +12,6 @@
   }
   body.fcm-on:not([data-scr]) .fcm, body.fcm-on[data-scr="hub"] .fcm { display: grid; }
   body.fcm-on:is(:not([data-scr]), [data-scr="hub"]) :is(.tabbar, #hub) { visibility: hidden !important; }
-  body:not(.fcm-on)[data-scr="hub"] .fcm-back-new { display: block; position: fixed; z-index: 45; right: calc(var(--fm-r) + 150px); top: calc(var(--fm-t) + 8px); padding: 7px 12px; border: 0; border-radius: 16px;
-    background: var(--fm-lime); color: var(--fm-ink); font: 800 13px "Barlow Condensed", "Rubik", sans-serif; text-transform: uppercase; }
 
   .fcm { position: fixed; inset: 0; z-index: 40; grid-template-rows: auto minmax(0, 1fr) auto; color: #fff; overflow: hidden; font-family: "Barlow Condensed", "Rubik", sans-serif;
     padding: var(--fm-t) 0 0;
@@ -41,7 +39,6 @@
   .fm-sp { flex: 1; }
   .fm-cur { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 6px; border-radius: 15px; background: linear-gradient(180deg, rgba(20,32,52,.9), rgba(8,14,26,.9)); box-shadow: inset 0 0 0 1px var(--fm-edge); font: 700 15px/1 "Barlow Condensed", sans-serif; }
   .fm-cur .coin { width: 20px; height: 20px; } .fm-cur svg { width: 17px; height: 17px; color: #ffd23c; }
-  .fm-old { height: 30px; padding: 0 10px !important; border-radius: 15px !important; background: rgba(255,255,255,.06) !important; font: 700 12px/1 "Barlow Condensed", sans-serif !important; text-transform: uppercase; color: rgba(255,255,255,.6) !important; }
 
   /* ---------- середина ---------- */
   .fm-main { min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 8px var(--fm-r) 10px var(--fm-l); }

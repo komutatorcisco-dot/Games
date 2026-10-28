@@ -8,7 +8,8 @@
 
 const FCM = (() => {
   const UI = () => Store.d.ui || (Store.d.ui = {});
-  const on = () => !UI().fcmOff;
+  // старого вида больше нет (28.10): новый всегда; старая главная остаётся только для вертикального экрана
+  const on = () => true;
   let tab = 'play', sub = { quests: 'day', store: 'top', events: 'jg' };
   let focusI = -1; // игрок, на которого наехала камера в «Команде»
   let bg3 = null; // 3D-стадион за меню (Arena3D.backdrop), null — нет WebGL или ещё грузится
@@ -47,7 +48,6 @@ const FCM = (() => {
       <i class="fm-sp"></i>
       <span class="fm-cur">${coin}<b class="coin-count">${Store.d.coins || 0}</b></span>
       <span class="fm-cur fm-tr">${cup}<b>${trophies()}</b></span>
-      <button class="fm-old" data-fm-old title="Старый вид">Старый вид</button>
     </header>`;
   }
   function nav() {
@@ -309,11 +309,6 @@ const FCM = (() => {
     if (typeof Coins !== 'undefined') Coins.render();
     if (bg3) { bg3.view(tab); bg3.onFrame = tab === 'team' ? placeCards : null; placeCards(); }
   }
-  function setOn(v) {
-    UI().fcmOff = !v; Store.save();
-    document.body.classList.toggle('fcm-on', v);
-    if (v) render();
-  }
   // Telegram во весь экран: сверху ряд его кнопок («Назад»/«Закрыть» слева, «⋁ …» справа). Свою шапку ставим в этот
   // же ряд — между кнопками, чтобы не терять высоту экрана лёжа.
   function insets() {
@@ -338,8 +333,6 @@ const FCM = (() => {
     if (typeof Arena3D !== 'undefined') Arena3D.backdrop(bgHost, shown).then((b) => {
       if (!b) return; bg3 = b; b.view(tab, true); document.body.classList.add('fm3d'); render();
     }).catch((e) => console.warn('FCM 3D', e));
-    // старый вид: маленькая кнопка «Новый вид» поверх старой главной
-    const back = document.createElement('button'); back.className = 'fcm-back-new'; back.textContent = 'Новый вид'; back.dataset.fmNew = '1'; document.body.appendChild(back);
     render();
     root.addEventListener('click', (e) => {
       const t = e.target.closest('[data-fm-tab]'); if (t) { Sound.play('tap'); tab = t.dataset.fmTab; if (focusI >= 0) { focusI = -1; if (bg3) bg3.unfocus(); } render(); root.querySelector('.fm-main').scrollTop = 0; return; }
@@ -354,12 +347,10 @@ const FCM = (() => {
       const tr = e.target.closest('[data-fm-train]'); if (tr) { Sound.play('tap'); return App.openFootball('fk', tr.dataset.fmTrain); }
       const c = e.target.closest('[data-fm-claim]'); if (c) { Rewards.claimQuest(c.dataset.fmClaim); return render(); }
       if (e.target.closest('[data-fm-gift]')) { Modal.open('<h2>Билет события</h2><p>Здесь будет подарок события: билет, который открывает главу. В макете награды ещё не выдаются — подключим их с проверкой на сервере.</p>', [{ label: 'Понятно' }]); return; }
-      if (e.target.closest('[data-fm-old]')) { setOn(false); toast('Старый вид. Вернуть новый — кнопка «Новый вид» справа сверху'); }
     });
-    back.addEventListener('click', () => setOn(true));
     // вернулись на главную из игры — обновить цифры (монеты, задания)
     new MutationObserver(() => { if (document.body.dataset.scr === 'hub') render(); }).observe(document.body, { attributes: true, attributeFilter: ['data-scr'] });
   }
   document.addEventListener('DOMContentLoaded', () => setTimeout(() => { try { init(); } catch (e) { console.error('FCM', e); } }, 0));
-  return { render, setOn, insets, get tab() { return tab; } };
+  return { render, insets, get tab() { return tab; } };
 })();
