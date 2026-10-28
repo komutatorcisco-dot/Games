@@ -564,6 +564,7 @@
   body.fcm-on.fm-tgbar #dly:not([hidden]) > .dly-top { grid-row: 1 / span 6; top: var(--l-top); }
   body.fcm-on.fm-tgbar #nation:not([hidden]) > #nation-stage { grid-row: 1 / span 2; }
   body.fcm-on.fm-tgbar #nation:not([hidden]) > #nation-lives { grid-row: 1; }
+  body.fcm-on.fm-tgbar #nation:not([hidden]) > #nation-opts { grid-row: 2; }
   body.fcm-on.fm-tgbar #ttt:not([hidden]) > #ttt-grid { grid-row: 1 / span 5; }
   body.fcm-on.fm-tgbar #ttt-grid :is(.tg-cell, .tg-head) { height: calc((var(--l-body) - 40px) / 4) !important; }
   body.fcm-on.fm-tgbar #transfer:not([hidden]):not(:has(.vs-mid)) > #transfer-stage { grid-row: 2; }
@@ -722,3 +723,24 @@
   .fm-modes-pg { grid-template-columns: 1fr !important; }
 }
 @media (orientation: landscape) and (max-height: 400px) { .fm-sl-t em { display: none; } .fm-feat > b { font-size: 14px; } }
+
+/* ---------- Викторины в стиле FC (28.10): вопрос — стеклянная панель, ответы — плашки с буквой A/B/C/D ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  body.fcm-on #app > .screen:not(#hub) :is(.tcard, .pcard, .player-card, .ng-card) {
+    border-radius: 12px !important; background: linear-gradient(160deg, rgba(18,30,58,.9), rgba(6,12,28,.92)) !important;
+    box-shadow: inset 0 0 0 1.5px rgba(150,120,255,.45), 0 0 24px rgba(120,90,255,.14), 0 12px 24px -10px rgba(0,0,0,.7) !important; }
+  body.fcm-on #app > .screen:not(#hub) .tcard.ok, body.fcm-on #app > .screen:not(#hub) .pcard.ok { box-shadow: inset 0 0 0 2px #3ee68a, 0 0 26px rgba(62,230,138,.4) !important; }
+  body.fcm-on #app > .screen:not(#hub) .tcard.bad, body.fcm-on #app > .screen:not(#hub) .pcard.bad { box-shadow: inset 0 0 0 2px #ff5a6e, 0 0 26px rgba(255,61,79,.35) !important; }
+  body.fcm-on #app > .screen:not(#hub) .ng-q { font: italic 900 20px/1.15 "Rubik", sans-serif !important; text-transform: uppercase; }
+  /* ответы: плашка со скошенным краем, слева буква в ромбе */
+  body.fcm-on #app > .screen:not(#hub) .opts { counter-reset: fmopt; gap: 7px !important; }
+  body.fcm-on #app > .screen:not(#hub) .opts > .btn { counter-increment: fmopt; position: relative; justify-content: flex-start !important; text-align: left !important; padding-left: 50px !important; min-height: 46px !important;
+    clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%); text-transform: none; font-size: 16px !important; }
+  body.fcm-on #app > .screen:not(#hub) .opts > .btn::before { content: counter(fmopt, upper-latin); position: absolute; left: 10px; top: 50%; width: 26px; height: 26px; transform: translateY(-50%) rotate(45deg);
+    display: grid; place-items: center; border-radius: 5px; background: linear-gradient(135deg, #19d3b0, #3fa9ff); color: #06101c; font: 900 13px/26px "Rubik", sans-serif; text-align: center; }
+  body.fcm-on #app > .screen:not(#hub) .opts > .btn > * { position: relative; }
+  body.fcm-on #app > .screen:not(#hub) .opts > .btn.right::before { background: #c6ff3d; } body.fcm-on #app > .screen:not(#hub) .opts > .btn.wrong::before { background: #fff; color: #b3182f; }
+  /* «Игрок дня», Wordle и подобные — клетки и клавиатура в тех же цветах */
+  body.fcm-on #app > .screen:not(#hub) :is(.wd-kb button, .kb button) { border-radius: 6px !important; background: rgba(20,32,56,.92) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(150,200,255,.22) !important; }
+  body.fcm-on #app > .screen:not(#hub) .lives { font-size: 20px; }
+}
