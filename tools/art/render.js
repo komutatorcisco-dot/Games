@@ -28,7 +28,7 @@ for h in (360, 160):
   if (what === 'modes') {
     await p.goto('http://localhost:8765/tools/art/modes.html'); await p.waitForTimeout(800);
     const tmp = path.join(ROOT, 'tools/art/.tmp'); fs.mkdirSync(tmp, { recursive: true }); fs.mkdirSync(path.join(ROOT, 'img/fcm'), { recursive: true });
-    for (const id of ['mom', 'three', 'mgr', 'eleven', 'train']) {
+    for (const id of (process.argv[3] ? process.argv[3].split(',') : ['mom', 'three', 'mgr', 'eleven', 'train', 'dribble', 'targets'])) {
       const url = await p.evaluate((id) => window.renderMode(id, 900, 600), id);
       const png = path.join(tmp, `mode-${id}.png`); fs.writeFileSync(png, Buffer.from(url.split(',')[1], 'base64'));
       execFileSync('python3', ['-I', '-c', `

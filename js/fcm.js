@@ -160,19 +160,63 @@ const FCM = (() => {
     { t: 'Угадай сборную', d: 'Состав по клубам', act: 'nation', img: 'img/games/nation.webp' },
     { t: 'Связи', d: '4 группы по 4', ng: 'connect', img: 'img/games/ng-connect.webp' },
   ];
+  // Экран события как в FC Mobile (27.10): вкладки сверху; слева логотип события, описание и главная награда,
+  // справа путь главы «пазлом» (змейкой: 1→2→3, вниз, 4→5→6). Нажатие на узел — окно задания, как в FC.
+  const TRAIN = [
+    { t: 'Основы', d: 'Бег, пас, удар', lv: 'Новичок', go: { train: 'basics' }, img: 'img/fcm/mode-train.webp', c: '#19d3b0' },
+    { t: 'Дриблинг', d: 'Гонка через фишки', lv: 'Любитель', go: { train: 'dribble' }, img: 'img/fcm/mode-dribble.webp', c: '#ffb23c' },
+    { t: 'Мишени', d: 'Штрафные по мишеням', lv: 'Профи', go: { train: 'targets' }, img: 'img/fcm/mode-targets.webp', c: '#ff4f66' },
+    { t: 'Моменты', d: 'Забей в коротких атаках', lv: 'Матч', go: { mode: 'mom' }, img: 'img/fcm/mode-mom.webp', c: '#c6ff3d' },
+  ];
+  const goAttr = (go) => (go.act ? `data-act="${go.act}"` : go.train ? `data-fm-train="${go.train}"` : `data-fm-mode="${go.mode}"`);
   function events() {
-    const L = [['jg', 'Николас Джексон', 'Особое событие'], ['daily', 'Ежедневные', 'Мини-игры дня']];
+    const T = [['jg', 'Основная'], ['train', 'Тренировки'], ['daily', 'Ежедневные']];
+    if (!T.some((x) => x[0] === sub.events)) sub.events = 'jg';
+    const tabs = `<nav class="fm-evtabs">${T.map(([id, t]) => `<button class="${sub.events === id ? 'on' : ''}" data-fm-sub="events:${id}">${t}</button>`).join('')}</nav>`;
     const jg = Cards.get('JG:nicolas-jackson');
-    const body = sub.events === 'jg'
-      ? `<div class="fm-ev">
-          <div class="fm-ev-head"><span class="fm-ev-card">${jg ? Cards.html(jg, { w: 92 }) : ''}</span>
-            <span class="fm-ev-t"><small>Глава 1 · Знакомство</small><b>Николас Джексон</b><em>Пройди путь — в конце особая карточка 84. Макет: награды и прогресс включим на следующем шаге.</em></span></div>
-          <div class="fm-path">${JG.map((n, i) => {
-            const attr = n.go ? (n.go.act ? `data-act="${n.go.act}"` : n.go.train ? `data-fm-train="${n.go.train}"` : `data-fm-mode="${n.go.mode}"`) : n.gift ? 'data-fm-gift' : '';
-            return `<button class="fm-node ${n.lock ? 'lock' : ''} ${n.fin ? 'fin' : ''}" ${n.lock ? 'disabled' : attr}><i class="fm-n-ico">${n.lock ? lock : ico(n.ico)}</i><b>${n.t}</b><small>${n.d}</small><em>${n.rw}</em>${i < JG.length - 1 ? '<u></u>' : ''}</button>`; }).join('')}</div>
-        </div>`
-      : `<div class="fm-grid">${DAILY.map((g) => `<button class="fm-gc" ${g.act ? `data-act="${g.act}"` : `data-ng="${g.ng}"`}>${g.img ? `<img src="${g.img}" alt="" loading="lazy">` : ico(g.art, 'fm-gi')}<b>${g.t}</b><small>${g.d}</small></button>`).join('')}</div>`;
-    return `<div class="fm-split">${rail(L, 'events')}<div class="fm-body">${body}</div></div>`;
+    let body;
+    if (sub.events === 'jg') {
+      const ord = [0, 1, 2, 5, 4, 3]; // змейка: второй ряд идёт справа налево
+      body = `<div class="fm-evm">
+        <div class="fm-evl">
+          <div class="fm-logo"><small>JACKSON GAMES · СОБЫТИЕ</small><b>ДЖЕКСОН</b><em>Глава 1 · Знакомство</em></div>
+          <p class="fm-evd">Пройди путь главы: тренировка, головоломка, моменты и матч с 70-й минуты. В конце — особая карточка Николаса Джексона.</p>
+          <button class="fm-evprize" data-fm-node="5"><span class="fm-evcard">${jg ? Cards.html(jg, { w: 84 }) : ''}</span><span><small>Главная награда</small><b>Карточка 84</b><i>Подробнее ›</i></span></button>
+        </div>
+        <div class="fm-puz"><b class="fm-puz-h">Путь главы</b><div class="fm-puz-g">${ord.map((k) => { const n = JG[k];
+          return `<button class="fm-pz ${n.lock ? 'lock' : ''} ${n.fin ? 'fin' : ''} c${k}" data-fm-node="${k}"><i class="fm-pz-m">${ico(n.ico)}</i>${n.lock ? `<u class="fm-pz-l">${lock}</u>` : ''}<b>${n.t}</b><small>${n.rw}</small></button>`; }).join('')}</div></div>
+      </div>`;
+    } else if (sub.events === 'train') {
+      body = `<div class="fm-trs">${TRAIN.map((x) => `<button class="fm-trn" ${goAttr(x.go)} style="--tc:${x.c}"><img src="${x.img}" alt="" loading="lazy"><span class="fm-trn-t"><b>${x.t}</b><small>${x.d}</small></span><em>${x.lv}</em><i class="fm-trn-go">Играть</i></button>`).join('')}</div>`;
+    } else {
+      body = `<div class="fm-grid">${DAILY.map((g) => `<button class="fm-gc" ${g.act ? `data-act="${g.act}"` : `data-ng="${g.ng}"`}>${g.img ? `<img src="${g.img}" alt="" loading="lazy">` : ico(g.art, 'fm-gi')}<b>${g.t}</b><small>${g.d}</small></button>`).join('')}</div>`;
+    }
+    return `<div class="fm-evw">${tabs}${body}</div>`;
+  }
+  // окно задания узла: что сделать, сложность, награды, «Играть» (как «Развитие навыков» в FC)
+  const DIFF = ['Подарок', 'Новичок', 'Любитель', 'Любитель', 'Профи', 'Финал'];
+  function nodeSheet(k) {
+    const n = JG[k]; if (!n) return;
+    const el = document.createElement('div'); el.className = 'fm-sheet fm-task-w';
+    const act = n.lock ? `<button class="fm-btn off" disabled>${lock} Откроется после прошлых узлов</button>`
+      : n.gift ? '<button class="fm-btn gold" data-fm-gift>Забрать</button>' : `<button class="fm-btn gold" data-fm-run="${k}">Играть</button>`;
+    el.innerHTML = `<div class="fm-task ${n.fin ? 'fin' : ''}">
+      <header><i class="fm-pz-m">${ico(n.ico)}</i><b>${esc(n.t)}</b><button class="fm-sh-x" aria-label="Закрыть">✕</button></header>
+      <div class="fm-task-r"><span><small>Задание</small><b>${esc(n.d)}</b></span><em>${DIFF[k]}</em></div>
+      <div class="fm-task-p"><span>Выполнено 0/1</span></div>
+      <p class="fm-task-h">Награда</p>
+      <div class="fm-task-rw">${n.fin ? `<span class="fm-task-card">${Cards.get('JG:nicolas-jackson') ? Cards.html(Cards.get('JG:nicolas-jackson'), { w: 70 }) : ''}</span>` : `<span class="fm-task-coin">${n.gift ? ico('gift') : coin}<b>${esc(n.rw)}</b></span>`}</div>
+      <p class="fm-task-n">Макет: прогресс и награды события включим после подтверждения — сейчас узел открывает игру без награды.</p>
+      ${act}</div>`;
+    document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
+    const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); };
+    el.addEventListener('click', (e) => {
+      if (e.target === el || e.target.closest('.fm-sh-x')) { Sound.play('tap'); return close(); }
+      if (e.target.closest('[data-fm-gift]')) { close(); Modal.open('<h2>Билет события</h2><p>Здесь будет подарок события: билет, который открывает главу. Награды подключим с проверкой на сервере.</p>', [{ label: 'Понятно' }]); return; }
+      const r = e.target.closest('[data-fm-run]'); if (!r) return;
+      Sound.play('tap'); close(); const go = n.go;
+      if (go.train) App.openFootball('fk', go.train); else if (go.mode) startMode(go.mode); else if (go.act) setTimeout(() => { const b = document.createElement('button'); b.dataset.act = go.act; b.hidden = true; document.body.appendChild(b); b.click(); b.remove(); }, 0);
+    });
   }
   const rail = (L, key) => `<div class="fm-rail">${L.map(([id, t, d]) => `<button class="${sub[key] === id ? 'on' : ''}" data-fm-sub="${key}:${id}"><b>${t}</b>${d !== undefined ? `<small>${d}</small>` : ''}</button>`).join('')}</div>`;
 
@@ -304,6 +348,7 @@ const FCM = (() => {
       if (e.target.closest('[data-fm-unfocus]')) { Sound.play('tap'); return focusOn(-1); }
       const stp = e.target.closest('[data-fm-step]'); if (stp) { Sound.play('tap'); const xi = Squad.S().xi, d = +stp.dataset.fmStep; let i = focusI;
         for (let n = 0; n < 11; n++) { i = (i + d + 11) % 11; if (Cards.get(xi[i])) break; } return focusOn(i); }
+      const nd = e.target.closest('[data-fm-node]'); if (nd) { Sound.play('tap'); return nodeSheet(+nd.dataset.fmNode); }
       const pk = e.target.closest('[data-fm-pk]'); if (pk) { Sound.play('tap'); return packSheet(pk.dataset.fmPk); }
       const m = e.target.closest('[data-fm-mode]'); if (m) { Sound.play('tap'); return startMode(m.dataset.fmMode); }
       const tr = e.target.closest('[data-fm-train]'); if (tr) { Sound.play('tap'); return App.openFootball('fk', tr.dataset.fmTrain); }
