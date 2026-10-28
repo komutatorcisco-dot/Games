@@ -527,3 +527,50 @@
 @media (orientation: landscape) and (max-height: 400px) {
   .fm-evd { display: none; } .fm-logo b { font-size: 40px; } .fm-pz b { font-size: 11px; } .fm-pz small { display: none; }
 }
+
+/* ---------- Игры внутри в стиле нового вида (28.10): общие кнопки, ответы, поля, «?» и монеты ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  body.fcm-on #app > .screen:not(#hub) .btn { border-radius: 8px !important; font-family: "Rubik", sans-serif !important; font-weight: 800 !important; letter-spacing: .01em;
+    background: linear-gradient(180deg, rgba(34,52,86,.92), rgba(14,24,44,.94)) !important; color: #fff !important;
+    box-shadow: inset 0 0 0 1.5px rgba(150,200,255,.28), inset 0 1px 0 rgba(255,255,255,.12), 0 6px 14px -6px rgba(0,0,0,.7) !important; transition: transform .15s, box-shadow .2s, background .2s; }
+  body.fcm-on #app > .screen:not(#hub) .btn:not(:disabled):hover { box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.55), 0 0 14px rgba(198,255,61,.15) !important; }
+  body.fcm-on #app > .screen:not(#hub) .btn:active { transform: scale(.97); }
+  body.fcm-on #app > .screen:not(#hub) .btn.gold { background: linear-gradient(180deg, #d8ff6a, #8fe61e) !important; color: #06101c !important; text-transform: uppercase; font-style: italic;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 6px 16px -4px rgba(160,255,60,.35) !important; position: relative; overflow: hidden; }
+  body.fcm-on #app > .screen:not(#hub) .btn.gold::after { content: ''; position: absolute; top: 0; bottom: 0; width: 35%; left: -60%; transform: skewX(-20deg);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.5), transparent); animation: fm-shine 3.4s ease-in-out infinite; pointer-events: none; }
+  body.fcm-on #app > .screen:not(#hub) .btn.ghost { background: rgba(8,14,28,.7) !important; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.18) !important; }
+  body.fcm-on #app > .screen:not(#hub) .btn:disabled { opacity: .5; }
+  /* ответы: верный — зелёная вспышка, неверный — красный и тряска */
+  body.fcm-on #app > .screen:not(#hub) .opt.right { background: linear-gradient(180deg, #3ee68a, #12a454) !important; color: #03140a !important; box-shadow: 0 0 0 2px #c6ff3d, 0 0 22px rgba(62,230,138,.6) !important; animation: fm-ok .5s cubic-bezier(.2,.8,.2,1); opacity: 1; }
+  body.fcm-on #app > .screen:not(#hub) .opt.wrong { background: linear-gradient(180deg, #ff5a6e, #b3182f) !important; box-shadow: 0 0 0 2px #ff8a9a, 0 0 18px rgba(255,61,79,.5) !important; animation: fm-no .4s; opacity: 1; }
+  @keyframes fm-ok { 40% { transform: scale(1.05); } }
+  @keyframes fm-no { 20%, 60% { transform: translateX(-6px); } 40%, 80% { transform: translateX(6px); } }
+  /* «?» и монеты — как в шапке нового вида */
+  body.fcm-on #app > .screen .help { background: rgba(8,14,28,.75) !important; color: #fff !important; box-shadow: inset 0 0 0 1.5px rgba(150,200,255,.35) !important; font-family: "Rubik", sans-serif; font-weight: 900; }
+  body.fcm-on #app > .screen .coins { background: linear-gradient(180deg, rgba(20,32,52,.9), rgba(8,14,26,.9)) !important; box-shadow: inset 0 0 0 1px rgba(150,200,255,.18) !important; }
+  /* поля ввода: тёмное стекло, салатовая рамка при наборе */
+  body.fcm-on #app > .screen:not(#hub) :is(input[type="text"], input[type="search"], input:not([type])) { background: rgba(6,12,26,.82) !important; color: #fff !important; border: 0 !important; border-radius: 8px !important;
+    box-shadow: inset 0 0 0 1.5px rgba(150,200,255,.3) !important; font-family: "Rubik", sans-serif !important; }
+  body.fcm-on #app > .screen:not(#hub) :is(input[type="text"], input[type="search"], input:not([type])):focus { outline: 0; box-shadow: inset 0 0 0 2px #c6ff3d, 0 0 14px rgba(198,255,61,.25) !important; }
+  body.fcm-on #app > .screen .lives { filter: drop-shadow(0 0 6px rgba(255,61,79,.6)); }
+}
+/* шапка в ряду кнопок Telegram (fm-tgbar) — первая строка сетки экранов игр больше не занята шапкой:
+   левая колонка (поле, фото, путь) начинается с первой строки, иначе её низ уходил за экран */
+@media (orientation: landscape) and (max-height: 620px) {
+  body.fcm-on.fm-tgbar #transfer:not([hidden]):not(:has(.vs-mid)) > #transfer-lives { grid-row: 1; }
+  body.fcm-on.fm-tgbar #transfer:not([hidden]):not(:has(.vs-mid)) > #transfer-opts { grid-row: 1 / span 2; }
+  body.fcm-on.fm-tgbar #career:not([hidden]) > #career-path { grid-row: 1 / span 5; }
+  body.fcm-on.fm-tgbar #dly:not([hidden]) > .dly-top { grid-row: 1 / span 6; top: var(--l-top); }
+  body.fcm-on.fm-tgbar #nation:not([hidden]) > #nation-stage { grid-row: 1 / span 2; }
+  body.fcm-on.fm-tgbar #nation:not([hidden]) > #nation-lives { grid-row: 1; }
+  body.fcm-on.fm-tgbar #ttt:not([hidden]) > #ttt-grid { grid-row: 1 / span 5; }
+  body.fcm-on.fm-tgbar #ttt-grid :is(.tg-cell, .tg-head) { height: calc((var(--l-body) - 40px) / 4) !important; }
+  body.fcm-on.fm-tgbar #transfer:not([hidden]):not(:has(.vs-mid)) > #transfer-stage { grid-row: 2; }
+}
+@media (orientation: landscape) and (max-height: 620px) {
+  /* «Игрок дня»: подсказки плотнее и в стиле панелей FC, чтобы ввод и кнопка помещались без прокрутки */
+  body.fcm-on #dly .dly-clues { margin: 0 0 8px; gap: 4px; }
+  body.fcm-on #dly .dly-clue { padding: 6px 12px; border-radius: 6px; background: rgba(8,14,28,.65); box-shadow: inset 0 0 0 1px rgba(150,200,255,.14); }
+  body.fcm-on #dly .dly-clue.open { background: linear-gradient(90deg, rgba(25,211,176,.22), rgba(8,14,28,.7)); box-shadow: inset 3px 0 0 #19d3b0, inset 0 0 0 1px rgba(25,211,176,.3); }
+}
