@@ -9,7 +9,8 @@
 //
 // Модель: материалы skin, hair, shirt, shorts, socks, boots, eyes, brows, hair_<стиль>;
 // причёски — сетки JG_Hair_short|medium|afro (видна одна или ни одной); морфы slim, heavy, muscular;
-// анимации-позы stand, run, run2, kick, kick2 (run+run2 — два шага бега, kick2 — замах, kick — удар).
+// позы из 1 кадра stand, run, run2, kick, kick2; анимации Mixamo: idle, jog, strike, pass, penalty, header, scissor,
+// tackle, receive, spin, juggle, gk_idle, gk_dive, gk_catch — PlayerKit.play(p, name), каждый кадр mixer.update(dt).
 // Развёртка майки (tools/art/player/build_player.py): верх 75% текстуры — туловище по кругу
 // (x: 0.25 грудь, 0.75 спина), y 0 — ворот, 0.75 — подол; рукава — полоса y 0.78..0.98.
 'use strict';
@@ -226,7 +227,7 @@ const PlayerKit = (() => {
 
   // ---------- загрузка модели (лениво, после three.js) ----------
   // Загрузчики three r128 — свои копии в vendor/three-ext, декодер Draco — vendor/draco.
-  const MODEL = 'assets3d/player.glb?v=20261028';
+  const MODEL = 'assets3d/player.glb?v=20261028-a1';
   let loading = null;
   const addScript = (src) => new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
   function load(base = '') {   // base — путь до корня сайта (для генераторов в tools/art: '../../')
@@ -247,9 +248,27 @@ const PlayerKit = (() => {
   function make(gltf, look, pose = 'stand') {
     const p = THREE.SkeletonUtils.clone(gltf.scene);
     apply(p, look);
-    const clip = THREE.AnimationClip.findByName(gltf.animations, pose) || THREE.AnimationClip.findByName(gltf.animations, 'stand');
-    if (clip) { const m = new THREE.AnimationMixer(p); m.clipAction(clip).play(); m.update(0); p.userData.mixer = m; }
+    p.userData.mixer = new THREE.AnimationMixer(p); p.userData.clips = gltf.animations;
+    play(p, pose, { fade: 0 }) || play(p, 'stand', { fade: 0 });
     return p;
+  }
+  // Включить анимацию или позу у готового игрока. Анимации (idle, jog, …) идут, пока вызывающий код
+  // обновляет p.userData.mixer.update(dt) каждый кадр; позы из одного кадра стоят и без этого.
+  // opts: loop (по умолчанию — да, кроме ударов), fade (с, плавный переход), speed, at (0..1 — с какого места).
+  const ONCE = /^(strike|pass|penalty|header|scissor|tackle|gk_dive|gk_catch|receive|spin)$/;
+  function play(p, name, { loop, fade = 0.25, speed = 1, at = 0 } = {}) {
+    const m = p.userData.mixer, clip = m && THREE.AnimationClip.findByName(p.userData.clips || [], name);
+    if (!clip) return null;
+    const a = m.clipAction(clip), prev = p.userData.action;
+    a.reset(); a.timeScale = speed; a.enabled = true;
+    const once = loop === undefined ? ONCE.test(name) : !loop;
+    a.setLoop(once ? THREE.LoopOnce : THREE.LoopRepeat, Infinity); a.clampWhenFinished = once;
+    a.time = at * clip.duration;
+    a.play();
+    if (prev && prev !== a && fade > 0) prev.crossFadeTo(a, fade, false); else if (prev && prev !== a) prev.stop();
+    p.userData.action = a;
+    m.update(0);
+    return a;
   }
   // Освободить материалы и текстуры майки клона (геометрия общая с моделью — её не трогаем)
   function dispose(root) {
@@ -259,5 +278,5 @@ const PlayerKit = (() => {
     });
   }
 
-  return { PATTERNS, SKIN, HAIR, STYLES, KITS, kit, apply, random, forCard, fromArena, numberOf, posNumber, clubKit, shirtCanvas, hash, load, make, dispose };
+  return { PATTERNS, SKIN, HAIR, STYLES, KITS, kit, apply, random, forCard, fromArena, numberOf, posNumber, clubKit, shirtCanvas, hash, load, make, play, dispose };
 })();

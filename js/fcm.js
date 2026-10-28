@@ -145,7 +145,7 @@ const FCM = (() => {
   // 3D-игроки на газоне: одна модель assets3d/player.glb, форма/номер/внешность из карточки (js/playerkit.js).
   // Игроки крупнее настоящих (MAN), иначе с высоты камеры их не видно. Нет модели — остаются одни карточки.
   const MAN = 4.2, MAN_TOP = 1.45 * MAN;   // карточка чуть ниже макушки: подпись позиции ложится на голову
-  let men = null, menKey = '', menFail = false;
+  let men = null, menKey = '', menFail = false, mixers = [], menT = 0;
   function syncMen() {
     if (!bg3 || !bg3.scene || typeof PlayerKit === 'undefined' || menFail) return;
     if (men) men.visible = tab === 'team';
@@ -156,6 +156,7 @@ const FCM = (() => {
     PlayerKit.load().then((g) => {
       if (menKey !== key || !bg3) return;
       if (men) { bg3.scene.remove(men); men.traverse((o) => { if (o.userData.mixer) PlayerKit.dispose(o); }); }
+      mixers = [];
       men = new THREE.Group(); men.visible = tab === 'team';
       const shadow = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });
       const disc = new THREE.CircleGeometry(0.45 * MAN, 20);
@@ -163,7 +164,9 @@ const FCM = (() => {
         const c = s.xi[i] && Cards.get(s.xi[i]); if (!c) return;
         const [x, z] = slotWorld(sl, bg3.W, bg3.H);
         const w = new THREE.Group();
-        w.add(PlayerKit.make(g, PlayerKit.forCard(c), 'stand'));
+        const man = PlayerKit.make(g, PlayerKit.forCard(c), 'stand');   // живая стойка: у каждого своё место анимации
+        PlayerKit.play(man, sl.pos === 'GK' ? 'gk_idle' : 'idle', { fade: 0, at: ((i * 0.37) % 1) });
+        mixers.push(man.userData.mixer); w.add(man);
         w.scale.setScalar(MAN); w.position.set(x, 0, z);
         w.rotation.y = -Math.PI / 2 + ((i % 3) - 1) * 0.18;   // лицом к камере, чуть вразнобой
         const sh = new THREE.Mesh(disc, shadow); sh.rotation.x = -Math.PI / 2; sh.position.set(x, 0.02, z);
@@ -178,6 +181,7 @@ const FCM = (() => {
     if (!bg3 || tab !== 'team' || !root) return;
     const els = [...root.querySelectorAll('.fm-slot3')]; if (!els.length) return;
     const F = XD.FORMATIONS[Squad.S().form], W = bg3.W, H = bg3.H, up = men && men.visible ? MAN_TOP : 0;
+    if (up && mixers.length) { const now = performance.now(), dt = menT ? Math.min(0.1, (now - menT) / 1000) : 0; menT = now; mixers.forEach((m) => m.update(dt)); }
     const P = els.map((el) => { const sl = F.slots[+el.dataset.i]; if (!sl) return null;
       const [x, z] = slotWorld(sl, W, H), sel = +el.dataset.i === focusI, on = el.classList.contains('on'), p = bg3.project(x, z, on ? up : 0);
       return { el, sel, on, x: p.x, y: p.y, d: p.d, k: Math.max(0.62, Math.min(sel ? 1.6 : 0.98, 60 / p.d)) * (up && on ? 0.82 : 1) }; }).filter(Boolean);
