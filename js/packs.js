@@ -91,7 +91,9 @@ const PackOpen = (() => {
     const cols = land ? Math.min(n, n <= 6 ? Math.max(3, n) : Math.ceil(n / 2)) : n <= 3 ? 3 : n <= 8 || innerWidth < 420 ? 4 : 5;
     const W = Math.min(land ? 900 : 480, innerWidth) - 32;
     let w = Math.floor((W - (cols - 1) * 8) / cols);
-    if (land) w = Math.max(48, Math.min(w, 150, Math.floor((innerHeight - 190) / Math.ceil(n / cols) / 1.45) - 10));
+    // лёжа: по высоте свободного места между заголовком и кнопкой (не всего экрана) — иначе карточки обрезаются
+    // сверху и снизу; 1.5 — высота карточки к ширине, +22 — метка NEW/+монеты под карточкой
+    if (land) { const free = Math.max(120, stage.clientHeight || innerHeight - 190), rows = Math.ceil(n / cols); w = Math.max(48, Math.min(w, 150, Math.floor((free - 12 - (rows - 1) * 10) / rows / 1.5) - 16)); }
     const nNew = list.filter((x) => x.isNew).length;
     $('.po-k', el).textContent = `${n} ${plural(n, 'карточка', 'карточки', 'карточек')}`;
     nm.textContent = nNew ? `НОВЫХ: ${nNew}` : 'НОВЫХ НЕТ'; nm.classList.remove('long'); slam(nm);

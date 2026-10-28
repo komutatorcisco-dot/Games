@@ -656,3 +656,16 @@
   .fm-team.swapping .fm-pinfo { display: none; }
   .fm-team.swapping .fm-tside { opacity: 0; pointer-events: none; }
 }
+
+/* ---------- открытие пака лёжа (28.10): меньше лишнего, ничего не обрезается ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  /* шапка пака ниже ряда кнопок Telegram и компактнее; одна строка «5 карточек · новых: 5» */
+  body.fcm-on .po { grid-template-rows: auto minmax(0, 1fr) auto !important; }
+  body.fcm-on .po-top { padding-top: max(10px, calc(var(--fm-sa, 0px) + var(--fm-ca, 0px) + 2px)) !important; min-height: 0 !important; gap: 2px !important; }
+  body.fcm-on .po[data-phase="grid"] .po-top, body.fcm-on .po[data-phase="done"] .po-top { flex-direction: row; display: flex !important; justify-content: center; align-items: baseline; gap: 12px !important; }
+  body.fcm-on .po[data-phase="grid"] .po-name, body.fcm-on .po[data-phase="done"] .po-name { font-size: 26px !important; }
+  body.fcm-on .po-stage:has(.po-grid) { padding: 4px 0; }
+  body.fcm-on .po-grid { max-height: 100% !important; overflow: visible; padding: 0 !important; align-content: center; }
+  body.fcm-on .po-foot { min-height: 0 !important; padding-bottom: max(10px, var(--fm-b)) !important; gap: 6px !important; grid-auto-flow: column; align-items: center; justify-content: center; }
+  body.fcm-on .po-sum { font-size: 14px; } body.fcm-on .po-take { min-height: 44px !important; min-width: 240px; }
+}
