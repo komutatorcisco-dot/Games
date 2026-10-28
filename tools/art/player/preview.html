@@ -1,0 +1,53 @@
+<!doctype html>
+<!-- Проверка assets3d/player.glb в three.js r128 + js/playerkit.js: сетка разных игроков.
+     Запуск: из корня репозитория  python -m http.server 8765  →  http://localhost:8765/tools/art/player/preview.html
+     Параметры: ?glb=путь&pose=mix|stand|run|run2|kick|kick2&n=12 -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Player preview</title>
+<style>html,body{margin:0;height:100%;background:#1f2a22;overflow:hidden}canvas{display:block}</style>
+</head><body>
+<script src="../../../vendor/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+<script src="../../../js/data/cards.js"></script>
+<script src="../../../js/data/numhist.js"></script>
+<script src="../../../js/playerkit.js"></script>
+<script>
+const q = new URLSearchParams(location.search);
+const GLB = q.get('glb') || '../../../assets3d/player.glb', POSE = q.get('pose') || 'mix', N = +(q.get('n') || 12);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setSize(innerWidth, innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.1;
+document.body.appendChild(renderer.domElement);
+addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); });
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1f2a22);
+const cam = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.1, 100);
+scene.add(new THREE.HemisphereLight(0xdde8ff, 0x334422, 0.9));
+const sun = new THREE.DirectionalLight(0xffffff, 1.1); sun.position.set(3, 6, 5); scene.add(sun);
+const draco = new THREE.DRACOLoader(); draco.setDecoderPath('https://www.gstatic.com/draco/versioned/decoders/1.4.1/');
+const loader = new THREE.GLTFLoader(); loader.setDRACOLoader(draco);
+const mixers = [];
+loader.load(GLB, (g) => {
+  // игроки — настоящие карточки легенд из базы (js/data/cards.js): форма клуба, номер из истории, внешность по имени
+  const cards = CARD_LEGENDS.filter((_, i) => i % 7 === 0).slice(0, N).map(([name, r, club, pos]) => ({ key: name, name, club, pos, icon: true, rar: 'legend' }));
+  const cols = Math.min(N, 6), rows = Math.ceil(N / cols);
+  cards.forEach((card, i) => {
+    const look = PlayerKit.forCard(card);
+    const p = THREE.SkeletonUtils.clone(g.scene);
+    PlayerKit.apply(p, look);
+    const pose = POSE === 'mix' ? ['stand', look.run, look.kick][i % 3] : POSE;
+    const clip = THREE.AnimationClip.findByName(g.animations, pose) || g.animations[0];
+    p.position.set((i % cols - (cols - 1) / 2) * 1.05, 0, -Math.floor(i / cols) * 1.8);
+    p.rotation.y = i % 2 ? Math.PI * 0.85 : 0.35;
+    const m = new THREE.AnimationMixer(p); m.clipAction(clip).play(); m.update(0); mixers.push(m);
+    scene.add(p);
+    console.log(card.name, card.club, card.pos, JSON.stringify({ n: look.number, style: look.style, h: look.height, b: look.build, run: look.run, kick: look.kick }));
+  });
+  cam.position.set(0, 1.6 + rows * 0.6, 4.2 + rows * 1.6); cam.lookAt(0, 0.9, -(rows - 1) * 0.8);
+  let tris = 0; g.scene.traverse((o) => { if (o.isMesh) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3; });
+  document.title = 'ok ' + g.animations.map((a) => a.name).join(',') + ' tris ' + tris;
+  (function loop() { renderer.render(scene, cam); requestAnimationFrame(loop); })();
+}, undefined, (e) => { document.title = 'error ' + e; console.error(e); });
+</script>
+</body></html>
