@@ -630,19 +630,24 @@ async function player(kit, mine = false) { // общая полная модел
 // футболка, шорты или гетры — по высоте точки на теле в исходной позе (ниже колена — гетры, до пояса — шорты).
 function heroKitShader(o) {
   const g = o.geometry; if (!g.boundingBox) g.computeBoundingBox(); const bb = g.boundingBox, mt = o.material;
-  const U = { uKitOn: { value: 0 }, uShirt: { value: new THREE.Color('#ffffff') }, uShorts: { value: new THREE.Color('#ffffff') }, uSocks: { value: new THREE.Color('#ffffff') }, uSkin: { value: new THREE.Vector3(1, 1, 1) }, uKitY: { value: new THREE.Vector2(bb.min.y, bb.max.y - bb.min.y) } };
+  const U = { uKitOn: { value: 0 }, uShirt: { value: new THREE.Color('#ffffff') }, uShorts: { value: new THREE.Color('#ffffff') }, uSocks: { value: new THREE.Color('#ffffff') }, uSkin: { value: new THREE.Vector3(1, 1, 1) }, uKitY: { value: new THREE.Vector2(bb.min.y, bb.max.y - bb.min.y) } , uSkinC: { value: new THREE.Color('#8a5636') }, uSkinK: { value: 0 }, uHairC: { value: new THREE.Color('#1b120c') }, uHairK: { value: 0 } };
   mt.userData.kitU = U;
   mt.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
     sh.vertexShader = 'varying float vKitY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vKitY = position.y;');
-    sh.fragmentShader = 'varying float vKitY;\nuniform float uKitOn; uniform vec3 uShirt, uShorts, uSocks, uSkin; uniform vec2 uKitY;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+    sh.fragmentShader = 'varying float vKitY;\nuniform float uKitOn; uniform vec3 uShirt, uShorts, uSocks, uSkin; uniform vec2 uKitY; uniform vec3 uSkinC, uHairC; uniform float uSkinK, uHairK;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
   { vec3 c = diffuseColor.rgb; float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), sat = mx > 1e-3 ? (mx - mn) / mx : 0.0;
     float m = uKitOn * smoothstep(0.16, 0.34, mx) * (1.0 - smoothstep(0.1, 0.24, sat));
     float h = (vKitY - uKitY.x) / uKitY.y; vec3 k = h < 0.3 ? uSocks : h < 0.56 ? uShorts : uShirt;
     diffuseColor.rgb = mix(c, k * clamp(mx / 0.82, 0.0, 1.15), m);
     // тон кожи (у всех одна модель — чтобы игроки не были на одно лицо): тёплые места текстуры (кожа), не жёлтые бутсы
     float sk = smoothstep(0.25, 0.4, sat) * (1.0 - smoothstep(0.78, 0.9, c.g / max(c.r, 1e-3))) * step(c.b, c.g) * smoothstep(0.03, 0.08, mx);
-    diffuseColor.rgb *= mix(vec3(1.0), uSkin, sk); }`);
+    diffuseColor.rgb *= mix(vec3(1.0), uSkin, sk);
+    // свой тон кожи: тот же рисунок (тени, складки), но цвет — заданный (от светлой до тёмной)
+    diffuseColor.rgb = mix(diffuseColor.rgb, uSkinC * clamp(mx / 0.42, 0.35, 1.5), sk * uSkinK);
+    // волосы и брови: тёмные места на голове перекрашиваются (чёрные, каштановые, русые, светлые, рыжие)
+    float hr = uHairK * step(0.885, h) * (1.0 - smoothstep(0.1, 0.2, mx)) * (1.0 - sk);
+    diffuseColor.rgb = mix(diffuseColor.rgb, uHairC * (0.55 + mx * 3.0), hr); }`);
   };
   mt.customProgramCacheKey = () => 'heroKit';
 }
@@ -653,7 +658,12 @@ const wallKit = () => ({ shirt: '#e0303c', shorts: '#ffffff', socks: '#e0303c' }
 // перекрасить форму (футболка, шорты, гетры) — складки и швы текстуры остаются
 // тон кожи своей модели (множитель цвета кожи в текстуре): разные у игроков, по номеру в составе
 const SKIN = [[1, 1, 1], [0.62, 0.56, 0.52], [1.22, 1.16, 1.1], [0.8, 0.74, 0.7], [1.12, 1.05, 0.98], [0.5, 0.45, 0.42]];
-function skinTone(pl, i) { pl.model.traverse((o) => { const U = o.isMesh && o.material.userData.kitU; if (U) U.uSkin.value.fromArray(SKIN[i % SKIN.length]); }); }
+// внешность у каждого своя (одна модель на всех): кожа от светлой до тёмной, цвет волос; i — номер игрока (0 — я, исходный)
+const SKINC = ['#f3d2b8', '#e2b08c', '#c98d63', '#a8714a', '#7f5234', '#5a3820', '#e8bfa0', '#b98058'];
+const HAIRC = ['#141010', '#3b2617', '#6a4426', '#c59a5b', '#e2c482', '#8c3b1c', '#241a14', '#9a7a52'];
+function skinTone(pl, i) { const k = (i * 5 + 3) % SKINC.length, hh = (i * 3 + 1) % HAIRC.length;
+  pl.model.traverse((o) => { const U = o.isMesh && o.material.userData.kitU; if (!U) return; U.uSkin.value.set(1, 1, 1);
+    if (i) { U.uSkinC.value.set(SKINC[k]); U.uSkinK.value = 1; U.uHairC.value.set(HAIRC[hh]); U.uHairK.value = 1; } }); }
 let jgOn = false;
 function recolor(pl, kit) { JG.recolor(pl, kit); if (pl && kit) pl.model.traverse((o) => { if (!o.isMesh) return; const U = o.material.userData.kitU;
   if (U) { const white = /^#?f[0-9a-f]f[0-9a-f]f/i.test(kit.shirt || '') && kit.shirt === kit.shorts; U.uKitOn.value = white ? 0 : 1; U.uShirt.value.set(kit.shirt); U.uShorts.value.set(kit.shorts || kit.shirt); U.uSocks.value.set(kit.socks || kit.shirt); return; } // своя модель — перекраска шейдером
@@ -4073,7 +4083,7 @@ function gameStep(h) {
 // Только у игрока с этим именем; у остальных ничего не меняется. top — высота макушки над точкой крепления в файле, м.
 const FACES = [{ re: /мбаппе|mbapp/i, file: 'assets/mbappe_head.glb' }, { re: /ямал|yamal/i, file: 'assets/yamal_head.glb', skin: [0.8, 0.72, 0.66] }], faceCache = {}, faceSwaps = [];
 function faceFor(pl) {
-  if (jgOn || !pl || !pl.own || !pl.model || pl.face) return; const F = FACES.find((f) => f.re.test(pl.nick || '')); if (!F) return;
+  if (true || !pl || !pl.own || !pl.model || pl.face) return; const F = FACES.find((f) => f.re.test(pl.nick || '')); if (!F) return;
   pl.face = { F };
   if (F.skin) pl.model.traverse((o) => { const U = o.isMesh && o.material.userData.kitU; if (U) U.uSkin.value.fromArray(F.skin); }); // шея и руки — в тон головы
   (faceCache[F.file] ||= loader.loadAsync(F.file)).then((g) => {
@@ -4328,11 +4338,12 @@ if (TRACE) window.__ball = (x, z, vx = 0, vz = 0) => { if (B.state === 'owned' |
 // ---------- старт ----------
 (async () => {
   const bar = $('#loadbar');
-  const all = [player(myKit, true), player(gkKit), ...Array.from({ length: MATCH_ON ? 2 * NSIDE - 2 : 4 }, (_, i) => player(wallKit(), MATCH_ON && i < 2 * NSIDE - 3))]; // матч: партнёры и соперники — своя модель (вдвое легче общей, с рывком, ведением, разворотами), наш вратарь — общая
+  const all = [player(myKit, true), player(gkKit, true), ...Array.from({ length: MATCH_ON ? 2 * NSIDE - 2 : 4 }, () => player(wallKit(), true))]; // у всех одна модель своей команды, форма и кожа — перекраской // матч: партнёры и соперники — своя модель (вдвое легче общей, с рывком, ведением, разворотами), наш вратарь — общая
   let done = 0; all.forEach((p) => p.then(() => { done++; if (bar) bar.style.width = (done / all.length) * 100 + '%'; }));
   const got = await Promise.all(all);
-  // все игроки — наша модель в форме своей команды (и свой, и соперники); тестовые лица (Мбаппе, Ямаль) больше не ставятся
-  if (await JG.ready) { jgOn = true; got.forEach((pl, i) => JG.attach(pl, pl.kit, i)); }
+  // все игроки — модель своей команды (из Tripo), перекрашенная в форму команды; тестовые лица по имени выключены
+  got.forEach((pl, i) => { if (pl.kit) recolor(pl, pl.kit); if (i) skinTone(pl, i); }); // вратарь и стенка — в своей форме, разный тон кожи
+  if (Q.get('jg') === '1' && await JG.ready) { jgOn = true; got.forEach((pl, i) => JG.attach(pl, pl.kit, i)); } // наша модель — только для проверки (?jg=1)
   [shooter, keeper] = got; shooter0 = shooter; wall.push(...got.slice(2)); blob(ball, 0.45); makeSpheres(keeper, 'gk'); makeSpheres(shooter, 'me'); makeSpheres(wall[0], 'mate');
   GK.push({ pl: keeper, S: GKS, kick: null });
   if (MATCH_ON) { // матч: два соперника и наш вратарь — из тех же моделей «стенки»; поле меньше — вратарь выходит ближе
