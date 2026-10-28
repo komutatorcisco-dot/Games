@@ -52,8 +52,9 @@ const FCM = (() => {
       <span class="fm-cur fm-tr">${cup}<b>${trophies()}</b></span>
     </header>`;
   }
+  // меню снизу — ровная полоса из 4 разделов, как в FC (большая «Играть» — плитка на главной)
   function nav() {
-    return `<nav class="fm-nav">${TABS.map(([id, t, a]) => `<button class="fm-tab ${id === tab || (id === 'play' && tab === 'modes') ? 'on' : ''} ${id === 'play' ? 'play' : ''}" data-fm-tab="${id === 'play' ? 'modes' : id}">${ico(id, 'fm-ti')}<b>${t}</b>${id === 'quests' && questsReady() ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
+    return `<nav class="fm-nav">${TABS.filter((x) => x[0] !== 'play').map(([id, t]) => `<button class="fm-tab ${id === tab ? 'on' : ''} ${id === 'store' ? 'shop' : ''}" data-fm-tab="${id}">${ico(id, 'fm-ti')}<b>${t}</b>${id === 'quests' && questsReady() ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
   }
 
   // ---------- Играть (главная) ----------
@@ -67,31 +68,31 @@ const FCM = (() => {
   // Главная как в FC Mobile (28.10): слева столбик плиток, в центре большой баннер со слайдами, справа карточка
   // предложения, под ней «Клуб» (ОБЩ) и «Играть». Режимы — на отдельной странице «Играть» (modes()).
   const SLIDES = [
-    { k: 'jg', small: 'Событие', t: 'Николас Джексон', d: 'Пройди путь главы — в конце особая карточка 84', btn: 'Перейти сейчас', go: 'data-fm-tab="events"', bg: 'jg' },
-    { k: 'mom', small: 'Режим', t: 'Моменты', d: 'Короткие атаки своим составом: забей за 14 секунд', btn: 'Играть', go: 'data-fm-mode="mom"', bg: 'mom', img: 'img/fcm/player-kick.webp' },
-    { k: 'pk', small: 'Магазин', t: 'Пак «Джексон!!»', d: '30 карт: минимум 1 «Джексон», 2 легенды и 6 золотых', btn: 'В магазин', go: 'data-fm-tab="store"', bg: 'pk', img: 'img/packs/pk4-360.webp' },
+    { k: 'jg', small: 'Особое событие', t: 'Николас Джексон', d: 'Пройди путь главы — особая карточка 84', btn: 'Перейти сейчас', go: 'data-fm-tab="events"' },
+    { k: 'mom', small: 'Новый режим', t: 'Моменты', d: 'Короткие атаки своим составом', btn: 'Играть', go: 'data-fm-mode="mom"', img: 'img/fcm/mode-mom.webp?v=3' },
+    { k: 'pk', small: 'Магазин', t: 'Пак «Джексон!!»', d: '30 карт · минимум 1 «Джексон» и 2 легенды', btn: 'Открыть', go: 'data-fm-tab="store"', img: 'img/packs/pk4-360.webp' },
   ];
   let slideI = 0, slideT = 0;
+  // Главная как в FC Mobile (28.10, по скриншоту пользователя): слева 3 маленькие плитки, в центре баннер без рамки —
+  // картинка лежит прямо на стадионе и растворяется по краям, золотая кнопка; справа карточка предложения, «Клуб» и «Играть».
   function play() {
-    const jg = Cards.get('JG:nicolas-jackson'), inf = Squad.info ? Squad.info() : { r: 0 }, u = Store.d.user || {};
-    const day = typeof Wheel !== 'undefined' && Wheel.ready(), dot = (on) => (on ? '<em class="fm-rd"></em>' : '');
-    const tile = (attr, ic, t, on, extra = '') => `<button class="fm-lt" ${attr}>${dot(on)}${ic}<b>${t}</b>${extra}</button>`;
-    const slide = (x, i) => `<div class="fm-sl ${x.bg} ${i === slideI ? 'on' : ''}" data-i="${i}">
-        <i class="fm-sl-bg"></i>
-        <span class="fm-sl-art">${x.k === 'jg' ? `${jg ? `<span class="fm-sl-card">${Cards.html(jg, { w: 150 })}</span>` : ''}<img class="fm-sl-man" src="img/fcm/player-stand.webp" alt="">` : `<img src="${x.img}" alt="">`}</span>
-        <span class="fm-sl-t"><small>${x.small}</small><b>${x.t}</b><em>${x.d}</em><button class="fm-sl-go" ${x.go}>${x.btn}</button></span></div>`;
+    const jg = Cards.get('JG:nicolas-jackson'), inf = Squad.info ? Squad.info() : { r: 0 };
+    const day = typeof Wheel !== 'undefined' && Wheel.ready();
+    const tile = (attr, ic, t, dot) => `<button class="fm-lt" ${attr}>${dot ? '<em class="fm-rd"></em>' : ''}<i>${ic}</i><b>${t}</b></button>`;
+    const slide = (x, i) => `<button class="fm-sl ${x.k} ${i === slideI ? 'on' : ''}" data-i="${i}" ${x.go}>
+        <span class="fm-sl-art">${x.k === 'jg' ? `<img class="fm-sl-man" src="img/fcm/player-stand.webp" alt="">${jg ? `<span class="fm-sl-card">${Cards.html(jg, { w: 132 })}</span>` : ''}` : `<img src="${x.img}" alt="">`}</span>
+        <span class="fm-sl-t"><small>${x.small}</small><b>${x.t}</b><em>${x.d}</em><i class="fm-sl-go">${x.btn}</i></span></button>`;
     return `<div class="fm-home">
       <div class="fm-hl">
         ${tile('data-fm-tab="events"', ico('events'), 'События', true)}
-        ${tile('data-act="dly"', ico('daily'), 'Игрок дня', false)}
         ${typeof Wheel !== 'undefined' ? tile('data-act="wheel"', '<img src="img/packs/pk0-160.webp" alt="">', day ? 'Пак дня' : 'Завтра', day) : ''}
-        ${tile('data-act="collection"', ico('cards'), 'Коллекция', false)}
+        ${tile('data-act="dly"', ico('daily'), 'Игрок дня', false)}
       </div>
       <div class="fm-hero2">${SLIDES.map(slide).join('')}<span class="fm-dots">${SLIDES.map((_, i) => `<i class="${i === slideI ? 'on' : ''}" data-fm-slide="${i}"></i>`).join('')}</span></div>
       <div class="fm-hr">
-        <button class="fm-feat" data-fm-tab="store"><b>Паки: открой свой клуб</b><span>${[1, 3, 4].map((l) => `<img src="img/packs/pk${l}-360.webp" alt="">`).join('')}</span></button>
+        <button class="fm-feat" data-fm-tab="store"><b>Паки Jackson Games</b><span>${[1, 3, 4].map((l) => `<img src="img/packs/pk${l}-360.webp" alt="">`).join('')}</span></button>
         <div class="fm-hr2">
-          <button class="fm-club" data-fm-tab="team"><b>Клуб</b><span><i class="fm-ovr"><small>ОБЩ</small><b>${inf.r || '—'}</b></i><i class="fm-crest">${esc(u.emoji || '⚽')}</i></span></button>
+          <button class="fm-club" data-fm-tab="team"><b>Клуб</b><span><i class="fm-ovr"><small>ОБЩ</small><b>${inf.r || '—'}</b></i><img class="fm-cl-crest" src="img/fcm/crest.webp" alt=""></span></button>
           <button class="fm-playt" data-fm-tab="modes"><b>Играть</b><img src="img/ui3d/ball.webp" alt=""></button>
         </div>
       </div>

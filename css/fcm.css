@@ -749,3 +749,69 @@
   .fm-slot3 .cc { filter: none !important; box-shadow: 0 6px 10px -4px rgba(0,0,0,.6); border-radius: 8%; }
   .fm-slot3.sel .cc { filter: none !important; box-shadow: 0 0 0 2px rgba(198,255,61,.8), 0 0 18px rgba(198,255,61,.45); }
 }
+
+/* ---------- Главная v2 (28.10, по скриншоту FC): компактно, баннер без рамки, ровное меню ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  /* меню снизу: 4 раздела ровной полосой, «Магазин» — бирюзовый, как STORE в FC */
+  .fm-nav { grid-template-columns: repeat(4, 1fr) !important; height: calc(44px + var(--fm-b)) !important; background: linear-gradient(180deg, rgba(10,16,30,.92), rgba(4,8,16,.97)) !important; }
+  .fm-tab b { font: 700 14px/1 "Rubik", sans-serif !important; letter-spacing: .02em; }
+  .fm-tab .fm-ti { width: 20px !important; height: 20px !important; }
+  .fm-tab.shop { color: #3ee6c8 !important; } .fm-tab.shop .fm-ti { color: #3ee6c8 !important; }
+  .fm-tab.on { background: none !important; box-shadow: inset 0 -3px 0 var(--fm-lime) !important; }
+  /* сетка главной */
+  .fm-home { grid-template-columns: 58px minmax(0, 1.6fr) minmax(0, 1fr) !important; gap: 12px !important; }
+  /* слева — маленькие плитки, как в FC */
+  .fm-hl { grid-auto-rows: 58px !important; align-content: center; gap: 10px !important; }
+  .fm-lt { width: 58px; height: 58px; padding: 4px 2px !important; border-radius: 8px !important; gap: 2px !important;
+    background: linear-gradient(180deg, rgba(30,60,110,.9), rgba(8,18,40,.95)) !important; box-shadow: inset 0 0 0 1px rgba(120,200,255,.45), 0 4px 10px rgba(0,0,0,.4) !important; }
+  .fm-lt i { display: grid; place-items: center; height: 26px; font-style: normal; }
+  .fm-lt .fm-ic { width: 22px !important; height: 22px !important; } .fm-lt img { height: 26px !important; }
+  .fm-lt b { font: 700 8.5px/1.05 "Rubik", sans-serif !important; letter-spacing: .02em; }
+  .fm-rd { width: 9px !important; height: 9px !important; }
+  /* баннер: без коробки — картинка и текст прямо на стадионе, края растворяются */
+  .fm-hero2 { border-radius: 0 !important; box-shadow: none !important; overflow: visible !important; }
+  .fm-sl { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important; padding: 0 !important; text-align: left !important; }
+  .fm-sl-bg { display: none; }
+  .fm-sl::before { content: ''; position: absolute; inset: -6% -4%; z-index: -1; pointer-events: none; -webkit-mask: radial-gradient(70% 70% at 40% 50%, #000 35%, transparent 75%); mask: radial-gradient(70% 70% at 40% 50%, #000 35%, transparent 75%); }
+  .fm-sl.jg::before { background: radial-gradient(60% 70% at 30% 55%, rgba(150,70,255,.55), transparent 70%), radial-gradient(50% 60% at 70% 40%, rgba(255,190,60,.25), transparent 70%); }
+  .fm-sl.mom::before { background: radial-gradient(60% 70% at 32% 55%, rgba(60,220,120,.45), transparent 70%); }
+  .fm-sl.pk::before { background: radial-gradient(60% 70% at 32% 55%, rgba(255,70,90,.45), transparent 70%), radial-gradient(40% 50% at 30% 50%, rgba(255,200,80,.3), transparent 70%); }
+  .fm-sl-art > img { max-height: 100% !important; filter: drop-shadow(0 16px 22px rgba(0,0,0,.55)) !important; }
+  .fm-sl.mom .fm-sl-art > img { max-height: 115% !important; transform: translateX(-6%); }
+  .fm-sl-man { left: 4% !important; height: 108% !important; bottom: -6% !important; }
+  .fm-sl-card { transform: translateX(28%) rotate(4deg) !important; }
+  .fm-sl-t { gap: 7px !important; text-shadow: 0 2px 10px rgba(0,0,0,.6) !important; }
+  .fm-sl-t small { font: 700 11px/1 "Rubik", sans-serif !important; letter-spacing: .2em !important; color: #e8d6a6; }
+  .fm-sl-t b { font: italic 900 clamp(24px, 8.5vh, 36px)/.95 "Rubik", sans-serif !important; background: linear-gradient(180deg, #fff 30%, #e6d3a3); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+  .fm-sl-t em { font: 500 12.5px/1.3 "Rubik", sans-serif !important; color: rgba(255,255,255,.85); }
+  /* кнопка — золотая пилюля, как «ПЕРЕЙТИ СЕЙЧАС» */
+  .fm-sl-go { justify-self: start; margin-top: 6px; padding: 10px 26px; border-radius: 22px; font: 800 14px/1 "Rubik", sans-serif; font-style: normal; text-transform: uppercase; letter-spacing: .03em; color: #2a1c05;
+    background: linear-gradient(180deg, #f6e3a8, #c9a14c 55%, #a57b2c); box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 6px 16px rgba(0,0,0,.45); text-shadow: none; position: relative; overflow: hidden; }
+  .fm-sl-go::after { content: ''; position: absolute; top: 0; bottom: 0; width: 35%; left: -60%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.6), transparent); animation: fm-shine 3.4s ease-in-out infinite; }
+  .fm-sl:active { transform: scale(.98); }
+  .fm-dots { bottom: 2px !important; } .fm-dots i { width: 6px !important; height: 6px !important; } .fm-dots i.on { width: 16px !important; }
+  /* справа: тёмная карточка предложения с золотой рамкой */
+  .fm-feat { background: radial-gradient(70% 80% at 50% 70%, rgba(255,190,70,.25), transparent 70%), linear-gradient(160deg, #1d1a14, #07080d) !important; color: #fff !important;
+    box-shadow: inset 0 0 0 1.5px rgba(230,200,120,.55), 0 10px 22px -8px rgba(0,0,0,.7) !important; border-radius: 8px !important; }
+  .fm-feat > b { font: italic 900 15px/1 "Rubik", sans-serif !important; color: #f3e2b0; }
+  .fm-club { border-radius: 8px !important; background: linear-gradient(135deg, #1a3b6e, #0d1d3a) !important; box-shadow: inset 0 0 0 1.5px rgba(120,190,255,.5) !important; }
+  .fm-club > span { gap: 10px !important; }
+  .fm-cl-crest { width: 44px; height: auto; filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
+  .fm-playt { border-radius: 8px !important; background: radial-gradient(80% 90% at 70% 70%, rgba(198,255,61,.35), transparent 70%), linear-gradient(135deg, #0b3b2c, #0f6b46) !important; color: #fff !important;
+    box-shadow: inset 0 0 0 2px #3effa0, 0 0 20px rgba(62,255,160,.35) !important; }
+  .fm-playt > b { color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
+}
+@media (orientation: landscape) and (max-height: 620px) {
+  .fcm .fm-sl-go { padding: 10px 26px !important; border-radius: 22px !important; color: #2a1c05 !important; font: 800 14px/1 "Rubik", sans-serif !important;
+    background: linear-gradient(180deg, #f6e3a8, #c9a14c 55%, #a57b2c) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 6px 16px rgba(0,0,0,.45) !important; }
+  .fm-sl-t b { background: linear-gradient(180deg, #ffffff 35%, #f1dfae) !important; -webkit-background-clip: text !important; background-clip: text !important; }
+}
+@media (orientation: landscape) and (max-height: 620px) {
+  .fm-sl.jg .fm-sl-man { left: -14% !important; z-index: 3; }
+  .fm-sl.jg .fm-sl-card { transform: translateX(40%) rotate(5deg) scale(.92) !important; z-index: 2; }
+}
+@media (orientation: landscape) and (max-height: 620px) {
+  .fm-sl.jg .fm-sl-card { transform: translateX(14%) rotate(5deg) scale(.82) !important; }
+  .fm-sl.jg .fm-sl-man { left: -20% !important; }
+  .fm-sl-t b { color: #fff !important; background: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,.6)) !important; }
+}
