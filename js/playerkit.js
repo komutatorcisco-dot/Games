@@ -92,8 +92,8 @@ const PlayerKit = (() => {
 
   // ---------- текстура майки: узор + номер на спине ----------
   function shirtCanvas(k) {
-    const c = document.createElement('canvas'); c.width = c.height = SIZE;
-    const x = c.getContext('2d'), S = SIZE, B = S * 0.75;   // B — подол (низ туловища на текстуре)
+    const S = k.tex || SIZE, c = document.createElement('canvas'); c.width = c.height = S;   // k.tex — меньше для толпы (матч)
+    const x = c.getContext('2d'), B = S * 0.75;   // B — подол (низ туловища на текстуре)
     x.fillStyle = k.c1; x.fillRect(0, 0, S, S);
     x.fillStyle = k.c2;
     if (k.pattern === 'stripes') for (let i = 1; i < 10; i += 2) x.fillRect((i * S) / 10, 0, S / 10, S);

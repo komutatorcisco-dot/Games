@@ -409,13 +409,49 @@ const Arena3D = (() => {
       const slots = opts.slots[opts.form[s]].slots;
       return slots.map((sl, i) => {
         const gk = sl.pos === 'GK', kit = kitFrom(opts.kits[s][0], opts.kits[s][1], gk);
-        const m = player(kit, gk ? 1 : [2, 3, 4, 5, 6, 8, 10, 7, 9, 11, 14][i % 11], s * 31 + i);
+        const num = gk ? 1 : [2, 3, 4, 5, 6, 8, 10, 7, 9, 11, 14][i % 11], m = player(kit, num, s * 31 + i);
         const depth = (100 - sl.y) / 100, hx = (s ? 1 : -1) * (W / 2 - 3 - depth * (W / 2 - 6)), hz = ((sl.x - 50) / 100) * H * 0.88 * (s ? -1 : 1);
         m.position.set(hx, 0, hz); m.rotation.y = s ? -Math.PI / 2 : Math.PI / 2; scene.add(m);
-        return { m, s, gk, pos: sl.pos, home: new THREE.Vector3(hx, 0, hz), tgt: new THREE.Vector3(hx, 0, hz), vel: 0 };
+        return { m, s, gk, kit, num, pos: sl.pos, home: new THREE.Vector3(hx, 0, hz), tgt: new THREE.Vector3(hx, 0, hz), vel: 0 };
       });
     });
     const all = [...team[0], ...team[1]];
+    // 3D-игроки (assets3d/player.glb, PlayerKit) вместо фигурок из примитивов, как только модель загрузится.
+    // Бег и стойка — по скорости, пас/удар/подкат/прыжок вратаря — по событиям (act). Нет модели — остаются фигурки.
+    let dead = false;
+    if (typeof PlayerKit !== 'undefined') PlayerKit.load().then((g) => { if (!dead) all.forEach((p, i) => upgrade(p, g, i)); }).catch(() => {});
+    function upgrade(p, g, i) {
+      const clip = (n) => THREE.AnimationClip.findByName(g.animations, n);
+      if (!clip('jog') || !clip('idle')) return;   // старая модель без анимаций — оставляем фигурки
+      const look = PlayerKit.random(p.s * 977 + i * 31 + 7, PlayerKit.fromArena(p.kit, { number: p.num, tex: 256 }));
+      const man = PlayerKit.make(g, look, 'stand');
+      man.scale.multiplyScalar(1.15);   // как фигурки: ~3,3 м вместе с масштабом корня 1,55 — видно с ТВ-камеры
+      man.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
+      p.m.children.forEach((c) => { c.visible = false; }); p.m.add(man);
+      const mx = man.userData.mixer, idle = mx.clipAction(clip(p.gk ? 'gk_idle' : 'idle')), jog = mx.clipAction(clip('jog'));
+      mx.stopAllAction(); idle.play(); jog.play(); idle.time = Math.random() * idle.getClip().duration; jog.time = Math.random() * 0.8;
+      let one = null;
+      mx.addEventListener('finished', (e) => { if (e.action === one) { one.stop(); one = null; } });
+      const act = (name, mirror = false) => {
+        const c = clip(name); if (!c) return;
+        if (one) one.stop();
+        man.scale.x = Math.abs(man.scale.x) * (mirror ? -1 : 1);
+        one = mx.clipAction(c); one.reset(); one.setLoop(THREE.LoopOnce, 1); one.clampWhenFinished = false; one.setEffectiveWeight(1); one.play();
+      };
+      p.m.userData.act = act;
+      p.m.userData.animate = (dt, speed) => {
+        const w = one ? 0 : Math.min(1, speed / 3);
+        idle.setEffectiveWeight(one ? 0 : 1 - w); jog.setEffectiveWeight(w); jog.timeScale = 0.75 + Math.min(speed, 7.5) * 0.1;
+        mx.update(dt);
+        if (!one && man.scale.x < 0) man.scale.x = -man.scale.x;
+      };
+      // прыжок вратаря: анимация прыгает влево от игрока — в другую сторону отражаем
+      p.m.userData.dive = (k, dir) => {
+        if (k > 0 && !p.diving) { p.diving = true; const lz = -Math.sin(p.m.rotation.y); act('gk_dive', lz * dir < 0); }
+        if (k === 0) p.diving = false;
+      };
+    }
+    const kickAnim = (p, name) => { if (p && p.m.userData.act) p.m.userData.act(name); };
     // подпись над игроком с мячом — как в менеджерах
     const tag = document.createElement('div'); tag.className = 'a3d-tag'; host.appendChild(tag);
     team.forEach((t, s) => t.forEach((p, i) => { p.name = (opts.players && opts.players[s] && opts.players[s][i]) || ''; }));
@@ -429,11 +465,12 @@ const Arena3D = (() => {
     const rnd = (a, b) => a + Math.random() * (b - a);
     function kickTo(target, h, dur, after) { fly = { from: ballM.position.clone(), to: target.clone(), h, t: 0, dur, after }; }
     function pass() {
+      kickAnim(owner, 'pass');
       const mates = team[side].filter((p) => !p.gk && p !== owner);
       const fwd = mates.filter((p) => (side ? p.m.position.x < ballM.position.x + 5 : p.m.position.x > ballM.position.x - 5));
       const pool = fwd.length && Math.random() < 0.7 ? fwd : mates, to = pool[(Math.random() * pool.length) | 0] || mates[0];
       // перехват
-      if (Math.random() < 0.16) { side = 1 - side; const opp = team[side].filter((p) => !p.gk); owner = opp.reduce((b, p) => (p.m.position.distanceTo(to.m.position) < b.m.position.distanceTo(to.m.position) ? p : b), opp[0]); }
+      if (Math.random() < 0.16) { side = 1 - side; const opp = team[side].filter((p) => !p.gk); owner = opp.reduce((b, p) => (p.m.position.distanceTo(to.m.position) < b.m.position.distanceTo(to.m.position) ? p : b), opp[0]); kickAnim(owner, 'tackle'); }
       else owner = to;
       // пас на ход: мяч летит туда, куда игрок добежит, а игрок бежит навстречу мячу
       const dir = owner.s ? -1 : 1, tp = owner.m.position.clone().add(new THREE.Vector3(dir * rnd(2, 5), 0, rnd(-2, 2)));
@@ -452,7 +489,7 @@ const Arena3D = (() => {
         const mates = team[side].filter((p) => !p.gk && p !== owner && (p.m.position.x - bxp) * dir > 3);
         const to = mates.length ? mates[(Math.random() * Math.min(4, mates.length)) | 0] : null;
         if (to) {
-          owner = to; const tp = to.m.position.clone().add(new THREE.Vector3(dir * rnd(3, 6), 0, rnd(-3, 3))); tp.y = 0.34; to.chase = tp;
+          kickAnim(owner, 'pass'); owner = to; const tp = to.m.position.clone().add(new THREE.Vector3(dir * rnd(3, 6), 0, rnd(-3, 3))); tp.y = 0.34; to.chase = tp;
           return kickTo(tp, 0.3, Math.max(0.5, Math.min(1.1, ballM.position.distanceTo(tp) / 24)), () => { to.chase = null; setTimeout(() => shot(ev, step + 1), 220); });
         }
       }
@@ -470,6 +507,7 @@ const Arena3D = (() => {
           if (ev.t === 'goal') tgt = new THREE.Vector3(gx + (side ? -1.2 : 1.2), rnd(0.5, 2.1), rnd(-3.2, 3.2));
           else if (ev.t === 'save') { tgt = new THREE.Vector3(gx - (side ? -1 : 1) * 0.9, rnd(0.4, 1.6), rnd(-2.6, 2.6)); if (gkP) dive = { p: gkP, t: 0, dir: Math.sign(tgt.z - gkP.m.position.z) || 1 }; }
           else tgt = new THREE.Vector3(gx + (side ? -3 : 3), rnd(0.4, 4.5), (Math.random() < 0.5 ? -1 : 1) * rnd(4.6, 7));
+          kickAnim(owner, 'strike');
           kickTo(tgt, ev.t === 'miss' ? 1.5 : 0.8, 0.55, () => {
             if (ev.t === 'goal') { B.cheer(); shake = 0.5; const net = goals[side ? 1 : 0].userData.net; net.scale.set(1, 1.08, 1); setTimeout(() => net.scale.set(1, 1, 1), 400); }
             setTimeout(() => {
@@ -551,7 +589,7 @@ const Arena3D = (() => {
       // события ждут своей очереди: текущая передача доиграется, потом атака
       // события показываются по одному; done — когда последний момент доигран (часы матча ждут)
       events(evs, done) { evs.forEach((e, i) => queue.push({ ...e, done: i === evs.length - 1 ? done : null })); if (!fly && !focus) { const e = queue.shift(); if (e) shot(e); } },
-      stop: () => { tag.remove(); V.stop(); },
+      stop: () => { dead = true; tag.remove(); V.stop(); },
     };
   }
 
