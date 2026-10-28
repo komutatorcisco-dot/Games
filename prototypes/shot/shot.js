@@ -19,6 +19,7 @@ if (new URLSearchParams(location.search).get('cfg') === 'baseline') for (const k
 import * as GFX from './gfx.js';
 import { buildStadium } from './stadium-lite.js';
 import { buildTraining } from './training.js'; // окружение тренировочной базы для вида «2 на 1» // лёгкий стадион: чаша с текстурой болельщиков (прежний stadium.js не загружается)
+import * as JG from './jgskin.js?v=20261028-j1'; // наш 3D-игрок поверх скелета Mixamo (?jg=0 — старое тело)
 import { gestureButton } from './controls.js'; // кнопки с жестами (нажал / держишь / оттянул палец) // чаша стадиона, трибуны, болельщики, щиты // профили качества и внешний вид сцены (свет, газон, материалы) // физика мяча, ведение, удар — единый конфиг BP.CFG
 
 const Q = new URLSearchParams(location.search);
@@ -622,7 +623,7 @@ async function player(kit, mine = false) { // общая полная модел
   Object.assign(blobs.find((x) => x.m === bl), { bone: hips, player: true }); // тень идёт за тазом: записанные движения двигают игрока сами
   const footL = m.getObjectByName('LeftFoot'), footR = m.getObjectByName('RightFoot'), toeL = m.getObjectByName('LeftToeBase'), toeR = m.getObjectByName('RightToeBase');
   const body = ['LeftHand', 'RightHand', 'Spine2', 'Head'].map((n) => m.getObjectByName(n)); // чем вратарь касается мяча
-  return { holder, model: m, mixer: new THREE.AnimationMixer(m), hips, hipsRest: hips.position.clone(), body, footL, footR, toeL, toeR, act: null, t: 0, hs: own ? HERO.hs : 1, own: !!own };
+  return { holder, model: m, kit, mixer: new THREE.AnimationMixer(m), hips, hipsRest: hips.position.clone(), body, footL, footR, toeL, toeR, act: null, t: 0, hs: own ? HERO.hs : 1, own: !!own };
 }
 // Своя модель: форма нарисована в текстуре (белая). Перекраска шейдером: светлые бесцветные места текстуры (ткань) —
 // в цвет команды, складки и тени сохраняются; кожа, бутсы, волосы, тёмные полосы и логотипы — как были. Что это —
@@ -653,7 +654,8 @@ const wallKit = () => ({ shirt: '#e0303c', shorts: '#ffffff', socks: '#e0303c' }
 // тон кожи своей модели (множитель цвета кожи в текстуре): разные у игроков, по номеру в составе
 const SKIN = [[1, 1, 1], [0.62, 0.56, 0.52], [1.22, 1.16, 1.1], [0.8, 0.74, 0.7], [1.12, 1.05, 0.98], [0.5, 0.45, 0.42]];
 function skinTone(pl, i) { pl.model.traverse((o) => { const U = o.isMesh && o.material.userData.kitU; if (U) U.uSkin.value.fromArray(SKIN[i % SKIN.length]); }); }
-function recolor(pl, kit) { if (pl && kit) pl.model.traverse((o) => { if (!o.isMesh) return; const U = o.material.userData.kitU;
+let jgOn = false;
+function recolor(pl, kit) { JG.recolor(pl, kit); if (pl && kit) pl.model.traverse((o) => { if (!o.isMesh) return; const U = o.material.userData.kitU;
   if (U) { const white = /^#?f[0-9a-f]f[0-9a-f]f/i.test(kit.shirt || '') && kit.shirt === kit.shorts; U.uKitOn.value = white ? 0 : 1; U.uShirt.value.set(kit.shirt); U.uShorts.value.set(kit.shorts || kit.shirt); U.uSocks.value.set(kit.socks || kit.shirt); return; } // своя модель — перекраска шейдером
   const part = PART[o.name]; if (part && kit[part]) o.material.color.set(kit[part]); }); }
 let shooter, keeper, shooter0 = null; const wall = [];
@@ -4071,7 +4073,7 @@ function gameStep(h) {
 // Только у игрока с этим именем; у остальных ничего не меняется. top — высота макушки над точкой крепления в файле, м.
 const FACES = [{ re: /мбаппе|mbapp/i, file: 'assets/mbappe_head.glb' }, { re: /ямал|yamal/i, file: 'assets/yamal_head.glb', skin: [0.8, 0.72, 0.66] }], faceCache = {}, faceSwaps = [];
 function faceFor(pl) {
-  if (!pl || !pl.own || !pl.model || pl.face) return; const F = FACES.find((f) => f.re.test(pl.nick || '')); if (!F) return;
+  if (jgOn || !pl || !pl.own || !pl.model || pl.face) return; const F = FACES.find((f) => f.re.test(pl.nick || '')); if (!F) return;
   pl.face = { F };
   if (F.skin) pl.model.traverse((o) => { const U = o.isMesh && o.material.userData.kitU; if (U) U.uSkin.value.fromArray(F.skin); }); // шея и руки — в тон головы
   (faceCache[F.file] ||= loader.loadAsync(F.file)).then((g) => {
@@ -4177,7 +4179,7 @@ function frame() {
   if (window.__cam) { cam.position.fromArray(window.__cam.p); cam.lookAt(tmpA.fromArray(window.__cam.l)); if (window.__cam.fov) { cam.fov = window.__cam.fov; cam.updateProjectionMatrix(); } }
   const pT1 = PROF ? performance.now() : 0;
   offMarker();
-  faceSync(); if (!NO_RENDER) ren.render(scene, cam);
+  JG.sync(); faceSync(); if (!NO_RENDER) ren.render(scene, cam);
   if (PROF) { PROF.logic += pT1 - pT0; PROF.render += performance.now() - pT1; PROF.n++; }
   // ?trace=1 — покадровая запись для проверки движения (мяч на экране и в физике, игрок, камера, поза); в обычной игре выключено
   if (TRACE && run) {
@@ -4329,6 +4331,8 @@ if (TRACE) window.__ball = (x, z, vx = 0, vz = 0) => { if (B.state === 'owned' |
   const all = [player(myKit, true), player(gkKit), ...Array.from({ length: MATCH_ON ? 2 * NSIDE - 2 : 4 }, (_, i) => player(wallKit(), MATCH_ON && i < 2 * NSIDE - 3))]; // матч: партнёры и соперники — своя модель (вдвое легче общей, с рывком, ведением, разворотами), наш вратарь — общая
   let done = 0; all.forEach((p) => p.then(() => { done++; if (bar) bar.style.width = (done / all.length) * 100 + '%'; }));
   const got = await Promise.all(all);
+  // все игроки — наша модель в форме своей команды (и свой, и соперники); тестовые лица (Мбаппе, Ямаль) больше не ставятся
+  if (await JG.ready) { jgOn = true; got.forEach((pl, i) => JG.attach(pl, pl.kit, i)); }
   [shooter, keeper] = got; shooter0 = shooter; wall.push(...got.slice(2)); blob(ball, 0.45); makeSpheres(keeper, 'gk'); makeSpheres(shooter, 'me'); makeSpheres(wall[0], 'mate');
   GK.push({ pl: keeper, S: GKS, kick: null });
   if (MATCH_ON) { // матч: два соперника и наш вратарь — из тех же моделей «стенки»; поле меньше — вратарь выходит ближе
