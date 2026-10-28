@@ -64,7 +64,9 @@ jobs:
         run: |
           export CLOUDFLARE_API_TOKEN=$(echo "$CF_API_TOKEN" | tr -d '[:space:]') CLOUDFLARE_ACCOUNT_ID=$(echo "$CF_ACCOUNT_ID" | tr -d '[:space:]')
           mkdir -p site
-          cp -r index.html css js img fonts vendor prototypes site/
+          cp -r index.html css js img fonts vendor prototypes assets3d site/   # assets3d — 3D-игрок: без него на телефоне нет игроков в «Команде», выхода из пака и в матче драфта
+          # номер версии на экране загрузки: коммит и время выкладки (по нему видно, какая версия открыта на телефоне)
+          echo "window.BUILD='${GITHUB_SHA::7} · $(TZ=Europe/Moscow date +'%d.%m %H:%M')';" > site/js/build.js
           npx --yes wrangler@3.114.0 pages project create jackson-games-preview --production-branch main || true
           npx --yes wrangler@3.114.0 pages deploy site --project-name jackson-games-preview --branch main --commit-dirty=true
           echo "Превью: https://jackson-games-preview.pages.dev/ (в Telegram — через ссылку Mini App из @BotFather)"
@@ -74,6 +76,7 @@ jobs:
           code=$(curl -sS -o site.html -w '%{http_code}' https://jackson-games-preview.pages.dev/)
           echo "Сайт: HTTP $code"; [ "$code" = 200 ] && grep -q 'js/config.js' site.html || { echo "::error::Тестовый сайт не открылся"; exit 1; }
           curl -sS https://jackson-games-preview.pages.dev/js/config.js | grep -q 'jackson-games-preview' || { echo "::error::На сайте старая версия config.js"; exit 1; }
+          curl -sS https://jackson-games-preview.pages.dev/assets3d/player.glb | head -c 4 | grep -q glTF || { echo "::error::На сайте нет 3D-игрока (assets3d/player.glb)"; exit 1; }
           hdr=$(curl -sS -D - -o presence.json -H 'Origin: https://jackson-games-preview.pages.dev' https://jackson-games-staging.komutatorcisco.workers.dev/presence)
           echo "Сервер: $(head -c 200 presence.json)"
           grep -q '"ok":true' presence.json || { echo "::error::Тестовый сервер не отвечает или не подключён к своей базе D1"; exit 1; }

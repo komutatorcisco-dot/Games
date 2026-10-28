@@ -16,6 +16,7 @@
    Лёжа — герб слева, текст справа; стоя — столбиком. */
 #boot{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;overflow:hidden;color:#fff;font-family:Rubik,"Golos Text",system-ui,sans-serif;
   background:radial-gradient(70% 60% at 50% 115%,rgba(60,200,90,.35),transparent 70%),radial-gradient(60% 50% at 50% -10%,rgba(80,170,255,.28),transparent 70%),linear-gradient(180deg,#0b1830 0%,#060a1c 75%);transition:opacity .5s ease,transform .5s ease}
+#boot .bt-ver{position:absolute;right:14px;bottom:10px;font:600 11px Rubik,system-ui,sans-serif;color:rgba(255,255,255,.45)}
 #boot.out{opacity:0;transform:scale(1.04);pointer-events:none}
 #boot .bt-pitch{position:absolute;left:-20%;right:-20%;bottom:-8%;height:46%;transform:perspective(500px) rotateX(58deg);transform-origin:50% 100%;
   background:repeating-linear-gradient(90deg,#24863e 0 8%,#1f7837 8% 16%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.35);-webkit-mask:linear-gradient(0deg,#000 40%,transparent);mask:linear-gradient(0deg,#000 40%,transparent);opacity:.75}
@@ -59,7 +60,9 @@
   <div class="bt-in"><div class="bt-crest"><img src="img/fcm/crest.webp" alt="" decoding="async"></div>
     <div class="bt-txt"><small class="bt-k">JACKSON GAMES</small><h1>ДЖЕКСОНЫ</h1><p class="bt-sub">Футбольный клуб · мини-игры</p>
     <div class="bt-bar"><i></i></div><div class="bt-row"><span class="bt-lbl">Загружаем игры…</span><b class="bt-pct">0%</b></div><p class="bt-tip"></p></div></div>
+  <small class="bt-ver" id="bt-ver"></small>
 </div>
+<script src="js/build.js?v=__now" onerror="window.BUILD='локальная версия'"></script>
 <script>
 // Загрузочный экран: полоска честная — скрипты (до 70%), облако и шрифты, картинки главной; потом плавно исчезает.
 (function () {
@@ -69,6 +72,7 @@
   var ti = Math.floor(Math.random() * TIPS.length);
   function tip() { tipEl.style.opacity = 0; setTimeout(function () { tipEl.textContent = 'Совет: ' + TIPS[ti++ % TIPS.length]; tipEl.style.opacity = 1; }, 300); }
   tip(); var tipT = setInterval(tip, 3200);
+  setTimeout(function () { var v = document.getElementById('bt-ver'); if (v) v.textContent = 'Версия: ' + (window.BUILD || 'локальная'); }, 300);
   document.addEventListener('load', function (e) {
     var t = e.target; if (!t || t.tagName !== 'SCRIPT' || done) return;
     loaded++; var total = document.querySelectorAll('script[src]').length || 1;
