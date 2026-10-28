@@ -117,12 +117,118 @@ const PlayerKit = (() => {
   // hex — это sRGB: в r128 переводим в линейные сами, в новых three.js (ColorManagement) это делает set()
   const lin = (c) => (THREE.ColorManagement && THREE.ColorManagement.enabled ? c : c.convertSRGBToLinear());
 
+  // ---------- атлас маек ----------
+  // Раньше у каждого игрока была своя текстура майки (11 в «Команде», 22 в матче) — теперь страница 2048×2048,
+  // по клетке на игрока (512 px — 16 игроков, 256 px — 64). Клетку выбирает шейдер по uniform uTile, программа общая.
+  const PAGES = {};
+  function atlasTile(k) {
+    const S = k.tex || SIZE, pages = PAGES[S] || (PAGES[S] = []);
+    let pg = pages.find((x) => x.free.length);
+    if (!pg) {
+      const N = Math.max(1, Math.floor(2048 / S)), c = document.createElement('canvas'); c.width = c.height = N * S;
+      const t = new THREE.CanvasTexture(c); t.flipY = false; t.generateMipmaps = false; t.minFilter = THREE.LinearFilter;
+      if ('colorSpace' in t) t.colorSpace = THREE.SRGBColorSpace; else t.encoding = THREE.sRGBEncoding;   // новые three.js и r128
+      pg = { c, t, N, S, free: Array.from({ length: N * N }, (_, i) => N * N - 1 - i) }; pages.push(pg);
+    }
+    const i = pg.free.pop(), col = i % pg.N, row = Math.floor(i / pg.N);
+    pg.c.getContext('2d').drawImage(shirtCanvas(k), col * pg.S, row * pg.S); pg.t.needsUpdate = true;
+    const px = 1 / pg.c.width;   // отступ в пиксель — без «подтекания» соседней клетки
+    return { pg, i, tile: new THREE.Vector4(col / pg.N + px, row / pg.N + px, 1 / pg.N - 2 * px, 1 / pg.N - 2 * px) };
+  }
+  function useTile(m, a) {
+    m.map = a.pg.t; m.userData.atlas = a; m.userData.tile = a.tile;
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uTile = { value: m.userData.tile };
+      sh.fragmentShader = 'uniform vec4 uTile;\n' + sh.fragmentShader.replace('#include <map_fragment>',
+        THREE.ShaderChunk.map_fragment.replace(/texture2D\(\s*map\s*,\s*(vUv|vMapUv)\s*\)/, 'texture2D( map, fract( $1 ) * uTile.zw + uTile.xy )'));
+    };
+    m.customProgramCacheKey = () => 'jgShirtAtlas';
+  }
+  function freeTile(m) { const a = m && m.userData && m.userData.atlas; if (a && a.pg.free.indexOf(a.i) < 0) a.pg.free.push(a.i); if (a) m.userData.atlas = null; }
+
+  // ---------- упрощённое тело дальних игроков (JG_PlayerLOD): 6 частей → одна сетка, одна отрисовка ----------
+  // Часть (кожа, ёжик, майка, шорты, гетры, бутсы) — в атрибуте part; кожа из текстуры кожи × тон, майка из атласа,
+  // остальное — цвет. Только для three.js r128 (игра); в новых версиях упрощённое тело просто убирается.
+  const LOD_PARTS = ['skin', 'hair', 'shirt', 'shorts', 'socks', 'boots'];
+  function cloneLodMat(src) {
+    const m = src.clone(); m.name = 'jg_lod'; m.skinning = true;
+    m.userData.u = { uShirt: { value: null }, uTile: { value: new THREE.Vector4(0, 0, 1, 1) }, uCol: { value: LOD_PARTS.map(() => new THREE.Color(1, 1, 1)) } };
+    m.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, m.userData.u);
+      sh.vertexShader = 'attribute float part;\nvarying float vPart;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vPart = part;');
+      sh.fragmentShader = 'uniform sampler2D uShirt;\nuniform vec4 uTile;\nuniform vec3 uCol[6];\nvarying float vPart;\n' + sh.fragmentShader.replace('#include <map_fragment>', [
+        'float pp = floor(vPart + 0.5);',
+        'if (pp < 0.5) { diffuseColor.rgb *= mapTexelToLinear(texture2D(map, vUv)).rgb * uCol[0]; }',
+        'else if (pp < 1.5) { diffuseColor.rgb *= uCol[1]; }',
+        'else if (pp < 2.5) { diffuseColor.rgb *= mapTexelToLinear(texture2D(uShirt, fract(vUv) * uTile.zw + uTile.xy)).rgb; }',
+        'else if (pp < 3.5) { diffuseColor.rgb *= uCol[3]; }',
+        'else if (pp < 4.5) { diffuseColor.rgb *= uCol[4]; }',
+        'else { diffuseColor.rgb *= uCol[5]; }'].join('\n'));
+    };
+    m.customProgramCacheKey = () => 'jgLod';
+    return m;
+  }
+  function mergeLOD(g) {
+    const grp = g.scene.getObjectByName('JG_PlayerLOD');
+    if (!grp) return;
+    if (!THREE.ShaderChunk.map_fragment.includes('mapTexelToLinear') || grp.isSkinnedMesh) { grp.parent.remove(grp); return; }
+    const parts = []; grp.traverse((o) => { if (o.isSkinnedMesh) parts.push(o); });
+    if (!parts.length) return;
+    const N = parts.reduce((a, o) => a + o.geometry.attributes.position.count, 0);
+    const att = { position: 3, normal: 3, uv: 2, skinIndex: 4, skinWeight: 4 }, arr = {};
+    Object.keys(att).forEach((k) => { arr[k] = new Float32Array(N * att[k]); });
+    const part = new Float32Array(N), idx = []; let off = 0, skinMap = null;
+    parts.forEach((o) => {
+      const geo = o.geometry, n = geo.attributes.position.count, pi = Math.max(0, LOD_PARTS.indexOf((o.material.name || '').toLowerCase()));
+      if (pi === 0 && o.material.map) skinMap = o.material.map;
+      Object.keys(att).forEach((k) => {
+        const a = geo.attributes[k]; if (!a) return;
+        const get = ['getX', 'getY', 'getZ', 'getW'];
+        for (let v = 0; v < n; v++) for (let c = 0; c < att[k]; c++) arr[k][(off + v) * att[k] + c] = a[get[c]](v);
+      });
+      part.fill(pi, off, off + n);
+      if (geo.index) for (let i = 0; i < geo.index.count; i++) idx.push(geo.index.getX(i) + off); else for (let i = 0; i < n; i++) idx.push(i + off);
+      off += n;
+    });
+    const geo = new THREE.BufferGeometry();
+    Object.keys(att).forEach((k) => geo.setAttribute(k, new THREE.BufferAttribute(arr[k], att[k])));
+    geo.setAttribute('part', new THREE.BufferAttribute(part, 1)); geo.setIndex(idx); geo.computeBoundingSphere();
+    const base = new THREE.MeshStandardMaterial({ map: skinMap, roughness: 0.6, metalness: 0 }); base.name = 'jg_lod';
+    const mesh = new THREE.SkinnedMesh(geo, cloneLodMat(base));
+    mesh.name = 'JG_PlayerLOD'; mesh.position.copy(grp.position); mesh.quaternion.copy(grp.quaternion); mesh.scale.copy(grp.scale);
+    const parent = grp.parent; parent.remove(grp); parent.add(mesh);
+    mesh.bind(parts[0].skeleton, parts[0].bindMatrix);
+    mesh.visible = false;
+  }
+
+  // ---------- дальние игроки: без глаз и бровей ----------
+  // Глаза и брови у дальних игроков меньше пикселя, но это 2 лишних вызова отрисовки на игрока.
+  // lodTick(camera) — раз в кадр из сцены: прячет их, если игрок дальше ~8 своих ростов от камеры.
+  const LOD = new Set();
+  function lodTick(camera, far = 8) {
+    const a = lodTick.a || (lodTick.a = new THREE.Vector3()), b = lodTick.b || (lodTick.b = new THREE.Vector3());
+    camera.getWorldPosition(a);
+    LOD.forEach((e) => {
+      if (!e.root.parent) return;
+      e.root.getWorldPosition(b); e.root.getWorldScale(lodTick.c || (lodTick.c = new THREE.Vector3()));
+      const near = a.distanceTo(b) / Math.max(0.01, lodTick.c.x * 1.85) < far;
+      if (e.near === near) return; e.near = near;
+      e.small.forEach((o) => { o.visible = near; });
+      if (e.lod) {   // далеко — одна сетка упрощённого тела вместо тела, причёски, глаз и бровей
+        e.lod.visible = !near;
+        e.full.forEach((o) => { o.visible = near && (!o.name.startsWith('JG_Hair_') || o.name === 'JG_Hair_' + e.root.userData.style); });
+      }
+    });
+  }
+
   // ---------- покрасить и настроить клон модели ----------
   function apply(root, k) {
     k = kit(k);
     let tex = null;
     const skin = typeof k.skin === 'number' ? SKIN[Math.max(0, Math.min(SKIN.length - 1, k.skin))] : k.skin;
     const hair = k.style === 'shaved' ? new THREE.Color(skin).lerp(new THREE.Color(k.hair), 0.35).getStyle() : k.hair;
+    const lodMats = [];
+    root.userData.style = k.style;
     root.traverse((o) => {
       if (o.name && o.name.startsWith('JG_Hair_')) o.visible = o.name === 'JG_Hair_' + k.style;
       if (o.morphTargetDictionary && o.morphTargetInfluences) {
@@ -130,18 +236,16 @@ const PlayerKit = (() => {
       }
       if (!o.isMesh) return;
       const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach(freeTile);   // перекраска того же игрока — прежняя клетка атласа освобождается
       const out = mats.map((m) => {
         const n = (m.name || '').toLowerCase();
         const role = n.startsWith('hair') ? 'hair' : n;
+        if (role === 'jg_lod') { m = cloneLodMat(m); lodMats.push(m); return m; }
         if (!['skin', 'hair', 'shirt', 'shorts', 'socks', 'boots'].includes(role)) return m;
         m = m.clone();
         if (role === 'shirt') {
-          if (!tex) {
-            tex = new THREE.CanvasTexture(shirtCanvas(k));
-            tex.flipY = false; tex.wrapS = THREE.RepeatWrapping;
-            if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace; else tex.encoding = THREE.sRGBEncoding;   // новые three.js и r128
-          }
-          m.map = tex; m.color.set('#ffffff');
+          if (!tex) tex = atlasTile(k);   // клетка в общем атласе маек: одна текстура на всех игроков
+          useTile(m, tex); m.color.set('#ffffff');
         } else if (role === 'skin') lin(m.color.set(skin));
         else if (role === 'hair') lin(m.color.set(hair));
         else lin(m.color.set(k[role]));
@@ -149,6 +253,11 @@ const PlayerKit = (() => {
       });
       o.material = Array.isArray(o.material) ? out : out[0];
     });
+    if (lodMats.length) {   // упрощённое тело: те же цвета и та же клетка атласа маек
+      if (!tex) tex = atlasTile(k);
+      const cols = [skin, hair, '#ffffff', k.shorts, k.socks, k.boots];
+      lodMats.forEach((m) => { const U = m.userData.u; U.uShirt.value = tex.pg.t; U.uTile.value.copy(tex.tile); cols.forEach((c, i) => lin(U.uCol.value[i].set(c))); });
+    }
     root.scale.setScalar(k.height || 1);
     return root;
   }
@@ -231,7 +340,7 @@ const PlayerKit = (() => {
 
   // ---------- загрузка модели (лениво, после three.js) ----------
   // Загрузчики three r128 — свои копии в vendor/three-ext, декодер Draco — vendor/draco.
-  const MODEL = 'assets3d/player.glb?v=20261028-a4';
+  const MODEL = 'assets3d/player.glb?v=20261029-l1';
   let loading = null;
   const addScript = (src) => new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
   function load(base = '') {   // base — путь до корня сайта (для генераторов в tools/art: '../../')
@@ -243,17 +352,32 @@ const PlayerKit = (() => {
       .then(() => new Promise((ok, bad) => {
         const draco = new THREE.DRACOLoader(); draco.setDecoderPath(base + 'vendor/draco/');
         const gl = new THREE.GLTFLoader(); gl.setDRACOLoader(draco);
-        gl.load(base + MODEL, ok, undefined, bad);
+        gl.load(base + MODEL, (g) => { mergeLOD(g); ok(g); }, undefined, bad);
       }));
     loading.catch(() => { loading = null; });   // сеть подвела — в следующий раз попробуем снова
     return loading;
   }
   // Готовый игрок: клон модели, внешность, поза (stand | run | run2 | kick | kick2)
+  // У модели один скелет, но загрузчик и клонирование дают каждой части (тело, глаза, брови, причёски) свою копию:
+  // это своя текстура костей и свой пересчёт на каждую часть каждый кадр. Делаем один скелет на игрока.
+  function shareSkeleton(root) {
+    let first = null;
+    root.traverse((o) => {
+      if (!o.isSkinnedMesh) return;
+      if (!first) { first = o.skeleton; return; }
+      if (o.skeleton !== first && o.skeleton.bones.length === first.bones.length && o.skeleton.bones.every((b, i) => b === first.bones[i])) o.bind(first, o.bindMatrix);
+    });
+    return root;
+  }
   function make(gltf, look, pose = 'stand') {
-    const p = THREE.SkeletonUtils.clone(gltf.scene);
+    const p = shareSkeleton(THREE.SkeletonUtils.clone(gltf.scene));
     apply(p, look);
     p.userData.mixer = new THREE.AnimationMixer(p); p.userData.clips = gltf.animations;
     play(p, pose, { fade: 0 }) || play(p, 'stand', { fade: 0 });
+    const small = []; p.traverse((o) => { if (o.isMesh && /^(JG_Eyes|JG_Brows|low-poly|eyebrow)/.test(o.name)) small.push(o); });
+    const lod = p.getObjectByName('JG_PlayerLOD'), full = [];
+    p.traverse((o) => { if (o !== lod && o.name && /^(JG_Player|JG_Hair_)/.test(o.name) && !(lod && lod.parent === o && false)) full.push(o); });
+    if (small.length || lod) { p.userData.lod = { root: p, small, lod, full: lod ? full.filter((o) => o.name !== 'JG_PlayerLOD') : [], near: true }; LOD.add(p.userData.lod); }
     return p;
   }
   // Включить анимацию или позу у готового игрока. Анимации (idle, jog, …) идут, пока вызывающий код
@@ -276,11 +400,12 @@ const PlayerKit = (() => {
   }
   // Освободить материалы и текстуры майки клона (геометрия общая с моделью — её не трогаем)
   function dispose(root) {
+    if (root.userData && root.userData.lod) LOD.delete(root.userData.lod);
     root.traverse((o) => {
       if (!o.isMesh) return;
-      (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.map && m.map.isCanvasTexture) m.map.dispose(); m.dispose(); });
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m.userData && m.userData.atlas) freeTile(m); else if (m.map && m.map.isCanvasTexture) m.map.dispose(); m.dispose(); });
     });
   }
 
-  return { PATTERNS, SKIN, HAIR, STYLES, KITS, kit, apply, random, forCard, fromArena, numberOf, posNumber, clubKit, shirtCanvas, hash, load, make, play, dispose };
+  return { PATTERNS, SKIN, HAIR, STYLES, KITS, kit, apply, random, forCard, fromArena, numberOf, posNumber, clubKit, shirtCanvas, hash, load, make, play, dispose, lodTick, shareSkeleton };
 })();

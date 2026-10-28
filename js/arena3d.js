@@ -184,7 +184,7 @@ const Arena3D = (() => {
 
   // ---------- большая чаша: два яруса по скруглённому прямоугольнику, полупрозрачная крыша ----------
   function bowl(scene, homeColor) {
-    const N = 180, n = 4, A0 = W / 2 + 9, B0 = H / 2 + 9;
+    const N = 96, n = 4, A0 = W / 2 + 9, B0 = H / 2 + 9;
     const path = [], nrm = [];
     for (let i = 0; i < N; i++) {
       const t = (i / N) * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
@@ -206,23 +206,31 @@ const Arena3D = (() => {
     for (let i = 0; i < N; i++) for (let k = 0; k < P - 1; k++) { const a = i * P + k, b = ((i + 1) % N) * P + k; idx.push(a, b, a + 1, b, b + 1, a + 1); }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
     const stands = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide })); stands.receiveShadow = true; scene.add(stands);
-    // болельщики: серые кресла и цвета хозяев вкраплениями
-    const seats = [];
-    rows.forEach(([pd, ph], ri) => {
-      let acc = 0;
-      for (let i = 0; i < N; i++) {
-        const a = path[i], b = path[(i + 1) % N], seg = Math.hypot(b[0] - a[0], b[1] - a[1]); acc += seg;
-        while (acc > 0.85) { acc -= 0.85; const k = 1 - acc / seg, x0 = a[0] + (b[0] - a[0]) * k, z0 = a[1] + (b[1] - a[1]) * k, [nx, nz] = nrm[i]; seats.push([x0 + nx * pd, ph, z0 + nz * pd, Math.atan2(-nx, -nz), ri]); }
+    // болельщики: ряд трибуны — одна полоса с нарисованными зрителями (как stadium-lite у «Удара»):
+    // 30 рядов × 96 отрезков = ~5,8 тыс. треугольников и одна отрисовка (было ~12 тыс. фигур)
+    const SEAT = 0.85, PER = 16, fc = cv(PER * 32, 64), fx = fc.getContext('2d'), home = hexColor(homeColor, '#e3243f');
+    const PAL = ['#3a3d4c', '#2b2e3a', '#4a4e60', '#f2f2f2'];
+    fx.fillStyle = '#585e74'; fx.fillRect(0, 0, fc.width, 64);
+    for (let k = 0; k < PER; k++) {
+      const c = Math.random() < 0.38 ? '#' + home.clone().multiplyScalar(0.75 + Math.random() * 0.3).getHexString() : PAL[(Math.random() * PAL.length) | 0];
+      const x = k * 32 + 16, y = 18 + Math.random() * 6;
+      fx.fillStyle = c; fx.fillRect(x - 10, y + 8, 20, 64 - y - 8);
+      fx.fillStyle = ['#e0b08a', '#b07850', '#8a5636', '#f0c39f'][(Math.random() * 4) | 0]; fx.beginPath(); fx.arc(x, y, 7, 0, 7); fx.fill();
+    }
+    const fanT = new THREE.CanvasTexture(fc); fanT.wrapS = THREE.RepeatWrapping; fanT.encoding = THREE.sRGBEncoding;
+    const fp = [], fu = [], fn = [], fi = [];
+    rows.forEach(([pd, ph]) => {
+      let acc = Math.random() * PER;
+      for (let i = 0; i <= N; i++) {
+        const j = i % N, [x0, z0] = path[j], [nx, nz] = nrm[j], base = fp.length / 3;
+        if (i) { const [px, pz] = path[(j + N - 1) % N]; acc += Math.hypot(x0 - px, z0 - pz) / (SEAT * PER); }
+        fp.push(x0 + nx * pd, ph, z0 + nz * pd, x0 + nx * pd, ph + 0.62, z0 + nz * pd);
+        fu.push(acc, 1, acc, 0); fn.push(-nx, 0, -nz, -nx, 0, -nz);
+        if (i) fi.push(base - 2, base, base - 1, base, base + 1, base - 1);
       }
     });
-    const fg = new THREE.BoxGeometry(0.5, 0.62, 0.36); fg.translate(0, 0.31, 0);
-    const fans = new THREE.InstancedMesh(fg, new THREE.MeshStandardMaterial({ roughness: 0.85 }), seats.length);
-    const o = new THREE.Object3D(), cl = new THREE.Color(), home = hexColor(homeColor, '#e3243f');
-    const PAL = [0x3a3d4c, 0x2b2e3a, 0x4a4e60, 0xf2f2f2];
-    seats.forEach((s, i) => {
-      o.position.set(s[0], s[1], s[2]); o.rotation.set(0, s[3], 0); o.updateMatrix(); fans.setMatrixAt(i, o.matrix);
-      const r = Math.random(); cl.copy(r < 0.38 ? home : new THREE.Color(PAL[(Math.random() * PAL.length) | 0])).multiplyScalar(0.75 + Math.random() * 0.3); fans.setColorAt(i, cl);
-    });
+    const fgeo = new THREE.BufferGeometry(); fgeo.setAttribute('position', new THREE.Float32BufferAttribute(fp, 3)); fgeo.setAttribute('uv', new THREE.Float32BufferAttribute(fu, 2)); fgeo.setAttribute('normal', new THREE.Float32BufferAttribute(fn, 3)); fgeo.setIndex(fi);
+    const fans = new THREE.Mesh(fgeo, new THREE.MeshLambertMaterial({ map: fanT, side: THREE.DoubleSide }));
     scene.add(fans);
     // реклама по проходу между ярусами
     const adC = cv(1024, 32), ax = adC.getContext('2d'); ax.fillStyle = '#1a2560'; ax.fillRect(0, 0, 1024, 32);
@@ -250,9 +258,8 @@ const Arena3D = (() => {
     return {
       cheer: () => { cheer = 2.2; },
       update(dt, t) {
-        if (cheer <= 0) return; cheer -= dt;
-        for (let i = 0; i < seats.length; i += 1) { const s = seats[i]; o.position.set(s[0], s[1] + Math.max(0, Math.sin(t * 10 + i)) * 0.35 * Math.min(1, cheer), s[2]); o.rotation.set(0, s[3], 0); o.updateMatrix(); fans.setMatrixAt(i, o.matrix); }
-        fans.instanceMatrix.needsUpdate = true;
+        if (cheer <= 0) { fans.position.y = 0; return; } cheer -= dt;
+        fans.position.y = Math.max(0, Math.sin(t * 12)) * 0.3 * Math.min(1, cheer);   // трибуны подпрыгивают
       },
     };
   }
@@ -581,6 +588,7 @@ const Arena3D = (() => {
       if (shake > 0) { shake -= dt; camera.position.x += (Math.random() - 0.5) * shake; camera.position.y += (Math.random() - 0.5) * shake; }
       camera.lookAt(look); camera.updateProjectionMatrix();
       ads(dt); B.update(dt, t);
+      if (typeof PlayerKit !== 'undefined' && PlayerKit.lodTick) PlayerKit.lodTick(camera);
       if (owner && owner.name) {
         pv.copy(owner.m.position); pv.y = 3.6; pv.project(camera);
         const w = host.clientWidth, h = host.clientHeight;
@@ -668,6 +676,8 @@ const Arena3D = (() => {
       settled: () => cp.distanceTo(tp) < 0.3,
       project(x, z, y = 0) { const v = new THREE.Vector3(x, y, z).project(camera), w = host.clientWidth, h = host.clientHeight; return { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h, d: camera.position.distanceTo(new THREE.Vector3(x, y, z)) }; },
       W, H, scene,   // scene — «Команда» ставит на газон 3D-игроков (PlayerKit)
+      // замер: вызовы отрисовки, треугольники, текстуры последнего кадра (renderer.info)
+      stats: () => ({ calls: renderer.info.render.calls, tris: renderer.info.render.triangles, textures: renderer.info.memory.textures, geometries: renderer.info.memory.geometries, frame: renderer.info.render.frame, shown: !visible || visible() }),
     };
     let raf = 0;
     const step = (now) => {
@@ -679,6 +689,7 @@ const Arena3D = (() => {
       beams.forEach((b) => { const f = RM ? 1 : 0.85 + Math.sin(t * 1.3 + b.ph) * 0.15; b.cone.material.opacity = 0.045 * f; b.halo.scale.setScalar(15 + f * 3); });
       if (!RM) { const a = pg.attributes.position.array; for (let i = 0; i < N; i++) { a[i * 3 + 1] += dt * (0.4 + (i % 5) * 0.12); a[i * 3] += Math.sin(t * 0.5 + i) * dt * 0.3; if (a[i * 3 + 1] > 26) a[i * 3 + 1] = 0; } pg.attributes.position.needsUpdate = true; }
       adT += dt; if (adT > 0.08) { ads(adT * 0.5); adT = 0; } // бегущая строка — реже, текстура большая
+      if (typeof PlayerKit !== 'undefined' && PlayerKit.lodTick) PlayerKit.lodTick(camera);   // дальние игроки — без глаз и бровей
       renderer.render(scene, camera);
       if (api.onFrame) try { api.onFrame(); } catch (e) { /* карточки — не повод ронять фон */ }
     };

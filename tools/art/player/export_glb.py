@@ -1,7 +1,7 @@
 # Экспорт футболиста в glTF (.glb) с Draco-сжатием.
 # Запуск после build_player.py и poses.py (exec в том же вызове):
 #   export_glb(r"<repo>/assets3d/player.glb")
-# В файле: скелет Mixamo (22 кости, без пальцев); сетки JG_Player, JG_Eyes, JG_Brows, JG_Hair_short|medium|afro;
+# В файле: скелет Mixamo (22 кости, без пальцев); сетки JG_Player, JG_PlayerLOD (дальние, lod.py), JG_Eyes, JG_Brows, JG_Hair_short|medium|afro;
 # материалы skin, hair, shirt, shorts, socks, boots, eyes, brows, hair_<стиль>; морфы slim, heavy, muscular;
 # позы по 1 кадру: stand, run, run2, kick, kick2; анимации Mixamo (retarget.py): idle, jog, strike, pass, penalty,
 # header, scissor, tackle, receive, spin, juggle, gk_idle, gk_dive, gk_catch.
@@ -14,7 +14,7 @@ def export_glb(path, draco=True):
     for act in sorted((a for a in bpy.data.actions if a.name.startswith('a_')), key=lambda a: a.name):
         t = ad.nla_tracks.new(); t.name = act.name[2:]
         t.strips.new(act.name[2:], 1, act); t.mute = True
-    names = ['JG_Rig', 'JG_Player', 'JG_Eyes', 'JG_Brows'] + sorted(o.name for o in bpy.data.objects if o.name.startswith('JG_Hair_'))
+    names = ['JG_Rig', 'JG_Player', 'JG_Eyes', 'JG_Brows'] + sorted(o.name for o in bpy.data.objects if o.name.startswith(('JG_Hair_', 'JG_PlayerLOD')))
     for o in bpy.context.view_layer.objects:
         o.select_set(False)
     objs = [bpy.data.objects[n] for n in names]
