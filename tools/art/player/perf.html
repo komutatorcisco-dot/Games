@@ -1,0 +1,26 @@
+<!doctype html>
+<!-- Замер матча Arena3D на 22 игрока: кадры в секунду. ?jg=0 — прежние фигурки, без 3D-модели.
+     ?lod=0|1 — упрощённые дальние игроки (если есть). Запускает tools/art/player/perf.js (Playwright). -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Match perf</title>
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden}#st{position:fixed;inset:0}</style>
+</head><body><div id="st"></div>
+<script src="../../../vendor/three.min.js"></script>
+<script src="../../../js/data/cards.js"></script>
+<script src="../../../js/xdraft/engine.js"></script>
+<script src="../../../js/arena3d.js"></script>
+<script>
+const Q = new URLSearchParams(location.search);
+window.Store = { d: { ui: {} }, save() {} }; window.Screens = { current: 'perf' };
+const go = () => {
+  const forms = (window.XD && XD.FORMATIONS) || null;
+  window.PERF = { ready: false };
+  Arena3D.match(document.getElementById('st'), { form: ['4-3-3', '4-3-3'], slots: forms, kits: [['#e3243f', '#ffffff'], ['#1f5bd8', '#ffffff']], ball: 'classic', names: ['ТЕСТ'], players: [[], []] })
+    .then((a) => { PERF.a = a; setTimeout(() => { PERF.ready = true; }, Number(Q.get('warm') || 6000)); });
+};
+if (Q.get('jg') === '0') go();
+else { const s = document.createElement('script'); s.src = '../../../js/playerkit.js'; s.onload = go; document.head.appendChild(s); }
+// замер: кадры за ms миллисекунд и худшие кадры
+window.measure = (ms = 5000) => new Promise((ok) => { const ts = []; const t0 = performance.now(); const f = (t) => { ts.push(t); if (t - t0 < ms) requestAnimationFrame(f); else { const d = ts.slice(1).map((v, i) => v - ts[i]).sort((a, b) => a - b); ok({ fps: +(ts.length / (ms / 1000)).toFixed(1), p50: +d[d.length >> 1].toFixed(1), p95: +d[Math.floor(d.length * 0.95)].toFixed(1) }); } }; requestAnimationFrame(f); });
+</script>
+</body></html>

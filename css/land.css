@@ -314,6 +314,14 @@
   #sq-body .sq-k b, #sq-body .sq-form b { font-size: 20px; }
   #sq-body .sq-act { grid-column: 2; grid-row: 2; grid-template-columns: 1fr; gap: 8px; margin: 12px 0 0; }
   #sq-body .sq-note { grid-column: 2; grid-row: 3; margin: 10px 2px 0; text-align: left; font-size: 12px; }
+  /* «Менеджер» (матч «Моего состава» с 3D-моментами): поле 3D во всю высоту слева, счёт, скорость, лента и тактика — справа */
+  #sq-body:has(> .xm, > .xm-intro, > .xd-res) { display: block; }
+  .xm:not(.comm):has(.xm-stage.is3d) { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(220px, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto auto; column-gap: 12px; row-gap: 6px; align-items: start; }
+  .xm:not(.comm):has(.xm-stage.is3d) > * { grid-column: 2; margin-top: 0; margin-bottom: 0; }
+  .xm:not(.comm):has(.xm-stage.is3d) > .xm-stage { grid-column: 1; grid-row: 1 / -1; align-self: stretch; }
+  .xm:not(.comm) .xm-stage.is3d { height: calc(var(--l-body) - 4px); }
+  .xm:not(.comm):has(.xm-stage.is3d) > .xm-feed { max-height: calc(var(--l-body) - 210px); overflow: hidden; }
+  .xm:not(.comm):has(.xm-stage.is3d) .xm-bug { transform: scale(.82); transform-origin: left top; }
 
   /* «Куда перешёл?»: карточка слева, варианты ответа — столбиком справа */
   #transfer:not([hidden]):not(:has(.vs-mid)) { display: grid !important; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); column-gap: 18px; align-content: start; }

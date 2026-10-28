@@ -14,9 +14,11 @@ const XMatch = (() => {
     const club = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
     return (typeof CLUB_COL !== 'undefined' && CLUB_COL[club]) || fallback;
   }
+  // карточки соперника по именам — чтобы у 3D-игроков была их внешность и номер (PlayerKit.forCard)
+  const botCards = (m) => { const by = new Map(Cards.all().map((c) => [c.name, c])); return m.bot.xi.map((n) => by.get(n) || null); };
   function mount3d(box) {
     stop3d();
-    return; // 3D в матче убрано: по отзыву неиграбельно — остаётся вид сверху и комментарий
+    if (view() !== 'moments') return; // 3D — только в «Менеджере» (там смотришь); в драфте по отзыву 8.10 — текст
     if (typeof Arena3D === 'undefined' || !Arena3D.supported()) return;
     const stage = $('.xm-stage', box), m = S().match, ctx = C;
     const home = kitOf(C.xi(), ['#ffc21f', '#1a1446']);
@@ -24,7 +26,7 @@ const XMatch = (() => {
     const rgb = (x) => { const v = String(x).replace('#', ''); return [0, 2, 4].map((i) => parseInt(v.slice(i, i + 2), 16) || 0); };
     const dist = (a, b) => { const p = rgb(a), q = rgb(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
     if (dist(home[0], away[0]) < 150) away = dist(home[0], '#f4f4f4') < 150 ? ['#e3243f', '#ffffff'] : ['#f4f4f4', '#1a1446'];
-    Arena3D.match(stage, { form: [C.form(), m.bot.form], slots: XD.FORMATIONS, kits: [home, away], ball: Arena3D.ballState().ball, names: [String(Store.d.user.nick || 'ДЖЕКСОНЫ').toUpperCase()], players: [C.xi().map((p) => sur(p && p.name)), m.bot.xi.map((n) => sur(n))], visible: () => Screens.current === ctx.screen })
+    Arena3D.match(stage, { form: [C.form(), m.bot.form], slots: XD.FORMATIONS, kits: [home, away], ball: Arena3D.ballState().ball, names: [String(Store.d.user.nick || 'ДЖЕКСОНЫ').toUpperCase()], players: [C.xi().map((p) => sur(p && p.name)), m.bot.xi.map((n) => sur(n))], cards: [C.xi(), botCards(m)], visible: () => Screens.current === ctx.screen })
       .then((a) => { if (!a) return; if (!stage.isConnected || !M || M.over) { a.stop(); return; } A3 = a; stage.classList.add('is3d'); if (!waiting && timer) run(); })
       .catch(() => { /* без 3D — остаётся вид сверху */ });
   }
@@ -137,7 +139,8 @@ const XMatch = (() => {
   function kick() { clearTimeout(readyT); if (!M || !$('.xm-intro', BODY())) return; Sound.play('whistle'); render(); run(); }
   // как смотреть матч: «Моменты» (3D, часы ждут, пока доиграется опасный момент) или «Комментарии» (текст), и скорость
   const UIS = () => Store.d.ui || (Store.d.ui = {});
-  const view = () => 'comm';
+  // «Менеджер» («Мой состав», смотришь матч) — 3D-моменты с игроками; драфт и онлайн — комментарий
+  const view = () => (C && C.link === 'squad' && !(C.st().match && C.st().match.online) && typeof Arena3D !== 'undefined' && Arena3D.supported() ? 'moments' : 'comm');
   const speed = () => { const m = C.st().match; if (m && m.online) return 1; return [1, 2, 4].includes(UIS().xmSpeed) ? UIS().xmSpeed : 1; };
   let waiting = false;
   function run() {
@@ -167,7 +170,7 @@ const XMatch = (() => {
     }
     Store.save(true);
     const fin = () => { clearInterval(timer); Sound.play('whistle'); Store.save(); setTimeout(end, 900); };
-    if (evs.length && Sim.on()) { // момент разыгрывается на поле: часы ждут, пока мяч не дойдёт до ворот
+    if (evs.length && Sim.on() && !(A3 && view() === 'moments')) { // момент разыгрывается на поле (в 3D — ниже, в A3): часы ждут, пока мяч не дойдёт до ворот
       clearInterval(timer); waiting = true; update([]);
       return Sim.play(evs, () => { waiting = false; if (!M) return; if (M.over) fin(); else if (Screens.current === C.screen) run(); });
     }

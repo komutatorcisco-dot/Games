@@ -423,7 +423,11 @@ const Arena3D = (() => {
     function upgrade(p, g, i) {
       const clip = (n) => THREE.AnimationClip.findByName(g.animations, n);
       if (!clip('jog') || !clip('idle')) return;   // старая модель без анимаций — оставляем фигурки
-      const look = PlayerKit.random(p.s * 977 + i * 31 + 7, PlayerKit.fromArena(p.kit, { number: p.num, tex: 256 }));
+      // карточка известна («Менеджер») — та же внешность и номер, что в «Команде», но в цветах команды матча
+      const card = opts.cards && opts.cards[p.s] && opts.cards[p.s][team[p.s].indexOf(p)];
+      const hex = (c) => '#' + new THREE.Color(c).getHexString();
+      const colors = { pattern: 'sleeves', c1: hex(p.kit.shirt), c2: hex(p.kit.sleeve), shorts: hex(p.kit.shorts), socks: hex(p.kit.socks), ink: p.kit.inkCss, tex: 256 };
+      const look = card ? PlayerKit.forCard(card, colors) : PlayerKit.random(p.s * 977 + i * 31 + 7, PlayerKit.fromArena(p.kit, { number: p.num, tex: 256 }));
       const man = PlayerKit.make(g, look, 'stand');
       man.scale.multiplyScalar(1.15);   // как фигурки: ~3,3 м вместе с масштабом корня 1,55 — видно с ТВ-камеры
       man.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.frustumCulled = false; } });
