@@ -564,6 +564,7 @@ const Arena3D = (() => {
     events: { p: [W / 2 - 18, 6, -22], l: [W / 2 + 40, 16, 34], orbit: 6 },
     quests: { p: [-20, 30, -50], l: [10, 4, 10], orbit: 10 },
     store: { p: [-W / 2 + 6, 7, 24], l: [-W / 2 - 40, 14, -30], orbit: 6 },
+    coll: { p: [0, 9, -H / 2 + 6], l: [0, 16, -H / 2 - 40], orbit: 10 },
   };
   let bd = null;
   async function backdrop(host, visible) {

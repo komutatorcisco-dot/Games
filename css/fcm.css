@@ -572,3 +572,53 @@
   body.fcm-on #dly .dly-clue { padding: 6px 12px; border-radius: 6px; background: rgba(8,14,28,.65); box-shadow: inset 0 0 0 1px rgba(150,200,255,.14); }
   body.fcm-on #dly .dly-clue.open { background: linear-gradient(90deg, rgba(25,211,176,.22), rgba(8,14,28,.7)); box-shadow: inset 3px 0 0 #19d3b0, inset 0 0 0 1px rgba(25,211,176,.3); }
 }
+
+/* ---------- Коллекция (28.10): как «Звёздные подписания» в FC ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  body.fm3d .fcm[data-view="coll"]::after { background: linear-gradient(115deg, rgba(4,10,24,.88) 30%, rgba(20,30,80,.55) 75%, rgba(120,90,255,.15)); }
+  .fm-coll { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 12px; height: 100%; min-height: 240px; }
+  .fm-cl { display: grid; align-content: start; gap: 8px; padding: 12px; border-radius: 12px; overflow: auto;
+    background: linear-gradient(180deg, rgba(14,24,48,.9), rgba(6,12,26,.92)); box-shadow: inset 0 0 0 1.5px rgba(150,120,255,.45), 0 0 22px rgba(120,90,255,.15); }
+  .fm-cl-n { display: grid; gap: 2px; } .fm-cl-n small { font: 800 12px/1 "Rubik", sans-serif; text-transform: uppercase; letter-spacing: .08em; color: #b9c6dc; }
+  .fm-cl-n b { font: italic 900 34px/1 "Rubik", sans-serif; } .fm-cl-n em { font: 700 15px/1 "Rubik", sans-serif; color: #8ea2bf; font-style: normal; }
+  .fm-cl-bars { display: grid; gap: 4px; }
+  .fm-cl-bars span { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; align-items: center; gap: 6px; }
+  .fm-cl-bars small { font: 600 11px/1 "Rubik", sans-serif; color: #b9c6dc; } .fm-cl-bars b { font: 700 11px/1 "Rubik", sans-serif; }
+  .fm-cl-bars i { height: 5px; border-radius: 3px; background: rgba(255,255,255,.08); overflow: hidden; } .fm-cl-bars u { display: block; height: 100%; border-radius: 3px; text-decoration: none; }
+  .fm-cq { width: 100%; height: 34px; padding: 0 10px; border: 0; border-radius: 17px; background: rgba(4,8,18,.85); color: #fff; font: 500 13px "Rubik", sans-serif; box-shadow: inset 0 0 0 1.5px rgba(150,200,255,.3); }
+  .fm-cq:focus { outline: 0; box-shadow: inset 0 0 0 2px #c6ff3d; }
+  .fm-chips2 { display: flex; flex-wrap: wrap; gap: 4px; }
+  .fm-chips2 button { padding: 5px 9px !important; border-radius: 13px; background: rgba(255,255,255,.07) !important; font: 600 12px/1 "Rubik", sans-serif !important; color: #cfdcef !important; }
+  .fm-chips2 button.on { background: linear-gradient(90deg, #19d3b0, #3fa9ff) !important; color: #06101c !important; font-weight: 800 !important; }
+  .fm-cr { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; min-height: 0; }
+  .fm-cr-h { display: flex; align-items: center; gap: 10px; }
+  .fm-seg { display: flex; padding: 3px; border-radius: 18px; background: rgba(4,8,18,.8); box-shadow: inset 0 0 0 1px rgba(150,200,255,.2); }
+  .fm-seg button { padding: 6px 16px !important; border-radius: 15px; font: 800 13px/1 "Rubik", sans-serif !important; text-transform: uppercase; color: #9fb2cc !important; }
+  .fm-seg button.on { background: var(--fm-lime) !important; color: var(--fm-ink) !important; }
+  .fm-sort { margin-left: auto; padding: 7px 14px !important; border-radius: 16px; background: rgba(4,8,18,.8) !important; box-shadow: inset 0 0 0 1.5px rgba(150,120,255,.5); font: 800 13px/1 "Rubik", sans-serif !important; }
+  .fm-cg { display: grid; grid-template-columns: repeat(auto-fill, minmax(102px, 1fr)); gap: 10px 8px; align-content: start; overflow-y: auto; overscroll-behavior: contain; padding: 4px 2px 10px; }
+  .fm-cc { position: relative; display: grid !important; justify-items: center; padding: 6px 0 !important; border-radius: 10px; background: rgba(6,12,26,.55) !important; box-shadow: inset 0 0 0 1px rgba(150,200,255,.12); transition: transform .15s; }
+  .fm-cc .cc { animation: none; filter: drop-shadow(0 6px 8px rgba(0,0,0,.5)); }
+  .fm-cc.no { opacity: .55; } .fm-cc:active { transform: scale(.95); }
+  .fm-cn { position: absolute; top: 2px; right: 4px; padding: 1px 6px; border-radius: 8px; background: #ff3d4f; font: 800 11px/1.3 "Rubik", sans-serif; font-style: normal; }
+  .fm-cmore { grid-column: 1 / -1; } .fm-cnone { grid-column: 1 / -1; padding: 30px; text-align: center; font: 500 14px "Rubik", sans-serif; }
+  /* карточка крупно */
+  .fm-cv-w { --pc: #ffcf3a; } .fm-cv.silver { --pc: #cfd8e6; } .fm-cv.legend { --pc: #c89bff; } .fm-cv.jack, .fm-cv.jg { --pc: #ff4f66; } .fm-cv.future { --pc: #68f5ef; } .fm-cv.forgotten { --pc: #c77dff; }
+  .fm-cv { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 16px; align-items: center; width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 20px); padding: 10px 16px; border-radius: 14px; color: #fff;
+    background: radial-gradient(60% 80% at 25% 50%, color-mix(in srgb, var(--pc) 28%, transparent), transparent 70%), linear-gradient(160deg, #131f3c, #070c1c); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pc) 55%, transparent), 0 20px 50px rgba(0,0,0,.6);
+    transform: scale(.94); transition: transform .3s cubic-bezier(.2,.9,.3,1.2); }
+  .fm-sheet.in .fm-cv { transform: none; }
+  .fm-cv-stage { position: relative; display: grid; place-items: center; perspective: 700px; min-height: 0; }
+  .fm-cv-stage .fm-st-rays { --pc: inherit; left: 50%; width: 140%; }
+  .fm-cv-card { position: relative; transform-style: preserve-3d; animation: fm-cvsway 5s ease-in-out infinite; filter: drop-shadow(0 16px 22px rgba(0,0,0,.6)) drop-shadow(0 0 22px color-mix(in srgb, var(--pc) 55%, transparent)); }
+  .fm-cv-card.hand { animation: none; transform: rotateX(var(--rx, 0)) rotateY(var(--ry, 0)); transition: transform .08s; }
+  .fm-cv-card .cc { animation: none; }
+  .fm-cv-card::after { content: ''; position: absolute; inset: 0; border-radius: 8%; pointer-events: none; background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.35) 48%, transparent 60%) -150% 0 / 250% 100% no-repeat; animation: fm-gloss 3.5s ease-in-out infinite; mix-blend-mode: screen; }
+  @keyframes fm-cvsway { 0%, 100% { transform: rotateY(-12deg) rotateX(4deg); } 50% { transform: rotateY(12deg) rotateX(-3deg) translateY(-6px); } }
+  @keyframes fm-gloss { 0%, 40% { background-position: -150% 0; } 100% { background-position: 150% 0; } }
+  .fm-cv-info { display: grid; gap: 7px; min-width: 0; }
+  .fm-cv-info > small { font: 800 12px/1 "Rubik", sans-serif; letter-spacing: .12em; color: var(--pc); }
+  .fm-cv-info > b { font: italic 900 28px/1 "Rubik", sans-serif; text-transform: uppercase; }
+  .fm-cv-info > p { margin: 0; font: 500 13px/1.35 "Rubik", sans-serif; color: #c7d4e6; }
+  .fm-cv-info .fm-cv-own { font-weight: 700; color: #fff; }
+}

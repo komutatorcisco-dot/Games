@@ -41,9 +41,9 @@ const FCM = (() => {
 
   // ---------- верх ----------
   function top() {
-    const u = Store.d.user || {}, title = tab === 'play' ? '' : (TABS.find((t) => t[0] === tab) || [])[1];
+    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : (TABS.find((t) => t[0] === tab) || [])[1];
     return `<header class="fm-top">
-      ${title ? `<button class="fm-back" data-fm-tab="play" aria-label="На главную">‹</button><b class="fm-title">${title}</b>`
+      ${title ? `<button class="fm-back" data-fm-tab="${tab === 'coll' ? 'team' : 'play'}" aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
         : `<button class="fm-me" data-act="profile"><span class="fm-ava">${esc(u.emoji || '⚽')}</span><span class="fm-who"><b>${esc(u.nick || 'Игрок')}</b><small>${cup}${trophies()}</small></span></button>`}
       <i class="fm-sp"></i>
       <span class="fm-cur">${coin}<b class="coin-count">${Store.d.coins || 0}</b></span>
@@ -115,7 +115,7 @@ const FCM = (() => {
   const slotWorld = (sl, W, H) => [-W / 2 + 21 + ((93 - sl.y) / 77) * W * 0.47, ((sl.x - 50) / 100) * H * 0.86];
   // панель игрока при наезде камеры: цифры карточки, замена, листание по составу
   function pinfo(c, sl) {
-    const gk = sl.pos === 'GK', N = gk ? ['НЫР', 'РУК', 'УДР', 'РЕА', 'СКР', 'ПОЗ'] : ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'], st = c.st || Array(6).fill(c.r);
+    const gk = sl.pos === 'GK', N = gk ? ['НЫР', 'РУК', 'УДР', 'РЕА', 'СКР', 'ПОЗ'] : ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'], st = (Cards.stats ? Cards.stats(c) : c.st) || Array(6).fill(c.r);
     return `<div class="fm-pinfo">
       <div class="fm-pi-h"><b class="fm-pi-r">${c.r}</b><span><b>${esc(c.name)}</b><small>${esc(XD.RU[sl.pos] || sl.pos)} · ${esc(c.club || c.series || '')}</small><small>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</small></span></div>
       <div class="fm-pi-st">${N.map((n, i) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[i]))}%" class="${st[i] >= 85 ? 'hi' : st[i] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[i]}</b></span>`).join('')}</div>
@@ -299,11 +299,85 @@ const FCM = (() => {
     });
   }
 
+  // ---------- Коллекция (28.10): как «Звёздные подписания» в FC — слева счётчик, поиск и фильтры, справа сетка ----------
+  // Только вид: карточки и их число берутся из Cards (owned/spare), ничего не начисляется.
+  const CQ = { mine: true, rar: '', pos: '', q: '', sort: 'r', n: 48 };
+  const RARG = [['', 'Все'], ['silver', 'Серебро'], ['gold', 'Золото'], ['legend', 'Легенды'], ['sp', 'Особые']];
+  const POSG = [['', 'Все'], ['gk', 'Вратари'], ['def', 'Защита'], ['mid', 'Полузащита'], ['att', 'Атака']];
+  const POSOF = { 'ВРТ': 'gk', 'ЦЗ': 'def', 'ЛЗ': 'def', 'ПЗ': 'def', 'ЦОП': 'mid', 'ЦП': 'mid', 'ЦАП': 'mid', 'ЛП': 'mid', 'ПП': 'mid', 'ФРВ': 'att', 'ЛВ': 'att', 'ПВ': 'att' };
+  const SPECIAL = new Set(['jack', 'jg', 'future', 'forgotten']);
+  const own = (c) => (Cards.owned ? Cards.owned(c.key) : 0) > 0;
+  function collList() {
+    const q = CQ.q.trim().toLowerCase();
+    let L = Cards.all().filter((c) => (!CQ.mine || own(c))
+      && (!CQ.rar || (CQ.rar === 'sp' ? SPECIAL.has(c.rar) : c.rar === CQ.rar))
+      && (!CQ.pos || POSOF[c.pos] === CQ.pos)
+      && (!q || c.name.toLowerCase().includes(q) || (c.club || '').toLowerCase().includes(q)));
+    const nm = (a, b) => a.name.localeCompare(b.name, 'ru');
+    L.sort(CQ.sort === 'name' ? nm : (a, b) => b.r - a.r || nm(a, b));
+    return L;
+  }
+  function collGrid() {
+    const L = collList(), shown = L.slice(0, CQ.n);
+    if (!L.length) return `<p class="fm-none fm-cnone">${CQ.mine ? 'Таких карточек у тебя пока нет — открывай паки в Магазине' : 'Ничего не нашлось'}</p>`;
+    return shown.map((c) => { const has = own(c), n = Cards.spare ? Cards.spare(c.key) : 0;
+      return `<button class="fm-cc ${has ? '' : 'no'}" data-fm-card="${esc(c.key)}">${Cards.html(c, { w: 96, locked: !has })}${n > 1 ? `<i class="fm-cn">×${n}</i>` : ''}</button>`; }).join('')
+      + (L.length > shown.length ? `<button class="fm-btn fm-cmore" data-fm-more>Показать ещё · ${L.length - shown.length}</button>` : '');
+  }
+  function coll() {
+    const A = Cards.all(), mineN = A.filter(own).length;
+    const per = (f) => { const t = A.filter(f); return [t.filter(own).length, t.length]; };
+    const bars = [['Серебро', (c) => c.rar === 'silver', '#cfd8e6'], ['Золото', (c) => c.rar === 'gold', '#ffcf3a'], ['Легенды', (c) => c.rar === 'legend', '#c89bff'], ['Особые', (c) => SPECIAL.has(c.rar), '#ff4f66']]
+      .map(([t, f, col]) => { const [a, b] = per(f); return `<span><small>${t}</small><i><u style="width:${b ? Math.max(a ? 3 : 0, (a / b) * 100) : 0}%;background:${col}"></u></i><b>${a}/${b}</b></span>`; }).join('');
+    const chip = (key, list) => list.map(([v, t]) => `<button class="${CQ[key] === v ? 'on' : ''}" data-fm-cf="${key}:${v}">${t}</button>`).join('');
+    return `<div class="fm-coll">
+      <aside class="fm-cl">
+        <div class="fm-cl-n"><small>${CQ.mine ? 'Мои карточки' : 'Все карточки'}</small><b>${mineN}<em>/${A.length}</em></b></div>
+        <div class="fm-cl-bars">${bars}</div>
+        <input class="fm-cq" type="search" placeholder="Поиск: игрок или клуб" value="${esc(CQ.q)}" autocomplete="off">
+        <div class="fm-chips2">${chip('rar', RARG)}</div>
+        <div class="fm-chips2">${chip('pos', POSG)}</div>
+      </aside>
+      <section class="fm-cr">
+        <div class="fm-cr-h"><div class="fm-seg"><button class="${CQ.mine ? 'on' : ''}" data-fm-cf="mine:1">Мои</button><button class="${CQ.mine ? '' : 'on'}" data-fm-cf="mine:">Все</button></div>
+          <button class="fm-sort" data-fm-sort>${CQ.sort === 'name' ? 'По имени' : 'ОБЩ ↓'}</button></div>
+        <div class="fm-cg">${collGrid()}</div>
+      </section></div>`;
+  }
+  // карточка крупно: качается в 3D за пальцем, справа цифры; ‹ › — соседние в текущем списке
+  function cardView(key) {
+    const L = collList(); let i = Math.max(0, L.findIndex((c) => c.key === key));
+    const el = document.createElement('div'); el.className = 'fm-sheet fm-cv-w';
+    const draw = () => { const c = L[i] || Cards.get(key), has = own(c), gk = c.pos === 'ВРТ', N = gk ? ['НЫР', 'РУК', 'УДР', 'РЕА', 'СКР', 'ПОЗ'] : ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'], st = (Cards.stats ? Cards.stats(c) : c.st) || Array(6).fill(c.r);
+      const big = Math.min(220, Math.floor((innerHeight - 100) / 1.5));
+      el.innerHTML = `<div class="fm-cv ${esc(c.rar)}">
+        <div class="fm-cv-stage"><i class="fm-st-rays"></i><div class="fm-cv-card">${Cards.html(c, { w: big, locked: !has })}</div></div>
+        <div class="fm-cv-info">
+          <small>${esc(Cards.RAR[c.rar] ? Cards.RAR[c.rar].n : '')}</small><b>${esc(c.name)}</b>
+          <p>${esc(c.pos)} · ${esc(c.club || c.series || '')}<br>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</p>
+          <div class="fm-pi-st">${N.map((n, k) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[k]))}%" class="${st[k] >= 85 ? 'hi' : st[k] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[k]}</b></span>`).join('')}</div>
+          <p class="fm-cv-own">${has ? `В клубе: ×${Cards.spare ? Cards.spare(c.key) : 1}` : 'Ещё нет в клубе — может выпасть из пака'}</p>
+          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button><button class="fm-btn gold" data-cv-more>Подробнее</button><button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
+        </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
+      if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el); };
+    draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
+    const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); };
+    // наклон карточки за пальцем
+    el.addEventListener('pointermove', (e) => { const cd = el.querySelector('.fm-cv-card'); if (!cd) return; const r = cd.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+      cd.style.setProperty('--rx', `${(-y * 18).toFixed(1)}deg`); cd.style.setProperty('--ry', `${(x * 24).toFixed(1)}deg`); cd.classList.add('hand'); });
+    el.addEventListener('pointerleave', () => { const cd = el.querySelector('.fm-cv-card'); if (cd) cd.classList.remove('hand'); });
+    el.addEventListener('click', (e) => {
+      if (e.target === el || e.target.closest('.fm-sh-x')) { Sound.play('tap'); return close(); }
+      const st = e.target.closest('[data-cv]'); if (st) { Sound.play('tap'); i = (i + +st.dataset.cv + L.length) % L.length; return draw(); }
+      if (e.target.closest('[data-cv-more]')) { Sound.play('tap'); const k = (L[i] || {}).key; close(); if (k && Cards.details) Cards.details(k); }
+    });
+  }
+
   // ---------- сборка ----------
   let root = null;
   function render() {
     if (!root || !on()) return;
-    const body = { play, team, events, quests, store }[tab]();
+    const body = { play, team, events, quests, store, coll }[tab]();
     root.dataset.view = tab;
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
     if (typeof Coins !== 'undefined') Coins.render();
@@ -342,6 +416,11 @@ const FCM = (() => {
       if (e.target.closest('[data-fm-unfocus]')) { Sound.play('tap'); return focusOn(-1); }
       const stp = e.target.closest('[data-fm-step]'); if (stp) { Sound.play('tap'); const xi = Squad.S().xi, d = +stp.dataset.fmStep; let i = focusI;
         for (let n = 0; n < 11; n++) { i = (i + d + 11) % 11; if (Cards.get(xi[i])) break; } return focusOn(i); }
+      const co = e.target.closest('[data-act="collection"]'); if (co) { e.stopPropagation(); Sound.play('tap'); tab = 'coll'; render(); return; }
+      const cf = e.target.closest('[data-fm-cf]'); if (cf) { Sound.play('tap'); const [k, v] = cf.dataset.fmCf.split(':'); CQ[k] = k === 'mine' ? !!v : v; CQ.n = 48; render(); return; }
+      if (e.target.closest('[data-fm-sort]')) { Sound.play('tap'); CQ.sort = CQ.sort === 'r' ? 'name' : 'r'; render(); return; }
+      if (e.target.closest('[data-fm-more]')) { Sound.play('tap'); CQ.n += 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } return; }
+      const cc = e.target.closest('[data-fm-card]'); if (cc) { Sound.play('tap'); return cardView(cc.dataset.fmCard); }
       const nd = e.target.closest('[data-fm-node]'); if (nd) { Sound.play('tap'); return nodeSheet(+nd.dataset.fmNode); }
       const pk = e.target.closest('[data-fm-pk]'); if (pk) { Sound.play('tap'); return packSheet(pk.dataset.fmPk); }
       const m = e.target.closest('[data-fm-mode]'); if (m) { Sound.play('tap'); return startMode(m.dataset.fmMode); }
@@ -349,6 +428,7 @@ const FCM = (() => {
       const c = e.target.closest('[data-fm-claim]'); if (c) { Rewards.claimQuest(c.dataset.fmClaim); return render(); }
       if (e.target.closest('[data-fm-gift]')) { Modal.open('<h2>Билет события</h2><p>Здесь будет подарок события: билет, который открывает главу. В макете награды ещё не выдаются — подключим их с проверкой на сервере.</p>', [{ label: 'Понятно' }]); return; }
     });
+    root.addEventListener('input', (e) => { if (!e.target.matches('.fm-cq')) return; CQ.q = e.target.value; CQ.n = 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } });
     // вернулись на главную из игры — обновить цифры (монеты, задания)
     new MutationObserver(() => { if (document.body.dataset.scr === 'hub') render(); }).observe(document.body, { attributes: true, attributeFilter: ['data-scr'] });
   }
