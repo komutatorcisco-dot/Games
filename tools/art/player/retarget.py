@@ -28,6 +28,7 @@ CLIPS = {
     'gk_idle': ('goalkeeper_idle', True),
     'gk_dive': ('goalkeeper_diving_save', False),
     'gk_catch': ('goalkeeper_catch', True),
+    'throw_in': ('throw_in', True),      # вбрасывание из аута двумя руками из-за головы
 }
 PREFIX = 'mixamorig:'
 

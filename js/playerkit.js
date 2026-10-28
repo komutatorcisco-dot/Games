@@ -114,6 +114,9 @@ const PlayerKit = (() => {
     return c;
   }
 
+  // hex — это sRGB: в r128 переводим в линейные сами, в новых three.js (ColorManagement) это делает set()
+  const lin = (c) => (THREE.ColorManagement && THREE.ColorManagement.enabled ? c : c.convertSRGBToLinear());
+
   // ---------- покрасить и настроить клон модели ----------
   function apply(root, k) {
     k = kit(k);
@@ -135,12 +138,13 @@ const PlayerKit = (() => {
         if (role === 'shirt') {
           if (!tex) {
             tex = new THREE.CanvasTexture(shirtCanvas(k));
-            tex.flipY = false; tex.wrapS = THREE.RepeatWrapping; tex.encoding = THREE.sRGBEncoding;
+            tex.flipY = false; tex.wrapS = THREE.RepeatWrapping;
+            if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace; else tex.encoding = THREE.sRGBEncoding;   // новые three.js и r128
           }
           m.map = tex; m.color.set('#ffffff');
-        } else if (role === 'skin') m.color.set(skin).convertSRGBToLinear();   // r128: hex — это sRGB
-        else if (role === 'hair') m.color.set(hair).convertSRGBToLinear();
-        else m.color.set(k[role]).convertSRGBToLinear();
+        } else if (role === 'skin') lin(m.color.set(skin));
+        else if (role === 'hair') lin(m.color.set(hair));
+        else lin(m.color.set(k[role]));
         return m;
       });
       o.material = Array.isArray(o.material) ? out : out[0];
@@ -227,7 +231,7 @@ const PlayerKit = (() => {
 
   // ---------- загрузка модели (лениво, после three.js) ----------
   // Загрузчики three r128 — свои копии в vendor/three-ext, декодер Draco — vendor/draco.
-  const MODEL = 'assets3d/player.glb?v=20261028-a3';
+  const MODEL = 'assets3d/player.glb?v=20261028-a4';
   let loading = null;
   const addScript = (src) => new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
   function load(base = '') {   // base — путь до корня сайта (для генераторов в tools/art: '../../')
