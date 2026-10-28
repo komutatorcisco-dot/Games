@@ -50,6 +50,7 @@ const PackOpen = (() => {
     const list = best(res);
     if (!list.length) { onDone && onDone(); return; }
     const stage = $('.po-stage', el), top = list[0];
+    if (ORDER.indexOf(top.c.rar) >= ORDER.indexOf('gold')) prepMan();   // модель для выхода игрока — пока идут флаг и клуб
     // 1) лучшая карточка выходит крупно
     el.dataset.phase = 'walk';
     setCol(el, RCOL[top.c.rar]);
@@ -67,7 +68,7 @@ const PackOpen = (() => {
     }
     const flip = $('.po-flip', stage), special = top.c.rar === 'legend' || top.c.rar === 'jack' || top.c.rar === 'future' || top.c.rar === 'forgotten';
     // выход как в FC: золото и выше — сначала страна, позиция, клуб, потом карточка
-    if (ORDER.indexOf(top.c.rar) >= ORDER.indexOf('gold') || top.c.rar === 'jg') await walkIntro(el, top.c, special);
+    if (ORDER.indexOf(top.c.rar) >= ORDER.indexOf('gold') || top.c.rar === 'jg') { await walkIntro(el, top.c, special); await walkMan(el, top.c, special); }
     // подъём и прозрачность — у обёртки, поворот — у самой карточки: так 3D не сплющивается
     const dur = special ? 1500 : 1000;
     anim($('.po-walk', stage), [{ transform: 'translateY(60vh) scale(.4)', opacity: 0 }, { transform: 'translateY(-4vh) scale(1.08)', opacity: 1, offset: 0.75 }, { transform: 'none', opacity: 1 }], { duration: dur, easing: 'cubic-bezier(.2,.8,.2,1)' });
@@ -129,6 +130,67 @@ const PackOpen = (() => {
     el.removeEventListener('pointerdown', sk);
     box.remove();
   }
+  // ---------- выход 3D-игрока (assets3d/player.glb, PlayerKit) ----------
+  // После флага, позиции и клуба: игрок в форме своего клуба выбегает из глубины к камере и встаёт, потом карточка.
+  // Модель грузится заранее (prepMan), не успела или нет WebGL — шаг пропускается, выход идёт как раньше.
+  let manReady = null;
+  function prepMan() {
+    if (manReady || reduce || typeof PlayerKit === 'undefined' || typeof Arena3D === 'undefined' || !Arena3D.supported()) return manReady;
+    manReady = Arena3D.three().then(() => PlayerKit.load()).catch(() => { manReady = null; return null; });
+    return manReady;
+  }
+  async function walkMan(el, c, special) {
+    if (c.model3d || c.walkout) return;   // у героев (Балотелли) свой выход и своя модель
+    const ready = prepMan(); if (!ready) return;
+    const g = await Promise.race([ready, wait(1500).then(() => null)]); if (!g) return;
+    const box = document.createElement('div'); box.className = 'po-wi po-man'; el.appendChild(box);
+    let renderer;
+    try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch (e) { box.remove(); return; }
+    renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1)); renderer.setSize(box.clientWidth, box.clientHeight);
+    renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+    box.appendChild(renderer.domElement);
+    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(30, box.clientWidth / box.clientHeight, 0.1, 60);
+    const rim = new THREE.Color(RCOL[c.rar] || '#ffffff');
+    scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x203020, 0.85));
+    const key = new THREE.DirectionalLight(0xfff4e0, 1.2); key.position.set(2, 4, 5); scene.add(key);
+    const back = new THREE.DirectionalLight(rim, 1.6); back.position.set(-1, 3, -4); scene.add(back);
+    // пятно света под ногами в цвет редкости
+    const glowC = document.createElement('canvas'); glowC.width = glowC.height = 128; const gx = glowC.getContext('2d'), gr = gx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); gx.fillStyle = gr; gx.fillRect(0, 0, 128, 128);
+    const spot = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowC), color: rim, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
+    spot.rotation.x = -Math.PI / 2; spot.position.y = 0.01; scene.add(spot);
+    const p = PlayerKit.make(g, PlayerKit.forCard(c), 'run'); scene.add(p);
+    const mixer = p.userData.mixer, clip = (n) => THREE.AnimationClip.findByName(g.animations, n);
+    const pose = (n) => { if (!mixer || !clip(n)) return; mixer.stopAllAction(); mixer.clipAction(clip(n)).play(); mixer.update(0); };
+    let skip = false; const sk = () => { skip = true; }; el.addEventListener('pointerdown', sk);
+    flash(el, false); Sound.play('kick');
+    const RUN = special ? 1300 : 1000, HOLD = special ? 900 : 700, t0 = performance.now();
+    await new Promise((done) => {
+      const frame = (now) => {
+        const t = now - t0, k = Math.min(1, t / RUN), e = 1 - Math.pow(1 - k, 2.2);
+        if (t < RUN && !skip) {
+          pose(Math.floor(t / 150) % 2 ? 'run2' : 'run');               // два кадра бега — шаги
+          p.position.set(0, Math.abs(Math.sin(t / 150 * Math.PI)) * 0.06, -9 + 9 * e);
+          cam.position.set(0.5, 1.3 - 0.15 * e, 5.8); cam.lookAt(0, 1.15, -1.5 + 1.5 * e);
+        } else {
+          if (!p.userData.stood) { p.userData.stood = true; pose('stand'); p.position.set(0, 0, 0); haptic(special ? 'ok' : 'pop'); }
+          const h = Math.min(1, (t - RUN) / 600);
+          cam.position.set(0.5 - 0.3 * h, 1.15, 5.8 - 0.8 * h); cam.lookAt(0, 1.15, 0);   // во весь рост, голова ниже заголовка
+          if (skip || t > RUN + HOLD) { done(); return; }
+        }
+        cam.aspect = box.clientWidth / Math.max(1, box.clientHeight); cam.updateProjectionMatrix();
+        renderer.render(scene, cam);
+        requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    });
+    el.removeEventListener('pointerdown', sk);
+    anim(box, [{ opacity: 1 }, { opacity: 0 }], { duration: 220, fill: 'forwards' }); await wait(200);
+    PlayerKit.dispose(p); spot.geometry.dispose(); spot.material.map.dispose(); spot.material.dispose();
+    renderer.dispose(); if (renderer.forceContextLoss) renderer.forceContextLoss();   // у телефона мало WebGL-контекстов
+    box.remove();
+  }
+
   // купленный пак: сначала сам пак крупно, нажатие — тряска и разрыв, потом карточки
   async function packIntro(el, lv, name) {
     const stage = $('.po-stage', el);
