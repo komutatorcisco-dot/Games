@@ -126,4 +126,18 @@ async function render(lv, w, h) {
   return R.domElement.toDataURL('image/png');
 }
 window.renderPack = render;
+// герб отдельно (экран загрузки, логотип): тот же щит и монограмма, золото, прозрачный фон
+window.renderCrest = async () => {
+  await Promise.all(['italic 900 40px JB'].map((f) => document.fonts.load(f, 'JG')));
+  const t = TIERS[3], W = 800, H = 960, c = cv(W, H), g = c.getContext('2d'), cx = W / 2, cy = 120, sw = 700, sh = 800;
+  for (let i = 0; i < 3; i++) { const x = cx + (i - 1) * 110; star(g, x, 70 + (i === 1 ? -14 : 0) + 4, 46, 19); g.fillStyle = 'rgba(0,0,0,.4)'; g.fill(); star(g, x, 70 + (i === 1 ? -14 : 0), 46, 19); g.fillStyle = metal(g, 20, 120, t.rim); g.fill(); g.strokeStyle = t.rim[2]; g.lineWidth = 3; g.stroke(); }
+  g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 40; g.shadowOffsetY = 18; shield(g, cx, cy + 40, sw, sh); g.fillStyle = '#000'; g.fill(); g.restore();
+  shield(g, cx, cy + 40, sw, sh); g.fillStyle = metal(g, cy, cy + sh, t.rim); g.fill();
+  shield(g, cx, cy + 66, sw - 64, sh - 66); const inner = g.createLinearGradient(0, cy, 0, cy + sh); inner.addColorStop(0, '#0b1a3a'); inner.addColorStop(0.5, '#1f4fb8'); inner.addColorStop(1, '#0b1a3a'); g.fillStyle = inner; g.fill();
+  g.save(); shield(g, cx, cy + 66, sw - 64, sh - 66); g.clip(); g.globalAlpha = 0.2; g.fillStyle = '#c6ff3d'; g.beginPath(); g.arc(cx, cy + 40 + sh * 0.43, 220, 0, 7); g.fill();
+  g.globalAlpha = 0.16; g.fillStyle = '#fff'; g.beginPath(); g.ellipse(cx - 60, cy + 150, 260, 70, -0.25, 0, 7); g.fill(); g.restore();
+  g.font = 'italic 900 470px JB'; g.textAlign = 'center'; const my = cy + 40 + sh * 0.63; g.lineJoin = 'round';
+  g.lineWidth = 34; g.strokeStyle = 'rgba(0,0,0,.55)'; g.strokeText('JG', cx + 6, my + 12); g.lineWidth = 22; g.strokeStyle = t.rim[2]; g.strokeText('JG', cx, my); g.fillStyle = metal(g, my - 300, my, t.rim); g.fillText('JG', cx, my);
+  return c.toDataURL('image/png');
+};
 </script></body></html>

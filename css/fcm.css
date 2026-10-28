@@ -19,7 +19,8 @@
       radial-gradient(60% 50% at 50% -10%, rgba(80,170,255,.22), transparent 70%),
       radial-gradient(50% 60% at 100% 100%, rgba(25,211,176,.10), transparent 70%),
       linear-gradient(180deg, #0b1830 0%, #070d1a 70%); }
-  .fcm::before { content: ''; position: absolute; inset: -20px; z-index: -1; background: url(../img/bg/home_hero_poster.webp) center 40% / cover; filter: blur(18px) saturate(.5) brightness(.28); opacity: .6; }
+  /* пока грузится 3D-стадион — тёмный фон с полем внизу, без старого кадра игры (казалось, что запускается старая версия) */
+  .fcm::before { content: ''; position: absolute; inset: 0; z-index: -1; background: radial-gradient(70% 50% at 50% 115%, rgba(60,200,90,.3), transparent 70%), linear-gradient(180deg, #0b1830, #060a1c 75%); }
   .fcm button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; -webkit-tap-highlight-color: transparent; }
   .fcm img { display: block; }
   .fcm b, .fcm small, .fcm em { min-width: 0; font-style: normal; }

@@ -331,8 +331,9 @@ const FCM = (() => {
     const land = window.matchMedia ? matchMedia('(orientation: landscape) and (max-height: 620px)') : { matches: true };
     const shown = () => on() && land.matches && (!document.body.dataset.scr || document.body.dataset.scr === 'hub') && !(typeof Modal !== 'undefined' && Modal.isOpen);
     if (typeof Arena3D !== 'undefined') Arena3D.backdrop(bgHost, shown).then((b) => {
-      if (!b) return; bg3 = b; b.view(tab, true); document.body.classList.add('fm3d'); render();
-    }).catch((e) => console.warn('FCM 3D', e));
+      if (b) { bg3 = b; b.view(tab, true); document.body.classList.add('fm3d'); render(); }
+      window.__fm3d = true; dispatchEvent(new Event('fm3d')); // экран загрузки ждёт стадион (index.html, Boot)
+    }).catch((e) => { console.warn('FCM 3D', e); window.__fm3d = true; dispatchEvent(new Event('fm3d')); });
     render();
     root.addEventListener('click', (e) => {
       const t = e.target.closest('[data-fm-tab]'); if (t) { Sound.play('tap'); tab = t.dataset.fmTab; if (focusI >= 0) { focusI = -1; if (bg3) bg3.unfocus(); } render(); root.querySelector('.fm-main').scrollTop = 0; return; }

@@ -12,39 +12,39 @@
 <link rel="stylesheet" href="css/style.css?v=20261027-c2">
 <link rel="stylesheet" href="css/skins.css?v=20261015-ref1">
 <style>
-#boot{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;overflow:hidden;background:radial-gradient(80% 55% at 50% 34%,#2a2f52 0%,#141729 55%,#07080f 100%);color:#fff;font-family:Rubik,"Golos Text",system-ui,sans-serif;transition:opacity .45s ease,transform .45s ease}
-#boot.out{opacity:0;transform:scale(1.06);pointer-events:none}
-#boot .bt-rays{position:absolute;left:50%;top:34%;width:150vmax;height:150vmax;margin:-75vmax 0 0 -75vmax;background:repeating-conic-gradient(from 0deg,rgba(255,207,58,.13) 0 7deg,transparent 7deg 18deg);-webkit-mask:radial-gradient(closest-side,#000 8%,transparent 62%);mask:radial-gradient(closest-side,#000 8%,transparent 62%);animation:btSpin 28s linear infinite}
+/* Экран загрузки (28.10): сразу в стиле нового вида — ночной стадион, лучи прожекторов, герб JG, салатовая полоска.
+   Лёжа — герб слева, текст справа; стоя — столбиком. */
+#boot{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;overflow:hidden;color:#fff;font-family:Rubik,"Golos Text",system-ui,sans-serif;
+  background:radial-gradient(70% 60% at 50% 115%,rgba(60,200,90,.35),transparent 70%),radial-gradient(60% 50% at 50% -10%,rgba(80,170,255,.28),transparent 70%),linear-gradient(180deg,#0b1830 0%,#060a1c 75%);transition:opacity .5s ease,transform .5s ease}
+#boot.out{opacity:0;transform:scale(1.04);pointer-events:none}
+#boot .bt-pitch{position:absolute;left:-20%;right:-20%;bottom:-8%;height:46%;transform:perspective(500px) rotateX(58deg);transform-origin:50% 100%;
+  background:repeating-linear-gradient(90deg,#24863e 0 8%,#1f7837 8% 16%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.35);-webkit-mask:linear-gradient(0deg,#000 40%,transparent);mask:linear-gradient(0deg,#000 40%,transparent);opacity:.75}
+#boot .bt-pitch::before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:3px solid rgba(255,255,255,.35)}
+#boot .bt-pitch::after{content:"";position:absolute;left:50%;top:50%;width:18%;aspect-ratio:1;transform:translate(-50%,-50%);border:3px solid rgba(255,255,255,.35);border-radius:50%}
+#boot .bt-beam{position:absolute;top:-10%;width:22vmax;height:120vmax;background:linear-gradient(180deg,rgba(255,240,200,.16),transparent 70%);filter:blur(6px);transform-origin:50% 0;animation:btBeam 6s ease-in-out infinite}
+#boot .bt-beam.l{left:2%;transform:rotate(-28deg)} #boot .bt-beam.r{right:2%;transform:rotate(28deg);animation-delay:-3s}
+@keyframes btBeam{50%{opacity:.55}}
+#boot .bt-glow{position:absolute;top:2%;width:14vmax;height:14vmax;border-radius:50%;background:radial-gradient(closest-side,rgba(255,250,230,.9),rgba(255,230,170,.25) 40%,transparent);animation:btBeam 6s ease-in-out infinite}
+#boot .bt-glow.l{left:-3%} #boot .bt-glow.r{right:-3%;animation-delay:-3s}
+#boot .bt-in{position:relative;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:6vmin;width:min(86vw,760px)}
+#boot .bt-crest{position:relative;display:grid;place-items:center;width:min(34vmin,220px);aspect-ratio:.83}
+#boot .bt-crest::before{content:"";position:absolute;inset:-60%;background:repeating-conic-gradient(from 0deg,rgba(198,255,61,.14) 0 7deg,transparent 7deg 20deg);-webkit-mask:radial-gradient(closest-side,#000 25%,transparent 70%);mask:radial-gradient(closest-side,#000 25%,transparent 70%);animation:btSpin 24s linear infinite}
+#boot .bt-crest img{position:relative;width:100%;height:auto;filter:drop-shadow(0 14px 22px rgba(0,0,0,.6)) drop-shadow(0 0 26px rgba(80,140,255,.45));animation:btFloat 3.4s ease-in-out infinite}
 @keyframes btSpin{to{transform:rotate(360deg)}}
-#boot .bt-in{position:relative;display:grid;justify-items:center;gap:14px;width:min(80vw,320px);text-align:center}
-#boot .bt-stage{position:relative;width:220px;height:170px;display:grid;place-items:center;perspective:600px}
-#boot .bt-logo{position:relative;width:112px;height:124px;transform-style:preserve-3d;animation:btFloat 3.2s ease-in-out infinite}
-#boot .bt-edge,#boot .bt-hex{position:absolute;inset:0;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}
-#boot .bt-edge{inset:-5px;background:#1a0f00;transform:translateY(10px)}
-#boot .bt-edge::before,#boot .bt-edge::after{content:"";position:absolute;clip-path:polygon(50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%)}#boot .bt-edge::before{inset:5px;background:#c27400}#boot .bt-edge::after{inset:0;transform:translateY(-10px);background:#1a0f00}
-#boot .bt-hex{display:grid;place-items:center;background:linear-gradient(180deg,#fff1a8 0%,#ffd23f 38%,#f0a812 100%);color:#2b1a00;font:italic 900 46px Rubik,system-ui,sans-serif;letter-spacing:-.03em;overflow:hidden}
-#boot .bt-hex::before{content:"";position:absolute;inset:6px 10px auto;height:34%;clip-path:polygon(50% 0,100% 40%,100% 100%,0 100%,0 40%);background:linear-gradient(rgba(255,255,255,.55),rgba(255,255,255,0))}
-#boot .bt-hex::after{content:"";position:absolute;inset:-30%;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.85) 50%,transparent 58%);animation:btGloss 2.4s ease-in-out infinite}
-#boot .bt-hex span{position:relative;z-index:1;text-shadow:0 2px 0 rgba(255,255,255,.45)}
-@keyframes btGloss{0%,45%{transform:translateX(-70%)}100%{transform:translateX(70%)}}
-@keyframes btFloat{0%,100%{transform:translateY(0) rotateY(-14deg) rotateX(6deg)}50%{transform:translateY(-8px) rotateY(14deg) rotateX(-4deg)}}
-#boot .bt-fl{position:absolute;display:block;filter:drop-shadow(0 6px 6px rgba(0,0,0,.45));animation:btBob 3s ease-in-out infinite}
-#boot .f1{width:52px;height:52px;left:4px;top:18px;--r:-14deg}
-#boot .f2{width:58px;height:auto;right:0;top:4px;--r:12deg;animation-delay:-1s}
-#boot .f3{width:50px;height:50px;left:22px;bottom:0;--r:8deg;animation-delay:-2s}
-#boot .f4{width:46px;height:46px;right:16px;bottom:4px;--r:-8deg;animation-delay:-1.6s}
-@keyframes btBob{0%,100%{transform:translateY(0) rotate(var(--r)) scale(1)}50%{transform:translateY(-10px) rotate(calc(var(--r) * -1)) scale(1.05)}}
-#boot h1{margin:2px 0 0;font:900 32px/1 Rubik,system-ui,sans-serif;letter-spacing:.02em;-webkit-text-stroke:5px #0b0d1a;paint-order:stroke fill;text-shadow:0 4px 0 #0b0d1a}
-#boot .bt-sub{margin:-4px 0 10px;font:800 13px "Golos Text",system-ui,sans-serif;color:#ffcf3a;letter-spacing:.06em;text-transform:uppercase}
-#boot .bt-bar{position:relative;width:100%;height:22px;border-radius:99px;background:#0b0d1a;box-shadow:0 0 0 3px #0b0d1a,inset 0 3px 4px rgba(0,0,0,.6),0 4px 0 3px #0b0d1a;overflow:hidden}
-#boot .bt-bar i{position:absolute;inset:3px auto 3px 3px;width:0;max-width:calc(100% - 6px);border-radius:99px;background:linear-gradient(180deg,#ffe98a 0%,#ffc21a 45%,#f08c00 100%);box-shadow:inset 0 -3px 0 rgba(150,70,0,.35)}
-#boot .bt-bar i::before{content:"";position:absolute;left:6px;right:6px;top:2px;height:5px;border-radius:99px;background:rgba(255,255,255,.6)}
-#boot .bt-bar i::after{content:"";position:absolute;inset:0;border-radius:99px;background:repeating-linear-gradient(120deg,rgba(255,255,255,.18) 0 8px,transparent 8px 16px);animation:btStripe .8s linear infinite}
-@keyframes btStripe{to{background-position:18px 0}}
-#boot .bt-row{display:flex;justify-content:space-between;width:100%;margin-top:4px;font:800 12px "Golos Text",system-ui,sans-serif;color:rgba(255,255,255,.7)}
-#boot .bt-row b{color:#ffcf3a;font:900 14px Rubik,system-ui,sans-serif}
-#boot .bt-tip{min-height:40px;margin-top:8px;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);font:600 13px/1.4 "Golos Text",system-ui,sans-serif;color:rgba(255,255,255,.85);transition:opacity .3s}
-@media (prefers-reduced-motion:reduce){#boot .bt-rays,#boot .bt-logo,#boot .bt-fl,#boot .bt-hex::after,#boot .bt-bar i::after{animation:none}}
+@keyframes btFloat{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-8px) rotate(2deg)}}
+#boot .bt-txt{display:grid;gap:8px;min-width:0}
+#boot small.bt-k{font:800 13px/1 Rubik,system-ui,sans-serif;letter-spacing:.22em;color:rgba(255,255,255,.75)}
+#boot h1{margin:0;font:italic 900 clamp(34px,11vmin,62px)/.95 Rubik,system-ui,sans-serif;background:linear-gradient(180deg,#fff 0%,#e6e9f2 38%,#8b90a3 50%,#f3f5fa 62%,#b9bdcc 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 3px 0 rgba(10,20,50,.9)) drop-shadow(0 0 18px rgba(120,170,255,.35))}
+#boot .bt-sub{margin:0 0 6px;justify-self:start;padding:3px 10px;border-radius:3px;background:linear-gradient(90deg,#19d3b0,#3fa9ff);color:#06101c;font:italic 800 13px/1.2 Rubik,system-ui,sans-serif;text-transform:uppercase}
+#boot .bt-bar{position:relative;width:100%;height:14px;border-radius:3px;background:rgba(6,12,26,.85);box-shadow:inset 0 0 0 1.5px rgba(150,200,255,.3);overflow:hidden;transform:skewX(-12deg)}
+#boot .bt-bar i{position:absolute;inset:2px auto 2px 2px;width:0;max-width:calc(100% - 4px);border-radius:2px;background:linear-gradient(90deg,#19d3b0,#c6ff3d);box-shadow:0 0 12px rgba(198,255,61,.6)}
+#boot .bt-bar i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.7),transparent) -100% 0/40% 100% no-repeat;animation:btRun 1.2s linear infinite}
+@keyframes btRun{to{background-position:200% 0}}
+#boot .bt-row{display:flex;justify-content:space-between;width:100%;font:700 12px Rubik,system-ui,sans-serif;color:rgba(255,255,255,.7)}
+#boot .bt-row b{color:#c6ff3d;font:italic 900 15px Rubik,system-ui,sans-serif}
+#boot .bt-tip{min-height:36px;margin:4px 0 0;padding:8px 12px;border-radius:6px;background:rgba(6,12,26,.7);box-shadow:inset 3px 0 0 #19d3b0,inset 0 0 0 1px rgba(150,200,255,.15);font:500 12.5px/1.35 Rubik,system-ui,sans-serif;color:rgba(255,255,255,.85);transition:opacity .3s}
+@media (orientation:portrait){#boot .bt-in{grid-template-columns:1fr;justify-items:center;text-align:center;width:min(82vw,340px)} #boot .bt-txt{justify-items:center;width:100%} #boot .bt-sub{justify-self:center} #boot .bt-crest{width:min(44vw,180px)}}
+@media (prefers-reduced-motion:reduce){#boot *,#boot *::before,#boot *::after{animation:none!important}}
 </style>
 <script>window.__errs=[];addEventListener("error",function(e){if(window.Oops||!e.message||(!e.filename&&/^Script error/i.test(e.message)))return;__errs.push((e.filename||"").split("/").pop().split("?")[0]+":"+e.lineno+": "+(e.message||"?"))});</script>
 <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -52,18 +52,19 @@
 <link rel="stylesheet" href="css/forgotten.css?v=20261014-m3d2">
 <link rel="stylesheet" href="css/clubs.css?v=20261010-clubs1">
 </head>
-<body data-scr="hub" data-panel="home">
+<body class="fcm-on" data-scr="hub" data-panel="home">
 <div id="boot" role="progressbar" aria-label="Загрузка">
-  <i class="bt-rays"></i>
-  <div class="bt-in"><div class="bt-stage"><img class="bt-fl f1" src="img/icons/coin-96.webp" alt=""><img class="bt-fl f2" src="img/packs/pk3-160.webp" alt=""><img class="bt-fl f3" src="img/icons/cup1-96.webp" alt=""><img class="bt-fl f4" src="img/icons/qcards-96.webp" alt=""><div class="bt-logo"><div class="bt-edge"></div><div class="bt-hex"><span>ДЖ</span></div></div></div><h1>Джексоны</h1><p class="bt-sub">Футбольные мини-игры</p>
-    <div class="bt-bar"><i></i></div><div class="bt-row"><span class="bt-lbl">Загружаем игры…</span><b class="bt-pct">0%</b></div><p class="bt-tip"></p></div>
+  <i class="bt-pitch"></i><i class="bt-beam l"></i><i class="bt-beam r"></i><i class="bt-glow l"></i><i class="bt-glow r"></i>
+  <div class="bt-in"><div class="bt-crest"><img src="img/fcm/crest.webp" alt="" decoding="async"></div>
+    <div class="bt-txt"><small class="bt-k">JACKSON GAMES</small><h1>ДЖЕКСОНЫ</h1><p class="bt-sub">Футбольный клуб · мини-игры</p>
+    <div class="bt-bar"><i></i></div><div class="bt-row"><span class="bt-lbl">Загружаем игры…</span><b class="bt-pct">0%</b></div><p class="bt-tip"></p></div></div>
 </div>
 <script>
 // Загрузочный экран: полоска честная — скрипты (до 70%), облако и шрифты, картинки главной; потом плавно исчезает.
 (function () {
   var el = document.getElementById('boot'), bar = el.querySelector('.bt-bar i'), pct = el.querySelector('.bt-pct'), lbl = el.querySelector('.bt-lbl'), tipEl = el.querySelector('.bt-tip');
   var t0 = Date.now(), p = 0, target = 0.04, done = false, gone = false, loaded = 0;
-  var TIPS = ['Побеждай — получай трофеи. Каждые 200 🏆 открывают новую игру', 'Задания дня дают очки сезонного пропуска', 'Пак дня можно открыть бесплатно раз в сутки', 'Скины меняются в Магазине → Скины', 'В Драфте собери 11 игроков и сыграй турнир до финала', '«Игрок дня» — новый футболист каждые сутки'];
+  var TIPS = ['Событие «Джексон»: пройди путь главы — в конце особая карточка 84', 'Задания дня дают очки сезонного пропуска', 'Пак дня можно открыть бесплатно раз в сутки', 'Скины меняются в Магазине → Скины', 'В Драфте собери 11 игроков и сыграй турнир до финала', '«Игрок дня» — новый футболист каждые сутки'];
   var ti = Math.floor(Math.random() * TIPS.length);
   function tip() { tipEl.style.opacity = 0; setTimeout(function () { tipEl.textContent = 'Совет: ' + TIPS[ti++ % TIPS.length]; tipEl.style.opacity = 1; }, 300); }
   tip(); var tipT = setInterval(tip, 3200);
@@ -95,6 +96,11 @@
         return within(Promise.all(imgs.map(function (im) {
           return new Promise(function (r) { var ok = function () { k++; target = Math.max(target, 0.86 + 0.13 * k / n); r(); }; if (im.complete) ok(); else { im.addEventListener('load', ok, { once: true }); im.addEventListener('error', ok, { once: true }); } });
         })), 4500);
+      }).then(function () {
+        // лёжа — ждём 3D-стадион нового вида, чтобы за меню сразу был стадион, а не пустой фон
+        if (!(window.matchMedia && matchMedia('(orientation: landscape) and (max-height: 620px)').matches) || window.__fm3d) return;
+        target = Math.max(target, 0.95); lbl.textContent = 'Стадион…';
+        return within(new Promise(function (r) { addEventListener('fm3d', r, { once: true }); }), 4000);
       }).then(finish, finish);
     },
   };
@@ -742,7 +748,7 @@
 <script defer src="js/cards.js?v=20261027-s2"></script>
 <link rel="stylesheet" href="css/social.css?v=20261015-ref1">
 <link rel="stylesheet" href="css/land.css?v=20261027-l1">
-<link rel="stylesheet" href="css/fcm.css?v=20261028-o1">
+<link rel="stylesheet" href="css/fcm.css?v=20261028-l1">
 <script defer src="js/social.js?v=20261015-shop1"></script>
 <script defer src="js/packs.js?v=20261027-i1"></script>
 <script defer src="js/rewards.js?v=20261027-m1"></script>
@@ -802,7 +808,7 @@
 <script defer src="js/board.js?v=20261014-social1"></script>
 <script defer src="js/track.js?v=20261016-trk"></script>
 <script defer src="js/app.js?v=20261019-fb5"></script>
-<script defer src="js/fcm.js?v=20261028-o1"></script>
+<script defer src="js/fcm.js?v=20261028-l1"></script>
 <script>
 /* Автообновление: Telegram держит старую копию игры. При запуске (и при возврате в игру на главной) сверяем
    версии файлов (?v=…) в свежем index.html с текущими; если вышло обновление — перезагружаем с обходом кэша.
