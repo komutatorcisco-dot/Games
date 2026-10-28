@@ -815,3 +815,32 @@
   .fm-sl.jg .fm-sl-man { left: -20% !important; }
   .fm-sl-t b { color: #fff !important; background: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,.6)) !important; }
 }
+
+/* ---------- Главная v3 (28.10): плитки как в FC, паки сменяются, мяч в рамке, «Клуб» — только ОБЩ ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  /* плитки: стеклянный квадрат с бирюзовым светящимся краем, объёмный значок сверху, подпись внизу */
+  .fm-hl { grid-auto-rows: 64px !important; gap: 12px !important; }
+  .fm-home { grid-template-columns: 64px minmax(0, 1.6fr) minmax(0, 1fr) !important; }
+  .fm-lt { width: 64px !important; height: 64px !important; border-radius: 10px !important; padding: 3px 2px 5px !important; overflow: hidden;
+    background: radial-gradient(90% 70% at 50% 25%, rgba(60,200,255,.35), transparent 70%), linear-gradient(180deg, #123a6a, #071530) !important;
+    box-shadow: inset 0 0 0 1.5px rgba(80,230,255,.75), inset 0 1px 0 rgba(255,255,255,.35), 0 0 14px rgba(40,200,255,.25), 0 6px 12px rgba(0,0,0,.45) !important; }
+  .fm-lt::after { content: ''; position: absolute; left: -30%; top: 0; width: 60%; height: 45%; transform: skewX(-25deg); background: linear-gradient(90deg, transparent, rgba(255,255,255,.18), transparent); pointer-events: none; }
+  .fm-lt i { height: 36px !important; } .fm-lt i img { height: 36px !important; width: auto; filter: drop-shadow(0 3px 4px rgba(0,0,0,.5)); }
+  .fm-lt.c2 i img { height: 34px !important; transform: rotate(-8deg); }
+  .fm-lt b { font: 800 9px/1 "Rubik", sans-serif !important; text-transform: uppercase; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+  .fm-rd { top: 3px !important; right: 3px !important; }
+  /* баннер: только событие, крупная карточка Джексона со свечением */
+  .fm-sl.jg .fm-sl-card { transform: translateX(10%) rotate(-4deg) scale(1) !important; filter: drop-shadow(0 18px 26px rgba(0,0,0,.6)) drop-shadow(0 0 30px rgba(150,80,255,.55)); animation: fm-float 4s ease-in-out infinite; }
+  /* паки: сменяются по одному с плавным переходом */
+  .fm-feat { position: relative; grid-template-rows: auto minmax(0, 1fr) !important; }
+  .fm-pf { grid-row: 2; grid-column: 1; display: flex !important; align-items: center; justify-content: center; gap: 4%; min-height: 0; opacity: 0; transform: translateX(20px) scale(.92); transition: opacity .5s, transform .6s cubic-bezier(.2,.8,.2,1); position: relative; }
+  .fm-pf.on { opacity: 1; transform: none; }
+  .fm-pf img { height: 100%; max-height: 118px; width: auto; filter: drop-shadow(0 8px 10px rgba(0,0,0,.6)); }
+  .fm-pf:not(.all) img { max-height: 128px; animation: fm-float 3s ease-in-out infinite; filter: drop-shadow(0 8px 12px rgba(0,0,0,.6)) drop-shadow(0 0 16px rgba(255,210,120,.35)); }
+  .fm-pf em { position: absolute; right: 4px; bottom: 0; padding: 2px 8px; border-radius: 3px; background: rgba(0,0,0,.6); font: 800 10px/1.4 "Rubik", sans-serif; font-style: normal; text-transform: uppercase; color: #f3e2b0; }
+  /* «Клуб» — только ОБЩ, крупно */
+  .fm-club .fm-ovr { width: 58px !important; height: 66px !important; } .fm-club .fm-ovr b { font-size: 26px !important; } .fm-club .fm-ovr small { font-size: 11px !important; }
+  /* «Играть»: мяч внутри рамки, крутится на месте */
+  .fm-playt { overflow: hidden !important; }
+  .fm-playt img { right: 6px !important; bottom: 6px !important; width: 62% !important; max-width: 92px; transform-origin: 50% 50%; }
+}

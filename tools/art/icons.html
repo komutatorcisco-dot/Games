@@ -1,0 +1,44 @@
+<!doctype html>
+<!-- Объёмные значки плиток главной (28.10): выдавленные фигуры с фаской, хром и бирюза, как у паков.
+     Запуск: node tools/art/render.js icons → img/fcm/ic-*.webp -->
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent}</style></head>
+<body><script src="../../vendor/three.min.js"></script><script>
+'use strict';
+const L = (h) => new THREE.Color(h).convertSRGBToLinear();
+function rr(s, x, y, w, h, r) { s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.quadraticCurveTo(x + w, y, x + w, y + r); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r); s.quadraticCurveTo(x, y, x + r, y); }
+function star(cx, cy, R, r) { const s = new THREE.Shape(); for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? r : R; i ? s.lineTo(cx + q * Math.cos(a), cy + q * Math.sin(a)) : s.moveTo(cx + q * Math.cos(a), cy + q * Math.sin(a)); } return s; }
+function circle(cx, cy, r) { const s = new THREE.Shape(); s.absarc(cx, cy, r, 0, Math.PI * 2, false); return s; }
+const ext = (shape, d = 0.22, b = 0.07) => new THREE.ExtrudeGeometry(shape, { depth: d, bevelEnabled: true, bevelThickness: b, bevelSize: b * 0.8, bevelSegments: 5, curveSegments: 24 });
+let R = null;
+function rig(w, h) {
+  if (!R) { R = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); R.outputEncoding = THREE.sRGBEncoding; R.toneMapping = THREE.ACESFilmicToneMapping; document.body.appendChild(R.domElement); }
+  R.setPixelRatio(1); R.setSize(w, h); R.setClearColor(0, 0);
+  const sc = new THREE.Scene();
+  const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ color: 0x0a1424, side: THREE.BackSide })));
+  [[-12, 12, 12, 0xffffff, 12, 14], [14, 4, 10, 0x9ff3ff, 8, 14], [0, -14, 8, 0x3fa9ff, 20, 4]].forEach(([x, y, z, c, a, b]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(a, b), new THREE.MeshBasicMaterial({ color: c, side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); });
+  sc.environment = new THREE.PMREMGenerator(R).fromScene(env, 0.02).texture;
+  const k = new THREE.DirectionalLight(0xffffff, 1.2); k.position.set(-3, 4, 6); sc.add(k); sc.add(new THREE.AmbientLight(0xffffff, 0.25));
+  return sc;
+}
+const chrome = () => new THREE.MeshStandardMaterial({ color: L('#e8f4ff'), metalness: 0.9, roughness: 0.18 });
+const teal = () => new THREE.MeshStandardMaterial({ color: L('#19d3e0'), metalness: 0.55, roughness: 0.25, emissive: L('#0a6a80'), emissiveIntensity: 0.35 });
+const gold = () => new THREE.MeshStandardMaterial({ color: L('#ffcf4a'), metalness: 0.85, roughness: 0.22, emissive: L('#5a3a00'), emissiveIntensity: 0.25 });
+const ICONS = {
+  events(g) { // календарь со звездой
+    const body = new THREE.Shape(); rr(body, -1, -1.05, 2, 1.85, 0.28); const hole = new THREE.Path(); rr(hole, -0.78, -0.85, 1.56, 1.2, 0.14); body.holes.push(hole);
+    g.add(new THREE.Mesh(ext(body), chrome()));
+    const top = new THREE.Shape(); rr(top, -1, 0.45, 2, 0.36, 0.18); const tm = new THREE.Mesh(ext(top, 0.26), teal()); tm.position.z = 0.02; g.add(tm);
+    [-0.55, 0.55].forEach((x) => { const r = new THREE.Shape(); rr(r, x - 0.1, 0.62, 0.2, 0.5, 0.1); g.add(new THREE.Mesh(ext(r, 0.3), chrome())); });
+    const st = new THREE.Mesh(ext(star(0, -0.25, 0.52, 0.22), 0.25, 0.06), gold()); st.position.z = 0.05; g.add(st);
+  },
+  daily(g) { // игрок (голова и плечи) со знаком вопроса
+    g.add(new THREE.Mesh(ext(circle(-0.25, 0.42, 0.48)), chrome()));
+    const b = new THREE.Shape(); b.moveTo(-1.15, -1.05); b.lineTo(0.65, -1.05); b.quadraticCurveTo(0.7, -0.05, -0.25, -0.12); b.quadraticCurveTo(-1.2, -0.05, -1.15, -1.05); g.add(new THREE.Mesh(ext(b), chrome()));
+    const q = new THREE.Shape(); q.absarc(0.72, 0.42, 0.36, Math.PI, -0.4, true); q.lineTo(0.78, -0.05); q.lineTo(0.62, -0.05); q.lineTo(0.62, 0.14); q.absarc(0.72, 0.42, 0.2, -0.6, Math.PI, false); q.closePath();
+    const qm = new THREE.Mesh(ext(q, 0.25, 0.05), teal()); qm.position.z = 0.1; g.add(qm);
+    const dot = new THREE.Mesh(ext(circle(0.7, -0.3, 0.1), 0.25, 0.04), teal()); dot.position.z = 0.1; g.add(dot);
+  },
+};
+window.renderIcon = (id) => { const sc = rig(256, 256), g = new THREE.Group(); ICONS[id](g); g.rotation.set(-0.12, 0.32, 0.02); sc.add(g);
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 100); cam.position.set(0, 0, 6.4); cam.lookAt(0, -0.05, 0); R.render(sc, cam); return R.domElement.toDataURL('image/png'); };
+</script></body></html>
