@@ -844,3 +844,12 @@
   .fm-playt { overflow: hidden !important; }
   .fm-playt img { right: 6px !important; bottom: 6px !important; width: 62% !important; max-width: 92px; transform-origin: 50% 50%; }
 }
+
+/* ---------- плитки на 3D-пластинах с сотами (как фон карточек, img/fcm/pl-*.webp) ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  .fm-lt { background: url(../img/fcm/pl-tile.webp?v=2) center / 100% 100% no-repeat !important; box-shadow: 0 0 14px rgba(40,200,255,.3), 0 6px 12px rgba(0,0,0,.45) !important; }
+  .fm-club { background: url(../img/fcm/pl-club.webp?v=2) center / 100% 100% no-repeat !important; box-shadow: 0 8px 18px -6px rgba(0,0,0,.6) !important; }
+  .fm-playt { background: url(../img/fcm/pl-play.webp?v=2) center / 100% 100% no-repeat !important; box-shadow: 0 0 20px rgba(62,255,160,.35) !important; }
+  .fm-feat { background: url(../img/fcm/pl-feat.webp?v=2) center / 100% 100% no-repeat !important; box-shadow: 0 10px 22px -8px rgba(0,0,0,.7) !important; }
+  .fm-club, .fm-playt, .fm-feat { padding: 10px 12px !important; }
+}

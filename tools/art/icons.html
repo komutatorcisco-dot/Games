@@ -39,6 +39,25 @@ const ICONS = {
     const dot = new THREE.Mesh(ext(circle(0.7, -0.3, 0.1), 0.25, 0.04), teal()); dot.position.z = 0.1; g.add(dot);
   },
 };
+// пластина-фон для плиток (как фон карточек): металлическая рамка с фаской, внутри тёмное стекло с выдавленными сотами
+const PLATES = { teal: ['#0b2f55', '#3fe6ff', '#bff8ff'], blue: ['#0d2552', '#5aa8ff', '#d6ecff'], green: ['#0a3a2a', '#3effa0', '#d4ffe8'], gold: ['#2a1f08', '#e9c46a', '#fff1c4'] };
+window.renderPlate = (kind, w, h) => {
+  const [deep, rim, hi] = PLATES[kind]; const sc = rig(w, h), g = new THREE.Group(), W = w / 100, H = h / 100, r = Math.min(W, H) * 0.12;
+  const outer = new THREE.Shape(); rr(outer, -W / 2, -H / 2, W, H, r); const inner = new THREE.Path(); const m = Math.min(W, H) * 0.03; rr(inner, -W / 2 + m, -H / 2 + m, W - 2 * m, H - 2 * m, r * 0.7); outer.holes.push(inner);
+  g.add(new THREE.Mesh(new THREE.ExtrudeGeometry(outer, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.04, bevelSegments: 6, curveSegments: 16 }), new THREE.MeshStandardMaterial({ color: L(rim), metalness: 0.9, roughness: 0.2, emissive: L(rim), emissiveIntensity: 0.25 })));
+  const base = new THREE.Shape(); rr(base, -W / 2 + m, -H / 2 + m, W - 2 * m, H - 2 * m, r * 0.7);
+  g.add(new THREE.Mesh(new THREE.ShapeGeometry(base), new THREE.MeshStandardMaterial({ color: L(deep), metalness: 0.6, roughness: 0.35 })));
+  // соты
+  const hs = Math.min(W, H) * 0.05, hexG = new THREE.ExtrudeGeometry((() => { const s = new THREE.Shape(); for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; i ? s.lineTo(hs * 0.86 * Math.cos(a), hs * 0.86 * Math.sin(a)) : s.moveTo(hs * 0.86 * Math.cos(a), hs * 0.86 * Math.sin(a)); } return s; })(), { depth: 0.012, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2 });
+  const hm = new THREE.MeshStandardMaterial({ color: L(deep).lerp(L(rim), 0.18), metalness: 0.75, roughness: 0.3 });
+  for (let y = -H / 2; y < H / 2 + hs; y += hs * 1.5) for (let x = -W / 2 + ((Math.round(y / (hs * 1.5)) % 2) ? hs * 0.866 : 0); x < W / 2 + hs; x += hs * 1.732) {
+    if (Math.abs(x) > W / 2 - m - hs * 0.9 || Math.abs(y) > H / 2 - m - hs * 0.9) continue; const q = new THREE.Mesh(hexG, hm); q.position.set(x, y, 0.005); g.add(q); }
+  // мягкий свет сверху внутри
+  const gc = document.createElement('canvas'); gc.width = gc.height = 256; const gx = gc.getContext('2d'), gr = gx.createRadialGradient(128, 70, 0, 128, 70, 150); gr.addColorStop(0, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); gx.fillStyle = gr; gx.fillRect(0, 0, 256, 256);
+  const glow = new THREE.Mesh(new THREE.PlaneGeometry(W, H), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(gc), color: L(hi), transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })); glow.position.z = 0.05; g.add(glow);
+  sc.add(g); const cam = new THREE.OrthographicCamera(-W / 2 * 1.04, W / 2 * 1.04, H / 2 * 1.04, -H / 2 * 1.04, 0.1, 50); cam.position.set(0.15, 0.25, 10); cam.lookAt(0, 0, 0);
+  R.render(sc, cam); return R.domElement.toDataURL('image/png');
+};
 window.renderIcon = (id) => { const sc = rig(256, 256), g = new THREE.Group(); ICONS[id](g); g.rotation.set(-0.12, 0.32, 0.02); sc.add(g);
   const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 100); cam.position.set(0, 0, 6.4); cam.lookAt(0, -0.05, 0); R.render(sc, cam); return R.domElement.toDataURL('image/png'); };
 </script></body></html>
