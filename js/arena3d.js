@@ -617,11 +617,11 @@ const Arena3D = (() => {
       canvas: V.canvas, size: V.size, onFrame: null,
       view(name, now) { if (view === 'focus' && name === 'team') return; view = VIEWS[name] ? name : 'play'; if (now) place(0, tBase); },
       // наезд камеры на игрока: низко сбоку от его точки, игрок — левее центра, справа место под карточку
-      focus(x, z, up) { VIEWS.focus = { p: [x - 20, 10, z * 0.8], l: [x + 2, 2.6, z], shift: up ? 0 : -0.2, sy: up ? -0.2 : 0.08 }; view = 'focus'; }, // up — игрок выше ленты замены
+      focus(x, z, up) { VIEWS.focus = { p: [x - 20, 10, z * 0.8], l: [x + 2, 2.6, z], shift: up ? 0 : -0.2, sy: up ? -0.14 : 0.08 }; view = 'focus'; }, // up — игрок выше ленты замены
       unfocus() { view = 'team'; },
       settled: () => cp.distanceTo(tp) < 0.3,
       project(x, z, y = 0) { const v = new THREE.Vector3(x, y, z).project(camera), w = host.clientWidth, h = host.clientHeight; return { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h, d: camera.position.distanceTo(new THREE.Vector3(x, y, z)) }; },
-      W, H,
+      W, H, scene,   // scene — «Команда» ставит на газон 3D-игроков (PlayerKit)
     };
     let raf = 0;
     const step = (now) => {

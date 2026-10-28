@@ -57,11 +57,11 @@ const FCM = (() => {
 
   // ---------- Играть (главная) ----------
   const MODES = [
-    { id: 'mom', t: 'Моменты', d: 'Короткие атаки: забей за несколько секунд', ico: 'img/fcm/mode-mom.webp', cls: 'big lime' },
-    { id: '3', t: 'Матч 3 на 3', d: 'Нападающий, защитник и вратарь из твоих карточек', ico: 'img/fcm/mode-three.webp', cls: 'blue' },
-    { id: 'mgr', t: 'Менеджер', d: '«Мой состав» играет сам, ты смотришь', act: 'squad', ico: 'img/fcm/mode-mgr.webp', cls: 'dark' },
-    { id: '11', t: '11 на 11 · тест', d: 'Полное поле, 5 минут', ico: 'img/fcm/mode-eleven.webp', cls: 'dark' },
-    { id: 'train', t: 'Тренировки', d: 'Удары, дриблинг, штрафные', ico: 'img/fcm/mode-train.webp', cls: 'dark' },
+    { id: 'mom', t: 'Моменты', d: 'Короткие атаки: забей за несколько секунд', ico: 'img/fcm/mode-mom.webp?v=2', cls: 'big lime' },
+    { id: '3', t: 'Матч 3 на 3', d: 'Нападающий, защитник и вратарь из твоих карточек', ico: 'img/fcm/mode-three.webp?v=2', cls: 'blue' },
+    { id: 'mgr', t: 'Менеджер', d: '«Мой состав» играет сам, ты смотришь', act: 'squad', ico: 'img/fcm/mode-mgr.webp?v=2', cls: 'dark' },
+    { id: '11', t: '11 на 11 · тест', d: 'Полное поле, 5 минут', ico: 'img/fcm/mode-eleven.webp?v=2', cls: 'dark' },
+    { id: 'train', t: 'Тренировки', d: 'Удары, дриблинг, штрафные', ico: 'img/fcm/mode-train.webp?v=2', cls: 'dark' },
   ];
   function play() {
     const jg = Cards.get('JG:nicolas-jackson');
@@ -142,26 +142,59 @@ const FCM = (() => {
   }
   function openSwap(i) { swapI = i; swapQ = ''; if (bg3) { const [x, z] = slotWorld(XD.FORMATIONS[Squad.S().form].slots[i], bg3.W, bg3.H); bg3.focus(x, z, true); } render(); const b = root.querySelector('.fm-swap'); if (b && typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(b); }
 
-  // карточки на 3D-газоне: точка схемы → точка поля → экран; дальние меньше, ближние крупнее
+  // 3D-игроки на газоне: одна модель assets3d/player.glb, форма/номер/внешность из карточки (js/playerkit.js).
+  // Игроки крупнее настоящих (MAN), иначе с высоты камеры их не видно. Нет модели — остаются одни карточки.
+  const MAN = 4.2, MAN_TOP = 1.45 * MAN;   // карточка чуть ниже макушки: подпись позиции ложится на голову
+  let men = null, menKey = '', menFail = false;
+  function syncMen() {
+    if (!bg3 || !bg3.scene || typeof PlayerKit === 'undefined' || menFail) return;
+    if (men) men.visible = tab === 'team';
+    if (tab !== 'team') return;
+    const s = Squad.S(), F = XD.FORMATIONS[s.form], key = s.form + '|' + s.xi.join(',');
+    if (key === menKey) return;
+    menKey = key;
+    PlayerKit.load().then((g) => {
+      if (menKey !== key || !bg3) return;
+      if (men) { bg3.scene.remove(men); men.traverse((o) => { if (o.userData.mixer) PlayerKit.dispose(o); }); }
+      men = new THREE.Group(); men.visible = tab === 'team';
+      const shadow = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35, depthWrite: false });
+      const disc = new THREE.CircleGeometry(0.45 * MAN, 20);
+      F.slots.forEach((sl, i) => {
+        const c = s.xi[i] && Cards.get(s.xi[i]); if (!c) return;
+        const [x, z] = slotWorld(sl, bg3.W, bg3.H);
+        const w = new THREE.Group();
+        w.add(PlayerKit.make(g, PlayerKit.forCard(c), 'stand'));
+        w.scale.setScalar(MAN); w.position.set(x, 0, z);
+        w.rotation.y = -Math.PI / 2 + ((i % 3) - 1) * 0.18;   // лицом к камере, чуть вразнобой
+        const sh = new THREE.Mesh(disc, shadow); sh.rotation.x = -Math.PI / 2; sh.position.set(x, 0.02, z);
+        men.add(w, sh);
+      });
+      bg3.scene.add(men); document.body.classList.add('fm-men'); placeCards();
+    }).catch(() => { menFail = true; });   // без модели «Команда» работает как раньше — на карточках
+  }
+  // карточки на 3D-газоне: точка схемы → точка поля → экран; дальние меньше, ближние крупнее.
+  // С 3D-игроками карточка висит над головой, у выбранного (наезд камеры) — прячется, виден сам игрок.
   function placeCards() {
     if (!bg3 || tab !== 'team' || !root) return;
     const els = [...root.querySelectorAll('.fm-slot3')]; if (!els.length) return;
-    const F = XD.FORMATIONS[Squad.S().form], W = bg3.W, H = bg3.H;
-    const P = els.map((el) => { const sl = F.slots[+el.dataset.i]; if (!sl) return null; const [x, z] = slotWorld(sl, W, H), sel = +el.dataset.i === focusI, p = bg3.project(x, z);
-      return { el, sel, x: p.x, y: p.y, d: p.d, k: Math.max(0.62, Math.min(sel ? 1.6 : 0.98, 60 / p.d)) }; }).filter(Boolean);
-    // на широких телефонах схема шире свободного места: вписываем её между панелью, шапкой и меню
-    // (карточки не должны закрывать панель клуба и нижнее меню)
-    if (focusI < 0) {
+    const F = XD.FORMATIONS[Squad.S().form], W = bg3.W, H = bg3.H, up = men && men.visible ? MAN_TOP : 0;
+    const P = els.map((el) => { const sl = F.slots[+el.dataset.i]; if (!sl) return null;
+      const [x, z] = slotWorld(sl, W, H), sel = +el.dataset.i === focusI, on = el.classList.contains('on'), p = bg3.project(x, z, on ? up : 0);
+      return { el, sel, on, x: p.x, y: p.y, d: p.d, k: Math.max(0.62, Math.min(sel ? 1.6 : 0.98, 60 / p.d)) * (up && on ? 0.82 : 1) }; }).filter(Boolean);
+    // без 3D-игроков на широких телефонах схема шире свободного места: вписываем её между панелью, шапкой и меню
+    // (с игроками так нельзя — карточки уехали бы с голов)
+    if (focusI < 0 && !up) {
       const side = root.querySelector('.fm-tside'), topb = root.querySelector('.fm-top'), navb = root.querySelector('.fm-nav');
       const L = (side ? side.getBoundingClientRect().right : 0) + 10, T = (topb ? topb.getBoundingClientRect().bottom : 0) + 4, B = (navb ? navb.getBoundingClientRect().top : innerHeight) - 6, R = innerWidth - 8;
       const cw = 64, ch = 64 * 1.45 + 20; // ширина карточки и высота с подписью позиции
       let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
       P.forEach((q) => { x0 = Math.min(x0, q.x - cw * q.k / 2); x1 = Math.max(x1, q.x + cw * q.k / 2); y0 = Math.min(y0, q.y - ch * 0.92 * q.k); y1 = Math.max(y1, q.y + ch * 0.08 * q.k + 16); });
-      const s = Math.min(1, (R - L) / (x1 - x0), (B - T) / (y1 - y0));
-      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, tx = Math.min(Math.max(cx, L + (x1 - x0) * s / 2), R - (x1 - x0) * s / 2), ty = Math.min(Math.max(cy, T + (y1 - y0) * s / 2), B - (y1 - y0) * s / 2);
-      P.forEach((q) => { q.x = tx + (q.x - cx) * s; q.y = ty + (q.y - cy) * s; q.k *= s; });
+      const sc = Math.min(1, (R - L) / (x1 - x0), (B - T) / (y1 - y0));
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, tx = Math.min(Math.max(cx, L + (x1 - x0) * sc / 2), R - (x1 - x0) * sc / 2), ty = Math.min(Math.max(cy, T + (y1 - y0) * sc / 2), B - (y1 - y0) * sc / 2);
+      P.forEach((q) => { q.x = tx + (q.x - cx) * sc; q.y = ty + (q.y - cy) * sc; q.k *= sc; });
     }
-    P.forEach((q) => { q.el.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px) translate(-50%, -92%) scale(${q.k.toFixed(3)})`; q.el.style.zIndex = String(Math.round(1000 - q.d)); });
+    P.forEach((q) => { q.el.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px) translate(-50%, ${up && q.on ? -100 : -92}%) scale(${q.k.toFixed(3)})`;
+      q.el.style.zIndex = String(Math.round(1000 - q.d)); q.el.classList.toggle('hid', !!(up && q.sel)); });
   }
 
   // ---------- События ----------
@@ -185,10 +218,10 @@ const FCM = (() => {
   // Экран события как в FC Mobile (27.10): вкладки сверху; слева логотип события, описание и главная награда,
   // справа путь главы «пазлом» (змейкой: 1→2→3, вниз, 4→5→6). Нажатие на узел — окно задания, как в FC.
   const TRAIN = [
-    { t: 'Основы', d: 'Бег, пас, удар', lv: 'Новичок', go: { train: 'basics' }, img: 'img/fcm/mode-train.webp', c: '#19d3b0' },
-    { t: 'Дриблинг', d: 'Гонка через фишки', lv: 'Любитель', go: { train: 'dribble' }, img: 'img/fcm/mode-dribble.webp', c: '#ffb23c' },
-    { t: 'Мишени', d: 'Штрафные по мишеням', lv: 'Профи', go: { train: 'targets' }, img: 'img/fcm/mode-targets.webp', c: '#ff4f66' },
-    { t: 'Моменты', d: 'Забей в коротких атаках', lv: 'Матч', go: { mode: 'mom' }, img: 'img/fcm/mode-mom.webp', c: '#c6ff3d' },
+    { t: 'Основы', d: 'Бег, пас, удар', lv: 'Новичок', go: { train: 'basics' }, img: 'img/fcm/mode-train.webp?v=2', c: '#19d3b0' },
+    { t: 'Дриблинг', d: 'Гонка через фишки', lv: 'Любитель', go: { train: 'dribble' }, img: 'img/fcm/mode-dribble.webp?v=2', c: '#ffb23c' },
+    { t: 'Мишени', d: 'Штрафные по мишеням', lv: 'Профи', go: { train: 'targets' }, img: 'img/fcm/mode-targets.webp?v=2', c: '#ff4f66' },
+    { t: 'Моменты', d: 'Забей в коротких атаках', lv: 'Матч', go: { mode: 'mom' }, img: 'img/fcm/mode-mom.webp?v=2', c: '#c6ff3d' },
   ];
   const goAttr = (go) => (go.act ? `data-act="${go.act}"` : go.train ? `data-fm-train="${go.train}"` : `data-fm-mode="${go.mode}"`);
   function events() {
@@ -403,7 +436,7 @@ const FCM = (() => {
     root.dataset.view = tab;
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
     if (typeof Coins !== 'undefined') Coins.render();
-    if (bg3) { bg3.view(tab); bg3.onFrame = tab === 'team' ? placeCards : null; placeCards(); }
+    if (bg3) { bg3.view(tab); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
   }
   // Telegram во весь экран: сверху ряд его кнопок («Назад»/«Закрыть» слева, «⋁ …» справа). Свою шапку ставим в этот
   // же ряд — между кнопками, чтобы не терять высоту экрана лёжа.
