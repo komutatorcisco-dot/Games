@@ -148,10 +148,12 @@ const PackOpen = (() => {
     const box = document.createElement('div'); box.className = 'po-wi po-man'; el.appendChild(box);
     let renderer;
     try { renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); } catch (e) { box.remove(); return; }
-    renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1)); renderer.setSize(box.clientWidth, box.clientHeight);
+    renderer.setPixelRatio(Math.min(2, devicePixelRatio || 1));
+    Object.assign(renderer.domElement.style, { width: '100%', height: '100%', display: 'block' });   // размер — по слою, каждый кадр
+    let lw = 0, lh = 0;
     renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
     box.appendChild(renderer.domElement);
-    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(30, box.clientWidth / box.clientHeight, 0.1, 60);
+    const scene = new THREE.Scene(), cam = new THREE.PerspectiveCamera(30, 2, 0.1, 60);
     const rim = new THREE.Color(RCOL[c.rar] || '#ffffff');
     scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x203020, 0.85));
     const key = new THREE.DirectionalLight(0xfff4e0, 1.2); key.position.set(2, 4, 5); scene.add(key);
@@ -161,26 +163,31 @@ const PackOpen = (() => {
     gr.addColorStop(0, 'rgba(255,255,255,.9)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); gx.fillStyle = gr; gx.fillRect(0, 0, 128, 128);
     const spot = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 2.6), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(glowC), color: rim, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }));
     spot.rotation.x = -Math.PI / 2; spot.position.y = 0.01; scene.add(spot);
-    const p = PlayerKit.make(g, PlayerKit.forCard(c), 'run'); scene.add(p);
-    const mixer = p.userData.mixer, clip = (n) => THREE.AnimationClip.findByName(g.animations, n);
-    const pose = (n) => { if (!mixer || !clip(n)) return; mixer.stopAllAction(); mixer.clipAction(clip(n)).play(); mixer.update(0); };
+    // бег — анимация Mixamo «jog» (есть в модели с 28.10), в старой модели — два кадра run/run2
+    const p = PlayerKit.make(g, PlayerKit.forCard(c), 'stand'); scene.add(p);
+    const has = (n) => !!THREE.AnimationClip.findByName(g.animations, n), live = has('jog');
+    if (live) PlayerKit.play(p, 'jog', { fade: 0, speed: 1.35 });
+    let last = performance.now();
     let skip = false; const sk = () => { skip = true; }; el.addEventListener('pointerdown', sk);
     flash(el, false); Sound.play('kick');
     const RUN = special ? 1300 : 1000, HOLD = special ? 900 : 700, t0 = performance.now();
     await new Promise((done) => {
       const frame = (now) => {
         const t = now - t0, k = Math.min(1, t / RUN), e = 1 - Math.pow(1 - k, 2.2);
+        p.userData.mixer.update(Math.min(0.05, (now - last) / 1000)); last = now;
         if (t < RUN && !skip) {
-          pose(Math.floor(t / 150) % 2 ? 'run2' : 'run');               // два кадра бега — шаги
-          p.position.set(0, Math.abs(Math.sin(t / 150 * Math.PI)) * 0.06, -9 + 9 * e);
+          if (!live) PlayerKit.play(p, Math.floor(t / 150) % 2 ? 'run2' : 'run', { fade: 0 });
+          p.position.set(0, live ? 0 : Math.abs(Math.sin(t / 150 * Math.PI)) * 0.06, -9 + 9 * e);
           cam.position.set(0.5, 1.3 - 0.15 * e, 5.8); cam.lookAt(0, 1.15, -1.5 + 1.5 * e);
         } else {
-          if (!p.userData.stood) { p.userData.stood = true; pose('stand'); p.position.set(0, 0, 0); haptic(special ? 'ok' : 'pop'); }
+          if (!p.userData.stood) { p.userData.stood = true; PlayerKit.play(p, 'stand', { fade: live ? 0.3 : 0 }); p.position.set(0, 0, 0); haptic(special ? 'ok' : 'pop'); }
           const h = Math.min(1, (t - RUN) / 600);
           cam.position.set(0.5 - 0.3 * h, 1.15, 5.8 - 0.8 * h); cam.lookAt(0, 1.15, 0);   // во весь рост, голова ниже заголовка
           if (skip || t > RUN + HOLD) { done(); return; }
         }
-        cam.aspect = box.clientWidth / Math.max(1, box.clientHeight); cam.updateProjectionMatrix();
+        const w = box.clientWidth || innerWidth, h = box.clientHeight || innerHeight;
+        if (w !== lw || h !== lh) { renderer.setSize(w, h, false); lw = w; lh = h; }
+        cam.aspect = w / Math.max(1, h); cam.updateProjectionMatrix();
         renderer.render(scene, cam);
         requestAnimationFrame(frame);
       };
