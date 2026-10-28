@@ -598,7 +598,7 @@ const Arena3D = (() => {
   // project(x, z) — точка поля на экране: по ней «Команда» ставит карточки на настоящий газон.
   const VIEWS = {
     play: { p: [0, 15, 38], l: [0, 2, 0], orbit: 16 },
-    team: { p: [-W / 2 - 16, 46, 0], l: [4, -14, 0], shift: 0.15, sy: 0.06 },
+    team: { p: [-W / 2 - 16, 46, 0], l: [4, -14, 0], shift: 0.15, sy: 0.06, still: true },
     events: { p: [W / 2 - 18, 6, -22], l: [W / 2 + 40, 16, 34], orbit: 6 },
     quests: { p: [-20, 24, -36], l: [10, 4, 10], orbit: 10 },
     store: { p: [-W / 2 + 6, 7, 24], l: [-W / 2 - 40, 14, -30], orbit: 6 },
@@ -644,7 +644,8 @@ const Arena3D = (() => {
     let shift = 0, sy = 0;
     function place(dt, t) {
       const v = VIEWS[view] || VIEWS.play, o = RM ? 0 : Math.sin(t * 0.07) * (v.orbit || 0);
-      tp.set(v.p[0] + o, v.p[1] + (RM ? 0 : Math.sin(t * 0.11) * 0.8), v.p[2] + (RM ? 0 : Math.cos(t * 0.07) * (v.orbit || 0) * 0.3)); tl.set(...v.l);
+      const bob = RM || v.still ? 0 : Math.sin(t * 0.11) * 0.8; // в «Команде» камера стоит (still): иначе карточки над игроками двигались каждый кадр
+      tp.set(v.p[0] + o, v.p[1] + bob, v.p[2] + (RM ? 0 : Math.cos(t * 0.07) * (v.orbit || 0) * 0.3)); tl.set(...v.l);
       const k = dt ? 1 - Math.exp(-dt * 2.4) : 1; cp.lerp(tp, k); cl.lerp(tl, k); shift += ((v.shift || 0) - shift) * k; sy += ((v.sy || 0) - sy) * k;
       // камера не влетает в трибуны: внутри чаши (суперэллипс по переднему краю трибун) или выше крыши
       { const A = W / 2 + 7, B = H / 2 + 7, r = Math.pow(Math.abs(cp.x) / A, 4) + Math.pow(Math.abs(cp.z) / B, 4);
@@ -658,7 +659,7 @@ const Arena3D = (() => {
       canvas: V.canvas, size: V.size, onFrame: null,
       view(name, now) { if (view === 'focus' && name === 'team') return; view = VIEWS[name] ? name : 'play'; if (now) place(0, tBase); },
       // наезд камеры на игрока: низко сбоку от его точки, игрок — левее центра, справа место под карточку
-      focus(x, z, up) { VIEWS.focus = { p: [x - 20, 10, z * 0.8], l: [x + 2, 2.6, z], shift: up ? 0 : -0.2, sy: up ? -0.14 : 0.08 }; view = 'focus'; }, // up — игрок выше ленты замены
+      focus(x, z, up) { VIEWS.focus = { p: [x - 20, 10, z * 0.8], l: [x + 2, 2.6, z], shift: up ? 0 : -0.2, sy: up ? -0.14 : 0.08, still: true }; view = 'focus'; }, // up — игрок выше ленты замены
       unfocus() { view = 'team'; },
       settled: () => cp.distanceTo(tp) < 0.3,
       project(x, z, y = 0) { const v = new THREE.Vector3(x, y, z).project(camera), w = host.clientWidth, h = host.clientHeight; return { x: ((v.x + 1) / 2) * w, y: ((1 - v.y) / 2) * h, d: camera.position.distanceTo(new THREE.Vector3(x, y, z)) }; },

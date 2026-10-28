@@ -11,6 +11,7 @@ const FCM = (() => {
   // старого вида больше нет (28.10): новый всегда; старая главная остаётся только для вертикального экрана
   const on = () => true;
   let tab = 'play', sub = { quests: 'day', store: 'top', events: 'jg' };
+  let lastPlace = ''; // положение камеры при прошлой расстановке карточек
   let focusI = -1; // игрок, на которого наехала камера в «Команде»
   let bg3 = null; // 3D-стадион за меню (Arena3D.backdrop), null — нет WebGL или ещё грузится
 
@@ -211,6 +212,9 @@ const FCM = (() => {
     const els = [...root.querySelectorAll('.fm-slot3')]; if (!els.length) return;
     const F = XD.FORMATIONS[Squad.S().form], W = bg3.W, H = bg3.H, up = men && men.visible ? MAN_TOP : 0;
     if (up && mixers.length) { const now = performance.now(), dt = menT ? Math.min(0.1, (now - menT) / 1000) : 0; menT = now; mixers.forEach((m) => m.update(dt)); }
+    // карточки двигаем, только когда сдвинулась камера (раньше — каждый кадр: 11 карточек с тенями перерисовывались
+    // постоянно, «Команда» лагала на телефоне). Камера стоит — пропускаем; анимация игроков (выше) идёт всегда.
+    { const o = bg3.project(0, 0, 0), key = `${o.x.toFixed(1)},${o.y.toFixed(1)},${focusI},${swapI},${els.length},${up}`; if (key === lastPlace) return; lastPlace = key; }
     const P = els.map((el) => { const sl = F.slots[+el.dataset.i]; if (!sl) return null;
       const [x, z] = slotWorld(sl, W, H), sel = +el.dataset.i === focusI, on = el.classList.contains('on'), p = bg3.project(x, z, on ? up : 0);
       return { el, sel, on, x: p.x, y: p.y, d: p.d, k: Math.max(0.62, Math.min(sel ? 1.6 : 0.98, 60 / p.d)) * (up && on ? 0.82 : 1) }; }).filter(Boolean);
@@ -469,6 +473,7 @@ const FCM = (() => {
     root.dataset.view = tab;
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
     if (typeof Coins !== 'undefined') Coins.render();
+    lastPlace = '';
     if (bg3) { bg3.view(tab); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
   }
   // Telegram во весь экран: сверху ряд его кнопок («Назад»/«Закрыть» слева, «⋁ …» справа). Свою шапку ставим в этот

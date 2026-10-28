@@ -744,3 +744,8 @@
   body.fcm-on #app > .screen:not(#hub) :is(.wd-kb button, .kb button) { border-radius: 6px !important; background: rgba(20,32,56,.92) !important; color: #fff !important; box-shadow: inset 0 0 0 1px rgba(150,200,255,.22) !important; }
   body.fcm-on #app > .screen:not(#hub) .lives { font-size: 20px; }
 }
+/* «Команда»: у карточек на газоне без размытой тени (filter перерисовывался при каждом сдвиге) — тень простая */
+@media (orientation: landscape) and (max-height: 620px) {
+  .fm-slot3 .cc { filter: none !important; box-shadow: 0 6px 10px -4px rgba(0,0,0,.6); border-radius: 8%; }
+  .fm-slot3.sel .cc { filter: none !important; box-shadow: 0 0 0 2px rgba(198,255,61,.8), 0 0 18px rgba(198,255,61,.45); }
+}
