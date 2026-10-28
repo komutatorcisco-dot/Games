@@ -57,11 +57,11 @@ const FCM = (() => {
 
   // ---------- Играть (главная) ----------
   const MODES = [
-    { id: 'mom', t: 'Моменты', d: 'Короткие атаки: забей за несколько секунд', ico: 'img/fcm/mode-mom.webp?v=2', cls: 'big lime' },
-    { id: '3', t: 'Матч 3 на 3', d: 'Нападающий, защитник и вратарь из твоих карточек', ico: 'img/fcm/mode-three.webp?v=2', cls: 'blue' },
-    { id: 'mgr', t: 'Менеджер', d: '«Мой состав» играет сам, ты смотришь', act: 'squad', ico: 'img/fcm/mode-mgr.webp?v=2', cls: 'dark' },
-    { id: '11', t: '11 на 11 · тест', d: 'Полное поле, 5 минут', ico: 'img/fcm/mode-eleven.webp?v=2', cls: 'dark' },
-    { id: 'train', t: 'Тренировки', d: 'Удары, дриблинг, штрафные', ico: 'img/fcm/mode-train.webp?v=2', cls: 'dark' },
+    { id: 'mom', t: 'Моменты', d: 'Короткие атаки: забей за несколько секунд', ico: 'img/fcm/mode-mom.webp?v=3', cls: 'big lime' },
+    { id: '3', t: 'Матч 3 на 3', d: 'Нападающий, защитник и вратарь из твоих карточек', ico: 'img/fcm/mode-three.webp?v=3', cls: 'blue' },
+    { id: 'mgr', t: 'Менеджер', d: '«Мой состав» играет сам, ты смотришь', act: 'squad', ico: 'img/fcm/mode-mgr.webp?v=3', cls: 'dark' },
+    { id: '11', t: '11 на 11 · тест', d: 'Полное поле, 5 минут', ico: 'img/fcm/mode-eleven.webp?v=3', cls: 'dark' },
+    { id: 'train', t: 'Тренировки', d: 'Удары, дриблинг, штрафные', ico: 'img/fcm/mode-train.webp?v=3', cls: 'dark' },
   ];
   // Главная как в FC Mobile (28.10): слева столбик плиток, в центре большой баннер со слайдами, справа карточка
   // предложения, под ней «Клуб» (ОБЩ) и «Играть». Режимы — на отдельной странице «Играть» (modes()).
@@ -251,10 +251,10 @@ const FCM = (() => {
   // Экран события как в FC Mobile (27.10): вкладки сверху; слева логотип события, описание и главная награда,
   // справа путь главы «пазлом» (змейкой: 1→2→3, вниз, 4→5→6). Нажатие на узел — окно задания, как в FC.
   const TRAIN = [
-    { t: 'Основы', d: 'Бег, пас, удар', lv: 'Новичок', go: { train: 'basics' }, img: 'img/fcm/mode-train.webp?v=2', c: '#19d3b0' },
-    { t: 'Дриблинг', d: 'Гонка через фишки', lv: 'Любитель', go: { train: 'dribble' }, img: 'img/fcm/mode-dribble.webp?v=2', c: '#ffb23c' },
-    { t: 'Мишени', d: 'Штрафные по мишеням', lv: 'Профи', go: { train: 'targets' }, img: 'img/fcm/mode-targets.webp?v=2', c: '#ff4f66' },
-    { t: 'Моменты', d: 'Забей в коротких атаках', lv: 'Матч', go: { mode: 'mom' }, img: 'img/fcm/mode-mom.webp?v=2', c: '#c6ff3d' },
+    { t: 'Основы', d: 'Бег, пас, удар', lv: 'Новичок', go: { train: 'basics' }, img: 'img/fcm/mode-train.webp?v=3', c: '#19d3b0' },
+    { t: 'Дриблинг', d: 'Гонка через фишки', lv: 'Любитель', go: { train: 'dribble' }, img: 'img/fcm/mode-dribble.webp?v=3', c: '#ffb23c' },
+    { t: 'Мишени', d: 'Штрафные по мишеням', lv: 'Профи', go: { train: 'targets' }, img: 'img/fcm/mode-targets.webp?v=3', c: '#ff4f66' },
+    { t: 'Моменты', d: 'Забей в коротких атаках', lv: 'Матч', go: { mode: 'mom' }, img: 'img/fcm/mode-mom.webp?v=3', c: '#c6ff3d' },
   ];
   const goAttr = (go) => (go.act ? `data-act="${go.act}"` : go.train ? `data-fm-train="${go.train}"` : `data-fm-mode="${go.mode}"`);
   function events() {
