@@ -4028,6 +4028,17 @@ function faceSync() {
     f.hb.scale.setScalar(0.01); pl.holder.updateMatrixWorld(true); f.hb.matrixWorld.decompose(fcP, fcQ, fcS);
     f.mesh.position.copy(fcP); f.mesh.quaternion.copy(fcQ).multiply(FACE_FIX); f.mesh.scale.setScalar(f.k * pl.model.scale.y); }
 }
+// камера не заходит в трибуны (угловой, бег у бровки): если точка ниже чаши трибун (STAND в stadium-lite.js) —
+// отводим её обратно к переднему краю трибуны; высокая телекамера над трибунами остаётся как есть
+const SG = { x: 42 - 1.5, n: -9 + 1.5, s: 114 - 1.5 };
+function standH(d) { const P = [[0, 0], [0, 1.2], [11, 5.6], [12.2, 5.9], [25, 14.6], [25.6, 15.4]]; if (d >= 25.6) return 99; for (let i = 1; i < P.length; i++) if (d <= P[i][0]) { const a = P[i - 1], b = P[i], k = b[0] > a[0] ? (d - a[0]) / (b[0] - a[0]) : 1; return a[1] + (b[1] - a[1]) * k; } return 99; }
+function standGuard(p) {
+  const dx = Math.abs(p.x) - SG.x, dz = Math.max(SG.n - p.z, p.z - SG.s), d = Math.max(dx, dz);
+  if (d <= 0 || p.y > standH(d + 1.5) + 2.5) return;
+  if (dx > 0) p.x = Math.sign(p.x) * SG.x;
+  if (p.z < SG.n) p.z = SG.n; else if (p.z > SG.s) p.z = SG.s;
+  p.y = Math.max(p.y, 1.6);
+}
 function frame() {
   requestAnimationFrame(frame);
   const now = performance.now() / 1000, raw = Math.min(BP.CFG.maxFrame, now - last); last = now;
@@ -4077,6 +4088,7 @@ function frame() {
     tmpB.set(bp.x * 0.6, lerp(1.05, Math.max(0.9, bp.y), 0.5), Math.min(bp.z - 3, 0));
     camNow.l.lerp(tmpB, 1 - Math.exp(-raw * 4));
   } else { camNow.p.lerp(camAim.p, 1 - Math.exp(-raw * 4)); camNow.l.lerp(camAim.l, 1 - Math.exp(-raw * 4)); }
+  standGuard(camNow.p);
   cam.position.copy(camNow.p);
   if (shake > 0) { shake = Math.max(0, shake - raw); cam.position.x += Math.sin(clock * 47) * shake * 0.2; cam.position.y += Math.sin(clock * 61 + 1) * shake * 0.2; } // плавная дрожь, без случайных скачков каждый кадр
   cam.lookAt(camNow.l);
