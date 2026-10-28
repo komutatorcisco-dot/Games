@@ -60,6 +60,11 @@ def retarget(src, tgt, name, src_action, inplace):
     # позы покоя в мире
     t_rest = {b.name: rot(tgt.matrix_world @ b.matrix_local) for b in bones}
     s_rest = {b.name: rot(src.matrix_world @ src.data.bones[b.name[len(PREFIX):]].matrix_local) for b in bones}
+    # позы покоя разные (у источника T, у нас A): сначала разворачиваем нашу кость вдоль кости источника
+    # (кратчайшим поворотом, своё вращение вокруг оси кости сохраняется) — иначе разница поз уходит в движение
+    Yax = Vector((0, 1, 0))
+    for n in t_rest:
+        t_rest[n] = (t_rest[n] @ Yax).rotation_difference(s_rest[n] @ Yax) @ t_rest[n]
     L = {b.name: (b.parent.matrix_local.inverted() @ b.matrix_local) if b.parent else b.matrix_local.copy() for b in bones}
     hips = tgt.data.bones[PREFIX + 'Hips']
     t_hip0 = (tgt.matrix_world @ hips.matrix_local).translation

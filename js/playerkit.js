@@ -227,7 +227,7 @@ const PlayerKit = (() => {
 
   // ---------- загрузка модели (лениво, после three.js) ----------
   // Загрузчики three r128 — свои копии в vendor/three-ext, декодер Draco — vendor/draco.
-  const MODEL = 'assets3d/player.glb?v=20261028-a1';
+  const MODEL = 'assets3d/player.glb?v=20261028-a2';
   let loading = null;
   const addScript = (src) => new Promise((ok, bad) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = bad; document.head.appendChild(s); });
   function load(base = '') {   // base — путь до корня сайта (для генераторов в tools/art: '../../')
