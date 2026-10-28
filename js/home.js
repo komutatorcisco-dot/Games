@@ -122,7 +122,8 @@ const Home = (() => {
       <button class="fc-club" data-h2="pick"><b>Игры</b><span class="fc-pad">${Ui.get('gamepad')}</span><span class="fc-logo3">${I3('shield_red')}</span>${ARR}</button>
       ${g ? `<button class="fc-play" ${attrs(g.data)} aria-label="Играть: ${title}"><b>Играть</b>${ARR}</button>` : '<span></span>'}`;
     if (keepVid) { const nv = $('.fc-vid', el); if (nv) nv.replaceWith(keepVid); }
-    { const v = $('.fc-vid', el); if (v) { v.muted = true; const pr = v.play && v.play(); if (pr && pr.catch) pr.catch(() => {}); } }
+    // в новом виде (fcm-on) старая главная спрятана — её видео не крутим (казалось, что под меню идёт ещё одна игра, и тратило батарею)
+    { const v = $('.fc-vid', el); if (v) { v.muted = true; if (document.body.classList.contains('fcm-on')) { v.pause(); v.removeAttribute('autoplay'); v.preload = 'none'; } else { const pr = v.play && v.play(); if (pr && pr.catch) pr.catch(() => {}); } } }
     if (typeof Icons !== 'undefined') Icons.fill(el);
   }
   // фон главной: наклонная стена из карточек твоей коллекции; чего ещё нет — рубашка «ДЖ». Медленно едет по диагонали

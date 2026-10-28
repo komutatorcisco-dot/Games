@@ -622,3 +622,35 @@
   .fm-cv-info > p { margin: 0; font: 500 13px/1.35 "Rubik", sans-serif; color: #c7d4e6; }
   .fm-cv-info .fm-cv-own { font-weight: 700; color: #fff; }
 }
+
+/* ---------- Телефон стоя в Telegram (28.10): только экран «Поверни телефон», ничего старого под ним ---------- */
+@media (orientation: portrait) {
+  body.tgmob :is(#app, .tabbar, .fcm, .fcm-bg, .fm-sheet, .safe-cap) { display: none !important; }
+  body.tgmob .rot-hint { position: fixed !important; inset: 0 !important; width: 100% !important; height: 100% !important; z-index: 99998 !important; display: grid !important; place-content: center; justify-items: center; gap: 14px; padding: 24px; text-align: center;
+    background: radial-gradient(70% 45% at 50% 105%, rgba(60,200,90,.35), transparent 70%), radial-gradient(60% 40% at 50% -5%, rgba(80,170,255,.3), transparent 70%), linear-gradient(180deg, #0b1830, #060a1c 75%) !important; color: #fff; }
+  body.tgmob .rot-hint img { width: 120px; height: auto; filter: drop-shadow(0 12px 20px rgba(0,0,0,.6)) drop-shadow(0 0 22px rgba(80,140,255,.45)); }
+  body.tgmob .rot-hint i { width: 54px; height: 90px; border: 4px solid #c6ff3d; border-radius: 12px; box-shadow: 0 0 22px rgba(198,255,61,.45); animation: rotHint 2.2s ease-in-out infinite; }
+  body.tgmob .rot-hint b { font: italic 900 26px/1.1 "Rubik", sans-serif; text-transform: uppercase; background: linear-gradient(180deg, #fff, #b9bdcc); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  body.tgmob .rot-hint small { font: 500 14px/1.35 "Rubik", sans-serif; color: rgba(255,255,255,.75); max-width: 260px; }
+}
+
+/* ---------- замена игрока в «Команде» (28.10): лента карточек снизу поверх газона ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  .fm-swap { position: fixed; z-index: 6; left: var(--fm-l); right: var(--fm-r); bottom: calc(50px + var(--fm-b) + 6px); display: grid; gap: 6px; padding: 8px 10px 10px; border-radius: 12px;
+    background: linear-gradient(180deg, rgba(10,18,38,.94), rgba(4,8,20,.97)); box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.45), 0 -10px 30px rgba(0,0,0,.5); animation: fm-up .35s cubic-bezier(.2,.9,.3,1.1); }
+  @keyframes fm-up { from { transform: translateY(40px); opacity: 0; } }
+  .fm-swap header { display: flex; align-items: center; gap: 10px; padding-right: 40px; }
+  .fm-swap header b { font: italic 900 17px/1 "Rubik", sans-serif; text-transform: uppercase; white-space: nowrap; }
+  .fm-swq { flex: 1; max-width: 220px; height: 30px; padding: 0 10px; border: 0; border-radius: 15px; background: rgba(4,8,18,.85); color: #fff; font: 500 13px "Rubik", sans-serif; box-shadow: inset 0 0 0 1.5px rgba(150,200,255,.3); }
+  .fm-swq:focus { outline: 0; box-shadow: inset 0 0 0 2px #c6ff3d; }
+  .fm-swap .fm-sh-x { top: 6px; right: 8px; width: 30px; height: 30px; }
+  .fm-swl { display: flex; gap: 8px; overflow-x: auto; overscroll-behavior: contain; padding: 2px 2px 4px; scroll-snap-type: x proximity; }
+  .fm-swc { position: relative; flex: none; display: grid !important; justify-items: center; gap: 2px; scroll-snap-align: start; border-radius: 8px; transition: transform .15s; }
+  .fm-swc .cc { animation: none; filter: drop-shadow(0 4px 6px rgba(0,0,0,.5)); }
+  .fm-swc.off { opacity: .6; } .fm-swc.sel { box-shadow: 0 0 0 2px #c6ff3d; }
+  .fm-swc em { position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 1px 5px; border-radius: 4px; background: #b3182f; font: 700 9px/1.3 "Rubik", sans-serif; font-style: normal; }
+  .fm-swc:active { transform: scale(.94); }
+  /* пока открыта лента — панель игрока и кнопки прячем, газон с выбранным местом виден сверху */
+  .fm-team.swapping .fm-pinfo { display: none; }
+  .fm-team.swapping .fm-tside { opacity: 0; pointer-events: none; }
+}

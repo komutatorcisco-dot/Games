@@ -177,5 +177,14 @@ const Squad = (() => {
     });
   }
 
-  return { open, bind, render, S, CTX };
+  // для нового вида (js/fcm.js): кандидаты на место и установка в состав — та же логика, что в pickFor
+  function candidates(i) {
+    const s = S(), pos = XD.FORMATIONS[s.form].slots[i].pos;
+    const names = new Set(s.xi.map((k, j) => (k && j !== i && Cards.get(k) ? Cards.get(k).name : null)).filter(Boolean));
+    return mine().filter((c) => !names.has(c.name)).map((c) => ({ c, fit: fits({ pos: c.positions || PlayerPositions.get(c.name, c.pos) }, pos) }))
+      .sort((a, b) => (b.fit - a.fit) || b.c.r - a.c.r);
+  }
+  function put(i, k) { const s = S(); s.xi = s.xi.map((x) => (x === k ? null : x)); s.xi[i] = k; Store.save(); }
+  function info() { const s = S(), list = xi(), c = XD.chem(s.sys === 'classic' ? 'classic' : 'new', s.form, list); return { r: XD.teamRating(list), chem: c.total, max: s.sys === 'classic' ? 100 : 33 }; }
+  return { open, bind, render, S, CTX, auto, candidates, put, info };
 })();

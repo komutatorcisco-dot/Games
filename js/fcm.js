@@ -26,6 +26,7 @@ const FCM = (() => {
     store: '<path d="M2 3h3.1l.8 2.5H21l-2.3 8a2 2 0 0 1-1.9 1.5H9.3l.5 1.5H19V18.5H8.3a1 1 0 0 1-1-.7L4 5H2z"/><circle cx="9" cy="21" r="1.6"/><circle cx="17" cy="21" r="1.6"/>',
     daily: '<circle cx="10" cy="7.5" r="4"/><path d="M2 21c0-4.4 3.6-7.5 8-7.5 1.8 0 3.4.5 4.7 1.4-.4.8-.7 1.7-.7 2.6 0 1.3.4 2.5 1.2 3.5z"/><path d="M19.2 13.2c1.6 0 2.8 1 2.8 2.4 0 1-.6 1.6-1.4 2.1-.4.3-.6.5-.6 1v.3h-1.7v-.4c0-1 .5-1.5 1.1-1.9.5-.3.8-.6.8-1 0-.5-.4-.9-1-.9s-1.1.4-1.2 1l-1.6-.3c.3-1.4 1.3-2.3 2.8-2.3zm-.9 7.3h1.8V22h-1.8z"/>',
     online: '<path d="M13.5 2 4 13.5h6.2L9 22l10-12.2h-6.3z"/>',
+    cards: '<path d="M8.5 3.5h9a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2zm4.5 4.8-1 2.3-2.4.2 1.8 1.6-.5 2.4 2.1-1.3 2.1 1.3-.5-2.4 1.8-1.6-2.4-.2z"/><path d="M4.5 6.5v11a3 3 0 0 0 1 2.2V6.5z" opacity=".6"/>',
     gift: '<path d="M4 11h7v10H5a1 1 0 0 1-1-1zm9 0h7v9a1 1 0 0 1-1 1h-6zM3 7h18v3H3zm8.1-1.2C9.6 5.6 7 5 7 3.6 7 2.7 7.7 2 8.6 2c1.6 0 2.6 2.2 2.9 3.8zm1.8 0c.3-1.6 1.3-3.8 2.9-3.8.9 0 1.6.7 1.6 1.6 0 1.4-2.6 2-4.5 2.2z"/>',
     target: '<path fill-rule="evenodd" d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 3a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 2.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/>',
     puzzle: '<path d="M10 2.5a2.5 2.5 0 0 1 2.5 2.5V6H17a1 1 0 0 1 1 1v4.5h1a2.5 2.5 0 0 1 0 5h-1V21a1 1 0 0 1-1 1h-4.5v-1.2a2.5 2.5 0 0 0-5 0V22H3a1 1 0 0 1-1-1v-4.5h1.2a2.5 2.5 0 0 0 0-5H2V7a1 1 0 0 1 1-1h4.5V5A2.5 2.5 0 0 1 10 2.5z"/>',
@@ -73,7 +74,7 @@ const FCM = (() => {
       <div class="fm-side">
         <button class="fm-sq" data-act="dly">${ico('daily')}<b>Игрок дня</b></button>
         ${typeof Wheel !== 'undefined' ? `<button class="fm-sq ${Wheel.ready() ? 'hot' : ''}" data-act="wheel"><img class="fm-sq-pk" src="img/packs/pk0-160.webp" alt=""><b>${Wheel.ready() ? 'Пак дня' : 'Завтра'}</b></button>` : ''}
-        <button class="fm-sq" data-act="online">${ico('online')}<b>Онлайн</b></button>
+        <button class="fm-sq" data-act="collection">${ico('cards')}<b>Коллекция</b></button>
       </div>
     </div>`;
   }
@@ -97,13 +98,13 @@ const FCM = (() => {
     const { s, F, cards, have, ovr, owned } = teamData(), u = Store.d.user || {};
     const panel = `<div class="fm-tside">
         <div class="fm-club"><span class="fm-crest">${esc(u.emoji || '⚽')}</span><span class="fm-ovr"><small>ОБЩ</small><b>${ovr || '—'}</b></span></div>
-        <div class="fm-stats"><span><small>Схема</small><b>${esc(s.form)}</b></span><span><small>Состав</small><b>${have.length}/11</b></span><span><small>Карточек</small><b>${owned}</b></span></div>
-        <button class="fm-btn gold" data-act="squad">Изменить состав</button>
+        <div class="fm-stats"><span><small>Схема</small><b>${esc(s.form)}</b></span><span><small>Химия</small><b>${Squad.info ? Squad.info().chem : '—'}</b></span><span><small>Состав</small><b>${have.length}/11</b></span></div>
+        <button class="fm-btn gold" data-fm-auto>Лучший состав</button>
         <button class="fm-btn" data-act="collection">Коллекция</button>
         <button class="fm-btn" data-act="sbc">Испытания (ИПК)</button>
       </div>`;
-    if (bg3) return `<div class="fm-team is3d ${focusI >= 0 && cards[focusI] ? 'focus' : ''}">${panel}${focusI >= 0 && cards[focusI] ? pinfo(cards[focusI], F.slots[focusI]) : ''}<div class="fm-cards">${F.slots.map((sl, i) => { const c = cards[i];
-      return `<button class="fm-slot3 ${c ? 'on' : ''} ${i === focusI ? 'sel' : ''}" ${c ? `data-fm-pl="${i}"` : 'data-act="squad"'} data-i="${i}">${c ? Cards.html(c, { w: 64 }) : '<i>+</i>'}<em>${esc(XD.RU[sl.pos] || sl.pos)}</em></button>`; }).join('')}</div></div>`;
+    if (bg3) return `<div class="fm-team is3d ${focusI >= 0 && cards[focusI] ? 'focus' : ''} ${swapI >= 0 ? 'swapping' : ''}">${panel}${swapBar()}${focusI >= 0 && cards[focusI] ? pinfo(cards[focusI], F.slots[focusI]) : ''}<div class="fm-cards">${F.slots.map((sl, i) => { const c = cards[i];
+      return `<button class="fm-slot3 ${c ? 'on' : ''} ${i === focusI ? 'sel' : ''}" ${c ? `data-fm-pl="${i}"` : `data-fm-empty="${i}"`} data-i="${i}">${c ? Cards.html(c, { w: 64 }) : '<i>+</i>'}<em>${esc(XD.RU[sl.pos] || sl.pos)}</em></button>`; }).join('')}</div></div>`;
     // поле лёжа: атака вправо — вертикальная координата схемы становится горизонтальной
     return `<div class="fm-team">
       <div class="fm-pitch"><i class="fm-pl"></i>${F.slots.map((sl, i) => { const c = cards[i];
@@ -119,27 +120,48 @@ const FCM = (() => {
     return `<div class="fm-pinfo">
       <div class="fm-pi-h"><b class="fm-pi-r">${c.r}</b><span><b>${esc(c.name)}</b><small>${esc(XD.RU[sl.pos] || sl.pos)} · ${esc(c.club || c.series || '')}</small><small>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</small></span></div>
       <div class="fm-pi-st">${N.map((n, i) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[i]))}%" class="${st[i] >= 85 ? 'hi' : st[i] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[i]}</b></span>`).join('')}</div>
-      <div class="fm-pi-btn"><button class="fm-btn" data-fm-step="-1" aria-label="Предыдущий">‹</button><button class="fm-btn gold" data-act="squad">Заменить</button><button class="fm-btn" data-fm-step="1" aria-label="Следующий">›</button></div>
+      <div class="fm-pi-btn"><button class="fm-btn" data-fm-step="-1" aria-label="Предыдущий">‹</button><button class="fm-btn gold" data-fm-swap>Заменить</button><button class="fm-btn" data-fm-step="1" aria-label="Следующий">›</button></div>
       <button class="fm-pi-x" data-fm-unfocus>Весь состав</button>
     </div>`;
   }
   function focusOn(i) {
     const s = Squad.S(), F = XD.FORMATIONS[s.form];
+    swapI = -1;
     if (i < 0 || !F.slots[i] || !Cards.get(s.xi[i])) { focusI = -1; if (bg3) bg3.unfocus(); render(); return; }
     focusI = i; const [x, z] = slotWorld(F.slots[i], bg3.W, bg3.H); bg3.focus(x, z); render();
   }
+  // замена игрока как в FC: снизу выезжает лента подходящих карточек, нажатие — карточка встаёт на место
+  let swapI = -1, swapQ = '';
+  function swapBar() {
+    if (swapI < 0) return '';
+    const sl = XD.FORMATIONS[Squad.S().form].slots[swapI], q = swapQ.trim().toLowerCase();
+    const L = Squad.candidates(swapI).filter((x) => !q || x.c.name.toLowerCase().includes(q) || (x.c.club || '').toLowerCase().includes(q)).slice(0, 40);
+    const cur = Squad.S().xi[swapI];
+    return `<div class="fm-swap"><header><b>${esc(XD.RU[sl.pos] || sl.pos)} · выбери игрока</b><input class="fm-swq" type="search" placeholder="Поиск" value="${esc(swapQ)}" autocomplete="off">${cur ? '<button class="fm-btn sm" data-fm-rm>Убрать</button>' : ''}<button class="fm-sh-x" data-fm-swx aria-label="Закрыть">✕</button></header>
+      <div class="fm-swl">${L.length ? L.map((x) => `<button class="fm-swc ${x.fit ? '' : 'off'} ${x.c.key === cur ? 'sel' : ''}" data-fm-pick="${esc(x.c.key)}">${Cards.html(x.c, { w: 70 })}${x.fit ? '' : '<em>не его позиция</em>'}</button>`).join('') : '<p class="fm-none">Нет свободных карточек — открывай паки в Магазине</p>'}</div></div>`;
+  }
+  function openSwap(i) { swapI = i; swapQ = ''; if (bg3) { const [x, z] = slotWorld(XD.FORMATIONS[Squad.S().form].slots[i], bg3.W, bg3.H); bg3.focus(x, z, true); } render(); const b = root.querySelector('.fm-swap'); if (b && typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(b); }
+
   // карточки на 3D-газоне: точка схемы → точка поля → экран; дальние меньше, ближние крупнее
   function placeCards() {
     if (!bg3 || tab !== 'team' || !root) return;
-    const els = root.querySelectorAll('.fm-slot3'); if (!els.length) return;
+    const els = [...root.querySelectorAll('.fm-slot3')]; if (!els.length) return;
     const F = XD.FORMATIONS[Squad.S().form], W = bg3.W, H = bg3.H;
-    els.forEach((el) => {
-      const sl = F.slots[+el.dataset.i]; if (!sl) return;
-      const [x, z] = slotWorld(sl, W, H), sel = +el.dataset.i === focusI;
-      const p = bg3.project(x, z), k = Math.max(0.62, Math.min(sel ? 1.6 : 0.98, 60 / p.d));
-      el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -92%) scale(${k.toFixed(3)})`;
-      el.style.zIndex = String(Math.round(1000 - p.d));
-    });
+    const P = els.map((el) => { const sl = F.slots[+el.dataset.i]; if (!sl) return null; const [x, z] = slotWorld(sl, W, H), sel = +el.dataset.i === focusI, p = bg3.project(x, z);
+      return { el, sel, x: p.x, y: p.y, d: p.d, k: Math.max(0.62, Math.min(sel ? 1.6 : 0.98, 60 / p.d)) }; }).filter(Boolean);
+    // на широких телефонах схема шире свободного места: вписываем её между панелью, шапкой и меню
+    // (карточки не должны закрывать панель клуба и нижнее меню)
+    if (focusI < 0) {
+      const side = root.querySelector('.fm-tside'), topb = root.querySelector('.fm-top'), navb = root.querySelector('.fm-nav');
+      const L = (side ? side.getBoundingClientRect().right : 0) + 10, T = (topb ? topb.getBoundingClientRect().bottom : 0) + 4, B = (navb ? navb.getBoundingClientRect().top : innerHeight) - 6, R = innerWidth - 8;
+      const cw = 64, ch = 64 * 1.45 + 20; // ширина карточки и высота с подписью позиции
+      let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      P.forEach((q) => { x0 = Math.min(x0, q.x - cw * q.k / 2); x1 = Math.max(x1, q.x + cw * q.k / 2); y0 = Math.min(y0, q.y - ch * 0.92 * q.k); y1 = Math.max(y1, q.y + ch * 0.08 * q.k + 16); });
+      const s = Math.min(1, (R - L) / (x1 - x0), (B - T) / (y1 - y0));
+      const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, tx = Math.min(Math.max(cx, L + (x1 - x0) * s / 2), R - (x1 - x0) * s / 2), ty = Math.min(Math.max(cy, T + (y1 - y0) * s / 2), B - (y1 - y0) * s / 2);
+      P.forEach((q) => { q.x = tx + (q.x - cx) * s; q.y = ty + (q.y - cy) * s; q.k *= s; });
+    }
+    P.forEach((q) => { q.el.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px) translate(-50%, -92%) scale(${q.k.toFixed(3)})`; q.el.style.zIndex = String(Math.round(1000 - q.d)); });
   }
 
   // ---------- События ----------
@@ -410,8 +432,16 @@ const FCM = (() => {
     }).catch((e) => { console.warn('FCM 3D', e); window.__fm3d = true; dispatchEvent(new Event('fm3d')); });
     render();
     root.addEventListener('click', (e) => {
-      const t = e.target.closest('[data-fm-tab]'); if (t) { Sound.play('tap'); tab = t.dataset.fmTab; if (focusI >= 0) { focusI = -1; if (bg3) bg3.unfocus(); } render(); root.querySelector('.fm-main').scrollTop = 0; return; }
+      const t = e.target.closest('[data-fm-tab]'); if (t) { Sound.play('tap'); tab = t.dataset.fmTab; swapI = -1; if (focusI >= 0) { focusI = -1; if (bg3) bg3.unfocus(); } render(); root.querySelector('.fm-main').scrollTop = 0; return; }
       const s = e.target.closest('[data-fm-sub]'); if (s) { Sound.play('tap'); const [k, v] = s.dataset.fmSub.split(':'); sub[k] = v; render(); return; }
+      if (e.target.closest('[data-fm-auto]')) { Sound.play('whistle'); haptic('ok'); Squad.auto(); return render(); }
+      if (e.target.closest('[data-fm-swap]')) { Sound.play('tap'); return openSwap(focusI); }
+      const em = e.target.closest('[data-fm-empty]'); if (em) { Sound.play('tap'); const i = +em.dataset.fmEmpty; focusI = i; return openSwap(i); }
+      if (e.target.closest('[data-fm-swx]')) { Sound.play('tap'); const i = swapI; swapI = -1; return focusOn(Cards.get(Squad.S().xi[i]) ? i : -1); }
+      if (e.target.closest('[data-fm-rm]')) { Sound.play('tap'); const s2 = Squad.S(); s2.xi[swapI] = null; Store.save(); swapI = -1; focusI = -1; bg3.unfocus(); return render(); }
+      const pk2 = e.target.closest('[data-fm-pick]'); if (pk2) { Sound.play('coin'); haptic('pop'); const i = swapI; Squad.put(i, pk2.dataset.fmPick); swapI = -1; focusOn(i);
+        const el = root.querySelector(`.fm-slot3[data-i="${i}"] .cc`); if (el && el.animate) el.animate([{ transform: 'translateY(-80px) rotateY(180deg) scale(1.3)', opacity: 0 }, { transform: 'rotateY(-10deg) scale(1.08)', opacity: 1, offset: 0.7 }, { transform: 'none' }], { duration: 600, easing: 'cubic-bezier(.2,.8,.2,1)' });
+        return; }
       const pl = e.target.closest('[data-fm-pl]'); if (pl) { Sound.play('tap'); return focusOn(+pl.dataset.fmPl === focusI ? -1 : +pl.dataset.fmPl); }
       if (e.target.closest('[data-fm-unfocus]')) { Sound.play('tap'); return focusOn(-1); }
       const stp = e.target.closest('[data-fm-step]'); if (stp) { Sound.play('tap'); const xi = Squad.S().xi, d = +stp.dataset.fmStep; let i = focusI;
@@ -428,7 +458,8 @@ const FCM = (() => {
       const c = e.target.closest('[data-fm-claim]'); if (c) { Rewards.claimQuest(c.dataset.fmClaim); return render(); }
       if (e.target.closest('[data-fm-gift]')) { Modal.open('<h2>Билет события</h2><p>Здесь будет подарок события: билет, который открывает главу. В макете награды ещё не выдаются — подключим их с проверкой на сервере.</p>', [{ label: 'Понятно' }]); return; }
     });
-    root.addEventListener('input', (e) => { if (!e.target.matches('.fm-cq')) return; CQ.q = e.target.value; CQ.n = 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } });
+    root.addEventListener('input', (e) => { if (e.target.matches('.fm-swq')) { swapQ = e.target.value; const l = root.querySelector('.fm-swl'), tmp = document.createElement('div'); tmp.innerHTML = swapBar(); const nl = tmp.querySelector('.fm-swl'); if (l && nl) { l.replaceWith(nl); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(nl); } return; }
+      if (!e.target.matches('.fm-cq')) return; CQ.q = e.target.value; CQ.n = 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } });
     // вернулись на главную из игры — обновить цифры (монеты, задания)
     new MutationObserver(() => { if (document.body.dataset.scr === 'hub') render(); }).observe(document.body, { attributes: true, attributeFilter: ['data-scr'] });
   }
