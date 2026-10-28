@@ -42,7 +42,7 @@ const FCM = (() => {
 
   // ---------- верх ----------
   function top() {
-    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : (TABS.find((t) => t[0] === tab) || [])[1];
+    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? 'Играть' : (TABS.find((t) => t[0] === tab) || [])[1];
     return `<header class="fm-top">
       ${title ? `<button class="fm-back" data-fm-tab="${tab === 'coll' ? 'team' : 'play'}" aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
         : `<button class="fm-me" data-act="profile"><span class="fm-ava">${esc(u.emoji || '⚽')}</span><span class="fm-who"><b>${esc(u.nick || 'Игрок')}</b><small>${cup}${trophies()}</small></span></button>`}
@@ -52,7 +52,7 @@ const FCM = (() => {
     </header>`;
   }
   function nav() {
-    return `<nav class="fm-nav">${TABS.map(([id, t, a]) => `<button class="fm-tab ${id === tab ? 'on' : ''} ${id === 'play' ? 'play' : ''}" data-fm-tab="${id}">${ico(id, 'fm-ti')}<b>${t}</b>${id === 'quests' && questsReady() ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
+    return `<nav class="fm-nav">${TABS.map(([id, t, a]) => `<button class="fm-tab ${id === tab || (id === 'play' && tab === 'modes') ? 'on' : ''} ${id === 'play' ? 'play' : ''}" data-fm-tab="${id === 'play' ? 'modes' : id}">${ico(id, 'fm-ti')}<b>${t}</b>${id === 'quests' && questsReady() ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
   }
 
   // ---------- Играть (главная) ----------
@@ -63,20 +63,49 @@ const FCM = (() => {
     { id: '11', t: '11 на 11 · тест', d: 'Полное поле, 5 минут', ico: 'img/fcm/mode-eleven.webp?v=2', cls: 'dark' },
     { id: 'train', t: 'Тренировки', d: 'Удары, дриблинг, штрафные', ico: 'img/fcm/mode-train.webp?v=2', cls: 'dark' },
   ];
+  // Главная как в FC Mobile (28.10): слева столбик плиток, в центре большой баннер со слайдами, справа карточка
+  // предложения, под ней «Клуб» (ОБЩ) и «Играть». Режимы — на отдельной странице «Играть» (modes()).
+  const SLIDES = [
+    { k: 'jg', small: 'Событие', t: 'Николас Джексон', d: 'Пройди путь главы — в конце особая карточка 84', btn: 'Перейти сейчас', go: 'data-fm-tab="events"', bg: 'jg' },
+    { k: 'mom', small: 'Режим', t: 'Моменты', d: 'Короткие атаки своим составом: забей за 14 секунд', btn: 'Играть', go: 'data-fm-mode="mom"', bg: 'mom', img: 'img/fcm/player-kick.webp' },
+    { k: 'pk', small: 'Магазин', t: 'Пак «Джексон!!»', d: '30 карт: минимум 1 «Джексон», 2 легенды и 6 золотых', btn: 'В магазин', go: 'data-fm-tab="store"', bg: 'pk', img: 'img/packs/pk4-360.webp' },
+  ];
+  let slideI = 0, slideT = 0;
   function play() {
-    const jg = Cards.get('JG:nicolas-jackson');
-    return `<div class="fm-play">
-      <button class="fm-hero" data-fm-tab="events">
-        <span class="fm-hero-card">${jg ? Cards.html(jg, { w: 112 }) : ''}</span>
-        <span class="fm-hero-t"><small>Событие</small><b>Николас Джексон</b><em>Пройди путь и получи особую карточку 84</em><i class="fm-go">Открыть ›</i></span>
-      </button>
-      <div class="fm-modes">${MODES.map((m) => `<button class="fm-mode ${m.cls}" ${m.act ? `data-act="${m.act}"` : `data-fm-mode="${m.id}"`}${m.art ? ` style="--art:url(${m.art})"` : ''}>${m.ico ? `<img class="fm-mi" src="${m.ico}" alt="">` : ''}<b>${m.t}</b><small>${m.d}</small></button>`).join('')}</div>
-      <div class="fm-side">
-        <button class="fm-sq" data-act="dly">${ico('daily')}<b>Игрок дня</b></button>
-        ${typeof Wheel !== 'undefined' ? `<button class="fm-sq ${Wheel.ready() ? 'hot' : ''}" data-act="wheel"><img class="fm-sq-pk" src="img/packs/pk0-160.webp" alt=""><b>${Wheel.ready() ? 'Пак дня' : 'Завтра'}</b></button>` : ''}
-        <button class="fm-sq" data-act="collection">${ico('cards')}<b>Коллекция</b></button>
+    const jg = Cards.get('JG:nicolas-jackson'), inf = Squad.info ? Squad.info() : { r: 0 }, u = Store.d.user || {};
+    const day = typeof Wheel !== 'undefined' && Wheel.ready(), dot = (on) => (on ? '<em class="fm-rd"></em>' : '');
+    const tile = (attr, ic, t, on, extra = '') => `<button class="fm-lt" ${attr}>${dot(on)}${ic}<b>${t}</b>${extra}</button>`;
+    const slide = (x, i) => `<div class="fm-sl ${x.bg} ${i === slideI ? 'on' : ''}" data-i="${i}">
+        <i class="fm-sl-bg"></i>
+        <span class="fm-sl-art">${x.k === 'jg' ? `${jg ? `<span class="fm-sl-card">${Cards.html(jg, { w: 150 })}</span>` : ''}<img class="fm-sl-man" src="img/fcm/player-stand.webp" alt="">` : `<img src="${x.img}" alt="">`}</span>
+        <span class="fm-sl-t"><small>${x.small}</small><b>${x.t}</b><em>${x.d}</em><button class="fm-sl-go" ${x.go}>${x.btn}</button></span></div>`;
+    return `<div class="fm-home">
+      <div class="fm-hl">
+        ${tile('data-fm-tab="events"', ico('events'), 'События', true)}
+        ${tile('data-act="dly"', ico('daily'), 'Игрок дня', false)}
+        ${typeof Wheel !== 'undefined' ? tile('data-act="wheel"', '<img src="img/packs/pk0-160.webp" alt="">', day ? 'Пак дня' : 'Завтра', day) : ''}
+        ${tile('data-act="collection"', ico('cards'), 'Коллекция', false)}
+      </div>
+      <div class="fm-hero2">${SLIDES.map(slide).join('')}<span class="fm-dots">${SLIDES.map((_, i) => `<i class="${i === slideI ? 'on' : ''}" data-fm-slide="${i}"></i>`).join('')}</span></div>
+      <div class="fm-hr">
+        <button class="fm-feat" data-fm-tab="store"><b>Паки: открой свой клуб</b><span>${[1, 3, 4].map((l) => `<img src="img/packs/pk${l}-360.webp" alt="">`).join('')}</span></button>
+        <div class="fm-hr2">
+          <button class="fm-club" data-fm-tab="team"><b>Клуб</b><span><i class="fm-ovr"><small>ОБЩ</small><b>${inf.r || '—'}</b></i><i class="fm-crest">${esc(u.emoji || '⚽')}</i></span></button>
+          <button class="fm-playt" data-fm-tab="modes"><b>Играть</b><img src="img/ui3d/ball.webp" alt=""></button>
+        </div>
       </div>
     </div>`;
+  }
+  // страница «Играть»: все режимы плитками (как раньше на главной)
+  function modes() {
+    return `<div class="fm-play fm-modes-pg">
+      <div class="fm-modes">${MODES.map((m) => `<button class="fm-mode ${m.cls}" ${m.act ? `data-act="${m.act}"` : `data-fm-mode="${m.id}"`}>${m.ico ? `<img class="fm-mi" src="${m.ico}" alt="">` : ''}<b>${m.t}</b><small>${m.d}</small></button>`).join('')}</div>
+    </div>`;
+  }
+  function slideTo(i) {
+    if (!root) return; slideI = (i + SLIDES.length) % SLIDES.length;
+    root.querySelectorAll('.fm-sl').forEach((el) => el.classList.toggle('on', +el.dataset.i === slideI));
+    root.querySelectorAll('[data-fm-slide]').forEach((el) => el.classList.toggle('on', +el.dataset.fmSlide === slideI));
   }
   function startMode(id) {
     if (id === 'train') return App.openFootball('fk', 'basics');
@@ -436,7 +465,7 @@ const FCM = (() => {
   let root = null;
   function render() {
     if (!root || !on()) return;
-    const body = { play, team, events, quests, store, coll }[tab]();
+    const body = { play, team, events, quests, store, coll, modes }[tab]();
     root.dataset.view = tab;
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
     if (typeof Coins !== 'undefined') Coins.render();
@@ -488,6 +517,7 @@ const FCM = (() => {
       if (e.target.closest('[data-fm-sort]')) { Sound.play('tap'); CQ.sort = CQ.sort === 'r' ? 'name' : 'r'; render(); return; }
       if (e.target.closest('[data-fm-more]')) { Sound.play('tap'); CQ.n += 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } return; }
       const cc = e.target.closest('[data-fm-card]'); if (cc) { Sound.play('tap'); return cardView(cc.dataset.fmCard); }
+      const sd = e.target.closest('[data-fm-slide]'); if (sd) { Sound.play('tap'); slideT = Date.now(); return slideTo(+sd.dataset.fmSlide); }
       const nd = e.target.closest('[data-fm-node]'); if (nd) { Sound.play('tap'); return nodeSheet(+nd.dataset.fmNode); }
       const pk = e.target.closest('[data-fm-pk]'); if (pk) { Sound.play('tap'); return packSheet(pk.dataset.fmPk); }
       const m = e.target.closest('[data-fm-mode]'); if (m) { Sound.play('tap'); return startMode(m.dataset.fmMode); }
@@ -497,6 +527,8 @@ const FCM = (() => {
     });
     root.addEventListener('input', (e) => { if (e.target.matches('.fm-swq')) { swapQ = e.target.value; const l = root.querySelector('.fm-swl'), tmp = document.createElement('div'); tmp.innerHTML = swapBar(); const nl = tmp.querySelector('.fm-swl'); if (l && nl) { l.replaceWith(nl); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(nl); } return; }
       if (!e.target.matches('.fm-cq')) return; CQ.q = e.target.value; CQ.n = 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } });
+    // слайды главного баннера листаются сами раз в 6 с (после нажатия на точку — пауза)
+    setInterval(() => { if (tab === 'play' && document.body.dataset.scr === 'hub' && Date.now() - slideT > 9000 && !document.hidden) slideTo(slideI + 1); }, 6000);
     // вернулись на главную из игры — обновить цифры (монеты, задания)
     new MutationObserver(() => { if (document.body.dataset.scr === 'hub') render(); }).observe(document.body, { attributes: true, attributeFilter: ['data-scr'] });
   }
