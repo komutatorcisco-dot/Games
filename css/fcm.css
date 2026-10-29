@@ -876,3 +876,4 @@
   .fm-tab.home .fm-ti { width: 22px !important; height: 22px !important; }
   .fm-tab.home.on .fm-ti { color: var(--fm-lime) !important; }
 }
+@media (orientation: landscape) and (max-height: 620px) { .fm-team.is3d .fm-club { justify-content: center !important; } }

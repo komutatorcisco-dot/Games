@@ -132,11 +132,11 @@ const FCM = (() => {
   function team() {
     const { s, F, cards, have, ovr, owned } = teamData(), u = Store.d.user || {};
     const panel = `<div class="fm-tside">
-        <div class="fm-club"><span class="fm-crest">${esc(u.emoji || '⚽')}</span><span class="fm-ovr"><small>ОБЩ</small><b>${ovr || '—'}</b></span></div>
+        <div class="fm-club"><span class="fm-ovr"><small>ОБЩ</small><b>${ovr || '—'}</b></span></div>
         <div class="fm-stats"><span><small>Схема</small><b>${esc(s.form)}</b></span><span><small>Химия</small><b>${Squad.info ? Squad.info().chem : '—'}</b></span><span><small>Состав</small><b>${have.length}/11</b></span></div>
         <button class="fm-btn gold" data-fm-auto>Лучший состав</button>
         <button class="fm-btn" data-act="collection">Коллекция</button>
-        <button class="fm-btn" data-act="sbc">Испытания (ИПК)</button>
+        <button class="fm-btn" data-act="sbc">Испытания</button>
       </div>`;
     if (bg3) return `<div class="fm-team is3d ${focusI >= 0 && cards[focusI] ? 'focus' : ''} ${swapI >= 0 ? 'swapping' : ''}">${panel}${swapBar()}${focusI >= 0 && cards[focusI] ? pinfo(cards[focusI], F.slots[focusI]) : ''}<div class="fm-cards">${F.slots.map((sl, i) => { const c = cards[i];
       return `<button class="fm-slot3 ${c ? 'on' : ''} ${i === focusI ? 'sel' : ''}" ${c ? `data-fm-pl="${i}"` : `data-fm-empty="${i}"`} data-i="${i}">${c ? Cards.html(c, { w: 64 }) : '<i>+</i>'}<em>${esc(XD.RU[sl.pos] || sl.pos)}</em></button>`; }).join('')}</div></div>`;
@@ -181,7 +181,9 @@ const FCM = (() => {
   // Игроки крупнее настоящих (MAN), иначе с высоты камеры их не видно. Нет модели — остаются одни карточки.
   const MAN = 4.2, MAN_TOP = 1.45 * MAN;   // карточка чуть ниже макушки: подпись позиции ложится на голову
   let men = null, menKey = '', menFail = false, mixers = [], menT = 0;
+  const MEN_ON = false; // 3D-игроки в «Команде» убраны по просьбе пользователя (29.10): на газоне только карточки
   function syncMen() {
+    if (!MEN_ON) { if (men) men.visible = false; document.body.classList.remove('fm-men'); return; }
     if (!bg3 || !bg3.scene || typeof PlayerKit === 'undefined' || menFail) return;
     if (men) men.visible = tab === 'team';
     if (tab !== 'team') return;
