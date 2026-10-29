@@ -536,8 +536,8 @@ const App = (() => {
     chest: () => {
       if ((Store.d.ng.chest || '') === Day.key() || NG.dailyStatus().some(([, d]) => !d)) return;
       Store.d.ng.chest = Day.key(); Store.save();
-      Coins.add(CHEST); confetti(); Sound.play('goal');
-      toast(`Сундук открыт: +${CHEST} монет!`);
+      Coins.add(CHEST, 'daily'); confetti(); Sound.play('goal');
+      toast(`Сундук открыт: +${CHEST * Eco.K()} монет!`);
       renderDailyProgress();
     },
     b2b: () => TTT.start('timed'),
@@ -547,19 +547,20 @@ const App = (() => {
       Store.d.dailyStreak = day;
       Store.d.lastDaily = today();
       Store.save();
-      Coins.add(dailyReward(day));
-      toast(`+${dailyReward(day)} монет за вход · день ${day}/7`);
+      Coins.add(dailyReward(day), 'login');
+      toast(`+${dailyReward(day) * Eco.K()} монет за вход · день ${day}/7`);
       renderHub();
     },
     music: () => { Music.toggle(); renderProfile(); },
     sound: () => { Store.d.sound = !Store.d.sound; Store.save(); renderProfile(); Sound.play('tap'); },
     // вайп для проверки первого входа: всё стирается (карточки, монеты, трофеи, ник), игра запускается как в первый раз
-    wipe: () => Modal.open('<h3>Начать заново?</h3><p>Сотрутся карточки, монеты, трофеи и ник в превью. Игра запустится как в первый раз — с обучением. Основную версию это не затронет.</p>',
-      [{ label: 'Стереть и начать', cls: 'gold', onClick: () => { Cloud.wipe().then(() => setTimeout(() => location.reload(), 300)); } }, { label: 'Отмена', cls: 'ghost' }]),
+    wipe: () => Modal.open('<h3>Начать заново?</h3><p>Сотрутся карточки, монеты, трофеи, ник, клуб, витрина и история на проверочном сервере (перед этим он сохранит копию). Игра запустится как в первый раз — с обучением. Основную версию это не затронет.</p>',
+      [{ label: 'Стереть и начать', cls: 'gold', onClick: () => { Cloud.wipe().then((ok) => { if (ok) setTimeout(() => location.reload(), 300); }); } }, { label: 'Отмена', cls: 'ghost' }]),
   };
 
   function init() {
     Store.load();
+    safe('Eco', () => Eco.hook()); // превью: монеты и карточки — на проверочном сервере (js/eco.js)
     safe('Online presence', () => Online.startPresence());
     safe('Online seekers', () => Online.watch((g) => launchOnlineGame(g, true))); // плашка «Игрок ищет соперника»
     safe('Skins', () => Skins.apply());
@@ -640,6 +641,7 @@ const App = (() => {
     // облако Telegram: если там сохранение новее (зашёл с другого устройства) — подхватываем его
     const cloud = Cloud.pull().then((got) => {
       if (typeof Social !== 'undefined') Social.sync();
+      if (typeof Eco !== 'undefined' && Eco.stage()) Eco.sync();
       Board.submit();
       Track.hello();
       // клуб: красная точка, если ждёт сундук, приз лиги или запрос карточки, который можно выполнить

@@ -11,7 +11,7 @@ const StarShop = (() => {
   ];
   const COIN_PACKS = [
     { id: 'basic', coins: 400, level: 0, count: 1, name: 'Обычный пак', sub: '3 случайные карты', art: () => PackOpen.art(0, 'rs') },
-    { id: 'gold', coins: 1000, level: 1, count: 1, name: 'Золотой пак', sub: '5 карт · минимум 1 золотая', art: () => PackOpen.art(1, 'rs') },
+    { id: 'gold', coins: 1000, level: 1, count: 1, name: 'Сверхредкий пак', sub: '5 карт · минимум 1 золотая', art: () => PackOpen.art(1, 'rs') },
     { id: 'epic', coins: 2000, level: 2, count: 1, name: 'Эпический пак', sub: '8 карт · минимум 2 золотых', art: () => PackOpen.art(2, 'rs') },
     ...ITEMS.filter(x => x.coins),
   ];
@@ -41,6 +41,15 @@ const StarShop = (() => {
   function buyCoinsNow(id) {
     const x = COIN_PACKS.find(x => x.id === id); if (!x) return false;
     if (Store.d.coins < x.coins) { toast('Недостаточно монет'); return false; }
+    // превью: пак покупается на сервере, карточки выбирает сервер (несколько паков — по одному запросу)
+    if (typeof Eco !== 'undefined' && Eco.on()) {
+      const P = ECON.packs.find((p) => p.lv === x.level);
+      (async () => { const keys = [];
+        for (let i = 0; i < (x.count || 1); i++) { const r = await Eco.pack(P.id); if (!r || !r.ok) { toast(r && r.error === 'not enough coins' ? 'Недостаточно монет' : 'Сервер не ответил — монеты не списаны'); break; } keys.push(...r.keys); }
+        if (keys.length) { const res = Cards.add(keys, { server: true }); Coins.render(); Rewards.refresh(); PackOpen.reveal(res, null, { pack: x.level, name: x.name }); }
+      })();
+      return true;
+    }
     const keys = keysFor(x);
     showCards(keys, () => { Store.d.coins -= x.coins; }, x);
     return true;

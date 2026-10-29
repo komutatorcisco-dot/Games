@@ -25,7 +25,9 @@ const Onboard = (() => {
   const go = (step) => { S().step = STEPS.indexOf(step); save(); show(); };
   const next = () => { S().step = Math.min(STEPS.length - 1, S().step + 1); save(); show(); };
   const skipAll = () => { const s = S(); if (!s.packGot) { s.step = STEPS.indexOf('nation'); save(); show(); } else finish(); };
-  function finish() { const s = S(); s.done = true; save(); close(); if (typeof FCM !== 'undefined') FCM.render(); }
+  // старый «тренер» (js/coach.js) больше не нужен: новый первый вход его заменяет
+  const coachOff = () => { const u = Store.d.ui || (Store.d.ui = {}); u.tut = 99; };
+  function finish() { const s = S(); s.done = true; coachOff(); save(); close(); if (typeof FCM !== 'undefined') FCM.render(); }
 
   // ---------- экраны ----------
   const logo = '<img class="ob-logo" src="img/brand/logo-white.png?v=1" alt="Джексоны">';
@@ -84,11 +86,21 @@ const Onboard = (() => {
       <img class="ob-pk" src="img/packs/pk3-360.webp?v=b1" alt=""><button class="ob-go" data-ob="open">Открыть</button></div>`;
     if (s.packGot) { el.querySelector('[data-ob="open"]').textContent = 'Дальше'; el.querySelector('[data-ob="open"]').dataset.ob = 'next'; }
   }
+  let ecoTry = false; // запрос стартового пака уже ушёл (не сохраняется)
   function openPack() {
     const s = S(); if (s.packGot) return next();
+    // превью: стартовый пак собирает сервер (один раз на аккаунт), иначе — телефон
+    if (typeof Eco !== 'undefined' && Eco.on() && !ecoTry) {
+      ecoTry = true;
+      Eco.starter(s.nat).then((r) => { if (r && r.ok) { Eco.apply(r); s.packGot = true; save(); close(); afterPack(r.keys.map((k) => ({ c: Cards.get(k), isNew: true, coins: 0 })).filter((x) => x.c)); } else { ecoTry = false; toast(r && r.error === 'already' ? 'Стартовый пак уже получен' : 'Сервер не ответил — попробуй ещё раз'); if (r && r.error === 'already') { s.packGot = true; save(); next(); } } });
+      return;
+    }
     const keys = starterKeys(s.nat); s.packGot = true;
     const res = Cards.add(keys); save(); close();
-    if (typeof Squad !== 'undefined' && Squad.auto) try { Squad.auto(); } catch (e) { /* состав соберётся позже */ }
+    afterPack(res);
+  }
+  function afterPack(res) {
+    close(); if (typeof Squad !== 'undefined' && Squad.auto) try { Squad.auto(); } catch (e) { /* состав соберётся позже */ }
     PackOpen.reveal(res, () => { S().step = STEPS.indexOf('tour'); save(); setTimeout(show, 200); }, { pack: 3, name: 'Стартовый пак' });
   }
   // показ разделов: подсветка элемента меню и короткая подпись
@@ -96,7 +108,7 @@ const Onboard = (() => {
     ['.fm-nav [data-fm-tab="team"]', 'Команда', 'Твой состав на поле. Нажми на игрока — увидишь его цифры и сможешь заменить.'],
     ['.fm-hl .fm-lt', 'События', 'Особые события с главами и наградами. Сейчас — «Николас Джексон» с карточкой 84.'],
     ['.fm-nav [data-fm-tab="quests"]', 'Задания', 'Ежедневные и недельные задания — очки пропуска и паки.'],
-    ['.fm-nav [data-fm-tab="store"]', 'Магазин', 'Паки за монеты и звёзды. Трансферный рынок — скоро.'],
+    ['.fm-nav [data-fm-tab="store"]', 'Магазин', 'Паки за монеты и звёзды. Здесь же трансферный рынок: покупай и продавай игроков, ставки и «купить сразу».'],
     ['.fm-playt', 'Играть', 'Моменты, матч 3 на 3, менеджер и тренировки. Удачи, тренер!'],
   ];
   function tour(i) {
@@ -136,7 +148,7 @@ const Onboard = (() => {
   function start() {
     const s = S(); if (forced && !sessionStorage.getItem('ob-forced')) { sessionStorage.setItem('ob-forced', '1'); Store.d.ob = { step: 0, res: {} }; save(); }
     if (S().done) return;
-    if (!forced && !isNew() && !s.step) { s.done = true; save(); return; } // старые игроки — без обучения
+    if (!forced && !isNew() && !s.step) { s.done = true; coachOff(); save(); return; } // старые игроки — без обучения
     show();
   }
   // ждём экран загрузки, ник и главную (окно ника — первым)

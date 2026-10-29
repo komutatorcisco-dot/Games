@@ -89,7 +89,7 @@ const Cards = (() => {
 
   // ---------- что выпадает ----------
   // Внутри редкости чаще выпадают карточки пониже: у золота 78-й рейтинг частый, 85+ — редкость.
-  const DECAY = { bronze: 1, silver: 0.8, gold: 0.62, legend: 0.82, jack: 1 };
+  const DECAY = typeof ECON !== 'undefined' ? ECON.decay : { bronze: 1, silver: 0.8, gold: 0.62, legend: 0.82, jack: 1 }; // js/economy.js
   const MINR = {};
   function pickWeighted(list, rar) {
     const k = DECAY[rar] || 1;
@@ -113,13 +113,14 @@ const Cards = (() => {
   }
   function roll(w) { let x = Math.random() * w.reduce((s, [, v]) => s + v, 0); for (const [k, v] of w) { x -= v; if (x <= 0) return k; } return w[0][0]; }
   // по уровню пака: сколько карточек, что гарантировано и шансы остальных
-  const PACKS = [
+  // состав и шансы паков — js/economy.js (ECON.packs), одна настройка с сервером
+  const PACKS = typeof ECON !== 'undefined' ? ECON.packs.map((p) => ({ n: p.n, sure: p.sure, w: p.w })) : [
     { n: 3, sure: [], w: [['bronze', 62], ['silver', 30], ['gold', 7.5], ['legend', 0.5]] },
     { n: 5, sure: ['gold'], w: [['bronze', 40], ['silver', 44], ['gold', 15], ['legend', 1]] },
     { n: 8, sure: ['gold', 'gold'], w: [['bronze', 28], ['silver', 44], ['gold', 26], ['legend', 2]] },
     { n: 15, sure: ['legend', 'gold', 'gold', 'gold'], w: [['bronze', 20], ['silver', 40], ['gold', 37], ['legend', 3]] },
     { n: 30, sure: ['jack', 'legend', 'legend', 'gold', 'gold', 'gold', 'gold', 'gold', 'gold'], w: [['silver', 40], ['gold', 52], ['legend', 8]] },
-  ];
+  ]; // запасной состав — для тестов без js/economy.js
   function packCards(lv) {
     const P = PACKS[Math.max(0, Math.min(4, lv))];
     const out = P.sure.map((r) => draw(r).key);

@@ -44,9 +44,9 @@ const FCM = (() => {
 
   // ---------- верх ----------
   function top() {
-    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? 'Играть' : (TABS.find((t) => t[0] === tab) || [])[1];
+    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? 'Играть' : tab === 'market' ? 'Трансферный рынок' : (TABS.find((t) => t[0] === tab) || [])[1];
     return `<header class="fm-top">
-      ${title ? `<button class="fm-back" data-fm-tab="${tab === 'coll' ? 'team' : 'play'}" aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
+      ${title ? `<button class="fm-back" data-fm-tab="${tab === 'coll' ? 'team' : tab === 'market' ? 'store' : 'play'}" aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
         : `<button class="fm-me" data-act="profile"><span class="fm-ava">${esc(u.emoji || '⚽')}</span><span class="fm-who"><b>${esc(u.nick || 'Игрок')}</b><small>${cup}${trophies()}</small></span></button>`}
       <i class="fm-sp"></i>
       <span class="fm-cur">${coin}<b class="coin-count">${Store.d.coins || 0}</b></span>
@@ -370,10 +370,13 @@ const FCM = (() => {
     StarShop.ITEMS.filter((x) => x.level !== undefined).forEach((x) => { if (by[x.id]) by[x.id].stars = x.stars; else { by[x.id] = { ...x }; out.push(by[x.id]); } });
     return out;
   }
+  // легенды и «Джексон» в сезоне 1 из паков не выпадают — их слот даёт золото (как Cards.draw)
+  const effRar = (r) => ((r === 'legend' || r === 'jack') && !Cards.all().some((c) => c.rar === r && !c.retired && !c.sbcOnly) ? 'gold' : r);
+  const effW = (w) => { const o = {}; w.forEach(([r, n]) => { r = effRar(r); o[r] = (o[r] || 0) + n; }); return Object.entries(o); };
   const RRU = { bronze: 'бронза', silver: 'серебро', gold: 'золото', legend: 'легенда', jack: '«Джексон»' };
   function chips(x) {
     const P = Cards.PACKS[x.level], n = P.n * (x.count || 1), sure = {};
-    P.sure.forEach((r) => { sure[r] = (sure[r] || 0) + (x.count || 1); });
+    P.sure.forEach((r) => { r = effRar(r); sure[r] = (sure[r] || 0) + (x.count || 1); });
     return [`${n} ${plural(n, 'карта', 'карты', 'карт')}`, ...Object.entries(sure).reverse().map(([r, k]) => `${k} × ${RRU[r] || r}`)];
   }
   const price = (x) => `${x.coins ? `<span class="fm-pr c">${coin}${x.coins}</span>` : ''}${x.stars ? `<span class="fm-pr s">${StarShop.free() ? 0 : x.stars} ⭐</span>` : ''}`;
@@ -382,7 +385,7 @@ const FCM = (() => {
       <span class="fm-pk-t"><b>${esc(x.name)}</b><span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span></span>
       <span class="fm-pk-p">${price(x)}</span></button>`;
   function store() {
-    const L = [['top', 'Главное'], ['packs', 'Паки'], ['stars', 'За звёзды'], ['skins', 'Скины']];
+    const L = [['top', 'Главное'], ['packs', 'Паки'], ['market', 'Рынок'], ['stars', 'За звёзды'], ['skins', 'Скины']];
     if (!L.some((l) => l[0] === sub.store)) sub.store = 'top';
     const list = packList(), day = typeof Wheel !== 'undefined' && Wheel.ready();
     let body = '';
@@ -403,7 +406,7 @@ const FCM = (() => {
   // окно пака: пак крупно, что внутри, шансы, кнопки цены
   function packSheet(id) {
     const x = packList().find((p) => p.id === id); if (!x) return;
-    const P = Cards.PACKS[x.level], tot = P.w.reduce((a, w) => a + w[1], 0);
+    const P0 = Cards.PACKS[x.level], P = { ...P0, w: effW(P0.w) }, tot = P.w.reduce((a, w) => a + w[1], 0);
     const el = document.createElement('div'); el.className = `fm-sheet lv${x.level}`;
     el.innerHTML = `<div class="fm-sh-card">
         <div class="fm-sh-art"><i class="fm-st-rays"></i><img src="img/packs/pk${x.level}-360.webp?v=b1" alt="" draggable="false"></div>
@@ -412,7 +415,7 @@ const FCM = (() => {
           <span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span>
           <p class="fm-sh-h">Шанс в каждом случайном слоте</p>
           <div class="fm-odds">${P.w.map(([r, n]) => `<span class="${r}"><small>${esc(Cards.RAR[r].n)}</small><i><u style="width:${Math.max(2, (n / tot) * 100)}%"></u></i><b>${n}%</b></span>`).join('')}</div>
-          <p class="fm-sh-n">Повторы дают монеты. ИПК-карты из паков не выпадают.</p>
+          <p class="fm-sh-n">${Eco.on() ? 'Повторы остаются в клубе — их можно продать на рынке или быстро продать.' : 'Повторы дают монеты.'} ИПК-карты из паков не выпадают.</p>
           <div class="fm-sh-buy">${x.coins ? `<button class="fm-btn gold" data-fm-buyc="${x.id}">${coin}${x.coins}</button>` : ''}${x.stars ? `<button class="fm-btn star" data-fm-buys="${x.id}">${StarShop.free() ? 0 : x.stars} ⭐</button>` : ''}</div>
         </div>
         <button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
@@ -483,7 +486,7 @@ const FCM = (() => {
           <p>${esc(c.pos)} · ${esc(c.club || c.series || '')}<br>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</p>
           <div class="fm-pi-st">${N.map((n, k) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[k]))}%" class="${st[k] >= 85 ? 'hi' : st[k] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[k]}</b></span>`).join('')}</div>
           <p class="fm-cv-own">${has ? `В клубе: ×${Cards.spare ? Cards.spare(c.key) : 1}` : 'Ещё нет в клубе — может выпасть из пака'}</p>
-          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button><button class="fm-btn gold" data-cv-more>Подробнее</button><button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
+          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button><button class="fm-btn gold" data-cv-more>Подробнее</button>${has && Eco.on() ? '<button class="fm-btn" data-cv-sell>Продать</button>' : ''}<button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
         </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
       if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el); };
     draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
@@ -495,6 +498,7 @@ const FCM = (() => {
     el.addEventListener('click', (e) => {
       if (e.target === el || e.target.closest('.fm-sh-x')) { Sound.play('tap'); return close(); }
       const st = e.target.closest('[data-cv]'); if (st) { Sound.play('tap'); i = (i + +st.dataset.cv + L.length) % L.length; return draw(); }
+      if (e.target.closest('[data-cv-sell]')) { Sound.play('tap'); const k = (L[i] || {}).key; close(); return Market.sellSheet(k); }
       if (e.target.closest('[data-cv-more]')) { Sound.play('tap'); const k = (L[i] || {}).key; close(); if (k && Cards.details) Cards.details(k); }
     });
   }
@@ -503,12 +507,14 @@ const FCM = (() => {
   let root = null;
   function render() {
     if (!root || !on()) return;
-    const body = { play, team, events, quests, store, coll, modes }[tab]();
+    if (tab === 'store' && sub.store === 'market') { sub.store = 'top'; tab = 'market'; }
+    const body = { play, team, events, quests, store, coll, modes, market: () => Market.render() }[tab]();
     root.dataset.view = tab;
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
     if (typeof Coins !== 'undefined') Coins.render();
     lastPlace = '';
-    if (bg3) { bg3.view(tab); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
+    if (bg3) { bg3.view(tab === 'market' ? 'store' : tab); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
+    if (tab === 'market') Market.load();
   }
   // Telegram во весь экран: сверху ряд его кнопок («Назад»/«Закрыть» слева, «⋁ …» справа). Свою шапку ставим в этот
   // же ряд — между кнопками, чтобы не терять высоту экрана лёжа.
@@ -537,6 +543,7 @@ const FCM = (() => {
     }).catch((e) => { console.warn('FCM 3D', e); window.__fm3d = true; dispatchEvent(new Event('fm3d')); });
     render();
     root.addEventListener('click', (e) => {
+      if (tab === 'market' && Market.click(e)) return;
       const t = e.target.closest('[data-fm-tab]'); if (t) { Sound.play('tap'); tab = t.dataset.fmTab; swapI = -1; if (focusI >= 0) { focusI = -1; if (bg3) bg3.unfocus(); } render(); root.querySelector('.fm-main').scrollTop = 0; return; }
       const s = e.target.closest('[data-fm-sub]'); if (s) { Sound.play('tap'); const [k, v] = s.dataset.fmSub.split(':'); sub[k] = v; render(); return; }
       if (e.target.closest('[data-fm-auto]')) { Sound.play('whistle'); haptic('ok'); Squad.auto(); return render(); }
@@ -564,7 +571,8 @@ const FCM = (() => {
       const c = e.target.closest('[data-fm-claim]'); if (c) { Rewards.claimQuest(c.dataset.fmClaim); return render(); }
       if (e.target.closest('[data-fm-gift]')) { Modal.open('<h2>Билет события</h2><p>Здесь будет подарок события: билет, который открывает главу. В макете награды ещё не выдаются — подключим их с проверкой на сервере.</p>', [{ label: 'Понятно' }]); return; }
     });
-    root.addEventListener('input', (e) => { if (e.target.matches('.fm-swq')) { swapQ = e.target.value; const l = root.querySelector('.fm-swl'), tmp = document.createElement('div'); tmp.innerHTML = swapBar(); const nl = tmp.querySelector('.fm-swl'); if (l && nl) { l.replaceWith(nl); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(nl); } return; }
+    root.addEventListener('change', (e) => { if (tab === 'market') Market.input(e); });
+    root.addEventListener('input', (e) => { if (tab === 'market' && Market.input(e)) return; if (e.target.matches('.fm-swq')) { swapQ = e.target.value; const l = root.querySelector('.fm-swl'), tmp = document.createElement('div'); tmp.innerHTML = swapBar(); const nl = tmp.querySelector('.fm-swl'); if (l && nl) { l.replaceWith(nl); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(nl); } return; }
       if (!e.target.matches('.fm-cq')) return; CQ.q = e.target.value; CQ.n = 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } });
     setInterval(() => { if (tab !== 'play' || document.body.dataset.scr !== 'hub' || document.hidden || !root) return; pkI = (pkI + 1) % PKS.length;
       root.querySelectorAll('.fm-pf').forEach((el) => el.classList.toggle('on', +el.dataset.i === pkI)); }, 3000);
@@ -574,5 +582,5 @@ const FCM = (() => {
     new MutationObserver(() => { if (document.body.dataset.scr === 'hub') render(); }).observe(document.body, { attributes: true, attributeFilter: ['data-scr'] });
   }
   document.addEventListener('DOMContentLoaded', () => setTimeout(() => { try { init(); } catch (e) { console.error('FCM', e); } }, 0));
-  return { render, insets, get tab() { return tab; } };
+  return { render, insets, refresh: () => render(), open: (t) => { tab = t; render(); }, get tab() { return tab; } };
 })();

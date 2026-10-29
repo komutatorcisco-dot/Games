@@ -10,7 +10,7 @@ const Coach = (() => {
   const UI = () => Store.d.ui || (Store.d.ui = {});
   const step = () => UI().tut || 0;
   const go = (n) => { UI().tut = n; Store.save(); };
-  const active = () => step() !== DONE && !!(Store.d.user && Store.d.user.nick);
+  const active = () => step() !== DONE && !!(Store.d.user && Store.d.user.nick) && !(document.body && document.body.classList && document.body.classList.contains('fcm-on')); // новый вид: вместо тренера — первый вход (js/onboard.js)
   const coachImg = '<img class="co-face" src="img/ui2/coach.webp?v=1" alt="" decoding="async">';
   const finger = '<img class="co-fng" src="img/ui2/finger.webp?v=1" alt="" decoding="async">';
   const busy = () => Modal.isOpen || document.getElementById('boot') || $('.po, .h2-un, .sx-sheet-wrap, .ob');

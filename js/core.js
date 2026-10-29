@@ -191,8 +191,9 @@ const Cloud = (() => {
   }
   // копия на сервер: сервер сам не даст перезаписать её копией с меньшим числом трофеев
   let srvLast = '';
+  let wiping = false; // идёт сброс: старое сохранение на сервер больше не отправляем
   function pushSrv(beacon) {
-    if (!srvOn()) return;
+    if (!srvOn() || wiping) return;
     const data = JSON.stringify(Store.d, (k, v) => (k === 'ts' || k === 'ui' || k === 'social' ? undefined : v)); // social uses a separate versioned endpoint
     if (data === srvLast) return; // не изменилось — не пишем в базу
     srvLast = data;
@@ -214,8 +215,14 @@ const Cloud = (() => {
   const wipedAt = () => { try { return +localStorage.getItem(WIPE) || 0; } catch (e) { return 0; } };
   async function wipe() {
     if (typeof CONFIG === 'undefined' || !CONFIG.stage) return false;
+    // 1) сервер: всё про игрока на проверочном сервере (сохранение, трофеи, покупки, клуб, витрина, кошелёк, рынок) — с копией
+    let srv = null; wiping = true; clearTimeout(srvTimer); srvTimer = null;
+    if (typeof Board !== 'undefined' && Board.ready()) { try { srv = await Board.post('/eco', { act: 'wipe' }); } catch (e) { srv = null; } }
+    if (typeof Board !== 'undefined' && Board.ready() && !(srv && srv.ok)) { toast('Сервер не ответил — сброс не сделан, попробуй ещё раз'); wiping = false; return false; }
     const now = Date.now();
     try { localStorage.setItem(WIPE, String(now)); } catch (e) { /* без метки в телефоне */ }
+    // 2) телефон: прогресс тренировок и подсказки футбола, отметки показа (звук и графику оставляем)
+    try { Object.keys(localStorage).filter((k) => /^shot\.|^oldjacksons\.(?!hub)/.test(k)).forEach((k) => localStorage.removeItem(k)); sessionStorage.clear(); } catch (e) { /* ок */ }
     Store.d = Store.defaults(); Store.d.ts = now;
     try { localStorage.setItem(Store.KEY, JSON.stringify(Store.d)); } catch (e) { /* приватный режим */ }
     if (cs()) { await call('setItem', pfx() + 'wipe', String(now)); await push(); }
