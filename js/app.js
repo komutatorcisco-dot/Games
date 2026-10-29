@@ -125,6 +125,7 @@ const App = (() => {
     if (typeof Social !== 'undefined') Social.render();
     // слева крупно любимый футболист — первая карточка витрины (как в чужом профиле)
     if (typeof Social !== 'undefined' && Social.hero) $('#pp-hero').innerHTML = Social.hero(Social.active().find(Boolean), Store.d.user.emoji);
+    if ($('#prof-wipe')) $('#prof-wipe').hidden = !(typeof CONFIG !== 'undefined' && CONFIG.stage);
     rankUi('#prof-rank', '#prof-xp', '#prof-next');
     $('#prof-badge').textContent = Store.d.user.emoji || '⚽';
     // абонемент: с какого дня в игре, тур, опыт и место в таблице недели; ниже — настоящая статистика
@@ -552,6 +553,9 @@ const App = (() => {
     },
     music: () => { Music.toggle(); renderProfile(); },
     sound: () => { Store.d.sound = !Store.d.sound; Store.save(); renderProfile(); Sound.play('tap'); },
+    // вайп для проверки первого входа: всё стирается (карточки, монеты, трофеи, ник), игра запускается как в первый раз
+    wipe: () => Modal.open('<h3>Начать заново?</h3><p>Сотрутся карточки, монеты, трофеи и ник в превью. Игра запустится как в первый раз — с обучением. Основную версию это не затронет.</p>',
+      [{ label: 'Стереть и начать', cls: 'gold', onClick: () => { Cloud.wipe().then(() => setTimeout(() => location.reload(), 300)); } }, { label: 'Отмена', cls: 'ghost' }]),
   };
 
   function init() {

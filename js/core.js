@@ -208,6 +208,19 @@ const Cloud = (() => {
     if (cs()) { clearTimeout(timer); timer = setTimeout(() => { timer = null; push(); }, 3000); }
     if (srvOn() && !srvTimer) srvTimer = setTimeout(() => { srvTimer = null; pushSrv(); }, 120000);
   }
+  // «Начать заново» (только превью): метка времени сброса — копии старше неё при запуске не берём.
+  // Хранится в телефоне и в облаке Telegram (pv_wipe), чтобы старая копия с сервера не вернула прогресс.
+  const WIPE = 'jg.wipe';
+  const wipedAt = () => { try { return +localStorage.getItem(WIPE) || 0; } catch (e) { return 0; } };
+  async function wipe() {
+    if (typeof CONFIG === 'undefined' || !CONFIG.stage) return false;
+    const now = Date.now();
+    try { localStorage.setItem(WIPE, String(now)); } catch (e) { /* без метки в телефоне */ }
+    Store.d = Store.defaults(); Store.d.ts = now;
+    try { localStorage.setItem(Store.KEY, JSON.stringify(Store.d)); } catch (e) { /* приватный режим */ }
+    if (cs()) { await call('setItem', pfx() + 'wipe', String(now)); await push(); }
+    return true;
+  }
   async function readTg(p = pfx()) {
     if (!cs()) return null;
     if (p && !(await call('getItems', [p + 'sn']) || {})[p + 'sn']) return readTg(''); // первый запуск превью — копия настоящего сохранения
@@ -229,9 +242,11 @@ const Cloud = (() => {
   async function pull() {
     let got = false;
     try {
-      const [a, b] = await Promise.all([readTg(), readSrv()]);
+      const [a, b, w] = await Promise.all([readTg(), readSrv(), cs() && pfx() ? call('getItems', [pfx() + 'wipe']) : null]);
+      const since = Math.max(wipedAt(), +((w || {})[pfx() + 'wipe']) || 0);
+      if (since && (Store.d.ts || 0) < since) { Store.d = Store.defaults(); Store.d.ts = since; } // сброс сделан на другом устройстве
       let best = null;
-      [a, b].forEach((x) => { if (x && typeof x === 'object' && better(x, best || Store.d)) best = x; });
+      [a, b].forEach((x) => { if (x && typeof x === 'object' && (x.ts || 0) >= since && better(x, best || Store.d)) best = x; });
       if (best) {
         const ts = best.ts;
         const social = Store.d.social;
@@ -250,7 +265,7 @@ const Cloud = (() => {
     if (timer) { clearTimeout(timer); timer = null; push(); }
     if (srvTimer) { clearTimeout(srvTimer); srvTimer = null; pushSrv(true); }
   });
-  return { schedule, pull, push, pushSrv, on: () => !!cs() };
+  return { schedule, pull, push, pushSrv, wipe, on: () => !!cs() };
 })();
 
 const Coins = {
