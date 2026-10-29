@@ -44,7 +44,10 @@ const Cards = (() => {
     // особые Jackson Games: только за события, из паков не выпадают
     const jgFace = typeof FACES !== 'undefined' ? FACES['Николас Джексон'] : null;
     const jg = [{ key: 'JG:nicolas-jackson', name: 'Николас Джексон', r: 84, pos: 'ФРВ', club: 'Астон Вилла', flag: '🇸🇳', nat: 'Сенегал', lg: 'АПЛ', face: jgFace, rar: 'jg', sbcOnly: true, series: 'Jackson Games', st: [82, 83, 74, 84, 44, 81] }];
-    ALL = [...cur, ...legs, ...jack, ...future, ...forgotten, ...jg];
+    // бронза и серебро 65–69 из полной базы FC 27 (js/data/cards-low.js): ключ 'L:<номер EA>', лицо — по номеру EA через воркер
+    const have = new Set(cur.map((c) => c.name));
+    const low = typeof CARDS_LOW === 'undefined' ? [] : CARDS_LOW.filter((x) => !have.has(x[1])).map(([id, name, r, pos, club, lg, nat, flag, born, st]) => ({ key: 'L:' + id, name, r, pos, club, lg, nat, flag, born, face: id, st, rar: r >= 65 ? 'silver' : 'bronze' }));
+    ALL = [...cur, ...low, ...legs, ...jack, ...future, ...forgotten, ...jg];
     if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
       c.positions = PlayerPositions.get(c.name, c.pos);
       if (!c.posFix) c.pos = PlayerPositions.RU[c.positions[0]] || c.pos;
