@@ -17,7 +17,7 @@
 }
 @keyframes rotHint { 0%, 20% { transform: rotate(0); } 50%, 80% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
 
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   /* По кадрам главной FC Mobile из обучающих роликов EA (запись пользователя 20.10): сверху профиль и валюта; слева узкая
      колонка квадратных плиток; в центре большой баннер; справа баннер события и под ним две плитки — тёмная «CLUB» и
      салатовая «PLAY»; снизу горизонтальная панель разделов (QUESTS … STORE), активный раздел — бирюзовый. */
@@ -70,7 +70,7 @@
 
 /* ---------- Главная лёжа (22.10; полировка 23.10): элементы внутри карточек стоят потоком (flex/grid) — текст, значки и
    кнопки не могут наложиться; свечение сдержанное; подписи — оригинальные (Путь, Игры, Играть, Клуб, разделы) ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   :root { --l-nav: 44px; --fc-r: 10px; --fc-gap: 10px; --fc-pad: 12px; --fc-li: #7dff4a; --fc-edge: rgba(150,200,255,.22); }
   body.at-home { background: #070b14 !important; }
   body.at-home #h2-wall, body.at-home .hub-head { display: none !important; }
@@ -211,22 +211,22 @@
   .fc-go { width: 24px; height: 24px; } .fc-go svg { width: 13px; height: 13px; } .fc-pad { width: 24px; height: 24px; }
   .fc-dot { top: 2px; right: 2px; min-width: 14px; height: 14px; font-size: 9px; } .fc-new { padding: 2px 4px; font-size: 9px; } .fc-t { padding-top: 9px !important; }
 }
-@media (orientation: landscape) and (max-height: 620px) and (prefers-reduced-motion: reduce) { .fch *, .fch *::before, .fch *::after { animation: none !important; } }
+@media (orientation: landscape) and (max-height: 620px) and (prefers-reduced-motion: reduce), (orientation: landscape) and (min-width: 900px) and (prefers-reduced-motion: reduce) { .fch *, .fch *::before, .fch *::after { animation: none !important; } }
 /* заголовки «Игры»/«Играть» подстраиваются под ширину своей карточки (не обрезаются на узких экранах и при 6 плитках) */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fc-club, .fc-play { container-type: inline-size; }
   .fch .fc-club b, .fch .fc-play b { font-size: min(clamp(16px, 5.6vh, 22px), 15.5cqw) !important; padding-right: 3px; }
   .fch .fc-t { container-type: inline-size; } .fch .fc-t b { font-size: min(11px, 15cqw) !important; }
 }
 /* «Путь» на низкой карточке (Telegram с шапкой, маленькие экраны): кубок не сжимается в точку */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fch .fc-ems { container-type: size; }
   /* низкая карточка: кубок и трофеи, название открытия — на экране «Путь» (не мельчим и не режем) */
   @container (max-height: 74px) { .fch .fc-em { grid-template-columns: auto auto; grid-template-rows: minmax(0, 1fr); justify-content: center; align-items: center; column-gap: 5px; } .fch .fc-em i { width: min(40px, 100cqh); height: min(40px, 100cqh); } .fch .fc-em em { display: none; } }
 }
 
 /* ---------- Премиальная доводка (26.10): атмосфера стадиона, глубина карточек, понятный «Путь трофеев» ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   /* фон: размытый тёмный стадион (кадр из нашего видео) + едва заметная разметка поля */
   .fch::before { content: ''; position: absolute; inset: -20px; z-index: -2; background: url(../img/bg/home_hero_poster.webp) center 35% / cover;
     filter: blur(16px) saturate(.6) brightness(.32); opacity: .55; }
@@ -278,7 +278,7 @@
   .fch { grid-template-rows: 34px minmax(0, 1fr) minmax(70px, .58fr); }
   .fc-prog small { font-size: 10px; }
 }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fch .fc-hero-t { max-width: 52%; } .fch .fc-hero-t b { font-size: min(clamp(22px, 8vh, 34px), 7.4cqw) !important; }
 }
 /* совсем низкая карточка «Путь трофеев» (iPhone SE в Telegram с шапкой): остаётся полоска прогресса, без строки под ней */
@@ -286,7 +286,7 @@
 
 /* ---------- Все экраны лёжа (27.10): то, что раньше приходилось листать, разложено в две колонки ----------
    Слева — главное (поле, вопрос, карточка), справа — ответы и кнопки. Шапка экрана — во всю ширину. */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   /* высота под содержимое экрана без шапки (шапка 56 + отступы) */
   :root { --l-body: calc(100dvh - var(--l-top) - var(--l-bot) - 84px); }
 

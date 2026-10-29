@@ -2,7 +2,7 @@
    (ниже кнопок Telegram), снизу меню разделов, листается только середина. */
 .fcm { display: none; }
 
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   :root {
     --fm-t: max(6px, env(safe-area-inset-top, 0px), calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px)), var(--safe-top, 0px));
     --fm-l: max(10px, env(safe-area-inset-left, 0px), var(--tg-safe-area-inset-left, 0px));
@@ -207,7 +207,7 @@
 
 /* ---------- 3D-стадион за меню (Arena3D.backdrop), свечение и движение — 27.10 ---------- */
 .fcm-bg { display: none; }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fcm-on:is(:not([data-scr]), [data-scr="hub"]) .fcm-bg { display: block; position: fixed; inset: 0; z-index: 39; pointer-events: none; }
   .fcm-bg canvas { width: 100% !important; height: 100% !important; display: block; }
   /* 3D готов: оболочка прозрачная, сверху и снизу затемнение, чтобы читались шапка и меню */
@@ -267,7 +267,7 @@
 }
 
 /* ---------- Внутренние экраны в новом виде (27.10): стадион размытым фоном, шапка как в FC ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   /* за экраном — последний кадр 3D-стадиона (вне меню он не рисуется, батарея не тратится), размытый и тёмный */
   body.fcm-on.fm3d[data-scr]:not([data-scr="hub"]):not([data-scr="football"]):not([data-scr="runner"]) .fcm-bg { display: block; position: fixed; inset: 0; z-index: -1; pointer-events: none; filter: blur(5px) brightness(.38) saturate(.8); transform: scale(1.04); }
   html:has(body.fcm-on.fm3d) { background: #060a1c; }
@@ -306,7 +306,7 @@
   body.fcm-on #fbp:has(> .fbp-slots) .fbp-go { position: static; background: none; padding: 4px 0 0; justify-content: flex-start; }
   body.fcm-on .fbp-seg button.on, body.fcm-on .fbp-go .btn { background: linear-gradient(180deg, #d8ff6a, #8fe61e) !important; color: #06101c !important; }
 }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fcm-on #sq-body .sq-pitch { height: calc(var(--l-body) - 40px) !important; margin-top: 10px !important; }
   body.fcm-on #fbp:has(> .fbp-slots) .fbp-l { display: flex !important; align-items: center; gap: 8px; padding: 6px 8px; text-align: left; }
   body.fcm-on #fbp:has(> .fbp-slots) .fbp-l i { width: 22px; height: 22px; flex: none; font-size: 12px; }
@@ -315,7 +315,7 @@
 }
 
 /* ---------- «Команда»: панель компактнее (низкие телефоны), наезд камеры на игрока ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-team.is3d .fm-tside { gap: 6px; padding: 10px; max-height: 100%; }
   .fm-team.is3d .fm-crest { width: 42px; height: 48px; font-size: 22px; } .fm-team.is3d .fm-ovr { width: 46px; height: 52px; } .fm-team.is3d .fm-ovr b { font-size: 21px; }
   .fm-team.is3d .fm-stats span { padding: 5px 2px; } .fm-team.is3d .fm-stats b { font-size: 18px; } .fm-team.is3d .fm-stats small { font-size: 10px; }
@@ -349,7 +349,7 @@
 
 /* ---------- Магазин как в FC Mobile: паки со свечением и лучами, окно пака перед покупкой ---------- */
 .fm-sheet { display: none; }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-pk, .fm-sheet, .fm-st-hero { --pc: #7fe0a0; }
   .lv1 { --pc: #56d4ff; } .lv2 { --pc: #b98bff; } .lv3 { --pc: #f2cb5c; } .lv4 { --pc: #c6ff3d; }
   .fm-pk { position: relative; overflow: hidden; display: grid !important; grid-template-rows: minmax(0, 1fr) auto auto; justify-items: center; gap: 6px; padding: 10px 10px 10px !important; border-radius: 12px; text-align: center !important;
@@ -411,13 +411,13 @@
   .fm-sh-buy { display: flex; gap: 8px; margin-top: 4px; } .fm-sh-buy .fm-btn { flex: 1; min-height: 44px; font-size: 18px !important; }
   .fm-sh-x { position: absolute; top: 8px; right: 8px; width: 34px; height: 34px; border: 0; border-radius: 50%; background: rgba(255,255,255,.1); color: #fff; font-size: 16px; }
 }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-st-mini .fm-pk-t b { font-size: 14px; } .fm-st-mini .fm-pk { gap: 4px; }
   .fm-st-mini .fm-pk-p { flex-wrap: nowrap; gap: 3px; } .fm-st-mini .fm-pr { height: 24px; padding: 0 6px; font-size: 13px; gap: 3px; } .fm-st-mini .fm-pr .coin { width: 13px; height: 13px; }
 }
 
 /* ---------- открытие пака в новом виде: стадион просвечивает, выход игрока по шагам как в FC ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fcm-on.fm3d .po-bg { background: radial-gradient(60% 50% at 50% 50%, color-mix(in srgb, var(--rc) 40%, transparent) 0%, rgba(4,6,16,.72) 70%) !important; }
   body.fcm-on .po { font-family: "Barlow Condensed", "Rubik", sans-serif; }
   body.fcm-on .po-name { font-style: italic; letter-spacing: .02em; }
@@ -432,7 +432,7 @@
 @keyframes poWi { from { opacity: 0; transform: scale(1.8); filter: blur(8px); } 60% { opacity: 1; filter: none; } to { transform: scale(1); } }
 .po:has(> .po-wi) .po-stage { visibility: hidden; }
 @media (orientation: landscape) and (max-height: 420px) { .po-wi-flag, .po-wi-pos { font-size: 84px; } .po-wi-crest { width: 92px; height: 92px; } }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fcm-on:has(> .po) .fcm { visibility: hidden; }
   body.fcm-on .po-name { text-transform: uppercase; }
 }
@@ -441,7 +441,7 @@
 .fpk.pimg { width: calc(var(--ph) * .62); }
 
 /* ---------- новые значки (27.10): белые глифы, 3D-картинки режимов, новый пак ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-ic { display: block; flex: none; }
   .fm-tab .fm-ti { width: 24px; height: 24px; filter: none; color: rgba(230,238,248,.6); }
   .fm-tab.on .fm-ti { color: #fff; filter: drop-shadow(0 0 6px rgba(198,255,61,.6)); }
@@ -459,7 +459,7 @@
   .fm-mode:hover .fm-mi { transform: translateY(-50%) scale(1.05) !important; }
   .fm-daypk img { width: auto !important; height: 48px !important; }
 }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-mode:not(.big) .fm-mi { top: 4px !important; right: 6px !important; transform: none !important; height: 64% !important; max-height: 90px !important; max-width: 48%; }
   .fm-mode:not(.big):hover .fm-mi { transform: scale(1.05) !important; }
   .fm-mode:not(.big) b { padding-right: 0; white-space: nowrap; font-size: clamp(15px, 4.6vh, 20px) !important; }
@@ -468,7 +468,7 @@
 }
 
 /* ---------- Событие как в FC Mobile (27.10): вкладки, логотип, путь «пазлом», окно задания ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-evw { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; height: 100%; min-height: 240px; --ea: #c59bff; }
   .fm-evtabs { display: flex; gap: 6px; }
   .fm-evtabs button { padding: 7px 16px !important; border-radius: 4px; background: rgba(20,22,34,.82) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.12);
@@ -552,7 +552,7 @@
 }
 
 /* ---------- Игры внутри в стиле нового вида (28.10): общие кнопки, ответы, поля, «?» и монеты ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fcm-on #app > .screen:not(#hub) .btn { border-radius: 8px !important; font-family: "Rubik", sans-serif !important; font-weight: 800 !important; letter-spacing: .01em;
     background: linear-gradient(180deg, rgba(34,52,86,.92), rgba(14,24,44,.94)) !important; color: #fff !important;
     box-shadow: inset 0 0 0 1.5px rgba(150,200,255,.28), inset 0 1px 0 rgba(255,255,255,.12), 0 6px 14px -6px rgba(0,0,0,.7) !important; transition: transform .15s, box-shadow .2s, background .2s; }
@@ -580,7 +580,7 @@
 }
 /* шапка в ряду кнопок Telegram (fm-tgbar) — первая строка сетки экранов игр больше не занята шапкой:
    левая колонка (поле, фото, путь) начинается с первой строки, иначе её низ уходил за экран */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fcm-on.fm-tgbar #transfer:not([hidden]):not(:has(.vs-mid)) > #transfer-lives { grid-row: 1; }
   body.fcm-on.fm-tgbar #transfer:not([hidden]):not(:has(.vs-mid)) > #transfer-opts { grid-row: 1 / span 2; }
   body.fcm-on.fm-tgbar #career:not([hidden]) > #career-path { grid-row: 1 / span 5; }
@@ -592,7 +592,7 @@
   body.fcm-on.fm-tgbar #ttt-grid :is(.tg-cell, .tg-head) { height: calc((var(--l-body) - 40px) / 4) !important; }
   body.fcm-on.fm-tgbar #transfer:not([hidden]):not(:has(.vs-mid)) > #transfer-stage { grid-row: 2; }
 }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   /* «Игрок дня»: подсказки плотнее и в стиле панелей FC, чтобы ввод и кнопка помещались без прокрутки */
   body.fcm-on #dly .dly-clues { margin: 0 0 8px; gap: 4px; }
   body.fcm-on #dly .dly-clue { padding: 6px 12px; border-radius: 6px; background: rgba(8,14,28,.65); box-shadow: inset 0 0 0 1px rgba(150,200,255,.14); }
@@ -600,7 +600,7 @@
 }
 
 /* ---------- Коллекция (28.10): как «Звёздные подписания» в FC ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fm3d .fcm[data-view="coll"]::after { background: linear-gradient(115deg, rgba(4,10,24,.88) 30%, rgba(20,30,80,.55) 75%, rgba(120,90,255,.15)); }
   .fm-coll { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 12px; height: 100%; min-height: 240px; }
   .fm-cl { display: grid; align-content: start; gap: 8px; padding: 12px; border-radius: 12px; overflow: auto;
@@ -661,7 +661,7 @@
 }
 
 /* ---------- замена игрока в «Команде» (28.10): лента карточек снизу поверх газона ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-swap { position: fixed; z-index: 6; left: var(--fm-l); right: var(--fm-r); bottom: calc(50px + var(--fm-b) + 6px); display: grid; gap: 6px; padding: 8px 10px 10px; border-radius: 12px;
     background: linear-gradient(180deg, rgba(10,18,38,.94), rgba(4,8,20,.97)); box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.45), 0 -10px 30px rgba(0,0,0,.5); animation: fm-up .35s cubic-bezier(.2,.9,.3,1.1); }
   @keyframes fm-up { from { transform: translateY(40px); opacity: 0; } }
@@ -682,7 +682,7 @@
 }
 
 /* ---------- открытие пака лёжа (28.10): меньше лишнего, ничего не обрезается ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   /* шапка пака ниже ряда кнопок Telegram и компактнее; одна строка «5 карточек · новых: 5» */
   body.fcm-on .po { grid-template-rows: auto minmax(0, 1fr) auto !important; }
   body.fcm-on .po-top { padding-top: max(10px, calc(var(--fm-sa, 0px) + var(--fm-ca, 0px) + 2px)) !important; min-height: 0 !important; gap: 2px !important; }
@@ -695,7 +695,7 @@
 }
 
 /* ---------- Главная как в FC Mobile (28.10) ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-home { display: grid; grid-template-columns: 74px minmax(0, 1.45fr) minmax(0, 1fr); gap: 10px; height: 100%; min-height: 240px; }
   .fm-hl { display: grid; grid-auto-rows: minmax(0, 1fr); gap: 7px; }
   .fm-lt { position: relative; display: grid !important; justify-items: center; align-content: center; gap: 3px; padding: 4px 2px !important; border-radius: 8px; text-align: center !important;
@@ -748,7 +748,7 @@
 @media (orientation: landscape) and (max-height: 400px) { .fm-sl-t em { display: none; } .fm-feat > b { font-size: 14px; } }
 
 /* ---------- Викторины в стиле FC (28.10): вопрос — стеклянная панель, ответы — плашки с буквой A/B/C/D ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fcm-on #app > .screen:not(#hub) :is(.tcard, .pcard, .player-card, .ng-card) {
     border-radius: 12px !important; background: linear-gradient(160deg, rgba(18,30,58,.9), rgba(6,12,28,.92)) !important;
     box-shadow: inset 0 0 0 1.5px rgba(150,120,255,.45), 0 0 24px rgba(120,90,255,.14), 0 12px 24px -10px rgba(0,0,0,.7) !important; }
@@ -768,13 +768,13 @@
   body.fcm-on #app > .screen:not(#hub) .lives { font-size: 20px; }
 }
 /* «Команда»: у карточек на газоне без размытой тени (filter перерисовывался при каждом сдвиге) — тень простая */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-slot3 .cc { filter: none !important; box-shadow: 0 6px 10px -4px rgba(0,0,0,.6); border-radius: 8%; }
   .fm-slot3.sel .cc { filter: none !important; box-shadow: 0 0 0 2px rgba(198,255,61,.8), 0 0 18px rgba(198,255,61,.45); }
 }
 
 /* ---------- Главная v2 (28.10, по скриншоту FC): компактно, баннер без рамки, ровное меню ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   /* меню снизу: 4 раздела ровной полосой, «Магазин» — бирюзовый, как STORE в FC */
   .fm-nav { grid-template-columns: repeat(4, 1fr) !important; height: calc(44px + var(--fm-b)) !important; background: linear-gradient(180deg, rgba(10,16,30,.92), rgba(4,8,16,.97)) !important; }
   .fm-tab b { font: 700 14px/1 "Rubik", sans-serif !important; letter-spacing: .02em; }
@@ -824,23 +824,23 @@
     box-shadow: inset 0 0 0 2px #3effa0, 0 0 20px rgba(62,255,160,.35) !important; }
   .fm-playt > b { color: #fff; text-shadow: 0 2px 6px rgba(0,0,0,.5); }
 }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fcm .fm-sl-go { padding: 10px 26px !important; border-radius: 22px !important; color: #2a1c05 !important; font: 800 14px/1 "Rubik", sans-serif !important;
     background: linear-gradient(180deg, #f6e3a8, #c9a14c 55%, #a57b2c) !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 6px 16px rgba(0,0,0,.45) !important; }
   .fm-sl-t b { background: linear-gradient(180deg, #ffffff 35%, #f1dfae) !important; -webkit-background-clip: text !important; background-clip: text !important; }
 }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-sl.jg .fm-sl-man { left: -14% !important; z-index: 3; }
   .fm-sl.jg .fm-sl-card { transform: translateX(40%) rotate(5deg) scale(.92) !important; z-index: 2; }
 }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-sl.jg .fm-sl-card { transform: translateX(14%) rotate(5deg) scale(.82) !important; }
   .fm-sl.jg .fm-sl-man { left: -20% !important; }
   .fm-sl-t b { color: #fff !important; background: none !important; -webkit-background-clip: border-box !important; background-clip: border-box !important; filter: drop-shadow(0 2px 8px rgba(0,0,0,.6)) !important; }
 }
 
 /* ---------- Главная v3 (28.10): плитки как в FC, паки сменяются, мяч в рамке, «Клуб» — только ОБЩ ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   /* плитки: стеклянный квадрат с бирюзовым светящимся краем, объёмный значок сверху, подпись внизу */
   .fm-hl { grid-auto-rows: 64px !important; gap: 12px !important; }
   .fm-home { grid-template-columns: 64px minmax(0, 1.6fr) minmax(0, 1fr) !important; }
@@ -869,7 +869,7 @@
 }
 
 /* ---------- плашка «Играть» по принципу FC (29.10): светлая мята, чёрная надпись, большой мяч в сетке с гербом ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fcm .fm-playt { position: relative; overflow: hidden !important; isolation: isolate; border-radius: 4px !important; padding: 0 !important; display: block !important;
     background: linear-gradient(100deg, #5ef08f 0%, #56e6a6 40%, #7fe3d6 75%, #bdeee9 100%) !important; box-shadow: 0 0 0 2px #47e86b !important; animation: none !important; color: #0b0b0b !important; }
   .fcm .fm-playt::before, .fcm .fm-playt::after { content: ''; position: absolute; z-index: 3; width: 9%; height: 14%; border: 1.5px solid rgba(255,255,255,.95); pointer-events: none; }
@@ -881,7 +881,7 @@
   .fcm .fm-playt > b { position: absolute; left: 10%; top: 14%; z-index: 2; font: 900 clamp(17px, 6vh, 24px)/1 "Rubik", sans-serif !important; font-style: normal !important; letter-spacing: -.01em; text-transform: uppercase; color: #0b0b0b !important; text-shadow: none !important; }
   .fcm .fm-playt:active { transform: scale(.97); filter: brightness(1.06); }
 }
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fcm .fm-playt .fm-pt-ball { top: auto !important; bottom: -24% !important; right: -20% !important; width: 82% !important; }
   .fcm .fm-playt > b { top: 12% !important; left: 9% !important; }
 }
@@ -889,7 +889,7 @@
 @media (orientation: portrait) { body.tgmob .rot-hint { background: #000 !important; } body.tgmob .rot-hint img { width: 72vw !important; max-width: 320px; filter: none !important; } body.tgmob .rot-hint i { border-color: #fff !important; box-shadow: none !important; } body.tgmob .rot-hint b { background: none !important; color: #fff !important; -webkit-background-clip: border-box !important; } }
 
 /* ---------- шрифт игры (29.10): Inter Tight — прямой жирный гротеск, как логотип канала; без наклона ---------- */
-@media (orientation: landscape) and (max-height: 620px) {
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fcm-on :is(.fcm, .fm-sheet, .po, #app > .screen, .modal-card, .toast) :is(*, *::before, *::after) { font-family: "Inter Tight", "Inter", system-ui, sans-serif !important; font-style: normal !important; }
   body.fcm-on :is(.fm-title, .fm-sl-t b, .fm-logo b, .fm-pk-t b, .fm-st-hero b, .fm-sh-info > b, .fm-cv-info > b, .fm-pi-h span b, .fm-puz-h, .fm-ev-t b, .fm-tr-t b, .fm-trn-t b, .fm-club > b, .fm-playt > b, .fm-cl-n b, .po-name, .topbar-title, .topbar-title > span, .ng-q) { font-weight: 900 !important; letter-spacing: -.03em !important; }
   body.fcm-on :is(.fm-sl-t small, .fm-logo small, .fm-ev-t small, .fm-sh-info > small, .fm-cv-info > small) { font-weight: 600 !important; letter-spacing: .2em !important; }
@@ -899,4 +899,43 @@
   .fm-tab.home .fm-ti { width: 22px !important; height: 22px !important; }
   .fm-tab.home.on .fm-ti { color: var(--fm-lime) !important; }
 }
-@media (orientation: landscape) and (max-height: 620px) { .fm-team.is3d .fm-club { justify-content: center !important; } }
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) { .fm-team.is3d .fm-club { justify-content: center !important; } }
+
+/* профиль и настройки нового вида */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-pf { position: relative; display: grid; gap: 10px; width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 14px 16px; border-radius: 14px;
+    background: linear-gradient(160deg, #141b10, #06080c); box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.35), 0 20px 50px rgba(0,0,0,.6); color: #fff; font-family: "Inter Tight", sans-serif;
+    transform: translateY(14px) scale(.97); transition: transform .3s cubic-bezier(.2,.9,.3,1.2); }
+  .fm-prof.in .fm-pf { transform: none; }
+  .fm-pf-me { display: flex; align-items: center; gap: 12px; padding-right: 40px; } .fm-ava.big { width: 52px; height: 52px; font-size: 28px; }
+  .fm-pf-me b { display: block; font: 900 22px/1 "Inter Tight", sans-serif; text-transform: uppercase; } .fm-pf-me small { display: flex; align-items: center; gap: 4px; margin-top: 4px; font: 600 12px "Inter Tight", sans-serif; color: #9fb2cc; }
+  .fm-pf-me small svg { width: 13px; height: 13px; color: #ffd23c; }
+  .fm-pf-list { display: grid; gap: 4px; }
+  .fm-pf-row { display: flex !important; justify-content: space-between; align-items: center; padding: 10px 12px !important; border-radius: 8px; background: rgba(255,255,255,.06) !important; font: 700 14px "Inter Tight", sans-serif !important; color: #fff !important; text-align: left !important; }
+  .fm-pf-row b { color: var(--fm-lime); } .fm-pf-row.danger { background: rgba(255,80,80,.12) !important; } .fm-pf-row.danger b { color: #ff8a8a; }
+}
+/* пропуск и путь трофеев в новом виде (вкладка «Задания») */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-ps { display: grid; gap: 8px; align-content: start; min-width: 0; }
+  .fm-ps .fm-qh { gap: 12px; } .fm-ps .fm-qp-t { flex: 1; }
+  .fm-ps-on { padding: 5px 10px; border-radius: 8px; background: rgba(255,210,60,.15); color: #ffd23c; font: 800 12px "Inter Tight", sans-serif; font-style: normal; }
+  .fm-ps-lines { display: flex; justify-content: space-between; font: 700 11px "Inter Tight", sans-serif; text-transform: uppercase; letter-spacing: .08em; } .fm-ps-lines small:first-child { color: #ffd23c; } .fm-ps-lines small:last-child { color: #9fb2cc; }
+  .fm-ps-track { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
+  .fm-ps-col { flex: 0 0 96px; display: grid; gap: 10px; justify-items: center; }
+  .fm-ps-n { display: grid; place-items: center; min-width: 30px; height: 22px; padding: 0 6px; border-radius: 11px; background: rgba(255,255,255,.08); font: 800 12px "Inter Tight", sans-serif; color: #9fb2cc; }
+  .fm-ps-n svg { width: 11px; height: 11px; margin-right: 2px; color: #ffd23c; }
+  .fm-ps-col.reach .fm-ps-n { background: var(--fm-lime); color: #06101c; } .fm-ps-col.cur .fm-ps-n { box-shadow: 0 0 0 2px #fff; }
+  .fm-ps-c { position: relative; display: grid !important; justify-items: center; align-content: center; gap: 4px; width: 96px; height: 92px; padding: 6px !important; border-radius: 10px; background: rgba(8,16,32,.85) !important; box-shadow: inset 0 0 0 1px var(--fm-edge); text-align: center !important; }
+  .fm-ps-col > .fm-ps-c:first-child { background: linear-gradient(180deg, rgba(120,90,10,.55), rgba(20,16,6,.9)) !important; box-shadow: inset 0 0 0 1px rgba(255,210,60,.35); }
+  .fm-ps-c b { font: 700 12px/1.1 "Inter Tight", sans-serif; color: #fff; max-width: 88px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fm-ps-a { display: grid; place-items: center; height: 40px; } .fm-ps-a :is(img, svg) { max-height: 38px; max-width: 60px; } .fm-ps-a .rw-pk { width: 26px; height: 36px; border-radius: 4px; background: var(--c); display: block; }
+  .fm-ps-c.lock { opacity: .55; } .fm-ps-c.got { opacity: .45; }
+  .fm-ps-c > i { position: absolute; top: 4px; right: 6px; font-style: normal; color: var(--fm-lime); font-weight: 900; }
+  .fm-ps-c em { position: absolute; bottom: -6px; padding: 2px 8px; border-radius: 8px; background: var(--fm-lime); color: #06101c; font: 800 10px "Inter Tight", sans-serif; font-style: normal; text-transform: uppercase; }
+  .fm-ps-c em.pr { background: #ffd23c; }
+  .fm-ps-c.ready { box-shadow: inset 0 0 0 2px var(--fm-lime), 0 0 14px rgba(198,255,61,.3); }
+  .fm-ps-track.road .fm-ps-col { flex-basis: 96px; }
+  .fm-ps .fm-qh-t small svg { width: 13px; height: 13px; color: #ffd23c; vertical-align: -2px; }
+  .fm-ps-a .coin.big { width: 30px; height: 30px; }
+  .fm-ps-c b { text-transform: none; }
+}

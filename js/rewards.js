@@ -442,5 +442,5 @@ const Rewards = (() => {
     header();
   }
 
-  return { passLevel, passSync, PASS, PASS_STEP, PASS_LEVELS, seasonEnd, questArt, questSync, qdef, claimQuest, DAILY, weekend, onEnd, addTrophies, MAX_TROPHIES, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
+  return { passLevel, passSync, PASS, PASS_STEP, PASS_LEVELS, seasonEnd, questArt, claimPass, claimRoad, ROAD, questSync, qdef, claimQuest, DAILY, weekend, onEnd, addTrophies, MAX_TROPHIES, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
 })();

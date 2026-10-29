@@ -332,11 +332,46 @@ const FCM = (() => {
     if (kind === 'week') { try { const nx = new Date(Date.parse(Release.weekKey()) + 7 * 864e5).toISOString().slice(0, 10); return Release.at(nx) - now; } catch (e) { return 0; } }
     try { return Rewards.seasonEnd() - now; } catch (e) { return 0; }
   }
+  // ---- пропуск сезона в новом виде: две линии наград (премиум сверху, бесплатно снизу), уровни, «Забрать» ----
+  function rwCell(r, st, attr) {
+    const l = Rewards.rewardLabel(r);
+    const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b1" alt="">` : r.coins ? '<i class="coin big"></i>' : l.ico;
+    return `<button class="fm-ps-c ${st}" ${attr}><span class="fm-ps-a">${art}</span><b>${esc(l.txt || l.name)}</b>${st === 'got' ? '<i>✓</i>' : st === 'ready' ? '<em>Забрать</em>' : st === 'buy' ? '<em class="pr">Премиум</em>' : ''}</button>`;
+  }
+  function passView() {
+    const p = Rewards.passSync(), L = Rewards.passLevel(), max = Rewards.PASS_LEVELS, step = Rewards.PASS_STEP, xp = L >= max ? step : p.xp - L * step;
+    const left = Math.max(0, Math.ceil((Rewards.seasonEnd() - Date.now()) / 864e5));
+    const cols = Rewards.PASS.map(([f, pr], i) => {
+      const fs = p.free.includes(i) ? 'got' : L > i ? 'ready' : 'lock', ps = p.prem.includes(i) ? 'got' : L > i ? (p.premium ? 'ready' : 'buy') : 'lock';
+      return `<div class="fm-ps-col ${L > i ? 'reach' : ''} ${L === i ? 'cur' : ''}">${rwCell(pr, ps, ps === 'ready' ? `data-fm-ps="prem:${i}"` : ps === 'buy' ? 'data-fm-psbuy' : '')}
+        <span class="fm-ps-n">${i + 1}</span>${rwCell(f, fs, fs === 'ready' ? `data-fm-ps="free:${i}"` : '')}</div>`; }).join('');
+    return `<div class="fm-ps">
+      <div class="fm-qh"><span class="fm-qp-lv"><small>Ур.</small><b>${L}</b></span><span class="fm-qp-t"><b>Пропуск · сезон ${Rewards.season()}</b><span class="fm-bar"><i style="width:${Math.round(100 * xp / step)}%"></i></span><small>${L >= max ? 'Пропуск пройден' : `${xp}/${step} очков до уровня ${L + 1}`} · ${left} ${plural(left, 'день', 'дня', 'дней')} до конца</small></span>
+        ${p.premium ? '<em class="fm-ps-on">Премиум активен</em>' : '<button class="fm-btn star sm" data-fm-psbuy>Премиум</button>'}</div>
+      <div class="fm-ps-lines"><small>Премиум</small><small>Бесплатно</small></div>
+      <div class="fm-ps-track">${cols}</div>
+      <p class="mk-note">Очки пропуска — за задания (больше всего), победы и матчи.</p></div>`;
+  }
+  // ---- путь трофеев: награды за число трофеев ----
+  function roadView() {
+    const s = Rewards.S(), t = s.trophies || 0;
+    const items = Rewards.ROAD.map(([th, r], i) => ({ th, r, i })).filter((x) => x.th <= Math.max(t + 1500, 1000));
+    const next = items.find((x) => x.th > t);
+    return `<div class="fm-ps">
+      <div class="fm-qh"><span class="fm-qh-t"><b>Путь трофеев</b><small>${cup}${t} трофеев${next ? ` · до следующей награды ${next.th - t}` : ''}</small></span></div>
+      <div class="fm-ps-track road">${items.map((x) => { const st = s.road.includes(x.i) ? 'got' : t >= x.th ? 'ready' : 'lock';
+        return `<div class="fm-ps-col ${t >= x.th ? 'reach' : ''}">${rwCell(x.r, st, st === 'ready' ? `data-fm-road="${x.i}"` : '')}<span class="fm-ps-n">${cup}${x.th}</span></div>`; }).join('')}</div>
+      <p class="mk-note">Трофеи — за победы в матчах и играх.</p></div>`;
+  }
   function quests() {
     let q; try { q = Rewards.questSync(); } catch (e) { q = { list: [], wlist: [], slist: [] }; }
     const lists = { day: q.list, week: q.wlist, season: q.slist || [] };
     const n = (l) => l.filter((x) => x.done && !x.got).length;
-    const L = [['day', 'Ежедневные', n(lists.day) ? `Забрать: ${n(lists.day)}` : ''], ['week', 'Недельные', n(lists.week) ? `Забрать: ${n(lists.week)}` : ''], ['season', 'Сезон', n(lists.season) ? `Забрать: ${n(lists.season)}` : '']];
+    let c = {}; try { c = Rewards.claimable(); } catch (e) { /* ок */ }
+    const L = [['day', 'Ежедневные', n(lists.day) ? `Забрать: ${n(lists.day)}` : ''], ['week', 'Недельные', n(lists.week) ? `Забрать: ${n(lists.week)}` : ''], ['season', 'Сезон', n(lists.season) ? `Забрать: ${n(lists.season)}` : ''],
+      ['pass', 'Пропуск', c.pass ? `Забрать: ${c.pass}` : ''], ['road', 'Путь трофеев', c.road ? `Забрать: ${c.road}` : '']];
+    if (sub.quests === 'pass') return `<div class="fm-split">${rail(L, 'quests')}<div class="fm-body">${passView()}</div></div>`;
+    if (sub.quests === 'road') return `<div class="fm-split">${rail(L, 'quests')}<div class="fm-body">${roadView()}</div></div>`;
     const list = lists[sub.quests], rank = (x) => (x.done && !x.got ? 0 : x.got ? 2 : 1);
     const done = list.filter((x) => x.done).length;
     const tiles = list.slice().sort((a, b) => rank(a) - rank(b)).map((x) => { const d = Rewards.qdef(x.id); if (!d) return '';
@@ -350,7 +385,7 @@ const FCM = (() => {
     try {
       const p = Rewards.passSync(), lv = Rewards.passLevel(), max = Rewards.PASS_LEVELS, step = Rewards.PASS_STEP;
       const nx = Rewards.PASS[Math.min(lv, max - 1)], lb = nx ? Rewards.rewardLabel(nx[0]) : null, xp = lv >= max ? step : p.xp - lv * step;
-      pass = `<button class="fm-qpass" data-act="rewards"><span class="fm-qp-lv"><small>Ур.</small><b>${lv}</b></span>
+      pass = `<button class="fm-qpass" data-fm-sub="quests:pass"><span class="fm-qp-lv"><small>Ур.</small><b>${lv}</b></span>
         <span class="fm-qp-t"><b>Пропуск сезона</b><span class="fm-bar"><i style="width:${Math.round(100 * xp / step)}%"></i></span><small>${xp}/${step} очков до уровня ${Math.min(max, lv + 1)}</small></span>
         ${lb ? `<span class="fm-qp-nx"><small>Дальше</small><span class="fm-qp-art">${lb.ico}</span><b>${esc(lb.txt || lb.name)}</b></span>` : ''}<i class="fm-qp-go">›</i></button>`;
     } catch (e) {}
@@ -404,6 +439,31 @@ const FCM = (() => {
     return `<div class="fm-split">${rail(L, 'store')}<div class="fm-body">${body}</div></div>`;
   }
   // окно пака: пак крупно, что внутри, шансы, кнопки цены
+  // профиль и настройки в новом виде (вместо старого экрана «Профиль»): ник, трофеи, коллекция, звук, история, «Начать заново»
+  function profileSheet() {
+    const u = Store.d.user || {}, own = Object.keys((Store.d.cards && Store.d.cards.own) || {}).length;
+    const el = document.createElement('div'); el.className = 'fm-sheet fm-prof';
+    const row = (act, t, v) => `<button class="fm-pf-row" data-act="${act}"><span>${t}</span><b>${v}</b></button>`;
+    const draw = () => { el.innerHTML = `<div class="fm-pf">
+        <div class="fm-pf-me"><span class="fm-ava big">${esc(u.emoji || '⚽')}</span><span><b>${esc(u.nick || 'Игрок')}</b><small>${cup}${trophies()} трофеев · карточек ${own}</small></span></div>
+        <div class="fm-pf-list">
+          ${row('music', 'Фоновая музыка', Store.d.music === false ? 'Выкл' : 'Вкл')}
+          ${row('sound', 'Звуки', Store.d.sound ? 'Вкл' : 'Выкл')}
+          <button class="fm-pf-row" data-fmp="coll"><span>Коллекция</span><b>›</b></button>
+          ${typeof Eco !== 'undefined' && Eco.stage() ? '<button class="fm-pf-row" data-fmp="hist"><span>История операций</span><b>›</b></button>' : ''}
+          ${row('board', 'Таблица канала', '›')}
+          ${row('report', 'Нашёл ошибку', '›')}
+          ${typeof CONFIG !== 'undefined' && CONFIG.stage ? '<button class="fm-pf-row danger" data-act="wipe"><span>Начать заново (только превью)</span><b>↺</b></button>' : ''}
+        </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`; };
+    draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
+    const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); };
+    el.addEventListener('click', (e) => {
+      if (e.target === el || e.target.closest('.fm-sh-x')) return close();
+      const p = e.target.closest('[data-fmp]'); if (p) { close(); if (p.dataset.fmp === 'coll') { tab = 'coll'; render(); } else { Market.open('hist'); tab = 'market'; render(); } return; }
+      const a = e.target.closest('[data-act]'); if (a && /^(music|sound)$/.test(a.dataset.act)) setTimeout(draw, 50);
+      else if (a) close();
+    });
+  }
   function packSheet(id) {
     const x = packList().find((p) => p.id === id); if (!x) return;
     const P0 = Cards.PACKS[x.level], P = { ...P0, w: effW(P0.w) }, tot = P.w.reduce((a, w) => a + w[1], 0);
@@ -535,12 +595,19 @@ const FCM = (() => {
     document.body.appendChild(bgHost);
     document.body.appendChild(root);
     document.body.classList.toggle('fcm-on', on());
-    const land = window.matchMedia ? matchMedia('(orientation: landscape) and (max-height: 620px)') : { matches: true };
+    const land = window.matchMedia ? matchMedia('(orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px)') : { matches: true };
     const shown = () => on() && land.matches && (!document.body.dataset.scr || document.body.dataset.scr === 'hub') && !(typeof Modal !== 'undefined' && Modal.isOpen);
     if (typeof Arena3D !== 'undefined') Arena3D.backdrop(bgHost, shown).then((b) => {
       if (b) { bg3 = b; b.view(tab, true); document.body.classList.add('fm3d'); render(); }
       window.__fm3d = true; dispatchEvent(new Event('fm3d')); // экран загрузки ждёт стадион (index.html, Boot)
     }).catch((e) => { console.warn('FCM 3D', e); window.__fm3d = true; dispatchEvent(new Event('fm3d')); });
+    // Старые экраны оболочки в новом виде не открываются: ведём в новые разделы (раньше пропуск, задания, галерея, состав, профиль
+    // открывали прежнюю игру). Игры и викторины (остальные экраны) открываются как обычно.
+    const OLD = { rewards: () => { tab = 'quests'; sub.quests = 'pass'; }, shop: () => { tab = 'store'; }, squad: () => { tab = 'team'; }, profile: () => setTimeout(profileSheet, 0), achievements: () => setTimeout(profileSheet, 0), hub: () => {} };
+    const show0 = Screens.show.bind(Screens);
+    if (typeof Rewards !== 'undefined') { const open0 = Rewards.open; Rewards.open = (t) => { if (!on()) return open0(t); Modal.close();
+      if (t === 'cards') tab = 'coll'; else { tab = 'quests'; sub.quests = t === 'road' ? 'road' : t === 'quests' ? 'day' : 'pass'; } show0('hub'); render(); }; }
+    Screens.show = (id) => { if (on() && OLD[id]) { OLD[id](); show0('hub'); if (typeof Modal !== 'undefined' && Modal.isOpen && id !== 'hub') Modal.close(); render(); return; } show0(id); };
     render();
     root.addEventListener('click', (e) => {
       if (tab === 'market' && Market.click(e)) return;
@@ -558,6 +625,7 @@ const FCM = (() => {
       if (e.target.closest('[data-fm-unfocus]')) { Sound.play('tap'); return focusOn(-1); }
       const stp = e.target.closest('[data-fm-step]'); if (stp) { Sound.play('tap'); const xi = Squad.S().xi, d = +stp.dataset.fmStep; let i = focusI;
         for (let n = 0; n < 11; n++) { i = (i + d + 11) % 11; if (Cards.get(xi[i])) break; } return focusOn(i); }
+      if (e.target.closest('.fm-me[data-act="profile"]')) { e.stopPropagation(); Sound.play('tap'); return profileSheet(); }
       const co = e.target.closest('[data-act="collection"]'); if (co) { e.stopPropagation(); Sound.play('tap'); tab = 'coll'; render(); return; }
       const cf = e.target.closest('[data-fm-cf]'); if (cf) { Sound.play('tap'); const [k, v] = cf.dataset.fmCf.split(':'); CQ[k] = k === 'mine' ? !!v : v; CQ.n = 48; render(); return; }
       if (e.target.closest('[data-fm-sort]')) { Sound.play('tap'); CQ.sort = CQ.sort === 'r' ? 'name' : 'r'; render(); return; }
@@ -568,6 +636,9 @@ const FCM = (() => {
       const pk = e.target.closest('[data-fm-pk]'); if (pk) { Sound.play('tap'); return packSheet(pk.dataset.fmPk); }
       const m = e.target.closest('[data-fm-mode]'); if (m) { Sound.play('tap'); return startMode(m.dataset.fmMode); }
       const tr = e.target.closest('[data-fm-train]'); if (tr) { Sound.play('tap'); return App.openFootball('fk', tr.dataset.fmTrain); }
+      const ps = e.target.closest('[data-fm-ps]'); if (ps) { const [line, i] = ps.dataset.fmPs.split(':'); Rewards.claimPass(+i, line); return setTimeout(render, 50); }
+      if (e.target.closest('[data-fm-psbuy]')) { Sound.play('tap'); return Rewards.buyPass(); }
+      const rd = e.target.closest('[data-fm-road]'); if (rd) { Rewards.claimRoad(+rd.dataset.fmRoad); return setTimeout(render, 50); }
       const c = e.target.closest('[data-fm-claim]'); if (c) { Rewards.claimQuest(c.dataset.fmClaim); return render(); }
       if (e.target.closest('[data-fm-gift]')) { Modal.open('<h2>Билет события</h2><p>Здесь будет подарок события: билет, который открывает главу. В макете награды ещё не выдаются — подключим их с проверкой на сервере.</p>', [{ label: 'Понятно' }]); return; }
     });
