@@ -6,7 +6,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from '../../prototypes/balotelli/vendor/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from '../../prototypes/balotelli/vendor/meshopt_decoder.module.js';
-window.renderBall = async (px) => {
+window.renderBall = async (px, opt) => {
   const R = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); R.setSize(px, px); R.setClearColor(0, 0); R.toneMapping = THREE.ACESFilmicToneMapping; document.body.appendChild(R.domElement);
   const sc = new THREE.Scene(), env = new THREE.Scene();
   env.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ color: 0x0a1a20, side: THREE.BackSide })));
@@ -17,6 +17,22 @@ window.renderBall = async (px) => {
   const bb = new THREE.Box3().setFromObject(g), c = bb.getCenter(new THREE.Vector3()), s = 2 / bb.getSize(new THREE.Vector3()).x;
   g.position.sub(c); const w = new THREE.Group(); w.add(g); w.scale.setScalar(s); w.rotation.set(0.35, -0.6, 0.1); sc.add(w);
   g.traverse((o) => { if (o.isMesh) { o.material.envMapIntensity = 1.2; o.material.roughness = Math.min(o.material.roughness ?? 0.4, 0.35); } });
+  if (opt && opt.net) {
+    // сетка ворот, обтянувшая мяч: ячейки-ромбы, нити чуть провисают между узлами; видна только передняя половина
+    const nm = new THREE.MeshStandardMaterial({ color: 0x45ff5c, emissive: 0x1fbf2e, emissiveIntensity: 0.6, roughness: 0.4 }), r = 1.03, N = 6, pts = (a0, b0, a1, b1) => {
+      const P = []; for (let i = 0; i <= 12; i++) { const t = i / 12, a = a0 + (a1 - a0) * t, b = b0 + (b1 - b0) * t, rr = r + 0.03 * Math.sin(Math.PI * t);
+        P.push(new THREE.Vector3(rr * Math.cos(b) * Math.sin(a), rr * Math.sin(b), rr * Math.cos(b) * Math.cos(a))); } return new THREE.CatmullRomCurve3(P); };
+    const net = new THREE.Group(), step = Math.PI / N;
+    for (let i = 0; i <= N; i++) for (let j = -4; j <= 4; j++) { const a = i * step - 0.1, b = j * step * 0.9;
+      [[a, b, a + step, b + step * 0.9], [a, b, a + step, b - step * 0.9]].forEach(([a0, b0, a1, b1]) => { if (Math.abs(b1) > 1.45 || Math.abs(b0) > 1.45) return;
+        net.add(new THREE.Mesh(new THREE.TubeGeometry(pts(a0, b0, a1, b1), 10, 0.016, 6), nm)); }); }
+    net.rotation.set(0.15, 0.05, 0.1); sc.add(net);
+  }
+  if (opt && opt.crest) { // герб JG на мяче — наклейка, повёрнутая к камере
+    const t = await new THREE.TextureLoader().loadAsync('../../img/fcm/crest.webp'); t.colorSpace = THREE.SRGBColorSpace;
+    const d = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.6), new THREE.MeshStandardMaterial({ map: t, transparent: true, roughness: 0.35, metalness: 0.3 }));
+    d.position.set(-0.36, 0.28, 0.9).normalize().multiplyScalar(1.02); d.lookAt(d.position.clone().multiplyScalar(2)); d.rotateZ(0.15); sc.add(d);
+  }
   const cam = new THREE.PerspectiveCamera(26, 1, 0.1, 50); cam.position.set(0, 0, 4.6); R.render(sc, cam); return R.domElement.toDataURL('image/png');
 };
 window.ready = true;
