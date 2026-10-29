@@ -10,6 +10,10 @@ const FCM = (() => {
   const UI = () => Store.d.ui || (Store.d.ui = {});
   // старого вида больше нет (28.10): новый всегда; старая главная остаётся только для вертикального экрана
   const on = () => true;
+  // старые разделы с живой логикой (таблица канала, ИПК, клуб) показываются внутри нового меню: их содержимое (#…-body)
+  // переносится в новую оболочку, шапка и нижнее меню — новые; старое нижнее меню и старые экраны не видны
+  const HOST = { board: ['board-body', 'Таблица канала'], sbc: ['sbc-body', 'Испытания'], myclub: ['club-body', 'Клуб'] };
+  const park = () => Object.entries(HOST).forEach(([id, [bid]]) => { const n = document.getElementById(bid), sec = document.getElementById(id); if (n && sec && root && root.contains(n)) sec.appendChild(n); });
   let tab = 'play', sub = { quests: 'day', store: 'top', events: 'jg' };
   let lastPlace = ''; // положение камеры при прошлой расстановке карточек
   let focusI = -1; // игрок, на которого наехала камера в «Команде»
@@ -44,9 +48,9 @@ const FCM = (() => {
 
   // ---------- верх ----------
   function top() {
-    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? 'Играть' : tab === 'market' ? 'Трансферный рынок' : (TABS.find((t) => t[0] === tab) || [])[1];
+    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? 'Играть' : tab === 'market' ? 'Трансферный рынок' : HOST[tab] ? HOST[tab][1] : (TABS.find((t) => t[0] === tab) || [])[1];
     return `<header class="fm-top">
-      ${title ? `<button class="fm-back" data-fm-tab="${tab === 'coll' ? 'team' : tab === 'market' ? 'store' : 'play'}" aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
+      ${title ? `<button class="fm-back" ${HOST[tab] ? 'data-fm-hback' : `data-fm-tab="${tab === 'coll' ? 'team' : tab === 'market' ? 'store' : 'play'}"`} aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
         : `<button class="fm-me" data-act="profile"><span class="fm-ava">${esc(u.emoji || '⚽')}</span><span class="fm-who"><b>${esc(u.nick || 'Игрок')}</b><small>${cup}${trophies()}</small></span></button>`}
       <i class="fm-sp"></i>
       <span class="fm-cur">${coin}<b class="coin-count">${Store.d.coins || 0}</b></span>
@@ -568,13 +572,15 @@ const FCM = (() => {
   function render() {
     if (!root || !on()) return;
     if (tab === 'store' && sub.store === 'market') { sub.store = 'top'; tab = 'market'; }
-    const body = { play, team, events, quests, store, coll, modes, market: () => Market.render() }[tab]();
+    park();
+    const body = HOST[tab] ? `<div class="fm-host fm-host-${tab}"></div>` : { play, team, events, quests, store, coll, modes, market: () => Market.render() }[tab]();
     root.dataset.view = tab;
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
     if (typeof Coins !== 'undefined') Coins.render();
     lastPlace = '';
     if (bg3) { bg3.view(tab === 'market' ? 'store' : tab); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
     if (tab === 'market') Market.load();
+    if (HOST[tab]) { const n = document.getElementById(HOST[tab][0]), h = root.querySelector('.fm-host'); if (n && h) h.appendChild(n); }
   }
   // Telegram во весь экран: сверху ряд его кнопок («Назад»/«Закрыть» слева, «⋁ …» справа). Свою шапку ставим в этот
   // же ряд — между кнопками, чтобы не терять высоту экрана лёжа.
@@ -603,15 +609,18 @@ const FCM = (() => {
     }).catch((e) => { console.warn('FCM 3D', e); window.__fm3d = true; dispatchEvent(new Event('fm3d')); });
     // Старые экраны оболочки в новом виде не открываются: ведём в новые разделы (раньше пропуск, задания, галерея, состав, профиль
     // открывали прежнюю игру). Игры и викторины (остальные экраны) открываются как обычно.
-    const OLD = { rewards: () => { tab = 'quests'; sub.quests = 'pass'; }, shop: () => { tab = 'store'; }, squad: () => { tab = 'team'; }, profile: () => setTimeout(profileSheet, 0), achievements: () => setTimeout(profileSheet, 0), hub: () => {} };
+    const OLD = { rewards: () => { tab = 'quests'; sub.quests = 'pass'; }, shop: () => { tab = 'store'; }, squad: () => { tab = 'team'; }, profile: () => setTimeout(profileSheet, 0), achievements: () => setTimeout(profileSheet, 0), hub: () => { if (HOST[tab]) tab = 'play'; } };
     const show0 = Screens.show.bind(Screens);
     if (typeof Rewards !== 'undefined') { const open0 = Rewards.open; Rewards.open = (t) => { if (!on()) return open0(t); Modal.close();
-      if (t === 'cards') tab = 'coll'; else { tab = 'quests'; sub.quests = t === 'road' ? 'road' : t === 'quests' ? 'day' : 'pass'; } show0('hub'); render(); }; }
-    Screens.show = (id) => { if (on() && OLD[id]) { OLD[id](); show0('hub'); if (typeof Modal !== 'undefined' && Modal.isOpen && id !== 'hub') Modal.close(); render(); return; } show0(id); };
+      if (HOST[tab] === HOST.sbc && !t) { tab = 'team'; show0('hub'); return render(); } if (t === 'cards') tab = 'coll'; else { tab = 'quests'; sub.quests = t === 'road' ? 'road' : t === 'quests' ? 'day' : 'pass'; } show0('hub'); render(); }; }
+    Screens.show = (id) => {
+      if (on() && HOST[id]) { tab = id; show0('hub'); Screens.current = id; if (typeof Modal !== 'undefined' && Modal.isOpen) Modal.close(); render(); return; }
+      if (on() && OLD[id]) { OLD[id](); show0('hub'); if (typeof Modal !== 'undefined' && Modal.isOpen && id !== 'hub') Modal.close(); render(); return; } show0(id); };
     render();
     root.addEventListener('click', (e) => {
       if (tab === 'market' && Market.click(e)) return;
-      const t = e.target.closest('[data-fm-tab]'); if (t) { Sound.play('tap'); tab = t.dataset.fmTab; swapI = -1; if (focusI >= 0) { focusI = -1; if (bg3) bg3.unfocus(); } render(); root.querySelector('.fm-main').scrollTop = 0; return; }
+      if (e.target.closest('[data-fm-hback]')) { Sound.play('tap'); if (tab === 'sbc') { const b = document.getElementById('sbc-back'); if (b) b.click(); return; } tab = tab === 'myclub' ? 'play' : 'play'; Screens.current = 'hub'; return render(); }
+      const t = e.target.closest('[data-fm-tab]'); if (t) { Sound.play('tap'); if (HOST[Screens.current]) Screens.current = 'hub'; tab = t.dataset.fmTab; swapI = -1; if (focusI >= 0) { focusI = -1; if (bg3) bg3.unfocus(); } render(); root.querySelector('.fm-main').scrollTop = 0; return; }
       const s = e.target.closest('[data-fm-sub]'); if (s) { Sound.play('tap'); const [k, v] = s.dataset.fmSub.split(':'); sub[k] = v; render(); return; }
       if (e.target.closest('[data-fm-auto]')) { Sound.play('whistle'); haptic('ok'); Squad.auto(); return render(); }
       if (e.target.closest('[data-fm-swap]')) { Sound.play('tap'); return openSwap(focusI); }

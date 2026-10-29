@@ -21,7 +21,7 @@
       linear-gradient(180deg, #0b1830 0%, #070d1a 70%); }
   /* пока грузится 3D-стадион — тёмный фон с полем внизу, без старого кадра игры (казалось, что запускается старая версия) */
   .fcm::before { content: ''; position: absolute; inset: 0; z-index: -1; background: radial-gradient(70% 50% at 50% 115%, rgba(60,200,90,.3), transparent 70%), linear-gradient(180deg, #0b1830, #060a1c 75%); }
-  .fcm button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; -webkit-tap-highlight-color: transparent; }
+  .fcm button:where(:not(.fm-host *)) { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; text-align: left; -webkit-tap-highlight-color: transparent; }
   .fcm img { display: block; }
   .fcm b, .fcm small, .fcm em { min-width: 0; font-style: normal; }
   .fcm :is(button, .fm-of, .fm-q):active { transform: scale(.97); }
@@ -938,4 +938,44 @@
   .fm-ps .fm-qh-t small svg { width: 13px; height: 13px; color: #ffd23c; vertical-align: -2px; }
   .fm-ps-a .coin.big { width: 30px; height: 30px; }
   .fm-ps-c b { text-transform: none; }
+}
+
+/* старые разделы внутри нового меню (таблица канала, ИПК, клуб): та же логика, оформление нового вида */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-host { --fx-panel: rgba(8,16,32,.82); --fx-line: rgba(160,190,255,.14); --fx-mint: #c6ff3d; color: #fff; min-width: 0; }
+  .fm-host :is(.fx-tabs) { margin: 0 0 8px; padding: 0; }
+  .fm-host .fx-tabs button { padding: 7px 14px; border-radius: 8px; border: 0; background: rgba(8,16,32,.78); box-shadow: inset 0 0 0 1px var(--fx-line); font: 700 13px "Inter Tight", sans-serif; text-transform: uppercase; }
+  .fm-host .fx-tabs button.on { border: 0 !important; outline: 0 !important; background: linear-gradient(90deg, rgba(198,255,61,.25), rgba(198,255,61,.06)); box-shadow: inset 0 -2px 0 #c6ff3d, inset 0 0 0 1px rgba(198,255,61,.35); color: #fff; }
+  .fm-host :is(.fx-card, .fx-club, .sx-head, .sx-req, .bd-row, .bd-empty, .kb-card, .kb-sec) { background: rgba(8,16,32,.82) !important; border: 0 !important; box-shadow: inset 0 0 0 1px var(--fx-line) !important; border-radius: 10px !important; }
+  .fm-host .fx-card { padding: 10px 12px 0 !important; }
+  .fm-host .fx-card:hover { box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.45) !important; }
+  .fm-host :is(.fx-btn, .fx-mini, .btn.gold) { border-radius: 8px !important; background: linear-gradient(180deg, #d8ff6a, #8fe61e) !important; color: #06101c !important; box-shadow: none !important; font: 800 14px "Inter Tight", sans-serif !important; text-transform: uppercase; }
+  .fm-host :is(.fx-btn.ghost, .btn.ghost, .btn:not(.gold)) { background: rgba(8,16,32,.85) !important; color: #fff !important; box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.18) !important; }
+  .fm-host .fx-btn:disabled { opacity: .45; }
+  .fm-host .fx-info { background: rgba(255,255,255,.1); color: #fff; border-radius: 50%; }
+  .fm-host .fx-h b { font: 900 18px/1.1 "Inter Tight", sans-serif; text-transform: uppercase; }
+  .fm-host .fx-diff i, .fm-host .fx-seg { background-color: rgba(255,255,255,.14); }
+  .fm-host .sx-pitch { border-radius: 10px; background: linear-gradient(180deg, rgba(30,120,60,.55), rgba(10,50,25,.7)); box-shadow: inset 0 0 0 1px rgba(198,255,61,.25); }
+  .fm-host .sx-slot { border-radius: 8px; }
+  .fm-host .sx-bar { position: static !important; margin: 0 !important; padding: 0 !important; background: none !important; }
+  .fm-host .sx-warn { padding: 8px 10px !important; border-radius: 10px !important; font-size: 12px; }
+  /* сборка испытания лёжа: слева условия и кнопки, справа поле */
+  .fm-host #sbc-body:has(> .sx-pitch) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); grid-auto-rows: min-content; gap: 8px; align-items: start; }
+  .fm-host #sbc-body:has(> .sx-pitch) > :not(.sx-pitch) { grid-column: 1; margin: 0 !important; }
+  .fm-host #sbc-body:has(> .sx-pitch) > .sx-pitch { grid-column: 2; grid-row: 1 / span 6; margin: 0 !important; max-height: calc(100vh - 110px); }
+  /* таблица канала: слева разделы как у нового меню */
+  .fm-host .srw { display: grid !important; grid-template-columns: 150px minmax(0, 1fr) !important; gap: 10px; }
+  .fm-host .sr-b small { white-space: nowrap; }
+  .fm-host .sr-rail { display: grid; gap: 6px; align-content: start; position: sticky; top: 0; }
+  .fm-host .sr-b { display: flex !important; flex-direction: row !important; justify-content: flex-start !important; align-items: center; gap: 8px; padding: 8px 10px !important; border-radius: 8px; background: rgba(8,16,32,.82) !important; box-shadow: inset 0 0 0 1px var(--fx-line); color: #fff; }
+  .fm-host .sr-b .sr-i { width: 20px; height: 20px; background: none !important; box-shadow: none !important; } .fm-host .sr-b .sr-i svg { width: 18px; height: 18px; }
+  .fm-host .sr-b small { font: 800 13px "Inter Tight", sans-serif; text-transform: uppercase; color: #fff; }
+  .fm-host .sr-b.on { background: linear-gradient(90deg, rgba(198,255,61,.22), rgba(198,255,61,.05)) !important; box-shadow: inset 3px 0 0 #c6ff3d, inset 0 0 0 1px rgba(198,255,61,.3); }
+  .fm-host .bd-list { display: grid; gap: 4px; }
+  .fm-host .bd-row { padding: 7px 10px; } .fm-host .bd-row.me { box-shadow: inset 3px 0 0 #c6ff3d, inset 0 0 0 1px rgba(198,255,61,.35) !important; }
+  .fm-host .bd-row.top .bd-place { color: #ffd23c; }
+  .fm-host .bd-empty { padding: 18px; text-align: center; } .fm-host .bd-empty svg { color: #c6ff3d; }
+  .fm-host .bd-head, .fm-host .bd-you { color: #9fb2cc; font: 600 12px/1.3 "Inter Tight", sans-serif; }
+  .fm-host .bd-games button { padding: 5px 10px; border-radius: 8px; background: rgba(8,16,32,.8); box-shadow: inset 0 0 0 1px var(--fx-line); color: #fff; font: 700 12px "Inter Tight", sans-serif; }
+  .fm-host .bd-games button.on { background: #c6ff3d; color: #06101c; }
 }
