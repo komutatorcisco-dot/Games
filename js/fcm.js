@@ -89,12 +89,12 @@ const FCM = (() => {
     return `<div class="fm-home">
       <div class="fm-hl">
         ${tile('data-fm-tab="events"', '<img src="img/fcm/ic-events.webp" alt="">', 'События', true, 'c1')}
-        ${typeof Wheel !== 'undefined' ? tile('data-act="wheel"', '<img src="img/packs/pk0-160.webp" alt="">', day ? 'Пак дня' : 'Завтра', day, 'c2') : ''}
+        ${typeof Wheel !== 'undefined' ? tile('data-act="wheel"', '<img src="img/packs/pk0-160.webp?v=b1" alt="">', day ? 'Пак дня' : 'Завтра', day, 'c2') : ''}
         ${tile('data-act="dly"', '<img src="img/fcm/ic-daily.webp" alt="">', 'Игрок дня', false, 'c3')}
       </div>
       <div class="fm-hero2">${SLIDES.map(slide).join('')}</div>
       <div class="fm-hr">
-        <button class="fm-feat" data-fm-tab="store"><b>Паки Jackson Games</b>${PKS.map((x, i) => `<span class="fm-pf ${i === pkI ? 'on' : ''} ${x.lv.length > 1 ? 'all' : ''}" data-i="${i}">${x.lv.map((l) => `<img src="img/packs/pk${l}-360.webp" alt="">`).join('')}<em>${x.t}</em></span>`).join('')}</button>
+        <button class="fm-feat" data-fm-tab="store"><b>Паки Jackson Games</b>${PKS.map((x, i) => `<span class="fm-pf ${i === pkI ? 'on' : ''} ${x.lv.length > 1 ? 'all' : ''}" data-i="${i}">${x.lv.map((l) => `<img src="img/packs/pk${l}-360.webp?v=b1" alt="">`).join('')}<em>${x.t}</em></span>`).join('')}</button>
         <div class="fm-hr2">
           <button class="fm-club" data-fm-tab="team"><b>Клуб</b><span><i class="fm-ovr"><small>ОБЩ</small><b>${inf.r || '—'}</b></i></span></button>
           <button class="fm-playt" data-fm-tab="modes"><svg class="fm-pt-tri" viewBox="0 0 440 220" preserveAspectRatio="none" aria-hidden="true"><path d="M132 116h7l-4 5z" opacity="0.39"/><path d="M156 116h8l-4 6z" opacity="0.42"/><path d="M180 116h9l-4 6z" opacity="0.44"/><path d="M203 115h9l-5 7z" opacity="0.46"/><path d="M227 115h10l-5 7z" opacity="0.49"/><path d="M251 115h11l-5 7z" opacity="0.51"/><path d="M120 140h8l-4 5z" opacity="0.40"/><path d="M144 140h9l-4 6z" opacity="0.44"/><path d="M167 139h10l-5 7z" opacity="0.47"/><path d="M191 139h11l-5 7z" opacity="0.51"/><path d="M214 139h11l-6 8z" opacity="0.54"/><path d="M238 139h12l-6 9z" opacity="0.58"/><path d="M261 138h13l-7 9z" opacity="0.61"/><path d="M84 164h7l-4 5z" opacity="0.39"/><path d="M108 164h9l-4 6z" opacity="0.44"/><path d="M131 163h10l-5 7z" opacity="0.48"/><path d="M154 163h11l-6 8z" opacity="0.53"/><path d="M178 163h12l-6 9z" opacity="0.57"/><path d="M201 162h14l-7 9z" opacity="0.62"/><path d="M225 162h15l-7 10z" opacity="0.66"/><path d="M248 162h16l-8 11z" opacity="0.71"/><path d="M96 188h8l-4 6z" opacity="0.41"/><path d="M119 187h10l-5 7z" opacity="0.47"/><path d="M142 187h11l-6 8z" opacity="0.53"/><path d="M166 187h13l-6 9z" opacity="0.58"/><path d="M189 186h14l-7 10z" opacity="0.64"/><path d="M212 186h16l-8 11z" opacity="0.70"/><path d="M235 185h17l-9 12z" opacity="0.75"/><path d="M259 185h19l-9 13z" opacity="0.81"/><path d="M84 212h9l-4 6z" opacity="0.44"/><path d="M107 211h10l-5 7z" opacity="0.50"/><path d="M130 211h12l-6 9z" opacity="0.57"/><path d="M153 210h14l-7 10z" opacity="0.64"/><path d="M176 210h16l-8 11z" opacity="0.71"/><path d="M199 209h18l-9 12z" opacity="0.77"/><path d="M222 209h19l-10 14z" opacity="0.84"/><path d="M245 208h21l-11 15z" opacity="0.91"/></svg><img class="fm-pt-ball" src="img/fcm/ball-net.webp?v=2" alt=""><b>Играть</b></button>
@@ -378,7 +378,7 @@ const FCM = (() => {
   }
   const price = (x) => `${x.coins ? `<span class="fm-pr c">${coin}${x.coins}</span>` : ''}${x.stars ? `<span class="fm-pr s">${StarShop.free() ? 0 : x.stars} ⭐</span>` : ''}`;
   const pkCard = (x, big) => `<button class="fm-pk lv${x.level} ${big ? 'big' : ''}" data-fm-pk="${x.id}">
-      <i class="fm-pk-glow"></i><img class="fm-pk-img" src="img/packs/pk${x.level}-360.webp" alt="" loading="lazy" draggable="false">
+      <i class="fm-pk-glow"></i><img class="fm-pk-img" src="img/packs/pk${x.level}-360.webp?v=b1" alt="" loading="lazy" draggable="false">
       <span class="fm-pk-t"><b>${esc(x.name)}</b><span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span></span>
       <span class="fm-pk-p">${price(x)}</span></button>`;
   function store() {
@@ -389,10 +389,10 @@ const FCM = (() => {
     if (sub.store === 'top') {
       const jack = list.find((x) => x.id === 'jack'), rest = list.filter((x) => ['basic', 'gold', 'legend'].includes(x.id));
       body = `<div class="fm-st-top">
-        ${jack ? `<button class="fm-st-hero" data-fm-pk="jack"><i class="fm-st-rays"></i><img src="img/packs/pk4-360.webp" alt="" draggable="false">
+        ${jack ? `<button class="fm-st-hero" data-fm-pk="jack"><i class="fm-st-rays"></i><img src="img/packs/pk4-360.webp?v=b1" alt="" draggable="false">
           <span><small>Лучший пак</small><b>${esc(jack.name)}</b><em>${esc(jack.sub)}</em><span class="fm-pk-p">${price(jack)}</span></span></button>` : ''}
         <div class="fm-st-col">
-          <button class="fm-daypk ${day ? 'hot' : ''}" data-act="wheel"><img src="img/packs/pk0-160.webp" alt=""><span><b>Пак дня</b><small>${day ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${day ? 'Забрать' : 'Завтра'}</em></button>
+          <button class="fm-daypk ${day ? 'hot' : ''}" data-act="wheel"><img src="img/packs/pk0-160.webp?v=b1" alt=""><span><b>Пак дня</b><small>${day ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${day ? 'Забрать' : 'Завтра'}</em></button>
           <div class="fm-st-mini">${rest.map((x) => pkCard(x)).join('')}</div>
         </div></div>`;
     } else if (sub.store === 'packs') body = `<div class="fm-pks">${list.map((x) => pkCard(x)).join('')}</div>`;
@@ -406,7 +406,7 @@ const FCM = (() => {
     const P = Cards.PACKS[x.level], tot = P.w.reduce((a, w) => a + w[1], 0);
     const el = document.createElement('div'); el.className = `fm-sheet lv${x.level}`;
     el.innerHTML = `<div class="fm-sh-card">
-        <div class="fm-sh-art"><i class="fm-st-rays"></i><img src="img/packs/pk${x.level}-360.webp" alt="" draggable="false"></div>
+        <div class="fm-sh-art"><i class="fm-st-rays"></i><img src="img/packs/pk${x.level}-360.webp?v=b1" alt="" draggable="false"></div>
         <div class="fm-sh-info">
           <small>Пак</small><b>${esc(x.name)}</b>
           <span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span>

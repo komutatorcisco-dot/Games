@@ -192,7 +192,7 @@
   .fm-of { display: grid; grid-template-rows: auto auto 1fr auto; justify-items: center; gap: 5px; padding: 12px 10px 10px; border-radius: 10px; text-align: center;
     background: linear-gradient(180deg, rgba(30,52,88,.95), rgba(10,18,34,.95)); box-shadow: inset 0 0 0 1px var(--fm-edge), 0 10px 20px -8px rgba(0,0,0,.6); }
   .fm-of.lv1 { background: linear-gradient(180deg, rgba(20,60,140,.9), rgba(10,18,40,.95)); } .fm-of.lv2 { background: linear-gradient(180deg, rgba(90,30,150,.9), rgba(16,10,40,.95)); }
-  .fm-of.lv3 { background: linear-gradient(180deg, rgba(150,110,20,.9), rgba(30,22,8,.95)); } .fm-of.lv4 { background: linear-gradient(180deg, rgba(150,20,40,.9), rgba(30,8,12,.95)); }
+  .fm-of.lv3 { background: linear-gradient(180deg, rgba(150,110,20,.9), rgba(30,22,8,.95)); } .fm-of.lv4 { background: linear-gradient(180deg, rgba(90,120,20,.9), rgba(10,12,6,.95)); }
   .fm-of-art { height: clamp(60px, 20vh, 92px); display: grid; place-items: center; } .fm-of-art .fpk { --pw: 62px; --ph: 86px; }
   .fm-of b { font: italic 800 17px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; } .fm-of small { font: 600 12px/1.2 "Barlow Condensed", sans-serif; color: #c7d4e6; }
   .fm-of .fm-btn { width: 100%; }
@@ -351,7 +351,7 @@
 .fm-sheet { display: none; }
 @media (orientation: landscape) and (max-height: 620px) {
   .fm-pk, .fm-sheet, .fm-st-hero { --pc: #7fe0a0; }
-  .lv1 { --pc: #56d4ff; } .lv2 { --pc: #b98bff; } .lv3 { --pc: #f2cb5c; } .lv4 { --pc: #ff4f66; }
+  .lv1 { --pc: #56d4ff; } .lv2 { --pc: #b98bff; } .lv3 { --pc: #f2cb5c; } .lv4 { --pc: #c6ff3d; }
   .fm-pk { position: relative; overflow: hidden; display: grid !important; grid-template-rows: minmax(0, 1fr) auto auto; justify-items: center; gap: 6px; padding: 10px 10px 10px !important; border-radius: 12px; text-align: center !important;
     background: radial-gradient(70% 55% at 50% 38%, color-mix(in srgb, var(--pc) 35%, transparent), transparent 70%), linear-gradient(180deg, rgba(18,30,56,.92), rgba(6,12,26,.95)) !important;
     box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--pc) 45%, transparent), 0 10px 22px -8px rgba(0,0,0,.7); }
@@ -373,13 +373,13 @@
   .fm-pks .fm-pk { min-height: 200px; }
   /* «Главное»: большой баннер лучшего пака + пак дня и три пака */
   .fm-st-top { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 10px; height: 100%; min-height: 230px; }
-  .fm-st-hero { --pc: #ff4f66; position: relative; overflow: hidden; display: grid !important; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px !important; border-radius: 12px;
-    background: radial-gradient(60% 80% at 25% 50%, rgba(255,60,90,.4), transparent 70%), linear-gradient(135deg, #3a0a1c, #12060f 60%, #0b0b1a) !important; box-shadow: inset 0 0 0 1.5px rgba(255,79,102,.55), 0 0 26px rgba(255,60,90,.18); }
-  .fm-st-hero img { position: relative; height: clamp(110px, 40vh, 170px); width: auto; filter: drop-shadow(0 10px 18px rgba(0,0,0,.6)) drop-shadow(0 0 20px rgba(255,79,102,.55)); animation: fm-float 3.6s ease-in-out infinite; }
+  .fm-st-hero { --pc: #c6ff3d; position: relative; overflow: hidden; display: grid !important; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px !important; border-radius: 12px;
+    background: radial-gradient(60% 80% at 25% 50%, rgba(198,255,61,.28), transparent 70%), linear-gradient(135deg, #1a2208, #070806 60%, #050505) !important; box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.5), 0 0 26px rgba(198,255,61,.14); }
+  .fm-st-hero img { position: relative; height: clamp(110px, 40vh, 170px); width: auto; filter: drop-shadow(0 10px 18px rgba(0,0,0,.6)) drop-shadow(0 0 20px rgba(198,255,61,.4)); animation: fm-float 3.6s ease-in-out infinite; }
   .fm-st-hero > span { position: relative; display: grid; gap: 6px; }
-  .fm-st-hero small { font: 700 12px/1 "Barlow Condensed", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #ff9aa8; }
+  .fm-st-hero small { font: 700 12px/1 "Barlow Condensed", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #c6ff3d; }
   .fm-st-hero b { font: italic 800 clamp(20px, 6.5vh, 28px)/1 "Barlow Condensed", sans-serif; text-transform: uppercase; }
-  .fm-st-hero em { font: 600 13px/1.25 "Barlow Condensed", sans-serif; color: #f2cfd5; } .fm-st-hero .fm-pk-p { justify-content: flex-start; }
+  .fm-st-hero em { font: 600 13px/1.25 "Barlow Condensed", sans-serif; color: #d4dcc4; } .fm-st-hero .fm-pk-p { justify-content: flex-start; }
   .fm-st-rays { position: absolute; left: 28%; top: 50%; width: 160%; aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none;
     background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--pc) 26%, transparent) 0 7deg, transparent 7deg 20deg); -webkit-mask: radial-gradient(closest-side, #000 15%, transparent); mask: radial-gradient(closest-side, #000 15%, transparent); animation: fm-spin 30s linear infinite; }
   .fm-st-col { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; min-height: 0; }

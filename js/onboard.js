@@ -81,7 +81,7 @@ const Onboard = (() => {
   function pack() {
     const s = S();
     el.innerHTML = `<div class="ob-pack"><small>Награда за первый выход</small><b>Стартовый пак</b><p>18 карточек: 4 золотых, 6 серебряных, 8 бронзовых</p>
-      <img class="ob-pk" src="img/packs/pk3-360.webp" alt=""><button class="ob-go" data-ob="open">Открыть</button></div>`;
+      <img class="ob-pk" src="img/packs/pk3-360.webp?v=b1" alt=""><button class="ob-go" data-ob="open">Открыть</button></div>`;
     if (s.packGot) { el.querySelector('[data-ob="open"]').textContent = 'Дальше'; el.querySelector('[data-ob="open"]').dataset.ob = 'next'; }
   }
   function openPack() {

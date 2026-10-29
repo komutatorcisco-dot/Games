@@ -78,7 +78,7 @@ const Rewards = (() => {
   ];
   const OLD_ROAD = [10, 25, 50, 80, 120, 170, 230, 300, 380, 470, 570, 680, 800, 950, 1100, 1300, 1500, 1750, 2000];
   const PACKNAME = ['Обычный пак', 'Сверхредкий пак', 'Эпический пак', 'Легендарный пак', 'Пак «ДЖЕКСОН!!»'];
-  const PACKCOL = ['#7fe0a0', '#56d4ff', '#b98bff', '#f2cb5c', '#ff4f66'];
+  const PACKCOL = ['#7fe0a0', '#56d4ff', '#b98bff', '#f2cb5c', '#c6ff3d'];
   const CARDNAME = { gold: 'Золотая карточка', legend: 'Карточка-легенда', jack: 'Карточка «Джексон»' };
   function rewardLabel(r) {
     if (r.coins) return { ico: '<i class="coin"></i>', txt: `${r.coins}`, art: `<span class="rs-coins">${Art.img(r.coins >= 150 ? 'coinpile' : 'coins')}</span>`, name: `+${r.coins}` };

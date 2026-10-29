@@ -22,7 +22,7 @@ const PackOpen = (() => {
   // рисунок пака по редкости (img/packs/pk*.webp); объём нарисован на самой картинке
   const PIMG = ['pk-silver', 'pk-blue', 'pk-purple', 'pk-gold', 'pk-black'];
   // новые паки Jackson Games (27.10): 3D-рендер, tools/art/packs.html
-  const pimg = (lv, sz) => `img/packs/pk${lv}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp`;
+  const pimg = (lv, sz) => `img/packs/pk${lv}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp?v=b1`;
   const art = (lv, sz = '', cap = false) => `<span class="fpk p${lv} ${sz} pimg"><span class="fpk-b">
       <i class="fpk-f" style="-webkit-mask-image:url(${pimg(lv, sz)});mask-image:url(${pimg(lv, sz)})"><img class="fpk-img" src="${pimg(lv, sz)}" alt="" decoding="async" draggable="false"><i class="fpk-sh"></i><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;
