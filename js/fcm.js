@@ -14,7 +14,7 @@ const FCM = (() => {
   // переносится в новую оболочку, шапка и нижнее меню — новые; старое нижнее меню и старые экраны не видны
   const HOST = { board: ['board-body', 'Таблица канала'], sbc: ['sbc-body', 'Испытания'], myclub: ['club-body', 'Клуб'] };
   const park = () => Object.entries(HOST).forEach(([id, [bid]]) => { const n = document.getElementById(bid), sec = document.getElementById(id); if (n && sec && root && root.contains(n)) sec.appendChild(n); });
-  let tab = 'play', sub = { quests: 'day', store: 'top', events: 'jg' };
+  let tab = 'play', sub = { quests: 'day', store: 'top', events: 'car' };
   let lastPlace = ''; // положение камеры при прошлой расстановке карточек
   let focusI = -1; // игрок, на которого наехала камера в «Команде»
   let bg3 = null; // 3D-стадион за меню (Arena3D.backdrop), null — нет WebGL или ещё грузится
@@ -61,20 +61,21 @@ const FCM = (() => {
   // меню снизу: Команда · События · [Главная] · Задания · Магазин — главная по центру, как кнопка «домой»
   function nav() {
     const L = [['team', 'Команда'], ['events', 'События'], ['play', 'Главная'], ['quests', 'Задания'], ['store', 'Магазин']];
-    return `<nav class="fm-nav">${L.map(([id, t]) => `<button class="fm-tab ${id === tab ? 'on' : ''} ${id === 'store' ? 'shop' : ''} ${id === 'play' ? 'home' : ''}" data-fm-tab="${id}">${ico(id === 'play' ? 'home' : id, 'fm-ti')}<b>${t}</b>${id === 'quests' && questsReady() ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
+    return `<nav class="fm-nav">${L.map(([id, t]) => `<button class="fm-tab ${id === tab ? 'on' : ''} ${id === 'store' ? 'shop' : ''} ${id === 'play' ? 'home' : ''}" data-fm-tab="${id}">${ico(id === 'play' ? 'home' : id, 'fm-ti')}<b>${t}</b>${(id === 'quests' && questsReady()) || (id === 'events' && typeof ClubPath !== 'undefined' && ClubPath.ready()) ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
   }
 
   // ---------- Играть (главная) ----------
   const MODES = [
     { id: 'mom', t: 'Моменты', d: 'Короткие атаки: забей за несколько секунд', ico: 'img/fcm/mode-mom.webp?v=3', cls: 'big lime' },
     { id: '3', t: 'Матч 3 на 3', d: 'Нападающий, защитник и вратарь из твоих карточек', ico: 'img/fcm/mode-three.webp?v=3', cls: 'blue' },
-    { id: 'mgr', t: 'Менеджер', d: '«Мой состав» играет сам, ты смотришь', act: 'squad', ico: 'img/fcm/mode-mgr.webp?v=3', cls: 'dark' },
+    { id: 'mgr', t: 'Менеджер', d: '«Мой состав» играет сам, ты смотришь', ico: 'img/fcm/mode-mgr.webp?v=3', cls: 'dark' },
     { id: '11', t: '11 на 11 · тест', d: 'Полное поле, 5 минут', ico: 'img/fcm/mode-eleven.webp?v=3', cls: 'dark' },
     { id: 'train', t: 'Тренировки', d: 'Удары, дриблинг, штрафные', ico: 'img/fcm/mode-train.webp?v=3', cls: 'dark' },
   ];
   // Главная как в FC Mobile (28.10): слева столбик плиток, в центре большой баннер со слайдами, справа карточка
   // предложения, под ней «Клуб» (ОБЩ) и «Играть». Режимы — на отдельной странице «Играть» (modes()).
   const SLIDES = [
+    { k: 'car', small: 'Карьера', t: 'Путь клуба', d: 'Главы с заданиями во всех режимах — жетоны и паки', btn: 'Играть главу', go: 'data-fm-car', img: 'img/fcm/mode-mgr.webp?v=3' },
     { k: 'jg', small: 'Особое событие', t: 'Николас Джексон', d: 'Пройди путь главы — особая карточка 84', btn: 'Перейти сейчас', go: 'data-fm-tab="events"' },
   ];
   let slideI = 0, slideT = 0;
@@ -117,7 +118,17 @@ const FCM = (() => {
     root.querySelectorAll('.fm-sl').forEach((el) => el.classList.toggle('on', +el.dataset.i === slideI));
     root.querySelectorAll('[data-fm-slide]').forEach((el) => el.classList.toggle('on', +el.dataset.fmSlide === slideI));
   }
+  // «Играть» в задании карьеры: футбол, игра, раздел меню или матч «Моим составом»
+  function carGo(g) {
+    if (!g) return;
+    if (g.fb) return startMode(g.fb === 'moments' ? 'mom' : '3');
+    if (g.tab) { tab = g.tab; return render(); }
+    if (g.act === 'squad-match') return Squad.play();
+    if (g.ng && typeof NG !== 'undefined') return NG.open(g.ng);
+    if (g.act) { const b = document.createElement('button'); b.dataset.act = g.act; b.hidden = true; document.body.appendChild(b); b.click(); b.remove(); }
+  }
   function startMode(id) {
+    if (id === 'mgr') return Squad.play();
     if (id === 'train') return App.openFootball('fk', 'basics');
     const d = Store.d; if (!d.fb || typeof d.fb !== 'object') d.fb = {};
     d.fb.fmt = id === 'mom' ? 'mom' : +id; Store.save();
@@ -273,12 +284,13 @@ const FCM = (() => {
   ];
   const goAttr = (go) => (go.act ? `data-act="${go.act}"` : go.train ? `data-fm-train="${go.train}"` : `data-fm-mode="${go.mode}"`);
   function events() {
-    const T = [['jg', 'Основная'], ['train', 'Тренировки'], ['daily', 'Ежедневные']];
-    if (!T.some((x) => x[0] === sub.events)) sub.events = 'jg';
+    const T = [['car', 'Карьера'], ['jg', 'Джексон'], ['train', 'Тренировки'], ['daily', 'Ежедневные']];
+    if (!T.some((x) => x[0] === sub.events)) sub.events = 'car';
     const tabs = `<nav class="fm-evtabs">${T.map(([id, t]) => `<button class="${sub.events === id ? 'on' : ''}" data-fm-sub="events:${id}">${t}</button>`).join('')}</nav>`;
     const jg = Cards.get('JG:nicolas-jackson');
     let body;
-    if (sub.events === 'jg') {
+    if (sub.events === 'car') body = ClubPath.view(ico, cup, lock);
+    else if (sub.events === 'jg') {
       const ord = [0, 1, 2, 5, 4, 3]; // змейка: второй ряд идёт справа налево
       body = `<div class="fm-evm">
         <div class="fm-evl">
@@ -424,7 +436,7 @@ const FCM = (() => {
       <span class="fm-pk-t"><b>${esc(x.name)}</b><span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span></span>
       <span class="fm-pk-p">${price(x)}</span></button>`;
   function store() {
-    const L = [['top', 'Главное'], ['packs', 'Паки'], ['market', 'Рынок'], ['stars', 'За звёзды'], ['skins', 'Скины']];
+    const L = [['top', 'Главное'], ['packs', 'Паки'], ['market', 'Рынок'], ['stars', 'За звёзды']]; // скинов больше нет
     if (!L.some((l) => l[0] === sub.store)) sub.store = 'top';
     const list = packList(), day = typeof Wheel !== 'undefined' && Wheel.ready();
     let body = '';
@@ -615,10 +627,11 @@ const FCM = (() => {
       if (HOST[tab] === HOST.sbc && !t) { tab = 'team'; show0('hub'); return render(); } if (t === 'cards') tab = 'coll'; else { tab = 'quests'; sub.quests = t === 'road' ? 'road' : t === 'quests' ? 'day' : 'pass'; } show0('hub'); render(); }; }
     Screens.show = (id) => {
       if (on() && HOST[id]) { tab = id; show0('hub'); Screens.current = id; if (typeof Modal !== 'undefined' && Modal.isOpen) Modal.close(); render(); return; }
-      if (on() && OLD[id]) { OLD[id](); show0('hub'); if (typeof Modal !== 'undefined' && Modal.isOpen && id !== 'hub') Modal.close(); render(); return; } show0(id); };
+      if (on() && OLD[id] && !(id === 'squad' && window.__sqPlay)) { OLD[id](); show0('hub'); if (typeof Modal !== 'undefined' && Modal.isOpen && id !== 'hub') Modal.close(); render(); return; } show0(id); };
     render();
     root.addEventListener('click', (e) => {
       if (tab === 'market' && Market.click(e)) return;
+      if (tab === 'events' && sub.events === 'car' && typeof ClubPath !== 'undefined' && ClubPath.click(e, carGo, render)) return;
       if (e.target.closest('[data-fm-hback]')) { Sound.play('tap'); if (tab === 'sbc') { const b = document.getElementById('sbc-back'); if (b) b.click(); return; } tab = tab === 'myclub' ? 'play' : 'play'; Screens.current = 'hub'; return render(); }
       const t = e.target.closest('[data-fm-tab]'); if (t) { Sound.play('tap'); if (HOST[Screens.current]) Screens.current = 'hub'; tab = t.dataset.fmTab; swapI = -1; if (focusI >= 0) { focusI = -1; if (bg3) bg3.unfocus(); } render(); root.querySelector('.fm-main').scrollTop = 0; return; }
       const s = e.target.closest('[data-fm-sub]'); if (s) { Sound.play('tap'); const [k, v] = s.dataset.fmSub.split(':'); sub[k] = v; render(); return; }
@@ -640,6 +653,7 @@ const FCM = (() => {
       if (e.target.closest('[data-fm-sort]')) { Sound.play('tap'); CQ.sort = CQ.sort === 'r' ? 'name' : 'r'; render(); return; }
       if (e.target.closest('[data-fm-more]')) { Sound.play('tap'); CQ.n += 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } return; }
       const cc = e.target.closest('[data-fm-card]'); if (cc) { Sound.play('tap'); return cardView(cc.dataset.fmCard); }
+      if (e.target.closest('[data-fm-car]')) { Sound.play('tap'); tab = 'events'; sub.events = 'car'; return render(); }
       const sd = e.target.closest('[data-fm-slide]'); if (sd) { Sound.play('tap'); slideT = Date.now(); return slideTo(+sd.dataset.fmSlide); }
       const nd = e.target.closest('[data-fm-node]'); if (nd) { Sound.play('tap'); return nodeSheet(+nd.dataset.fmNode); }
       const pk = e.target.closest('[data-fm-pk]'); if (pk) { Sound.play('tap'); return packSheet(pk.dataset.fmPk); }

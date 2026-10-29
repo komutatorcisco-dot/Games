@@ -186,5 +186,13 @@ const Squad = (() => {
   }
   function put(i, k) { const s = S(); s.xi = s.xi.map((x) => (x === k ? null : x)); s.xi[i] = k; Store.save(); }
   function info() { const s = S(), list = xi(), c = XD.chem(s.sys === 'classic' ? 'classic' : 'new', s.form, list); return { r: XD.teamRating(list), chem: c.total, max: s.sys === 'classic' ? 100 : 33 }; }
-  return { open, bind, render, S, CTX, auto, candidates, put, info };
+  // новый вид: «Менеджер» и задания карьеры — сразу матч (выбор соперника), без старого экрана сборки состава
+  async function play() {
+    const n = S().xi.filter((k) => k && Cards.get(k)).length;
+    if (n < 11) { toast(`Собери 11 игроков в «Команде» — сейчас ${n}/11`); if (typeof FCM !== 'undefined') FCM.open('team'); return; }
+    window.__sqPlay = true;
+    try { await open(); } finally { window.__sqPlay = false; }
+    if (!S().match) XMatch.choose(CTX);
+  }
+  return { open, play, bind, render, S, CTX, auto, candidates, put, info };
 })();

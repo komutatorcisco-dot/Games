@@ -107,7 +107,8 @@ const Rewards = (() => {
   const PASS = Array.from({ length: PASS_LEVELS }, (_, i) => {
     const L = i + 1;
     const free = L % 10 === 0 ? { pack: 3 } : L % 5 === 0 ? { pack: 2 } : L % 2 === 0 ? { pack: 0 } : { coins: 30 + L * 2 };
-    const prem = L === 1 ? { skin: 'gold' } : L === PASS_LEVELS ? { pack: 4 } : L % 5 === 0 ? { pack: 3 } : L % 3 === 0 ? { lives: 1 } : L % 2 === 0 ? { pack: 1 } : { coins: 60 + L * 4 };
+    const prem = L === 1 ? { pack: 2 } : // скинов в игре больше нет (29.10): первый уровень премиума — эпический пак
+       L === PASS_LEVELS ? { pack: 4 } : L % 5 === 0 ? { pack: 3 } : L % 3 === 0 ? { lives: 1 } : L % 2 === 0 ? { pack: 1 } : { coins: 60 + L * 4 };
     return [free, prem];
   });
   function passSync() {

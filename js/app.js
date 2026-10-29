@@ -412,6 +412,12 @@ const App = (() => {
   addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data || typeof e.data !== 'object') return;
     if (e.data.jg === 'football-result' && typeof Onboard !== 'undefined') Onboard.result(e.data); // результат урока, «Моментов», матча — шагу обучения
+    // футбол засчитывается как остальные игры: трофеи, пропуск, задания и карьера (раньше матч и «Моменты» не считались)
+    if (e.data.jg === 'football-result' && typeof Rewards !== 'undefined' && !(typeof Onboard !== 'undefined' && Onboard.active)) safe('football result', () => {
+      const d = e.data;
+      if (d.mode === 'match' && Array.isArray(d.score)) Rewards.onEnd(d.score[0] > d.score[1], 'football:match');
+      else if (d.mode === 'moments') Rewards.onEnd((d.goals || 0) >= (d.need || 1), 'football:moments');
+    });
     if (e.data.jg === 'football-exit' && Screens.current === 'football') { home(); if (typeof Onboard !== 'undefined') Onboard.back(); }
     else if (e.data.jg === 'haptic') haptic(e.data.kind);
   });
@@ -561,6 +567,7 @@ const App = (() => {
   function init() {
     Store.load();
     safe('Eco', () => Eco.hook()); // превью: монеты и карточки — на проверочном сервере (js/eco.js)
+    safe('ClubPath', () => ClubPath.hook()); // «Карьера»: задания глав считаются по событиям игры (js/clubpath.js)
     safe('Online presence', () => Online.startPresence());
     safe('Online seekers', () => Online.watch((g) => launchOnlineGame(g, true))); // плашка «Игрок ищет соперника»
     safe('Skins', () => Skins.apply());
