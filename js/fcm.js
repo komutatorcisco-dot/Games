@@ -448,7 +448,7 @@ const FCM = (() => {
     const u = Store.d.user || {}, own = Object.keys((Store.d.cards && Store.d.cards.own) || {}).length;
     const el = document.createElement('div'); el.className = 'fm-sheet fm-prof';
     const row = (act, t, v) => `<button class="fm-pf-row" data-act="${act}"><span>${t}</span><b>${v}</b></button>`;
-    const draw = () => { el.innerHTML = `<div class="fm-pf">
+    const draw = () => { el.innerHTML = `<div class="fm-prf">
         <div class="fm-pf-me"><span class="fm-ava big">${esc(u.emoji || '⚽')}</span><span><b>${esc(u.nick || 'Игрок')}</b><small>${cup}${trophies()} трофеев · карточек ${own}</small></span></div>
         <div class="fm-pf-list">
           ${row('music', 'Фоновая музыка', Store.d.music === false ? 'Выкл' : 'Вкл')}
