@@ -36,6 +36,11 @@ for h in (360, 160):
       const url = await p.evaluate(([k, w, h]) => window.renderPlate(k, w, h), [k, w, h]); const png = path.join(ROOT, `tools/art/.tmp/pl-${n}.png`); fs.writeFileSync(png, Buffer.from(url.split(',')[1], 'base64'));
       execFileSync('python3', ['-I', '-c', "import sys\nfrom PIL import Image\nImage.open(sys.argv[1]).convert('RGBA').save(sys.argv[2], quality=88, method=6)", png, path.join(ROOT, `img/fcm/pl-${n}.webp`)]); console.log('plate', n); }
   }
+  if (what === 'ball') {
+    await p.goto('http://localhost:8765/tools/art/ball.html'); await p.waitForFunction(() => window.ready); fs.mkdirSync(path.join(ROOT, 'tools/art/.tmp'), { recursive: true });
+    const url = await p.evaluate(() => window.renderBall(512)); const png = path.join(ROOT, 'tools/art/.tmp/ball.png'); fs.writeFileSync(png, Buffer.from(url.split(',')[1], 'base64'));
+    execFileSync('python3', ['-I', '-c', "import sys\nfrom PIL import Image\nim=Image.open(sys.argv[1]).convert('RGBA'); im=im.crop(im.getbbox()); im.thumbnail((256,256), Image.LANCZOS); im.save(sys.argv[2], quality=92, method=6)", png, path.join(ROOT, 'img/fcm/ball.webp')]); console.log('ball ok');
+  }
   if (what === 'crest') {
     await p.goto('http://localhost:8765/tools/art/packs.html'); await p.waitForTimeout(800);
     const url = await p.evaluate(() => window.renderCrest()); const png = path.join(ROOT, 'tools/art/.tmp/crest.png'); fs.mkdirSync(path.dirname(png), { recursive: true }); fs.writeFileSync(png, Buffer.from(url.split(',')[1], 'base64'));
