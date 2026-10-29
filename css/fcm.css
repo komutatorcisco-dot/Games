@@ -864,3 +864,15 @@
 }
 /* «Поверни телефон» — логотип канала на чёрном */
 @media (orientation: portrait) { body.tgmob .rot-hint { background: #000 !important; } body.tgmob .rot-hint img { width: 72vw !important; max-width: 320px; filter: none !important; } body.tgmob .rot-hint i { border-color: #fff !important; box-shadow: none !important; } body.tgmob .rot-hint b { background: none !important; color: #fff !important; -webkit-background-clip: border-box !important; } }
+
+/* ---------- шрифт игры (29.10): Inter Tight — прямой жирный гротеск, как логотип канала; без наклона ---------- */
+@media (orientation: landscape) and (max-height: 620px) {
+  body.fcm-on :is(.fcm, .fm-sheet, .po, #app > .screen, .modal-card, .toast) :is(*, *::before, *::after) { font-family: "Inter Tight", "Inter", system-ui, sans-serif !important; font-style: normal !important; }
+  body.fcm-on :is(.fm-title, .fm-sl-t b, .fm-logo b, .fm-pk-t b, .fm-st-hero b, .fm-sh-info > b, .fm-cv-info > b, .fm-pi-h span b, .fm-puz-h, .fm-ev-t b, .fm-tr-t b, .fm-trn-t b, .fm-club > b, .fm-playt > b, .fm-cl-n b, .po-name, .topbar-title, .topbar-title > span, .ng-q) { font-weight: 900 !important; letter-spacing: -.03em !important; }
+  body.fcm-on :is(.fm-sl-t small, .fm-logo small, .fm-ev-t small, .fm-sh-info > small, .fm-cv-info > small) { font-weight: 600 !important; letter-spacing: .2em !important; }
+  body.fcm-on :is(.fm-tab b, .fm-btn, .btn, .fm-lt b, .fm-chips em, .fm-rail b) { font-weight: 700 !important; letter-spacing: 0 !important; }
+  /* меню из 5: «Главная» по центру */
+  .fm-nav { grid-template-columns: repeat(5, 1fr) !important; }
+  .fm-tab.home .fm-ti { width: 22px !important; height: 22px !important; }
+  .fm-tab.home.on .fm-ti { color: var(--fm-lime) !important; }
+}

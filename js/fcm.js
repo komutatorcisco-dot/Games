@@ -22,6 +22,7 @@ const FCM = (() => {
   const IC = {
     team: '<path d="M8.2 3 3 6.1l2.1 5 2-1V21h9.8V10.1l2 1L21 6.1 15.8 3c-.6 1.6-2 2.6-3.8 2.6S8.8 4.6 8.2 3z"/>',
     events: '<path fill-rule="evenodd" d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zM5 9v10h14V9zm7 1 1.4 2.9 3.1.4-2.3 2.2.6 3.1L12 17l-2.8 1.6.6-3.1-2.3-2.2 3.1-.4z"/>',
+    home: '<path d="M12 3 2.5 11h2.8v9h5.4v-6h2.6v6h5.4v-9h2.8z"/>',
     play: '<path d="M7 4.5v15a1 1 0 0 0 1.5.9l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 7 4.5z"/>',
     quests: '<path fill-rule="evenodd" d="M9 2h6a1 1 0 0 1 1 1v1h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2V3a1 1 0 0 1 1-1zm1 2v2h4V4zm5.6 6.2-5 5-2.3-2.3-1.5 1.5 3.8 3.8 6.5-6.5z"/>',
     store: '<path d="M2 3h3.1l.8 2.5H21l-2.3 8a2 2 0 0 1-1.9 1.5H9.3l.5 1.5H19V18.5H8.3a1 1 0 0 1-1-.7L4 5H2z"/><circle cx="9" cy="21" r="1.6"/><circle cx="17" cy="21" r="1.6"/>',
@@ -53,8 +54,10 @@ const FCM = (() => {
     </header>`;
   }
   // меню снизу — ровная полоса из 4 разделов, как в FC (большая «Играть» — плитка на главной)
+  // меню снизу: Команда · События · [Главная] · Задания · Магазин — главная по центру, как кнопка «домой»
   function nav() {
-    return `<nav class="fm-nav">${TABS.filter((x) => x[0] !== 'play').map(([id, t]) => `<button class="fm-tab ${id === tab ? 'on' : ''} ${id === 'store' ? 'shop' : ''}" data-fm-tab="${id}">${ico(id, 'fm-ti')}<b>${t}</b>${id === 'quests' && questsReady() ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
+    const L = [['team', 'Команда'], ['events', 'События'], ['play', 'Главная'], ['quests', 'Задания'], ['store', 'Магазин']];
+    return `<nav class="fm-nav">${L.map(([id, t]) => `<button class="fm-tab ${id === tab ? 'on' : ''} ${id === 'store' ? 'shop' : ''} ${id === 'play' ? 'home' : ''}" data-fm-tab="${id}">${ico(id === 'play' ? 'home' : id, 'fm-ti')}<b>${t}</b>${id === 'quests' && questsReady() ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
   }
 
   // ---------- Играть (главная) ----------
