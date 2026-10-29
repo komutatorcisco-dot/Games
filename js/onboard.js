@@ -24,7 +24,6 @@ const Onboard = (() => {
   const save = () => Store.save();
   const go = (step) => { S().step = STEPS.indexOf(step); save(); show(); };
   const next = () => { S().step = Math.min(STEPS.length - 1, S().step + 1); save(); show(); };
-  const skipAll = () => { const s = S(); if (!s.packGot) { s.step = STEPS.indexOf('nation'); save(); show(); } else finish(); };
   // старый «тренер» (js/coach.js) больше не нужен: новый первый вход его заменяет
   const coachOff = () => { const u = Store.d.ui || (Store.d.ui = {}); u.tut = 99; };
   function finish() { const s = S(); s.done = true; coachOff(); save(); close(); if (typeof FCM !== 'undefined') FCM.render(); }
@@ -32,10 +31,10 @@ const Onboard = (() => {
   // ---------- экраны ----------
   const logo = '<img class="ob-logo" src="img/brand/logo-white.png?v=1" alt="Джексоны">';
   const dots = (n) => `<div class="ob-steps">${[1, 2, 3, 4].map((i) => `<i class="${i < n ? 'done' : i === n ? 'on' : ''}"></i>`).join('')}</div>`;
-  const card = (n, kicker, title, text, btn, extra = '') => `<div class="ob-card">${dots(n)}<small>${kicker}</small><b>${title}</b><p>${text}</p>${extra}<button class="ob-go" data-ob="run">${btn}</button><button class="ob-skip" data-ob="skip">Пропустить обучение</button></div>`;
+  const card = (n, kicker, title, text, btn, extra = '') => `<div class="ob-card">${dots(n)}<small>${kicker}</small><b>${title}</b><p>${text}</p>${extra}<button class="ob-go" data-ob="run">${btn}</button></div>`;
   function show() {
     const s = S(), step = STEPS[s.step] || 'intro', L = layer(); L.dataset.step = step;
-    if (step === 'intro') L.innerHTML = `<div class="ob-intro">${logo}<p>Добро пожаловать в клуб. Пройди первый выход —<br>и получи стартовый пак на 18 карточек.</p><button class="ob-go" data-ob="next">Начать</button><button class="ob-skip" data-ob="skip">Пропустить</button></div>`;
+    if (step === 'intro') L.innerHTML = `<div class="ob-intro">${logo}<p>Добро пожаловать в клуб. Пройди первый выход —<br>и получи стартовый пак на 18 карточек.</p><button class="ob-go" data-ob="next">Начать</button></div>`;
     else if (step === 'train') L.innerHTML = card(1, 'Шаг 1 из 4 · Тренировка', 'Бег, пас и удар', 'Джойстик слева — бег. Кнопки справа — пас и удар. Пройди короткую тренировку.', 'На тренировку');
     else if (step === 'quiz') { quiz(); return; }
     else if (step === 'mom') L.innerHTML = card(3, 'Шаг 3 из 4 · Моменты', 'Три атаки', 'Короткие атаки: выход один на один, двое против одного и атака с фланга. Забей хотя бы раз.', 'В атаку');
@@ -53,7 +52,7 @@ const Onboard = (() => {
     const [a, b] = q.pairs[q.i].map((k) => Cards.get(k));
     el.innerHTML = `<div class="ob-quiz">${dots(2)}<small>Шаг 2 из 4 · Испытание · ${q.i + 1}/3</small><b>Кто сильнее в FC 27?</b>
       <div class="ob-pair">${[a, b].map((c) => `<button class="ob-pc" data-ob="pick" data-k="${esc(c.key)}">${Cards.html(c, { w: 112, cls: 'ob-hide' })}</button>`).join('<span class="ob-vs">VS</span>')}</div>
-      <button class="ob-skip" data-ob="skip">Пропустить обучение</button></div>`;
+      </div>`;
     if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el);
   }
   function pickQuiz(k, btn) {
@@ -128,7 +127,7 @@ const Onboard = (() => {
     const b = e.target.closest('[data-ob]'); if (!b) return;
     Sound.play('tap'); const a = b.dataset.ob, step = STEPS[S().step];
     if (a === 'next') return next();
-    if (a === 'skip') return skipAll();
+    // пропустить обучение нельзя (29.10): кнопок «Пропустить» больше нет
     if (a === 'pick') return pickQuiz(b.dataset.k, b);
     if (a === 'nat') { S().nat = b.dataset.n; save(); return go('pack'); }
     if (a === 'open') return openPack();
