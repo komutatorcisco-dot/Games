@@ -1156,7 +1156,11 @@ async function eco(env, user, body) {
     case 'wipe_check': return ecoWipeCheck(db, uid);
     // ---- админка ----
     case 'a_catalog': { // каталог карточек из игры: [key, name, r, rar, pos, club, nat, dr]
-      if (!(await admin())) return { ok: false, error: 'forbidden' };
+      // первая заливка в пустой каталог — с любого аккаунта (на проверочном сервере может не быть админа), дальше — только админ
+      const boot = !(await db.prepare('SELECT 1 FROM eco_cat LIMIT 1').first()) || (await ecoSetting(db, 'catboot', '')) === String(uid);
+      if (!boot && !(await admin())) return { ok: false, error: 'forbidden' };
+      if (boot && !(await ecoSetting(db, 'catboot', ''))) await setSetting(db, 'eco:catboot', String(uid));
+      if (body.done && boot) await setSetting(db, 'eco:catboot', 'done');
       const rows = Array.isArray(body.rows) ? body.rows.slice(0, 600) : [];
       const st = [];
       for (let i = 0; i < rows.length; i += 11) {

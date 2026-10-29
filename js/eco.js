@@ -32,7 +32,7 @@ const Eco = (() => {
     const r = await post('state');
     if (!r || !r.ok) { srv = false; return false; }
     srv = true; apply(r);
-    if (Store.d.admin && typeof Cards !== 'undefined') uploadCatalog(r).catch(() => {});
+    if ((Store.d.admin || !r.catalog) && typeof Cards !== 'undefined') uploadCatalog(r).catch(() => {}); // пустой каталог может залить любой (первый вход)
     if (typeof App !== 'undefined') App.refresh();
     if (typeof FCM !== 'undefined' && FCM.refresh) FCM.refresh();
     return true;

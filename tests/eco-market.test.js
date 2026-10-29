@@ -37,6 +37,11 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
   await T.schema(db); await T.ecoSchema(db);
   // каталог: 30 бронзы, 30 серебра, 30 золота 75–90, особая карточка
   const ins = sql.prepare('INSERT INTO eco_cat (key, name, r, rar, pos, club, nat, dr) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+  assert.ok((await call(77, { act: 'a_catalog', rows: [['B0', 'Бронза 0', 50, 'bronze', 'ВРТ', 'Клуб', 'Бразилия', 1]] })).ok, 'пустой каталог заливает любой');
+  assert.ok((await call(77, { act: 'a_catalog', rows: [['B1', 'Бронза 1', 51, 'bronze', 'ЦП', 'Клуб', 'Франция', 1]], done: true, ver: 'x' })).ok, 'тот же игрок досылает до конца');
+  assert.equal((await call(78, { act: 'a_catalog', rows: [['B1', 'Подмена', 99, 'gold', 'ЦП', 'Клуб', 'Франция', 1]] })).ok, false, 'после заливки чужой не меняет каталог');
+  assert.equal((await call(77, { act: 'a_catalog', rows: [['B1', 'Подмена', 99, 'gold', 'ЦП', 'Клуб', 'Франция', 1]] })).ok, false, 'и сам заливавший — тоже');
+  sql.exec('DELETE FROM eco_cat');
   for (let i = 0; i < 30; i++) { ins.run('B' + i, 'Бронза ' + i, 50 + (i % 14), 'bronze', i % 10 ? 'ЦП' : 'ВРТ', 'Клуб', i % 2 ? 'Франция' : 'Бразилия', 1); ins.run('S' + i, 'Серебро ' + i, 65 + (i % 10), 'silver', i % 10 ? 'ЦЗ' : 'ВРТ', 'Клуб', i % 2 ? 'Франция' : 'Бразилия', 1); ins.run('G' + i, 'Золото ' + i, 75 + (i % 16), 'gold', 'ФРВ', 'Клуб', i % 2 ? 'Франция' : 'Бразилия', 1); }
   ins.run('JG:x', 'Особый', 84, 'jg', 'ФРВ', 'Клуб', 'Сенегал', 0);
 
