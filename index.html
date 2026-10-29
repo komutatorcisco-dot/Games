@@ -18,7 +18,13 @@
   background:radial-gradient(70% 60% at 50% 115%,rgba(60,200,90,.35),transparent 70%),radial-gradient(60% 50% at 50% -10%,rgba(80,170,255,.28),transparent 70%),linear-gradient(180deg,#0b1830 0%,#060a1c 75%);transition:opacity .5s ease,transform .5s ease}
 #boot{background:#000!important}
 #boot .bt-brand{display:grid!important;grid-template-columns:1fr!important;justify-items:center;gap:14px;width:min(80vw,560px);text-align:center}
-#boot .bt-logo{width:min(70vw,460px);height:auto;animation:btIn .9s cubic-bezier(.2,.8,.2,1) both}
+#boot .bt-lw{position:relative;width:min(70vw,460px);--p:0}
+#boot .bt-logo{display:block;width:100%;height:auto}
+#boot .bt-ghost{opacity:.1}
+#boot .bt-fill{position:absolute;inset:0;clip-path:inset(0 calc(100% - var(--p)*100%) 0 0)}
+#boot .bt-edge2{position:absolute;top:-8%;bottom:-8%;left:calc(var(--p)*100%);width:3px;margin-left:-1.5px;border-radius:2px;background:#fff;box-shadow:0 0 12px #fff,0 0 30px rgba(255,255,255,.7);opacity:calc(1 - var(--done,0))}
+#boot.fin .bt-fill{animation:btFlash .6s ease-out}
+@keyframes btFlash{30%{filter:drop-shadow(0 0 18px rgba(255,255,255,.9))}}
 @keyframes btIn{from{opacity:0;transform:translateX(-30px);filter:blur(6px)}}
 #boot .bt-brand .bt-k{font:600 11px/1 Inter,Rubik,system-ui,sans-serif!important;letter-spacing:.28em;color:rgba(255,255,255,.5)}
 #boot .bt-brand .bt-bar{width:min(60vw,360px);height:3px!important;border-radius:2px!important;background:rgba(255,255,255,.14)!important;box-shadow:none!important;transform:none!important}
@@ -67,7 +73,7 @@
 <body class="fcm-on" data-scr="hub" data-panel="home">
 <div class="rot-hint" id="rot-hint" aria-live="polite"><img src="img/brand/logo-white.png?v=1" alt="Джексоны"><i></i><b>Поверни телефон</b><small>Jackson Games играется лёжа — как FC Mobile</small></div>
 <div id="boot" role="progressbar" aria-label="Загрузка">
-  <div class="bt-in bt-brand"><img class="bt-logo" src="img/brand/logo-white.png?v=1" alt="Джексоны" decoding="async">
+  <div class="bt-in bt-brand"><div class="bt-lw"><img class="bt-logo bt-ghost" src="img/brand/logo-white.png?v=1" alt="" decoding="async"><img class="bt-logo bt-fill" src="img/brand/logo-white.png?v=1" alt="Джексоны" decoding="async"><i class="bt-edge2"></i></div>
     <small class="bt-k">JACKSON GAMES · ФУТБОЛЬНЫЙ КЛУБ</small>
     <div class="bt-bar"><i></i></div><div class="bt-row"><span class="bt-lbl">Загружаем игры…</span><b class="bt-pct">0%</b></div><p class="bt-tip"></p></div>
   <small class="bt-ver" id="bt-ver"></small>
@@ -76,7 +82,7 @@
 <script>
 // Загрузочный экран: полоска честная — скрипты (до 70%), облако и шрифты, картинки главной; потом плавно исчезает.
 (function () {
-  var el = document.getElementById('boot'), bar = el.querySelector('.bt-bar i'), pct = el.querySelector('.bt-pct'), lbl = el.querySelector('.bt-lbl'), tipEl = el.querySelector('.bt-tip');
+  var el = document.getElementById('boot'), lw = el.querySelector('.bt-lw'), bar = el.querySelector('.bt-bar i'), pct = el.querySelector('.bt-pct'), lbl = el.querySelector('.bt-lbl'), tipEl = el.querySelector('.bt-tip');
   var t0 = Date.now(), p = 0, target = 0.04, done = false, gone = false, loaded = 0;
   var TIPS = ['Событие «Джексон»: пройди путь главы — в конце особая карточка 84', 'Задания дня дают очки сезонного пропуска', 'Пак дня можно открыть бесплатно раз в сутки', 'Скины меняются в Магазине → Скины', 'В Драфте собери 11 игроков и сыграй турнир до финала', '«Игрок дня» — новый футболист каждые сутки'];
   var ti = Math.floor(Math.random() * TIPS.length);
@@ -93,6 +99,7 @@
     if (gone) return;
     p += Math.max(0.0015, (target - p) * 0.1); if (p > target) p = target;
     bar.style.width = (p * 100).toFixed(1) + '%'; pct.textContent = Math.round(p * 100) + '%';
+    if (lw) { lw.style.setProperty('--p', p.toFixed(4)); if (p >= 0.999 && !el.classList.contains('fin')) { el.classList.add('fin'); lw.style.setProperty('--done', 1); } } // логотип проявляется вместе с полоской
     if (done && p >= 0.999) return setTimeout(hide, 180);
     requestAnimationFrame(tick);
   })();
