@@ -43,6 +43,13 @@ for h in (360, 160):
     const u2 = await p.evaluate(() => window.renderBall(1024, { net: true, crest: true })); const p2 = path.join(ROOT, 'tools/art/.tmp/ballnet.png'); fs.writeFileSync(p2, Buffer.from(u2.split(',')[1], 'base64'));
     execFileSync('python3', ['-I', '-c', "import sys\nfrom PIL import Image\nim=Image.open(sys.argv[1]).convert('RGBA'); im=im.crop(im.getbbox()); im.thumbnail((560,560), Image.LANCZOS); im.save(sys.argv[2], quality=92, method=6)", p2, path.join(ROOT, 'img/fcm/ball-net.webp')]); console.log('ball-net ok');
   }
+  if (what === 'brand') {
+    await p.goto('http://localhost:8765/tools/art/brand.html'); await p.waitForFunction(() => window.ready); fs.mkdirSync(path.join(ROOT, 'img/brand'), { recursive: true });
+    const crop = "import sys\nfrom PIL import Image\nim=Image.open(sys.argv[1]).convert('RGBA'); bb=im.getbbox(); im=im.crop(bb) if sys.argv[3]=='1' else im; im.save(sys.argv[2])";
+    for (const [n, col] of [['white', '#ffffff'], ['black', '#000000']]) { const u = await p.evaluate((c) => window.logo(c), col); const f = path.join(ROOT, `img/brand/logo-${n}.png`); fs.writeFileSync(f, Buffer.from(u.split(',')[1], 'base64')); execFileSync('python3', ['-I', '-c', crop, f, f, '1']); }
+    for (const [n, fg, bg] of [['dark', '#ffffff', '#000000'], ['light', '#000000', '#ffffff'], ['lime', '#000000', '#c6ff3d']]) { const u = await p.evaluate(([a, b]) => window.mark(a, b), [fg, bg]); const f = path.join(ROOT, `img/brand/mark-${n}.png`); fs.writeFileSync(f, Buffer.from(u.split(',')[1], 'base64')); execFileSync('python3', ['-I', '-c', crop, f, f, '0']); }
+    console.log('brand ok');
+  }
   if (what === 'crest') {
     await p.goto('http://localhost:8765/tools/art/packs.html'); await p.waitForTimeout(800);
     const url = await p.evaluate(() => window.renderCrest()); const png = path.join(ROOT, 'tools/art/.tmp/crest.png'); fs.mkdirSync(path.dirname(png), { recursive: true }); fs.writeFileSync(png, Buffer.from(url.split(',')[1], 'base64'));

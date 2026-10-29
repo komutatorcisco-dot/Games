@@ -16,6 +16,17 @@
    Лёжа — герб слева, текст справа; стоя — столбиком. */
 #boot{position:fixed;inset:0;z-index:99999;display:grid;place-items:center;overflow:hidden;color:#fff;font-family:Rubik,"Golos Text",system-ui,sans-serif;
   background:radial-gradient(70% 60% at 50% 115%,rgba(60,200,90,.35),transparent 70%),radial-gradient(60% 50% at 50% -10%,rgba(80,170,255,.28),transparent 70%),linear-gradient(180deg,#0b1830 0%,#060a1c 75%);transition:opacity .5s ease,transform .5s ease}
+#boot{background:#000!important}
+#boot .bt-brand{display:grid!important;grid-template-columns:1fr!important;justify-items:center;gap:14px;width:min(80vw,560px);text-align:center}
+#boot .bt-logo{width:min(70vw,460px);height:auto;animation:btIn .9s cubic-bezier(.2,.8,.2,1) both}
+@keyframes btIn{from{opacity:0;transform:translateX(-30px);filter:blur(6px)}}
+#boot .bt-brand .bt-k{font:600 11px/1 Inter,Rubik,system-ui,sans-serif!important;letter-spacing:.28em;color:rgba(255,255,255,.5)}
+#boot .bt-brand .bt-bar{width:min(60vw,360px);height:3px!important;border-radius:2px!important;background:rgba(255,255,255,.14)!important;box-shadow:none!important;transform:none!important}
+#boot .bt-brand .bt-bar i{inset:0 auto 0 0!important;border-radius:2px!important;background:#fff!important;box-shadow:0 0 10px rgba(255,255,255,.6)!important}
+#boot .bt-brand .bt-bar i::after{display:none}
+#boot .bt-brand .bt-row{width:min(60vw,360px);font:600 11px Inter,Rubik,sans-serif!important;color:rgba(255,255,255,.45)!important;letter-spacing:.06em}
+#boot .bt-brand .bt-row b{color:#fff!important;font:700 12px Inter,Rubik,sans-serif!important}
+#boot .bt-brand .bt-tip{background:none!important;box-shadow:none!important;color:rgba(255,255,255,.6)!important;font:500 12px/1.4 Inter,Rubik,sans-serif!important;max-width:420px}
 #boot .bt-ver{position:absolute;right:14px;bottom:10px;font:600 11px Rubik,system-ui,sans-serif;color:rgba(255,255,255,.45)}
 #boot.out{opacity:0;transform:scale(1.04);pointer-events:none}
 #boot .bt-pitch{position:absolute;left:-20%;right:-20%;bottom:-8%;height:46%;transform:perspective(500px) rotateX(58deg);transform-origin:50% 100%;
@@ -54,12 +65,11 @@
 <link rel="stylesheet" href="css/clubs.css?v=20261010-clubs1">
 </head>
 <body class="fcm-on" data-scr="hub" data-panel="home">
-<div class="rot-hint" id="rot-hint" aria-live="polite"><img src="img/fcm/crest.webp" alt=""><i></i><b>Поверни телефон</b><small>Jackson Games играется лёжа — как FC Mobile</small></div>
+<div class="rot-hint" id="rot-hint" aria-live="polite"><img src="img/brand/logo-white.png?v=1" alt="Джексоны"><i></i><b>Поверни телефон</b><small>Jackson Games играется лёжа — как FC Mobile</small></div>
 <div id="boot" role="progressbar" aria-label="Загрузка">
-  <i class="bt-pitch"></i><i class="bt-beam l"></i><i class="bt-beam r"></i><i class="bt-glow l"></i><i class="bt-glow r"></i>
-  <div class="bt-in"><div class="bt-crest"><img src="img/fcm/crest.webp" alt="" decoding="async"></div>
-    <div class="bt-txt"><small class="bt-k">JACKSON GAMES</small><h1>ДЖЕКСОНЫ</h1><p class="bt-sub">Футбольный клуб · мини-игры</p>
-    <div class="bt-bar"><i></i></div><div class="bt-row"><span class="bt-lbl">Загружаем игры…</span><b class="bt-pct">0%</b></div><p class="bt-tip"></p></div></div>
+  <div class="bt-in bt-brand"><img class="bt-logo" src="img/brand/logo-white.png?v=1" alt="Джексоны" decoding="async">
+    <small class="bt-k">JACKSON GAMES · ФУТБОЛЬНЫЙ КЛУБ</small>
+    <div class="bt-bar"><i></i></div><div class="bt-row"><span class="bt-lbl">Загружаем игры…</span><b class="bt-pct">0%</b></div><p class="bt-tip"></p></div>
   <small class="bt-ver" id="bt-ver"></small>
 </div>
 <script src="js/build.js?v=__now" onerror="window.BUILD='локальная версия'"></script>
@@ -754,7 +764,7 @@
 <script defer src="js/cards.js?v=20261028-c1"></script>
 <link rel="stylesheet" href="css/social.css?v=20261015-ref1">
 <link rel="stylesheet" href="css/land.css?v=20261027-l1">
-<link rel="stylesheet" href="css/fcm.css?v=20261029-pl2">
+<link rel="stylesheet" href="css/fcm.css?v=20261029-br1">
 <script defer src="js/social.js?v=20261015-shop1"></script>
 <script defer src="js/packs.js?v=20261028-g3a"></script>
 <script defer src="js/rewards.js?v=20261027-m1"></script>
@@ -814,7 +824,7 @@
 <script defer src="js/board.js?v=20261014-social1"></script>
 <script defer src="js/track.js?v=20261016-trk"></script>
 <script defer src="js/app.js?v=20261019-fb5"></script>
-<script defer src="js/fcm.js?v=20261029-pl1"></script>
+<script defer src="js/fcm.js?v=20261029-br1"></script>
 <script>
 /* Автообновление: Telegram держит старую копию игры. При запуске (и при возврате в игру на главной) сверяем
    версии файлов (?v=…) в свежем index.html с текущими; если вышло обновление — перезагружаем с обходом кэша.

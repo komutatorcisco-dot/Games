@@ -862,3 +862,5 @@
   .fcm .fm-playt .fm-pt-ball { top: auto !important; bottom: -24% !important; right: -20% !important; width: 82% !important; }
   .fcm .fm-playt > b { top: 12% !important; left: 9% !important; }
 }
+/* «Поверни телефон» — логотип канала на чёрном */
+@media (orientation: portrait) { body.tgmob .rot-hint { background: #000 !important; } body.tgmob .rot-hint img { width: 72vw !important; max-width: 320px; filter: none !important; } body.tgmob .rot-hint i { border-color: #fff !important; box-shadow: none !important; } body.tgmob .rot-hint b { background: none !important; color: #fff !important; -webkit-background-clip: border-box !important; } }

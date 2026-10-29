@@ -1,0 +1,38 @@
+<!doctype html>
+<!-- Логотип «ДЖЕКСОНЫ» как у канала (жирный гротеск, «НЫ» уходит в движение) и короткий знак «ДЖ».
+     node tools/art/render.js brand → img/brand/logo-{white,black}.png, mark-{dark,light,lime}.png -->
+<html><head><meta charset="utf-8"><style>@font-face{font-family:IB;font-weight:800;src:url(fonts/inter-800.ttf)}html,body{margin:0;background:transparent}</style></head>
+<body><script>
+'use strict';
+// резкий текст + хвост движения вправо: сдвинутые копии со спадающей прозрачностью; маска оставляет левый край резким
+function smear(g, txt, x, y, fs, col, len, sharp) {
+  const c = document.createElement('canvas'), w = Math.ceil(g.measureText(txt).width + len + 20), h = Math.ceil(fs * 1.3); c.width = w; c.height = h;
+  const q = c.getContext('2d'); q.font = g.font; q.fillStyle = col; q.textBaseline = 'alphabetic';
+  const by = fs * 1.02, N = 60;
+  for (let i = N; i >= 0; i--) { const t = i / N; q.globalAlpha = 0.06 * (1 - t) + 0.01; q.fillText(txt, t * len, by); }
+  // резкая часть: та же надпись, видна слева и тает к правому краю
+  const s = document.createElement('canvas'); s.width = w; s.height = h; const r = s.getContext('2d'); r.font = g.font; r.fillStyle = col; r.fillText(txt, 0, by);
+  r.globalCompositeOperation = 'destination-in'; const gr = r.createLinearGradient(0, 0, g.measureText(txt).width, 0); gr.addColorStop(0, 'rgba(0,0,0,1)'); gr.addColorStop(sharp, 'rgba(0,0,0,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); r.fillStyle = gr; r.fillRect(0, 0, w, h);
+  q.globalAlpha = 1; q.drawImage(s, 0, 0);
+  g.drawImage(c, x, y - by);
+}
+window.logo = async (col) => {
+  await document.fonts.load('800 100px IB');
+  const fs = 200, c = document.createElement('canvas'), g = c.getContext('2d'); g.font = `800 ${fs}px IB`;
+  const pre = 'ДЖЕКСО', track = -0.03 * fs, wPre = [...pre].reduce((a, ch) => a + g.measureText(ch).width + track, 0), wTail = g.measureText('НЫ').width;
+  c.width = Math.ceil(wPre + wTail + fs * 0.9 + 40); c.height = Math.ceil(fs * 1.15); g.font = `800 ${fs}px IB`; g.fillStyle = col;
+  let x = 20; const y = fs * 0.95; for (const ch of pre) { g.fillText(ch, x, y); x += g.measureText(ch).width + track; }
+  g.font = `800 ${fs}px IB`; smear(g, 'НЫ', x, y, fs, col, fs * 0.6, 0.62);
+  return c.toDataURL('image/png');
+};
+window.mark = async (fg, bg) => {
+  await document.fonts.load('800 100px IB');
+  const S = 512, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d');
+  g.fillStyle = bg; g.beginPath(); g.roundRect(0, 0, S, S, S * 0.2); g.fill();
+  const fs = S * 0.46; g.font = `800 ${fs}px IB`; g.fillStyle = fg; const y = S * 0.67, x0 = S * 0.1;
+  g.fillText('Д', x0, y); const wd = g.measureText('Д').width - fs * 0.03;
+  g.save(); g.beginPath(); g.roundRect(0, 0, S, S, S * 0.2); g.clip(); smear(g, 'Ж', x0 + wd, y, fs, fg, S * 0.2, 0.55); g.restore();
+  return c.toDataURL('image/png');
+};
+window.ready = true;
+</script></body></html>
