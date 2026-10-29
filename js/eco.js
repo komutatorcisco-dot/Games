@@ -21,7 +21,7 @@ const Eco = (() => {
     if (typeof r.coins === 'number') { Store.d.coins = r.coins; }
     if (Array.isArray(r.cards)) {
       const s = Store.d.cards || (Store.d.cards = { own: {}, fresh: [] }), was = s.own || {};
-      s.own = {}; r.cards.forEach(([k, n]) => { if (n > 0) s.own[k] = n; });
+      s.own = {}; s.lock = {}; r.cards.forEach(([k, n, lk]) => { if (n > 0) s.own[k] = n; if (lk > 0) s.lock[k] = lk; }); // lock — копии из наград, на рынок нельзя
       s.fresh = (s.fresh || []).filter((k) => s.own[k]);
       Object.keys(s.own).forEach((k) => { if (!was[k] && !s.fresh.includes(k)) s.fresh.push(k); });
     }
@@ -188,18 +188,19 @@ const Market = (() => {
     if (!Eco.on()) return toast('Продажа работает в Telegram (превью)');
     const pi = await Eco.post('m_price', { key });
     if (!pi || !pi.ok) return toast('Сервер не знает эту карточку — каталог обновляется');
+    const own = Store.d.cards.own[key] || 0, free = own - ((Store.d.cards.lock || {})[key] || 0);
     const [lo, hi] = pi.range; let start = Price.up(Math.max(lo, pi.ref * 0.8)), bin = Price.round(Math.min(hi, Math.max(start + Price.step(start), pi.ref))), dur = 24;
     const el = document.createElement('div'); el.className = 'fm-sheet mk-sheet';
     const row = (k, v) => `<div class="mk-row"><small>${k === 'start' ? 'Стартовая цена' : 'Купить сразу'}</small><button class="fm-btn" data-ms="${k}:-1">−</button><b>${coin}${F(v)}</b><button class="fm-btn" data-ms="${k}:1">+</button></div>`;
     const draw = () => {
       el.innerHTML = `<div class="mk-sh">
         <div class="mk-sh-card">${Cards.html(c, { w: 150 })}</div>
-        <div class="mk-sh-info"><small>Продать на рынке · у тебя ×${Store.d.cards.own[key] || 0}</small><b>${esc(c.name)}</b>
+        <div class="mk-sh-info"><small>Продать на рынке · у тебя ×${own}${own - free ? `, из них непередаваемых ${own - free}` : ''}</small><b>${esc(c.name)}</b>
           <div class="mk-pr"><span><small>Рыночная цена</small><b>${coin}${F(pi.ref)}</b></span><span><small>Можно от и до</small><b>${F(lo)}–${F(hi)}</b></span><span><small>Быстрая продажа</small><b>${coin}${F(pi.qs)}</b></span></div>
           ${row('start', start)}${row('bin', bin)}
           <div class="mk-dur">${ECON.market.durH.map((h) => `<button class="${h === dur ? 'on' : ''}" data-md="${h}">${h < 24 ? h + ' ч' : h / 24 + ' д'}</button>`).join('')}</div>
           <p class="mk-last">Получишь при продаже за «купить сразу»: ${coin}${F(Price.net(bin))} (налог ${Math.round(ECON.market.tax * 100)}%)</p>
-          <div class="mk-act"><button class="fm-btn gold" data-ms-go>Выставить</button><button class="fm-btn" data-ms-qs>Быстрая продажа · ${F(pi.qs)}</button></div>
+          ${free > 0 ? '' : '<p class="mk-last">Карточка из награды — непередаваемая: на рынок нельзя, только быстрая продажа (как в FC)</p>'}<div class="mk-act"><button class="fm-btn gold" data-ms-go ${free > 0 ? '' : 'disabled'}>Выставить</button><button class="fm-btn" data-ms-qs>Быстрая продажа · ${F(pi.qs)}</button></div>
         </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
       if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el);
     };

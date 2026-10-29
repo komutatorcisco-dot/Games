@@ -27,7 +27,9 @@
 ## Устройство
 - Экраны: `<section class="screen">` в `index.html`, переключает `Screens.show(id)` (`js/app.js`), текущий — `body[data-scr]`.
 - Сохранение игрока: `Store.d` (`js/core.js`), копия на сервере.
-- Карточки и паки: `js/cards.js` (`Cards.PACKS` — шансы), `js/packs.js` (открытие), `js/shopstars.js` (магазин, цены как в `server/worker.js`).
+- Карточки и паки: `js/cards.js`, `js/packs.js` (открытие), `js/shopstars.js` (магазин за звёзды, цены как в `server/worker.js`).
+- Экономика: все цены, шансы паков, награды, рынок — `js/economy.js` (`ECON`, `Price`); после правки `node tools/sync-econ.js` (копия в worker.js).
+  Серверная экономика и рынок (`/eco`, `js/eco.js`) — только превью: в коде `const STAGING = false;`, `preview.yml` меняет на true для staging. Не менять вручную.
 - Открытие разделов за трофеи: `js/release.js` (`ALL_OPEN = true` — сейчас всё открыто сразу).
 - 3D: three.js r128 из `vendor/three.min.js`; `js/arena3d.js` — стадион, матч, фон меню (`backdrop`), детали для картинок (`parts`).
 - Новый вид «как FC Mobile» (только лёжа, тестовая версия; старого вида больше нет, старая главная — только для вертикального экрана): `js/fcm.js` + `css/fcm.css`. Вкладки Играть · Команда ·

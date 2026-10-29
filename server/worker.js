@@ -604,7 +604,7 @@ async function ecoSchema(db) {
   if (ecoReady) return;
   await db.batch([
     db.prepare('CREATE TABLE IF NOT EXISTS eco_wallet (uid INTEGER PRIMARY KEY, coins INTEGER NOT NULL DEFAULT 0, jp INTEGER NOT NULL DEFAULT 0, op TEXT, ts INTEGER NOT NULL DEFAULT 0, bot INTEGER NOT NULL DEFAULT 0, CHECK (coins >= 0), CHECK (jp >= 0))'),
-    db.prepare('CREATE TABLE IF NOT EXISTS eco_cards (uid INTEGER NOT NULL, key TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, op TEXT, PRIMARY KEY (uid, key), CHECK (n >= 0))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS eco_cards (uid INTEGER NOT NULL, key TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, lk INTEGER NOT NULL DEFAULT 0, op TEXT, PRIMARY KEY (uid, key), CHECK (n >= 0), CHECK (lk >= 0 AND lk <= n))'),
     db.prepare('CREATE TABLE IF NOT EXISTS eco_ops (uid INTEGER NOT NULL, op TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (uid, op))'),
     db.prepare('CREATE TABLE IF NOT EXISTS eco_led (id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, ts INTEGER NOT NULL, kind TEXT NOT NULL, src TEXT, coins INTEGER NOT NULL DEFAULT 0, card TEXT, ref TEXT, bot INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE INDEX IF NOT EXISTS eco_led_uid ON eco_led (uid, id)'),
@@ -738,7 +738,7 @@ async function ecoGrant(db, uid, body) {
       ...['low', 'gold'].filter((g) => cnt[g]).map((g) => db.prepare('INSERT INTO eco_daily (uid, day, src, n) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(uid, day, src) DO UPDATE SET n = n + ?4').bind(uid, day, 'cards:' + g, cnt[g])),
       ...ok.filter((k) => grp(k) === 'special').map((k) => db.prepare('INSERT INTO eco_once (uid, k, ts) VALUES (?, ?, ?)').bind(uid, 'card:' + k, now)),
       ...ok.flatMap((k) => [
-        db.prepare('INSERT INTO eco_cards (uid, key, n) VALUES (?, ?, 1) ON CONFLICT(uid, key) DO UPDATE SET n = n + 1').bind(uid, k),
+        db.prepare('INSERT INTO eco_cards (uid, key, n, lk) VALUES (?, ?, 1, 1) ON CONFLICT(uid, key) DO UPDATE SET n = n + 1, lk = lk + 1').bind(uid, k), // награда — непередаваемая
         db.prepare("INSERT INTO eco_led (uid, ts, kind, src, card) VALUES (?, ?, 'card', ?, ?)").bind(uid, now, src, k),
       ]),
     ]);
@@ -757,7 +757,7 @@ async function ecoConsume(db, uid, body) {
     const r = await db.batch([
       db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
       db.prepare(`UPDATE eco_wallet SET op = ? WHERE uid = ? AND ${E.map(() => '(SELECT n FROM eco_cards WHERE uid = ? AND key = ?) >= ?').join(' AND ')}`).bind(op, uid, ...E.flatMap(([k, n]) => [uid, k, n])),
-      ...E.map(([k, n]) => db.prepare(`UPDATE eco_cards SET n = n - ?1 WHERE uid = ?2 AND key = ?3 AND ${g}`).bind(n, uid, k)),
+      ...E.map(([k, n]) => db.prepare(`UPDATE eco_cards SET n = n - ?1, lk = MAX(0, lk - ?1) WHERE uid = ?2 AND key = ?3 AND ${g}`).bind(n, uid, k)),
       ...keys.map((k) => db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, card) SELECT ?, ?, 'card-', ?, ? WHERE ${g}`).bind(uid, now, String(body.src || 'use').slice(0, 40), k)),
     ]);
     if (!r[1].meta.changes) return { ok: false, error: 'not owned', ...(await ecoState(db, uid, true)) };
@@ -781,7 +781,7 @@ async function ecoStarter(db, uid, body) {
       db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
       db.prepare('INSERT INTO eco_once (uid, k, ts) VALUES (?, ?, ?)').bind(uid, 'starter', now),
       ...out.flatMap((c) => [
-        db.prepare('INSERT INTO eco_cards (uid, key, n) VALUES (?, ?, 1) ON CONFLICT(uid, key) DO UPDATE SET n = n + 1').bind(uid, c.key),
+        db.prepare('INSERT INTO eco_cards (uid, key, n, lk) VALUES (?, ?, 1, 1) ON CONFLICT(uid, key) DO UPDATE SET n = n + 1, lk = lk + 1').bind(uid, c.key), // награда — непередаваемая
         db.prepare("INSERT INTO eco_led (uid, ts, kind, src, card, ref) VALUES (?, ?, 'card', 'starter', ?, 'стартовый пак')").bind(uid, now, c.key),
       ]),
     ]);
@@ -802,7 +802,7 @@ async function ecoRewardPack(db, uid, body) {
       db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
       db.prepare('INSERT INTO eco_daily (uid, day, src, n) VALUES (?1, ?2, ?3, 1) ON CONFLICT(uid, day, src) DO UPDATE SET n = n + 1').bind(uid, day, 'rpack' + lv),
       ...cards.flatMap((c) => [
-        db.prepare('INSERT INTO eco_cards (uid, key, n) VALUES (?, ?, 1) ON CONFLICT(uid, key) DO UPDATE SET n = n + 1').bind(uid, c.key),
+        db.prepare('INSERT INTO eco_cards (uid, key, n, lk) VALUES (?, ?, 1, 1) ON CONFLICT(uid, key) DO UPDATE SET n = n + 1, lk = lk + 1').bind(uid, c.key), // награда — непередаваемая
         db.prepare("INSERT INTO eco_led (uid, ts, kind, src, card, ref) VALUES (?, ?, 'card', ?, ?, ?)").bind(uid, now, src, c.key, P.name + ' (награда)'),
       ]),
     ]);
@@ -813,7 +813,7 @@ async function ecoState(db, uid, light) {
   const w = await ecoWallet(db, uid);
   const out = { coins: w.coins, jp: w.jp };
   if (!light) {
-    out.cards = (await db.prepare('SELECT key, n FROM eco_cards WHERE uid = ? AND n > 0').bind(uid).all()).results.map((x) => [x.key, x.n]);
+    out.cards = (await db.prepare('SELECT key, n, lk FROM eco_cards WHERE uid = ? AND n > 0').bind(uid).all()).results.map((x) => [x.key, x.n, x.lk]);
     out.started = !!(await db.prepare("SELECT 1 FROM eco_once WHERE uid = ? AND k = 'starter'").bind(uid).first());
   }
   return out;
@@ -851,7 +851,7 @@ async function ecoQuick(db, uid, body) {
   try {
     const r = await db.batch([
       db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
-      db.prepare('UPDATE eco_cards SET n = n - ?1, op = ?2 WHERE uid = ?3 AND key = ?4 AND n >= ?1').bind(n, op, uid, key),
+      db.prepare('UPDATE eco_cards SET n = n - ?1, lk = MAX(0, lk - ?1), op = ?2 WHERE uid = ?3 AND key = ?4 AND n >= ?1').bind(n, op, uid, key), // сначала уходят непередаваемые
       db.prepare(`UPDATE eco_wallet SET coins = coins + ?1, ts = ?2 WHERE uid = ?3 AND ${g}`).bind(v, now, uid),
       db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, coins, card, ref) SELECT ?1, ?2, 'quick', 'quick', ?3, ?4, ?5 WHERE ${g}`).bind(uid, now, v, key, `×${n}`),
     ]);
@@ -885,13 +885,13 @@ async function mkList(db, uid, body, isBot = false) {
     const r = await db.batch([
       db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
       // не больше maxLots открытых лотов и только своя карточка
-      db.prepare(`UPDATE eco_cards SET n = n - 1, op = ?1 WHERE uid = ?2 AND key = ?3 AND n >= 1
+      db.prepare(`UPDATE eco_cards SET n = n - 1, op = ?1 WHERE uid = ?2 AND key = ?3 AND n - lk >= 1
         AND (SELECT COUNT(*) FROM mk_lots WHERE seller = ?2 AND status = 'open') < ?4`).bind(op, uid, key, isBot ? 100000 : M.maxLots),
       db.prepare(`INSERT INTO mk_lots (seller, key, name, r, rar, pos, club, nat, start, bin, ends, ts, bot, op)
         SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14 WHERE ${g}`).bind(uid, key, c.name, c.r, c.rar, c.pos || '', c.club || '', c.nat || '', start, bin, now + dur * 3600e3, now, isBot ? 1 : 0, op),
       db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, card, ref, bot) SELECT ?1, ?3, 'list', 'market', ?2, ?4, ?5 WHERE ${g}`).bind(uid, key, now, `${start}–${bin}, ${dur} ч`, isBot ? 1 : 0),
     ]);
-    if (!r[1].meta.changes) return { ok: false, error: 'not owned or too many lots' };
+    if (!r[1].meta.changes) return { ok: false, error: 'not owned or too many lots' }; // или все копии непередаваемые
     return { ok: true, lot: r[2].meta.last_row_id, range: pr.range };
   } catch (e) { return { ok: false, dup: true }; }
 }

@@ -126,6 +126,9 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
   const rar = sp.keys.map((k) => sql.prepare('SELECT rar FROM eco_cat WHERE key = ?').get(k).rar);
   assert.equal(rar.filter((r) => r === 'gold').length, 4);
   assert.equal((await call(60, { act: 'starter', nat: 'Франция', op: op() })).ok, false, 'стартовый пак — один раз');
+  const sk = sp.keys.find((k) => /^G/.test(k)), skc = sql.prepare('SELECT * FROM eco_cat WHERE key = ?').get(sk), [slo, shi] = T.Price.range(skc, 0, 0);
+  assert.equal((await call(60, { act: 'm_list', key: sk, start: slo, bin: shi, dur: 1, op: op() })).ok, false, 'карточку из стартового пака на рынок не выставить');
+  const qsk = await call(60, { act: 'quick', key: sk, op: op() }); assert.ok(qsk.ok, 'а быстро продать можно');
   // награды карточками: особая — один раз, золото — не больше 8 в день
   assert.ok((await call(60, { act: 'grant', keys: ['JG:x'], src: 'event', op: op() })).ok);
   assert.equal((await call(60, { act: 'grant', keys: ['JG:x'], src: 'event', op: op() })).ok, false, 'особую карточку не выдать дважды');
