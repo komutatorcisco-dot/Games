@@ -148,15 +148,38 @@
   .fm-gc img { width: 56px; height: 56px; object-fit: contain; border-radius: 10px; } .fm-gc b { font: 800 15px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; } .fm-gc small { font: 600 12px/1 "Barlow Condensed", sans-serif; color: #9fb2cc; }
 
   /* Задания */
-  .fm-qs { display: grid; gap: 6px; }
-  .fm-q { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; padding: 8px 10px 8px 14px; border-radius: 8px; background: var(--fm-card); box-shadow: inset 0 0 0 1px var(--fm-edge); }
-  .fm-q-t { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
-  .fm-q-t b { grid-column: 1 / -1; font: 700 15px/1.1 "Barlow Condensed", sans-serif; }
+  .fm-qbody { display: grid; gap: 8px; align-content: start; }
+  .fm-qh { display: flex; align-items: center; gap: 14px; padding: 8px 14px; border-radius: 10px; background: linear-gradient(90deg, rgba(198,255,61,.16), rgba(198,255,61,0) 70%), var(--fm-card); box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .fm-qh-t { flex: 1; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; align-items: center; min-width: 0; }
+  .fm-qh-t b { font: 800 19px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; }
+  .fm-qh-t small { grid-column: 1 / -1; font: 600 12px/1 "Barlow Condensed", sans-serif; color: #9fb2cc; }
+  .fm-pips { display: flex; gap: 4px; } .fm-pips i { width: 18px; height: 6px; border-radius: 3px; background: rgba(255,255,255,.14); } .fm-pips i.on { background: var(--fm-lime); box-shadow: 0 0 8px rgba(198,255,61,.6); }
+  .fm-qh-tm { display: flex; align-items: center; gap: 7px; color: #9fb2cc; } .fm-qh-tm .fm-ic { width: 20px; height: 20px; }
+  .fm-qh-tm span { display: grid; gap: 2px; } .fm-qh-tm small { font: 600 11px/1 "Barlow Condensed", sans-serif; } .fm-qh-tm b { font: 800 15px/1 "Barlow Condensed", sans-serif; color: #fff; }
+  .fm-qpass { display: flex !important; align-items: center; gap: 12px; width: 100%; padding: 6px 12px !important; border-radius: 10px; text-align: left !important;
+    background: linear-gradient(90deg, #2a1f55, #13203d) !important; box-shadow: inset 0 0 0 1px rgba(160,130,255,.35); }
+  .fm-qp-lv { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #c9b6ff, #6a4ad8); box-shadow: 0 0 12px rgba(140,110,255,.55); line-height: 1; }
+  .fm-qp-lv small { font: 700 9px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; opacity: .85; } .fm-qp-lv b { font: 800 17px/1 "Barlow Condensed", sans-serif; }
+  .fm-qp-t { flex: 1; display: grid; gap: 4px; min-width: 0; } .fm-qp-t b { font: 800 14px/1 "Barlow Condensed", sans-serif; text-transform: uppercase; } .fm-qp-t small { font: 600 11px/1 "Barlow Condensed", sans-serif; color: #b8acd8; }
+  .fm-qp-t .fm-bar i { background: linear-gradient(90deg, #8b6cff, #d6c8ff); }
+  .fm-qp-nx { display: flex; align-items: center; gap: 6px; padding-left: 12px; border-left: 1px solid rgba(255,255,255,.12); }
+  .fm-qp-nx small { font: 600 11px/1 "Barlow Condensed", sans-serif; color: #b8acd8; } .fm-qp-nx b { font: 800 14px/1 "Barlow Condensed", sans-serif; }
+  .fm-qp-art { display: grid; place-items: center; height: 26px; } .fm-qp-art :is(svg, img) { max-height: 24px; width: auto; }
+  .fm-qp-go { font: 800 22px/1 "Barlow Condensed", sans-serif; font-style: normal; color: #b8acd8; }
+  .fm-qs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .fm-q { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; gap: 6px 10px; align-items: center; padding: 8px 10px; border-radius: 10px; background: var(--fm-card); box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .fm-q-ic { grid-row: 1 / 3; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 10px; color: #fff; background: linear-gradient(150deg, #2b6cff, #173a8a); box-shadow: inset 0 1px 0 rgba(255,255,255,.25); }
+  .fm-q-ic .fm-ic { width: 24px; height: 24px; }
+  .fm-q-ic.k-win { background: linear-gradient(150deg, #9be81f, #3d8a12); } .fm-q-ic.k-pack { background: linear-gradient(150deg, #ffcc3a, #c07a10); } .fm-q-ic.k-card { background: linear-gradient(150deg, #b06cff, #5b2ab0); } .fm-q-ic.k-list { background: linear-gradient(150deg, #19d3b0, #0c6e6a); }
+  .fm-q-t { display: grid; gap: 5px; min-width: 0; }
+  .fm-q-t b { font: 700 15px/1.1 "Barlow Condensed", sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .fm-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; } .fm-bar i { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #19d3b0, var(--fm-lime)); }
-  .fm-q-t small { font: 700 12px/1 "Barlow Condensed", sans-serif; color: #9fb2cc; }
-  .fm-q-rw { display: grid; justify-items: end; font: italic 800 18px/1 "Barlow Condensed", sans-serif; color: #ffd23c; } .fm-q-rw small { font: 600 10px/1 "Barlow Condensed", sans-serif; color: #9fb2cc; text-transform: uppercase; }
-  .fm-q.done { box-shadow: inset 0 0 0 1px rgba(198,255,61,.5); } .fm-q.got { opacity: .5; }
-  .fm-q-ok { width: 34px; text-align: center; font-size: 20px; color: var(--fm-lime); }
+  .fm-q-f { display: flex; align-items: center; gap: 8px; } .fm-q-f > small { font: 700 12px/1 "Barlow Condensed", sans-serif; color: #9fb2cc; }
+  .fm-q-rw { display: flex; align-items: center; gap: 3px; margin-right: auto; font: 800 15px/1 "Barlow Condensed", sans-serif; color: #c9b6ff; } .fm-q-rw .fm-ic { width: 13px; height: 13px; }
+  .fm-q .fm-btn.sm { padding: 5px 12px !important; min-height: 0 !important; font-size: 13px !important; }
+  .fm-q.done { background: linear-gradient(120deg, rgba(198,255,61,.2), rgba(198,255,61,.04)), var(--fm-card); box-shadow: inset 0 0 0 1px rgba(198,255,61,.55), 0 0 14px rgba(198,255,61,.15); }
+  .fm-q.got { opacity: .45; } .fm-q.got .fm-q-ic { filter: grayscale(1); }
+  .fm-q-ok { font: 700 13px/1 "Barlow Condensed", sans-serif; color: var(--fm-lime); }
   .fm-pass { margin-top: 10px; width: 100%; }
 
   /* Магазин: предложения в ряд, как витрина FC Mobile */

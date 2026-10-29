@@ -322,17 +322,44 @@ const FCM = (() => {
   // ---------- Задания ----------
   const GO = (ev) => { const p = ev.split(':'); if (p[1] === 'act') return `data-act="${p[2]}"`; if (p[1] === 'ng') return `data-ng="${p[2]}"`; if (p[1] === 'squad') return 'data-act="squad"'; if (ev === 'pack') return 'data-fm-tab="store"'; return 'data-fm-tab="play"'; };
   function questsReady() { try { const q = Rewards.questSync(); return [...q.list, ...q.wlist, ...(q.slist || [])].some((x) => x.done && !x.got); } catch (e) { return false; } }
+  // «Задания» как в FC Mobile (29.10): сверху — сколько выполнено и когда обновятся, полоса пропуска со следующей наградой,
+  // задания — плитками со значком по типу; готовые к получению — первыми, полученные — в конце. Награды прежние.
+  const QT = { qwin: ['star', 'win'], qpack: ['store', 'pack'], qplay: ['play', 'play'], qcards: ['cards', 'card'], qlist: ['target', 'list'] };
+  const left = (ms) => { ms = Math.max(0, ms); const d = Math.floor(ms / 864e5), h = Math.floor(ms % 864e5 / 36e5), m = Math.floor(ms % 36e5 / 6e4); return d ? `${d} д ${h} ч` : h ? `${h} ч ${m} мин` : `${m} мин`; };
+  function qLeft(kind) {
+    const now = Date.now(), msk = now + 3 * 36e5;
+    if (kind === 'day') return 864e5 - (msk % 864e5);
+    if (kind === 'week') { try { const nx = new Date(Date.parse(Release.weekKey()) + 7 * 864e5).toISOString().slice(0, 10); return Release.at(nx) - now; } catch (e) { return 0; } }
+    try { return Rewards.seasonEnd() - now; } catch (e) { return 0; }
+  }
   function quests() {
     let q; try { q = Rewards.questSync(); } catch (e) { q = { list: [], wlist: [], slist: [] }; }
     const lists = { day: q.list, week: q.wlist, season: q.slist || [] };
     const n = (l) => l.filter((x) => x.done && !x.got).length;
     const L = [['day', 'Ежедневные', n(lists.day) ? `Забрать: ${n(lists.day)}` : ''], ['week', 'Недельные', n(lists.week) ? `Забрать: ${n(lists.week)}` : ''], ['season', 'Сезон', n(lists.season) ? `Забрать: ${n(lists.season)}` : '']];
-    const rows = lists[sub.quests].map((x) => { const d = Rewards.qdef(x.id); if (!d) return '';
-      return `<div class="fm-q ${x.got ? 'got' : x.done ? 'done' : ''}"><span class="fm-q-t"><b>${esc(d.t)}</b><span class="fm-bar"><i style="width:${Math.round(100 * Math.min(1, x.p / d.n))}%"></i></span><small>${x.p}/${d.n}</small></span>
-        <em class="fm-q-rw">+${d.xp}<small>очков пропуска</small></em>
-        ${x.got ? '<span class="fm-q-ok">✓</span>' : x.done ? `<button class="fm-btn gold sm" data-fm-claim="${x.id}">Забрать</button>` : `<button class="fm-btn sm" ${GO(d.ev)}>Играть</button>`}</div>`; }).join('');
-    return `<div class="fm-split">${rail(L, 'quests')}<div class="fm-body"><div class="fm-qs">${rows || '<p class="fm-none">Заданий пока нет</p>'}</div>
-      <button class="fm-btn fm-pass" data-act="rewards">Пропуск и путь трофеев ›</button></div></div>`;
+    const list = lists[sub.quests], rank = (x) => (x.done && !x.got ? 0 : x.got ? 2 : 1);
+    const done = list.filter((x) => x.done).length;
+    const tiles = list.slice().sort((a, b) => rank(a) - rank(b)).map((x) => { const d = Rewards.qdef(x.id); if (!d) return '';
+      const [ic, k] = QT[Rewards.questArt(d)] || QT.qlist, pc = Math.round(100 * Math.min(1, x.p / d.n));
+      return `<div class="fm-q ${x.got ? 'got' : x.done ? 'done' : ''}">
+        <span class="fm-q-ic k-${k}">${ico(ic)}</span>
+        <span class="fm-q-t"><b>${esc(d.t)}</b><span class="fm-bar"><i style="width:${pc}%"></i></span></span>
+        <span class="fm-q-f"><small>${x.p}/${d.n}</small><em class="fm-q-rw">${ico('star')}+${d.xp}</em>
+        ${x.got ? '<span class="fm-q-ok">Получено ✓</span>' : x.done ? `<button class="fm-btn gold sm" data-fm-claim="${x.id}">Забрать</button>` : `<button class="fm-btn sm" ${GO(d.ev)}>Играть ›</button>`}</span></div>`; }).join('');
+    let pass = '';
+    try {
+      const p = Rewards.passSync(), lv = Rewards.passLevel(), max = Rewards.PASS_LEVELS, step = Rewards.PASS_STEP;
+      const nx = Rewards.PASS[Math.min(lv, max - 1)], lb = nx ? Rewards.rewardLabel(nx[0]) : null, xp = lv >= max ? step : p.xp - lv * step;
+      pass = `<button class="fm-qpass" data-act="rewards"><span class="fm-qp-lv"><small>Ур.</small><b>${lv}</b></span>
+        <span class="fm-qp-t"><b>Пропуск сезона</b><span class="fm-bar"><i style="width:${Math.round(100 * xp / step)}%"></i></span><small>${xp}/${step} очков до уровня ${Math.min(max, lv + 1)}</small></span>
+        ${lb ? `<span class="fm-qp-nx"><small>Дальше</small><span class="fm-qp-art">${lb.ico}</span><b>${esc(lb.txt || lb.name)}</b></span>` : ''}<i class="fm-qp-go">›</i></button>`;
+    } catch (e) {}
+    const T = { day: 'Ежедневные задания', week: 'Недельные задания', season: 'Задания сезона' }[sub.quests];
+    return `<div class="fm-split">${rail(L, 'quests')}<div class="fm-body fm-qbody">
+      <div class="fm-qh"><span class="fm-qh-t"><b>${T}</b><span class="fm-pips">${list.map((x) => `<i class="${x.done ? 'on' : ''}"></i>`).join('')}</span><small>Выполнено ${done} из ${list.length}</small></span>
+        <span class="fm-qh-tm">${ico('timer')}<span><small>Обновятся через</small><b>${left(qLeft(sub.quests))}</b></span></span></div>
+      ${pass}
+      <div class="fm-qs">${tiles || '<p class="fm-none">Заданий пока нет</p>'}</div></div></div>`;
   }
 
   // ---------- Магазин (как в FC Mobile): слева разделы, паки крупно со свечением, перед покупкой — окно пака ----------
