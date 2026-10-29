@@ -76,6 +76,11 @@ const Eco = (() => {
     Coins.spend = (n, src) => { const v = Math.round(n * K()); if (!spend0(v)) return false; spend(v, src); return true; };
     const cadd = Cards.add;
     Cards.add = (keys, opt = {}) => { const res = cadd(keys); if (srv) { res.forEach((x) => (x.coins = 0)); if (!opt.server) grant(keys, opt.src || Eco.src || 'reward'); } return res; };
+    // «Испытания» (ИПК) сдают карточки: на сервере они тоже уходят из клуба (иначе сданную можно было бы продать на рынке)
+    const use0 = Cards.use;
+    Cards.use = (keys) => { const ok = use0(keys); if (ok && srv) chain(async () => { const r = await post('consume', { keys, src: 'sbc', op: opid() });
+      const s = Store.d.cards; if (r && r.ok) keys.forEach((k) => { s.own[k] = Math.max(0, (s.own[k] || 0) - 1); if (s.used && s.used[k]) s.used[k]--; if (!s.own[k]) delete s.own[k]; });
+      apply(r && r.ok ? r : await post('state')); }); return ok; };
     // цены и состав паков — из ECON
     if (typeof StarShop !== 'undefined') [...StarShop.COIN_PACKS, ...StarShop.ITEMS].forEach((x) => { const P = ECON.packs.find((p) => p.lv === x.level); if (P && x.coins) x.coins = P.price * (x.count || 1); });
     // в сезоне 1 легенды и «Джексон» из паков не выпадают — их слоты дают золото; описание без обещаний легенд
