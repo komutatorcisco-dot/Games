@@ -508,6 +508,681 @@ async function top(env, user, scope, game = '') {
 // ---------- статистика, ошибки, админ ----------
 const getSetting = async (db, k) => { const r = await db.prepare('SELECT v FROM settings WHERE k = ?').bind(k).first(); return r ? r.v : null; };
 const setSetting = (db, k, v) => db.prepare('INSERT INTO settings (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v = ?2').bind(k, String(v)).run();
+
+// =====================================================================================================
+// Экономика, трансферный рынок и история операций (29.10). ТОЛЬКО проверочный сервер jackson-games-staging.
+// STAGING = false в репозитории; preview.yml при выкладке на staging заменяет строку на true (sed) — рабочий сервер
+// (worker.yml) получает файл как есть, и ecoOn() там всегда false: /eco отвечает «off», таблицы не создаются.
+// Монеты и карточки здесь хранит сервер: eco_wallet, eco_cards; каждая операция пишется в eco_led (история).
+// Каждый изменяющий запрос несёт op — номер операции от клиента; eco_ops (uid, op) не даёт выполнить его дважды.
+// Деньги и карточки меняются одной пачкой db.batch (транзакция): условия «хватает монет», «лот ещё открыт» —
+// в самих UPDATE, следующие строки пачки срабатывают, только если первая сработала (метка op в строке).
+// =====================================================================================================
+const STAGING = false;
+const ecoOn = (env, url) => (STAGING && /^jackson-games-staging\./.test(url.hostname));
+// ECON:BEGIN
+const ECON = {
+  v: 1,
+  // новый аккаунт: стартовые монеты (стартовый пак 4/6/8 выдаётся отдельно, один раз — в обучении)
+  start: { coins: 5000 },
+  // ---- цена карточки (наша модель; форма кривой как в FC: золото дорожает по экспоненте от OVR) ----
+  // быстрая продажа: бронза и серебро a + (OVR − начало) × b, золото a × b^(OVR − 75)
+  qs: { bronze: [10, 1, 45], silver: [40, 8, 65], gold: [150, 1.15, 75] },
+  // ориентир рынка (без продаж): так же, но выше; дальше цену двигают сделки
+  base: { bronze: [200, 8, 45], silver: [400, 40, 65], gold: [800, 1.28, 75] },
+  // особые версии одного игрока — своя цена (ключ версии отдельный): множитель к цене и быстрой продаже
+  ver: { bronze: 1, silver: 1, gold: 1, legend: 3, jack: 5, jg: 4, future: 4, forgotten: 6 },
+  // полезность позиции (спрос): вратарей на рынке берут реже
+  pos: { 'ВРТ': 0.8 },
+  market: {
+    tax: 0.05,                 // налог с продажи, как на ПК и консолях (в FC Mobile — 10%)
+    minPrice: 200, maxPrice: 15000000,
+    durH: [1, 3, 6, 12, 24, 72], // срок лота: 1 ч … 3 дня
+    maxLots: 30,               // одновременно выставлено у одного игрока
+    floorQs: 1.5,              // низ рамки ≥ быстрая продажа × 1.5 — купить и сразу сдать в быструю продажу всегда в минус
+    floorBase: 0.35,           // и ≥ 35% ориентира — 95 OVR не уйдёт за символическую сумму
+    capBase: 10,               // верх рамки ≤ ориентир × 10
+    refLo: 0.5, refHi: 3,      // текущая цена (по сделкам) держится в пределах 0.5…3 ориентира
+    rangeLo: 0.5, rangeHi: 5,  // рамка от текущей цены: 0.5…5
+    ema: 0.2, emaMin: 3,       // сделка сдвигает текущую цену на 20%; рамка начинает «ходить» после 3 сделок
+    // шаг ставки (наша настройка в духе FC; точные шаги FC не подтверждены источниками): до 1000 — 50, до 10 000 — 100 …
+    steps: [[1000, 50], [10000, 100], [50000, 250], [100000, 500], [1e15, 1000]],
+  },
+  // ---- паки: состав и шансы (как раньше), новые цены — расчёт в docs/economy.md ----
+  packs: [
+    { id: 'basic', lv: 0, name: 'Обычный пак', price: 2500, n: 3, sure: [], w: [['bronze', 62], ['silver', 30], ['gold', 7.5], ['legend', 0.5]] },
+    { id: 'rare', lv: 1, name: 'Сверхредкий пак', price: 6000, n: 5, sure: ['gold'], w: [['bronze', 40], ['silver', 44], ['gold', 15], ['legend', 1]] },
+    { id: 'epic', lv: 2, name: 'Эпический пак', price: 11000, n: 8, sure: ['gold', 'gold'], w: [['bronze', 28], ['silver', 44], ['gold', 26], ['legend', 2]] },
+    { id: 'legend', lv: 3, name: 'Легендарный пак', price: 22000, n: 15, sure: ['legend', 'gold', 'gold', 'gold'], w: [['bronze', 20], ['silver', 40], ['gold', 37], ['legend', 3]] },
+    { id: 'jack', lv: 4, name: 'Пак «ДЖЕКСОН!!»', price: 48000, n: 30, sure: ['jack', 'legend', 'legend', 'gold', 'gold', 'gold', 'gold', 'gold', 'gold'], w: [['silver', 40], ['gold', 52], ['legend', 8]] },
+  ],
+  // вероятность «чем выше OVR, тем реже» внутри редкости (как было в js/cards.js)
+  decay: { bronze: 1, silver: 0.8, gold: 0.75, legend: 0.82, jack: 1 },
+  // ---- заработок: награды игр умножаются на k; в день полностью платятся первые full, следующие half — вполовину, дальше 10% ----
+  earn: {
+    k: 10,                     // все прежние награды ×10 (прежняя шкала 20–100 монет за игру → 200–1000)
+    full: 4000, half: 8000,    // повторяемые игры: 4000 в день полностью, до 8000 — вполовину
+    // потолки по источникам (в день, после ×k): защита от накрутки одной игрой и от подделанных клиентом наград
+    cap: { game: 12000, match: 9000, daily: 6000, login: 1000, quest: 6000, pass: 15000, event: 10000, dup: 8000, club: 2000, other: 4000 },
+    // матчи и главы — серверная таблица (за один матч / главу)
+    match: { win: 900, draw: 400, loss: 200, online: 1.5 },
+  },
+  // награды, которые выдаёт игра (пропуск, события, испытания): паков-наград в день по уровню 0…4 и карточек в день
+  rewardPacks: [10, 6, 4, 2, 1],
+  rewardCards: { low: 40, gold: 8 },
+  // Jackson Points — отдельная валюта: только косметика и особые предметы, не паки и не рынок
+  jp: { start: 0 },
+  // ---- боты рынка (только проверочный сервер, выключаются в настройках) ----
+  bots: { on: true, n: 12, budgetDay: 600000, maxShare: 0.08, buyBelow: 0.9, bidUpTo: 0.85, listMax: 140, tickSec: 60, actions: 6, durH: [1, 3, 6, 12] },
+};
+// Цены карточек: одни и те же функции на сервере и в игре
+const Price = {
+  _f(t, c) { // особые версии (легенды, «Джексон»…) — по кривой золота и со своим множителем
+    const k = t[c.rar] ? c.rar : 'gold', [a, b, from] = t[k], d = Math.max(0, c.r - from);
+    return (k === 'gold' ? a * Math.pow(b, d) : a + d * b) * (ECON.ver[c.rar] || 1) * (ECON.pos[c.pos] || 1);
+  },
+  base: (c) => Price.round(Price._f(ECON.base, c)),
+  qs: (c) => Math.max(1, Math.round(Price._f(ECON.qs, c))),
+  step(p) { for (const [to, s] of ECON.market.steps) if (p < to) return s; return 1000; },
+  round(p) { p = Math.max(ECON.market.minPrice, Math.min(ECON.market.maxPrice, Math.round(p))); const s = Price.step(p); return Math.round(p / s) * s; },
+  // текущая цена: по сделкам (ema) в пределах refLo…refHi ориентира
+  ref(c, ema, sales) { const b = Price.base(c), M = ECON.market; return Price.round(sales >= M.emaMin && ema ? Math.min(b * M.refHi, Math.max(b * M.refLo, ema)) : b); },
+  // рамка цены для выставления: [мин, макс]
+  range(c, ema, sales) {
+    const M = ECON.market, b = Price.base(c), r = Price.ref(c, ema, sales);
+    const lo = Math.max(M.minPrice, Price.qs(c) * M.floorQs, b * M.floorBase, r * M.rangeLo);
+    const hi = Math.max(lo, Math.min(b * M.capBase, r * M.rangeHi));
+    return [Price.up(lo), Price.round(hi)];
+  },
+  up(p) { const s = Price.step(p); return Math.max(ECON.market.minPrice, Math.ceil(p / s) * s); },
+  nextBid(bid, start) { return bid ? bid + Price.step(bid) : start; },
+  net: (p) => Math.floor(p * (1 - ECON.market.tax)),
+};
+// ECON:END
+let ecoReady = false;
+async function ecoSchema(db) {
+  if (ecoReady) return;
+  await db.batch([
+    db.prepare('CREATE TABLE IF NOT EXISTS eco_wallet (uid INTEGER PRIMARY KEY, coins INTEGER NOT NULL DEFAULT 0, jp INTEGER NOT NULL DEFAULT 0, op TEXT, ts INTEGER NOT NULL DEFAULT 0, bot INTEGER NOT NULL DEFAULT 0, CHECK (coins >= 0), CHECK (jp >= 0))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS eco_cards (uid INTEGER NOT NULL, key TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, op TEXT, PRIMARY KEY (uid, key), CHECK (n >= 0))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS eco_ops (uid INTEGER NOT NULL, op TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (uid, op))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS eco_led (id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, ts INTEGER NOT NULL, kind TEXT NOT NULL, src TEXT, coins INTEGER NOT NULL DEFAULT 0, card TEXT, ref TEXT, bot INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS eco_led_uid ON eco_led (uid, id)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS eco_daily (uid INTEGER NOT NULL, day TEXT NOT NULL, src TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (uid, day, src))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS eco_once (uid INTEGER NOT NULL, k TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (uid, k))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS eco_cat (key TEXT PRIMARY KEY, name TEXT NOT NULL, r INTEGER NOT NULL, rar TEXT NOT NULL, pos TEXT, club TEXT, nat TEXT, dr INTEGER NOT NULL DEFAULT 1)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS mk_lots (id INTEGER PRIMARY KEY AUTOINCREMENT, seller INTEGER NOT NULL, key TEXT NOT NULL, name TEXT NOT NULL, r INTEGER NOT NULL, rar TEXT NOT NULL, pos TEXT, club TEXT, nat TEXT, start INTEGER NOT NULL, bin INTEGER NOT NULL, bid INTEGER NOT NULL DEFAULT 0, bidder INTEGER, pbid INTEGER NOT NULL DEFAULT 0, pbidder INTEGER, ends INTEGER NOT NULL, status TEXT NOT NULL DEFAULT \'open\', price INTEGER NOT NULL DEFAULT 0, buyer INTEGER, op TEXT, ts INTEGER NOT NULL, bot INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS mk_open ON mk_lots (status, ends)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS mk_find ON mk_lots (status, rar, r)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS mk_seller ON mk_lots (seller, status)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS mk_bidder ON mk_lots (bidder, status)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS mk_key ON mk_lots (key, status)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS mk_bids (lot INTEGER NOT NULL, uid INTEGER NOT NULL, amount INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (lot, uid))'),
+    db.prepare('CREATE INDEX IF NOT EXISTS mk_bids_uid ON mk_bids (uid, ts)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS mk_fav (uid INTEGER NOT NULL, lot INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (uid, lot))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS mk_price (key TEXT PRIMARY KEY, ema INTEGER NOT NULL DEFAULT 0, sales INTEGER NOT NULL DEFAULT 0, ts INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS mk_sales (id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT NOT NULL, price INTEGER NOT NULL, ts INTEGER NOT NULL, bot INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS mk_sales_key ON mk_sales (key, id)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS wipe_backup (id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, ts INTEGER NOT NULL, tbl TEXT NOT NULL, data TEXT NOT NULL)'),
+    db.prepare('CREATE INDEX IF NOT EXISTS wipe_backup_uid ON wipe_backup (uid, ts)'),
+  ]);
+  ecoReady = true;
+}
+const ecoDay = (t = Date.now()) => new Date(t + 3 * 3600e3).toISOString().slice(0, 10); // день по Москве, как в игре
+const ecoOp = (op) => (typeof op === 'string' && /^[A-Za-z0-9_.:-]{6,64}$/.test(op) ? op : null);
+const BOT_UID = (i) => -1000 - i; // боты — отрицательные номера; в истории bot = 1
+
+// каталог карточек (ключ → рейтинг, редкость…) в памяти: читаем раз в 10 минут
+let ecoCatMem = null;
+async function ecoCat(db) {
+  if (ecoCatMem && Date.now() - ecoCatMem.at < 600000) return ecoCatMem;
+  const rows = (await db.prepare('SELECT key, name, r, rar, pos, club, nat, dr FROM eco_cat').all()).results;
+  const by = new Map(), drop = {};
+  for (const c of rows) { by.set(c.key, c); if (c.dr) (drop[c.rar] = drop[c.rar] || []).push(c); }
+  const min = {}; for (const k in drop) min[k] = Math.min(...drop[k].map((c) => c.r));
+  ecoCatMem = { at: Date.now(), by, drop, min, n: rows.length };
+  return ecoCatMem;
+}
+// одна карточка редкости rar (как в игре: высокий OVR реже; легенды и «Джексон» в сезоне 1 не выпадают → золото)
+function ecoDraw(cat, rar, rnd = Math.random) {
+  let r = rar;
+  if (!cat.drop[r] && (r === 'legend' || r === 'jack')) r = 'gold';
+  for (const up of ['silver', 'gold']) if (!cat.drop[r] && ['bronze', 'silver'].includes(r)) r = up;
+  const L = cat.drop[r]; if (!L || !L.length) return null;
+  const k = ECON.decay[r] || 1;
+  if (k === 1) return L[Math.floor(rnd() * L.length)];
+  let tot = 0; const w = L.map((c) => { const v = Math.pow(k, c.r - cat.min[r]); tot += v; return v; });
+  let x = rnd() * tot; for (let i = 0; i < L.length; i++) { x -= w[i]; if (x <= 0) return L[i]; }
+  return L[L.length - 1];
+}
+function ecoRoll(cat, P) {
+  const roll = () => { const tw = P.w.reduce((s, [, v]) => s + v, 0); let x = Math.random() * tw; for (const [k, v] of P.w) { x -= v; if (x <= 0) return k; } return P.w[0][0]; };
+  const out = P.sure.map((r) => ecoDraw(cat, r));
+  while (out.length < P.n) out.push(ecoDraw(cat, roll()));
+  return out.filter(Boolean);
+}
+async function ecoWallet(db, uid) {
+  let w = await db.prepare('SELECT coins, jp FROM eco_wallet WHERE uid = ?').bind(uid).first();
+  if (!w) {
+    await db.batch([
+      db.prepare('INSERT OR IGNORE INTO eco_wallet (uid, coins, jp, ts, bot) VALUES (?1, ?2, ?3, ?4, ?5)').bind(uid, uid < 0 ? 0 : ECON.start.coins, ECON.jp.start, Date.now(), uid < 0 ? 1 : 0),
+      db.prepare("INSERT INTO eco_led (uid, ts, kind, src, coins, bot) SELECT ?1, ?2, 'earn', 'start', ?3, ?4 WHERE ?1 > 0 AND NOT EXISTS (SELECT 1 FROM eco_led WHERE uid = ?1 AND kind = 'earn' AND src = 'start')").bind(uid, Date.now(), ECON.start.coins, 0),
+    ]);
+    w = await db.prepare('SELECT coins, jp FROM eco_wallet WHERE uid = ?').bind(uid).first();
+  }
+  return w;
+}
+async function ecoPrice(db, c) {
+  const p = await db.prepare('SELECT ema, sales FROM mk_price WHERE key = ?').bind(c.key).first();
+  const ema = p ? p.ema : 0, sales = p ? p.sales : 0;
+  return { qs: Price.qs(c), base: Price.base(c), ref: Price.ref(c, ema, sales), range: Price.range(c, ema, sales), sales };
+}
+// сделка двигает текущую цену (ema) — в пределах refLo…refHi ориентира, см. Price.ref
+const ecoSale = (db, key, price, ts, bot, opGuard) => [
+  db.prepare(`INSERT INTO mk_price (key, ema, sales, ts) SELECT ?1, ?2, 1, ?3 WHERE ${opGuard}
+    ON CONFLICT(key) DO UPDATE SET ema = CAST(ema * (1 - ?4) + ?2 * ?4 AS INTEGER), sales = sales + 1, ts = ?3`).bind(key, price, ts, ECON.market.ema),
+  db.prepare(`INSERT INTO mk_sales (key, price, ts, bot) SELECT ?1, ?2, ?3, ?4 WHERE ${opGuard}`).bind(key, price, ts, bot ? 1 : 0),
+];
+// ---- начисления от игры: награды считает клиент (матчи и мини-игры идут на телефоне), сервер ограничивает по дням ----
+async function ecoEarn(db, uid, body) {
+  const op = ecoOp(body.op), src = String(body.src || 'other').split(':')[0], cap = ECON.earn.cap[src] !== undefined ? ECON.earn.cap[src] : ECON.earn.cap.other;
+  const want = Math.floor(Number(body.n) || 0);
+  if (!op || want <= 0 || want > 200000) return { ok: false, error: 'bad earn' };
+  const day = ecoDay(), now = Date.now(), tag = String(body.src || 'other').slice(0, 40);
+  await ecoWallet(db, uid);
+  const got = await db.prepare('SELECT n FROM eco_daily WHERE uid = ? AND day = ? AND src = ?').bind(uid, day, src).first();
+  const n = Math.max(0, Math.min(want, cap - (got ? got.n : 0)));
+  try {
+    await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare('INSERT INTO eco_daily (uid, day, src, n) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(uid, day, src) DO UPDATE SET n = n + ?4').bind(uid, day, src, n),
+      db.prepare('UPDATE eco_wallet SET coins = coins + ?, ts = ? WHERE uid = ?').bind(n, now, uid),
+      db.prepare("INSERT INTO eco_led (uid, ts, kind, src, coins, ref) VALUES (?, ?, 'earn', ?, ?, ?)").bind(uid, now, tag, n, want !== n ? `запрошено ${want}, потолок дня` : null),
+    ]);
+  } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
+  return { ok: true, got: n, capped: n < want, ...(await ecoState(db, uid, true)) };
+}
+// траты на мелочи вне рынка и паков (подсказки, жизни, косметика за монеты): только если хватает
+async function ecoSpend(db, uid, body) {
+  const op = ecoOp(body.op), n = Math.floor(Number(body.n) || 0), now = Date.now();
+  if (!op || n <= 0 || n > 10000000) return { ok: false, error: 'bad spend' };
+  await ecoWallet(db, uid);
+  try {
+    const r = await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare('UPDATE eco_wallet SET coins = coins - ?1, op = ?2, ts = ?3 WHERE uid = ?4 AND coins >= ?1').bind(n, op, now, uid),
+      db.prepare("INSERT INTO eco_led (uid, ts, kind, src, coins) SELECT ?1, ?2, 'spend', ?3, ?4 WHERE EXISTS (SELECT 1 FROM eco_wallet WHERE uid = ?1 AND op = ?5)").bind(uid, now, String(body.src || 'other').slice(0, 40), -n, op),
+    ]);
+    if (!r[1].meta.changes) return { ok: false, error: 'not enough coins', ...(await ecoState(db, uid, true)) };
+  } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
+  return { ok: true, ...(await ecoState(db, uid, true)) };
+}
+// карточки как награда (события, задания, обмены): только существующие и не больше лимита в день
+async function ecoGrant(db, uid, body) {
+  const op = ecoOp(body.op), keys = Array.isArray(body.keys) ? body.keys.slice(0, 40).map(String) : [], src = String(body.src || 'reward').slice(0, 40), now = Date.now();
+  if (!op || !keys.length) return { ok: false, error: 'bad grant' };
+  const cat = await ecoCat(db), ok = keys.filter((k) => cat.by.has(k));
+  if (!ok.length) return { ok: false, error: 'unknown cards' };
+  // потолок в день по редкости; особая карточка (событие, испытание) — каждая один раз на аккаунт
+  const day = ecoDay(), grp = (k) => { const r = cat.by.get(k).rar; return r === 'bronze' || r === 'silver' ? 'low' : r === 'gold' ? 'gold' : 'special'; };
+  const cnt = { low: 0, gold: 0, special: 0 }; ok.forEach((k) => cnt[grp(k)]++);
+  for (const g of ['low', 'gold']) {
+    if (!cnt[g]) continue;
+    const got = await db.prepare('SELECT n FROM eco_daily WHERE uid = ? AND day = ? AND src = ?').bind(uid, day, 'cards:' + g).first();
+    if ((got ? got.n : 0) + cnt[g] > ECON.rewardCards[g]) return { ok: false, error: 'daily card limit' };
+  }
+  await ecoWallet(db, uid);
+  try {
+    await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      ...['low', 'gold'].filter((g) => cnt[g]).map((g) => db.prepare('INSERT INTO eco_daily (uid, day, src, n) VALUES (?1, ?2, ?3, ?4) ON CONFLICT(uid, day, src) DO UPDATE SET n = n + ?4').bind(uid, day, 'cards:' + g, cnt[g])),
+      ...ok.filter((k) => grp(k) === 'special').map((k) => db.prepare('INSERT INTO eco_once (uid, k, ts) VALUES (?, ?, ?)').bind(uid, 'card:' + k, now)),
+      ...ok.flatMap((k) => [
+        db.prepare('INSERT INTO eco_cards (uid, key, n) VALUES (?, ?, 1) ON CONFLICT(uid, key) DO UPDATE SET n = n + 1').bind(uid, k),
+        db.prepare("INSERT INTO eco_led (uid, ts, kind, src, card) VALUES (?, ?, 'card', ?, ?)").bind(uid, now, src, k),
+      ]),
+    ]);
+  } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
+  return { ok: true, keys: ok, ...(await ecoState(db, uid, true)) };
+}
+// карточки уходят из коллекции по правилам игры (обмен в «Испытаниях», подарок клубу): владелец проверяется,
+// все карточки списываются вместе или ни одна (метка op в кошельке ставится, только если хватает каждой)
+async function ecoConsume(db, uid, body) {
+  const op = ecoOp(body.op), keys = Array.isArray(body.keys) ? body.keys.slice(0, 40).map(String) : [], now = Date.now();
+  if (!op || !keys.length) return { ok: false, error: 'bad consume' };
+  const need = {}; keys.forEach((k) => (need[k] = (need[k] || 0) + 1));
+  const E = Object.entries(need), g = `EXISTS (SELECT 1 FROM eco_wallet WHERE uid = ${Number(uid)} AND op = '${op}')`;
+  await ecoWallet(db, uid);
+  try {
+    const r = await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare(`UPDATE eco_wallet SET op = ? WHERE uid = ? AND ${E.map(() => '(SELECT n FROM eco_cards WHERE uid = ? AND key = ?) >= ?').join(' AND ')}`).bind(op, uid, ...E.flatMap(([k, n]) => [uid, k, n])),
+      ...E.map(([k, n]) => db.prepare(`UPDATE eco_cards SET n = n - ?1 WHERE uid = ?2 AND key = ?3 AND ${g}`).bind(n, uid, k)),
+      ...keys.map((k) => db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, card) SELECT ?, ?, 'card-', ?, ? WHERE ${g}`).bind(uid, now, String(body.src || 'use').slice(0, 40), k)),
+    ]);
+    if (!r[1].meta.changes) return { ok: false, error: 'not owned', ...(await ecoState(db, uid, true)) };
+  } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
+  return { ok: true, ...(await ecoState(db, uid, true)) };
+}
+// стартовый пак (обучение): собирает сервер, один раз — 1 серебряный вратарь, 4 золота, 6 серебра, 8 бронзы, половина из выбранной сборной
+async function ecoStarter(db, uid, body) {
+  const op = ecoOp(body.op), nat = String(body.nat || '').slice(0, 40), cat = await ecoCat(db), now = Date.now();
+  if (!op || !cat.n) return { ok: false, error: 'no catalog' };
+  if (await db.prepare("SELECT 1 FROM eco_once WHERE uid = ? AND k = 'starter'").bind(uid).first()) return { ok: false, error: 'already', ...(await ecoState(db, uid)) };
+  const out = [], used = new Set(), shuf = (L) => L.map((c) => [Math.random(), c]).sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+  const gk = shuf((cat.drop.silver || []).filter((c) => c.pos === 'ВРТ')).sort((a, b) => (b.nat === nat) - (a.nat === nat))[0];
+  if (gk) { out.push(gk); used.add(gk.name); }
+  const take = (rar, n) => { const L = (cat.drop[rar] || []).filter((c) => !used.has(c.name)), mine = shuf(L.filter((c) => c.nat === nat)).slice(0, Math.ceil(n / 2));
+    let k = out.filter((c) => c.rar === rar).length;
+    for (const c of [...mine, ...shuf(L)]) { if (k >= n) break; if (!used.has(c.name)) { used.add(c.name); out.push(c); k++; } } };
+  take('gold', 4); take('silver', 6); take('bronze', 8);
+  try {
+    await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare('INSERT INTO eco_once (uid, k, ts) VALUES (?, ?, ?)').bind(uid, 'starter', now),
+      ...out.flatMap((c) => [
+        db.prepare('INSERT INTO eco_cards (uid, key, n) VALUES (?, ?, 1) ON CONFLICT(uid, key) DO UPDATE SET n = n + 1').bind(uid, c.key),
+        db.prepare("INSERT INTO eco_led (uid, ts, kind, src, card, ref) VALUES (?, ?, 'card', 'starter', ?, 'стартовый пак')").bind(uid, now, c.key),
+      ]),
+    ]);
+  } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid)) }; }
+  return { ok: true, keys: out.map((c) => c.key), ...(await ecoState(db, uid)) };
+}
+// пак-награда (пропуск, дорога трофеев, события): карточки выбирает сервер; паков в день — не больше потолка по уровню
+async function ecoRewardPack(db, uid, body) {
+  const op = ecoOp(body.op), lv = Math.floor(Number(body.lv)), P = ECON.packs.find((x) => x.lv === lv), now = Date.now(), day = ecoDay();
+  if (!op || !P) return { ok: false, error: 'bad pack' };
+  const cap = ECON.rewardPacks[lv], got = await db.prepare('SELECT n FROM eco_daily WHERE uid = ? AND day = ? AND src = ?').bind(uid, day, 'rpack' + lv).first();
+  if ((got ? got.n : 0) >= cap) return { ok: false, error: 'daily pack limit' };
+  const cat = await ecoCat(db); if (!cat.n) return { ok: false, error: 'no catalog' };
+  const cards = ecoRoll(cat, P), src = String(body.src || 'reward').slice(0, 40);
+  await ecoWallet(db, uid);
+  try {
+    await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare('INSERT INTO eco_daily (uid, day, src, n) VALUES (?1, ?2, ?3, 1) ON CONFLICT(uid, day, src) DO UPDATE SET n = n + 1').bind(uid, day, 'rpack' + lv),
+      ...cards.flatMap((c) => [
+        db.prepare('INSERT INTO eco_cards (uid, key, n) VALUES (?, ?, 1) ON CONFLICT(uid, key) DO UPDATE SET n = n + 1').bind(uid, c.key),
+        db.prepare("INSERT INTO eco_led (uid, ts, kind, src, card, ref) VALUES (?, ?, 'card', ?, ?, ?)").bind(uid, now, src, c.key, P.name + ' (награда)'),
+      ]),
+    ]);
+  } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
+  return { ok: true, keys: cards.map((c) => c.key), ...(await ecoState(db, uid, true)) };
+}
+async function ecoState(db, uid, light) {
+  const w = await ecoWallet(db, uid);
+  const out = { coins: w.coins, jp: w.jp };
+  if (!light) {
+    out.cards = (await db.prepare('SELECT key, n FROM eco_cards WHERE uid = ? AND n > 0').bind(uid).all()).results.map((x) => [x.key, x.n]);
+    out.started = !!(await db.prepare("SELECT 1 FROM eco_once WHERE uid = ? AND k = 'starter'").bind(uid).first());
+  }
+  return out;
+}
+// ---- паки за монеты: карточки выбирает сервер ----
+async function ecoPack(db, uid, body) {
+  const op = ecoOp(body.op), P = ECON.packs.find((x) => x.id === body.pack), now = Date.now();
+  if (!op || !P) return { ok: false, error: 'bad pack' };
+  const cat = await ecoCat(db);
+  if (!cat.n) return { ok: false, error: 'no catalog' };
+  await ecoWallet(db, uid);
+  const cards = ecoRoll(cat, P);
+  const g = `EXISTS (SELECT 1 FROM eco_wallet WHERE uid = ${Number(uid)} AND op = '${op}')`; // op проверен регуляркой — без кавычек
+  try {
+    const r = await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare('UPDATE eco_wallet SET coins = coins - ?1, op = ?2, ts = ?3 WHERE uid = ?4 AND coins >= ?1').bind(P.price, op, now, uid),
+      db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, coins, ref) SELECT ?, ?, 'pack', ?, ?, ? WHERE ${g}`).bind(uid, now, P.id, -P.price, P.name),
+      ...cards.flatMap((c) => [
+        db.prepare(`INSERT INTO eco_cards (uid, key, n) SELECT ?1, ?2, 1 WHERE ${g} ON CONFLICT(uid, key) DO UPDATE SET n = n + 1`).bind(uid, c.key),
+        db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, card, ref) SELECT ?, ?, 'card', 'pack:' || ?, ?, ? WHERE ${g}`).bind(uid, now, P.id, c.key, P.name),
+      ]),
+    ]);
+    if (!r[1].meta.changes) return { ok: false, error: 'not enough coins', ...(await ecoState(db, uid, true)) };
+  } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
+  return { ok: true, keys: cards.map((c) => c.key), ...(await ecoState(db, uid, true)) };
+}
+// ---- быстрая продажа: фиксированная цена Price.qs, всегда ниже низа рамки рынка ----
+async function ecoQuick(db, uid, body) {
+  const op = ecoOp(body.op), key = String(body.key || ''), n = Math.max(1, Math.min(50, Math.floor(Number(body.n) || 1))), now = Date.now();
+  const cat = await ecoCat(db), c = cat.by.get(key);
+  if (!op || !c) return { ok: false, error: 'bad card' };
+  const v = Price.qs(c) * n;
+  const g = `EXISTS (SELECT 1 FROM eco_cards WHERE uid = ${Number(uid)} AND op = '${op}')`;
+  try {
+    const r = await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare('UPDATE eco_cards SET n = n - ?1, op = ?2 WHERE uid = ?3 AND key = ?4 AND n >= ?1').bind(n, op, uid, key),
+      db.prepare(`UPDATE eco_wallet SET coins = coins + ?1, ts = ?2 WHERE uid = ?3 AND ${g}`).bind(v, now, uid),
+      db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, coins, card, ref) SELECT ?1, ?2, 'quick', 'quick', ?3, ?4, ?5 WHERE ${g}`).bind(uid, now, v, key, `×${n}`),
+    ]);
+    if (!r[1].meta.changes) return { ok: false, error: 'not owned', ...(await ecoState(db, uid, true)) };
+  } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
+  return { ok: true, got: v, ...(await ecoState(db, uid, true)) };
+}
+// ---- история аккаунта ----
+async function ecoHistory(db, uid, body) {
+  const before = Math.floor(Number(body.before) || 0), kind = ['earn', 'spend', 'pack', 'card', 'quick', 'sell', 'buy', 'bid', 'refund', 'list', 'unlist'].includes(body.kind) ? body.kind : null;
+  const rows = (await db.prepare(`SELECT id, ts, kind, src, coins, card, ref FROM eco_led WHERE uid = ?1 ${before ? 'AND id < ?2' : 'AND ?2 = ?2'} ${kind ? 'AND kind = ?3' : 'AND ?3 = ?3'} ORDER BY id DESC LIMIT 50`).bind(uid, before || 0, kind || '').all()).results;
+  return { ok: true, rows };
+}
+
+// =========================== трансферный рынок ===========================
+// Карточка при выставлении уходит из коллекции (eco_cards.n − 1) в лот; ставка сразу списывает монеты (резерв),
+// перебитому ставка возвращается в той же пачке. По окончании: есть ставка — карточка покупателю, продавцу ставка − 5%;
+// нет — карточка возвращается продавцу. «Купить сразу» закрывает лот мгновенно.
+const MK_COLS = 'id, seller, key, name, r, rar, pos, club, nat, start, bin, bid, bidder, ends, status, price, buyer, bot';
+const mkView = (x, uid) => ({ ...x, mine: x.seller === uid, top: x.bidder === uid, seller: undefined, bidder: undefined, buyer: undefined, won: x.buyer === uid });
+async function mkList(db, uid, body, isBot = false) {
+  const op = ecoOp(body.op), key = String(body.key || ''), now = Date.now(), M = ECON.market;
+  const dur = M.durH.includes(Number(body.dur)) ? Number(body.dur) : 1;
+  const cat = await ecoCat(db), c = cat.by.get(key);
+  if (!op || !c) return { ok: false, error: 'bad card' };
+  const pr = await ecoPrice(db, c), [lo, hi] = pr.range;
+  const start = Math.floor(Number(body.start) || 0), bin = Math.floor(Number(body.bin) || 0);
+  if (start < lo || bin > hi || start > bin || start % Price.step(start) || bin % Price.step(bin)) return { ok: false, error: 'price out of range', range: pr.range };
+  const g = `EXISTS (SELECT 1 FROM eco_cards WHERE uid = ${Number(uid)} AND op = '${op}')`;
+  try {
+    const r = await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      // не больше maxLots открытых лотов и только своя карточка
+      db.prepare(`UPDATE eco_cards SET n = n - 1, op = ?1 WHERE uid = ?2 AND key = ?3 AND n >= 1
+        AND (SELECT COUNT(*) FROM mk_lots WHERE seller = ?2 AND status = 'open') < ?4`).bind(op, uid, key, isBot ? 100000 : M.maxLots),
+      db.prepare(`INSERT INTO mk_lots (seller, key, name, r, rar, pos, club, nat, start, bin, ends, ts, bot, op)
+        SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14 WHERE ${g}`).bind(uid, key, c.name, c.r, c.rar, c.pos || '', c.club || '', c.nat || '', start, bin, now + dur * 3600e3, now, isBot ? 1 : 0, op),
+      db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, card, ref, bot) SELECT ?1, ?3, 'list', 'market', ?2, ?4, ?5 WHERE ${g}`).bind(uid, key, now, `${start}–${bin}, ${dur} ч`, isBot ? 1 : 0),
+    ]);
+    if (!r[1].meta.changes) return { ok: false, error: 'not owned or too many lots' };
+    return { ok: true, lot: r[2].meta.last_row_id, range: pr.range };
+  } catch (e) { return { ok: false, dup: true }; }
+}
+// ставка: ≥ следующего шага, < «купить сразу», хватает монет; прежний лидер получает свою ставку обратно
+async function mkBid(db, uid, body, isBot = false) {
+  const op = ecoOp(body.op), id = Math.floor(Number(body.lot) || 0), amount = Math.floor(Number(body.amount) || 0), now = Date.now();
+  if (!op || !id || amount <= 0) return { ok: false, error: 'bad bid' };
+  if (amount % Price.step(amount)) return { ok: false, error: 'bad step' };
+  await ecoWallet(db, uid);
+  const step = `CASE ${ECON.market.steps.map(([to, s]) => `WHEN bid < ${to} THEN ${s}`).join(' ')} ELSE 1000 END`;
+  const g = `EXISTS (SELECT 1 FROM mk_lots WHERE id = ${id} AND op = '${op}')`;
+  try {
+    const r = await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare(`UPDATE mk_lots SET pbid = bid, pbidder = bidder, bid = ?1, bidder = ?2, op = ?3
+        WHERE id = ?4 AND status = 'open' AND ends > ?5 AND seller != ?2 AND (bidder IS NULL OR bidder != ?2)
+          AND ?1 >= (CASE WHEN bid = 0 THEN start ELSE bid + ${step} END) AND ?1 < bin
+          AND (SELECT coins FROM eco_wallet WHERE uid = ?2) >= ?1`).bind(amount, uid, op, id, now),
+      db.prepare(`UPDATE eco_wallet SET coins = coins - ?1, ts = ?2 WHERE uid = ?3 AND ${g}`).bind(amount, now, uid),
+      db.prepare(`UPDATE eco_wallet SET coins = coins + (SELECT pbid FROM mk_lots WHERE id = ?1) WHERE uid = (SELECT pbidder FROM mk_lots WHERE id = ?1) AND ${g}`).bind(id),
+      db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, coins, card, ref, bot) SELECT pbidder, ?2, 'refund', 'market', pbid, key, 'ставку перебили · лот ' || id, CASE WHEN pbidder < 0 THEN 1 ELSE 0 END FROM mk_lots WHERE id = ?1 AND pbidder IS NOT NULL AND ${g}`).bind(id, now),
+      db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, coins, card, ref, bot) SELECT ?1, ?2, 'bid', 'market', -?3, key, 'лот ' || id, ?4 FROM mk_lots WHERE id = ?5 AND ${g}`).bind(uid, now, amount, isBot ? 1 : 0, id),
+      db.prepare(`INSERT INTO mk_bids (lot, uid, amount, ts) SELECT ?1, ?2, ?3, ?4 WHERE ${g} ON CONFLICT(lot, uid) DO UPDATE SET amount = ?3, ts = ?4`).bind(id, uid, amount, now),
+    ]);
+    if (!r[1].meta.changes) return { ok: false, error: 'bid rejected' };
+  } catch (e) { return { ok: false, dup: true }; }
+  return { ok: true };
+}
+// «купить сразу»: лот закрывается, лидеру ставки — возврат, продавцу — цена − налог, карточка — покупателю
+async function mkBuy(db, uid, body, isBot = false) {
+  const op = ecoOp(body.op), id = Math.floor(Number(body.lot) || 0), now = Date.now();
+  if (!op || !id) return { ok: false, error: 'bad buy' };
+  await ecoWallet(db, uid);
+  const g = `EXISTS (SELECT 1 FROM mk_lots WHERE id = ${id} AND op = '${op}' AND status = 'sold')`;
+  try {
+    const r = await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare(`UPDATE mk_lots SET status = 'sold', price = bin, buyer = ?1, op = ?2, pbid = bid, pbidder = bidder
+        WHERE id = ?3 AND status = 'open' AND ends > ?4 AND seller != ?1 AND (SELECT coins FROM eco_wallet WHERE uid = ?1) >= bin`).bind(uid, op, id, now),
+      ...mkCloseStmts(db, id, now, g, 'buy'),
+    ]);
+    if (!r[1].meta.changes) return { ok: false, error: 'lot closed or not enough coins' };
+  } catch (e) { return { ok: false, dup: true }; }
+  return { ok: true };
+}
+// общее закрытие проданного лота (buyer и price уже записаны, pbidder/pbid — ставка, которую надо вернуть)
+function mkCloseStmts(db, id, now, g, how) {
+  const L = (f) => `(SELECT ${f} FROM mk_lots WHERE id = ${id})`;
+  return [
+    db.prepare(`UPDATE eco_wallet SET coins = coins - ${L('price')}, ts = ?1 WHERE uid = ${L('buyer')} AND ?2 = 'buy' AND ${g}`).bind(now, how),
+    db.prepare(`UPDATE eco_wallet SET coins = coins + ${L('pbid')} WHERE uid = ${L('pbidder')} AND ?1 = 'buy' AND ${L('pbidder')} IS NOT NULL AND ${g}`).bind(how),
+    db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, coins, card, ref, bot) SELECT pbidder, ?1, 'refund', 'market', pbid, key, 'лот выкупили · ' || id, CASE WHEN pbidder < 0 THEN 1 ELSE 0 END FROM mk_lots WHERE id = ${id} AND ?2 = 'buy' AND pbidder IS NOT NULL AND ${g}`).bind(now, how),
+    db.prepare(`UPDATE eco_wallet SET coins = coins + CAST(${L('price')} * (1 - ?1) AS INTEGER), ts = ?2 WHERE uid = ${L('seller')} AND ${g}`).bind(ECON.market.tax, now),
+    db.prepare(`INSERT INTO eco_cards (uid, key, n) SELECT buyer, key, 1 FROM mk_lots WHERE id = ${id} AND ${g} ON CONFLICT(uid, key) DO UPDATE SET n = n + 1`),
+    db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, coins, card, ref, bot) SELECT buyer, ?1, 'buy', 'market', CASE WHEN ?2 = 'buy' THEN -price ELSE 0 END, key, (CASE WHEN ?2 = 'buy' THEN 'купить сразу' ELSE 'выигранный аукцион' END) || ' · лот ' || id, CASE WHEN buyer < 0 THEN 1 ELSE 0 END FROM mk_lots WHERE id = ${id} AND ${g}`).bind(now, how),
+    db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, coins, card, ref, bot) SELECT seller, ?1, 'sell', 'market', CAST(price * (1 - ?2) AS INTEGER), key, 'продано за ' || price || ', налог ' || (price - CAST(price * (1 - ?2) AS INTEGER)) || ' · лот ' || id, bot FROM mk_lots WHERE id = ${id} AND ${g}`).bind(now, ECON.market.tax),
+    db.prepare(`INSERT INTO mk_price (key, ema, sales, ts) SELECT key, price, 1, ?1 FROM mk_lots WHERE id = ${id} AND ${g}
+      ON CONFLICT(key) DO UPDATE SET ema = CAST(ema * (1 - ?2) + excluded.ema * ?2 AS INTEGER), sales = sales + 1, ts = ?1`).bind(now, ECON.market.ema),
+    db.prepare(`INSERT INTO mk_sales (key, price, ts, bot) SELECT key, price, ?1, CASE WHEN buyer < 0 OR seller < 0 THEN 1 ELSE 0 END FROM mk_lots WHERE id = ${id} AND ${g}`).bind(now),
+  ];
+}
+// снять с продажи можно только без ставок (как в FC)
+async function mkCancel(db, uid, body) {
+  const id = Math.floor(Number(body.lot) || 0), now = Date.now(), op = ecoOp(body.op);
+  if (!op || !id) return { ok: false, error: 'bad lot' };
+  const g = `EXISTS (SELECT 1 FROM mk_lots WHERE id = ${id} AND op = '${op}' AND status = 'cancel')`;
+  try {
+    const r = await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare("UPDATE mk_lots SET status = 'cancel', op = ?1 WHERE id = ?2 AND seller = ?3 AND status = 'open' AND bidder IS NULL").bind(op, id, uid),
+      db.prepare(`INSERT INTO eco_cards (uid, key, n) SELECT seller, key, 1 FROM mk_lots WHERE id = ${id} AND ${g} ON CONFLICT(uid, key) DO UPDATE SET n = n + 1`),
+      db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, card, ref) SELECT seller, ?1, 'unlist', 'market', key, 'снято · лот ' || id FROM mk_lots WHERE id = ${id} AND ${g}`).bind(now),
+    ]);
+    if (!r[1].meta.changes) return { ok: false, error: 'cannot cancel' };
+  } catch (e) { return { ok: false, dup: true }; }
+  return { ok: true };
+}
+// завершить истёкшие лоты (понемногу при каждом обращении к рынку — отдельный таймер не нужен)
+async function mkSettle(db, now = Date.now(), limit = 25) {
+  const due = (await db.prepare("SELECT id, bidder FROM mk_lots WHERE status = 'open' AND ends <= ? ORDER BY ends LIMIT ?").bind(now, limit).all()).results;
+  for (const x of due) {
+    const op = 'settle' + x.id;
+    if (x.bidder !== null) {
+      const g = `EXISTS (SELECT 1 FROM mk_lots WHERE id = ${x.id} AND op = '${op}' AND status = 'sold')`;
+      await db.batch([
+        db.prepare("UPDATE mk_lots SET status = 'sold', price = bid, buyer = bidder, op = ?1, pbidder = NULL, pbid = 0 WHERE id = ?2 AND status = 'open' AND ends <= ?3 AND bidder IS NOT NULL").bind(op, x.id, now),
+        ...mkCloseStmts(db, x.id, now, g, 'auction'), // монеты покупателя уже списаны ставкой
+      ]);
+    } else {
+      const g = `EXISTS (SELECT 1 FROM mk_lots WHERE id = ${x.id} AND op = '${op}' AND status = 'expired')`;
+      await db.batch([
+        db.prepare("UPDATE mk_lots SET status = 'expired', op = ?1 WHERE id = ?2 AND status = 'open' AND ends <= ?3 AND bidder IS NULL").bind(op, x.id, now),
+        db.prepare(`INSERT INTO eco_cards (uid, key, n) SELECT seller, key, 1 FROM mk_lots WHERE id = ${x.id} AND ${g} ON CONFLICT(uid, key) DO UPDATE SET n = n + 1`),
+        db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, card, ref, bot) SELECT seller, ?1, 'unlist', 'market', key, 'не продано, вернулось · лот ' || id, bot FROM mk_lots WHERE id = ${x.id} AND ${g}`).bind(now),
+      ]);
+    }
+  }
+  return due.length;
+}
+// поиск: имя, OVR, позиция, клуб, нация, редкость, цена «купить сразу»; сортировка — скоро закончатся / дешевле
+async function mkSearch(db, uid, body) {
+  const w = ["status = 'open'", 'ends > ?1'], a = [Date.now()];
+  const add = (sql, v) => { a.push(v); w.push(sql.replace('?', '?' + a.length)); };
+  if (body.rar && /^[a-z]{2,10}$/.test(body.rar)) add('rar = ?', body.rar);
+  if (Number(body.rmin)) add('r >= ?', Number(body.rmin));
+  if (Number(body.rmax)) add('r <= ?', Number(body.rmax));
+  if (body.pos) add('pos = ?', String(body.pos).slice(0, 6));
+  if (body.club) add('club = ?', String(body.club).slice(0, 40));
+  if (body.nat) add('nat = ?', String(body.nat).slice(0, 40));
+  if (body.q) add('name LIKE ?', '%' + String(body.q).slice(0, 30).replace(/[%_]/g, '') + '%');
+  if (Number(body.pmin)) add('bin >= ?', Number(body.pmin));
+  if (Number(body.pmax)) add('bin <= ?', Number(body.pmax));
+  if (body.key) add('key = ?', String(body.key).slice(0, 120));
+  const order = body.sort === 'cheap' ? 'bin ASC' : body.sort === 'ovr' ? 'r DESC' : 'ends ASC';
+  const rows = (await db.prepare(`SELECT ${MK_COLS} FROM mk_lots WHERE ${w.join(' AND ')} ORDER BY ${order} LIMIT 40`).bind(...a).all()).results;
+  return { ok: true, lots: rows.map((x) => mkView(x, uid)) };
+}
+async function mkMine(db, uid, body) {
+  const since = Date.now() - 3 * 864e5;
+  const lots = (await db.prepare(`SELECT ${MK_COLS} FROM mk_lots WHERE seller = ?1 AND (status = 'open' OR ts > ?2) ORDER BY id DESC LIMIT 60`).bind(uid, since).all()).results;
+  const bids = (await db.prepare(`SELECT ${MK_COLS.split(', ').map((c) => 'l.' + c).join(', ')}, b.amount AS my FROM mk_bids b JOIN mk_lots l ON l.id = b.lot WHERE b.uid = ?1 AND b.ts > ?2 ORDER BY b.ts DESC LIMIT 60`).bind(uid, since).all()).results;
+  const favs = (await db.prepare(`SELECT ${MK_COLS.split(', ').map((c) => 'l.' + c).join(', ')} FROM mk_fav f JOIN mk_lots l ON l.id = f.lot WHERE f.uid = ?1 ORDER BY f.ts DESC LIMIT 60`).bind(uid).all()).results;
+  return { ok: true, lots: lots.map((x) => mkView(x, uid)), bids: bids.map((x) => ({ ...mkView(x, uid), my: x.my })), favs: favs.map((x) => mkView(x, uid)) };
+}
+async function mkFav(db, uid, body) {
+  const id = Math.floor(Number(body.lot) || 0); if (!id) return { ok: false };
+  if (body.on) await db.prepare('INSERT OR IGNORE INTO mk_fav (uid, lot, ts) VALUES (?, ?, ?)').bind(uid, id, Date.now()).run();
+  else await db.prepare('DELETE FROM mk_fav WHERE uid = ? AND lot = ?').bind(uid, id).run();
+  return { ok: true };
+}
+async function mkPriceInfo(db, body) {
+  const cat = await ecoCat(db), c = cat.by.get(String(body.key || ''));
+  if (!c) return { ok: false, error: 'bad card' };
+  const pr = await ecoPrice(db, c);
+  const last = (await db.prepare('SELECT price, ts, bot FROM mk_sales WHERE key = ? ORDER BY id DESC LIMIT 10').bind(c.key).all()).results;
+  return { ok: true, ...pr, last, step: ECON.market.steps, tax: ECON.market.tax, durH: ECON.market.durH };
+}
+
+// ---- боты: выставляют карточки, ставят и выкупают по разумным ценам; бюджет и доля в день ограничены ----
+async function ecoSetting(db, k, def) { const v = await getSetting(db, 'eco:' + k); return v === null || v === undefined ? def : v; }
+async function mkBots(db, force = false) {
+  const B = ECON.bots, now = Date.now();
+  if ((await ecoSetting(db, 'bots', B.on ? '1' : '0')) !== '1') return 0;
+  const last = Number(await ecoSetting(db, 'botTick', 0));
+  if (!force && now - last < B.tickSec * 1000) return 0;
+  await setSetting(db, 'eco:botTick', String(now));
+  const cat = await ecoCat(db); if (!cat.n) return 0;
+  const day = ecoDay(), spentRow = await db.prepare("SELECT n FROM eco_daily WHERE uid = 0 AND day = ? AND src = 'bots'").bind(day).first();
+  let left = B.budgetDay - (spentRow ? spentRow.n : 0);
+  let acts = 0;
+  const rnd = (n) => Math.floor(Math.random() * n), bot = () => BOT_UID(rnd(B.n));
+  // 1) выставить: открытых лотов ботов не больше listMax; карточки ботов берутся из каталога (как паки игроков)
+  const open = (await db.prepare("SELECT COUNT(*) AS n FROM mk_lots WHERE status = 'open' AND bot = 1").first()).n;
+  for (let i = 0; i < B.actions && open + i < B.listMax; i++) {
+    const rar = Math.random() < 0.55 ? 'gold' : Math.random() < 0.6 ? 'silver' : 'bronze', c = ecoDraw(cat, rar); if (!c) continue;
+    const pr = await ecoPrice(db, c), [lo, hi] = pr.range, u = bot();
+    // разные стратегии: дешёвый аукцион, честная цена, дорогой «купить сразу» — всегда внутри рамки
+    const s = rnd(3), start = Price.up(Math.max(lo, pr.ref * [0.6, 0.8, 0.9][s])), bin = Price.round(Math.min(hi, Math.max(start + Price.step(start), pr.ref * [1.0, 1.15, 1.4][s])));
+    await ecoWallet(db, u);
+    await db.prepare('INSERT INTO eco_cards (uid, key, n) VALUES (?, ?, 1) ON CONFLICT(uid, key) DO UPDATE SET n = n + 1').bind(u, c.key).run();
+    const r = await mkList(db, u, { op: 'b' + now.toString(36) + i + rnd(1e6), key: c.key, start, bin, dur: B.durH[rnd(B.durH.length)] }, true);
+    if (r.ok) acts++;
+  }
+  // 2) купить или поставить на лоты игроков, если цена ниже текущей (buyBelow / bidUpTo) и хватает дневного бюджета
+  const cand = (await db.prepare("SELECT id, key, bin, bid, start, ends FROM mk_lots WHERE status = 'open' AND bot = 0 AND ends > ? ORDER BY ends LIMIT 30").bind(now).all()).results;
+  for (const x of cand) {
+    if (left <= 0) break;
+    const c = cat.by.get(x.key); if (!c) continue;
+    // оценка бота — не выше ориентира: раздутая «своими» сделками цена ботов не обманет
+    const pr = await ecoPrice(db, c), val = Math.min(pr.ref, pr.base), u = bot(), cap = B.budgetDay * B.maxShare; // одна сделка — не больше maxShare бюджета
+    if (x.bin <= val * B.buyBelow && x.bin <= cap && x.bin <= left) {
+      await ecoWallet(db, u);
+      await db.prepare('UPDATE eco_wallet SET coins = coins + ? WHERE uid = ?').bind(x.bin, u).run();
+      const r = await mkBuy(db, u, { op: 'bb' + x.id + rnd(1e6), lot: x.id }, true);
+      if (r.ok) { left -= x.bin; acts++; } else await db.prepare('UPDATE eco_wallet SET coins = MAX(0, coins - ?) WHERE uid = ?').bind(x.bin, u).run();
+      continue;
+    }
+    const nb = Price.nextBid(x.bid, x.start);
+    if (nb <= val * B.bidUpTo && nb < x.bin && nb <= cap && nb <= left && Math.random() < 0.5) {
+      await ecoWallet(db, u);
+      await db.prepare('UPDATE eco_wallet SET coins = coins + ? WHERE uid = ?').bind(nb, u).run();
+      const r = await mkBid(db, u, { op: 'bd' + x.id + rnd(1e6), lot: x.id, amount: nb }, true);
+      if (r.ok) { left -= nb; acts++; } else await db.prepare('UPDATE eco_wallet SET coins = MAX(0, coins - ?) WHERE uid = ?').bind(nb, u).run();
+    }
+  }
+  const used = B.budgetDay - left - (spentRow ? spentRow.n : 0);
+  if (used > 0) await db.prepare("INSERT INTO eco_daily (uid, day, src, n) VALUES (0, ?1, 'bots', ?2) ON CONFLICT(uid, day, src) DO UPDATE SET n = n + ?2").bind(day, used).run();
+  // карточки, купленные ботами, уходят из игры (не копятся у ботов); выручка ботов от продаж — тоже (сток монет)
+  await db.prepare('DELETE FROM eco_cards WHERE uid < 0').run();
+  await db.prepare('UPDATE eco_wallet SET coins = 0 WHERE uid < 0 AND uid NOT IN (SELECT bidder FROM mk_lots WHERE status = \'open\' AND bidder < 0)').run();
+  return acts;
+}
+
+// ---- вайп (только проверочный сервер): резервная копия строк игрока в wipe_backup, затем удаление ----
+// Таблицы с данными игрока: [таблица, столбец]. Аналитика (visits, events, evd, evu) и платёжные чеки не трогаются.
+const WIPE_TABLES = [
+  ['saves', 'id'], ['users', 'id'], ['weekly', 'id'], ['daily', 'id'], ['ustats', 'id'], ['gwins', 'id'], ['cup', 'id'], ['cwins', 'id'], ['cdon', 'id'],
+  ['purchases', 'id'], ['cmembers', 'id'], ['crole', 'id'], ['creq', 'uid'], ['cgift', 'uid'], ['croom', 'uid'], ['friends', 'a'], ['friends', 'b'],
+  ['refs', 'invitee'], ['ref_miles', 'id'], ['mm', 'id'], ['mmg', 'id'], ['presence', 'id'], ['draft_tours', 'uid'], ['legend_marks', 'uid'], ['legend_claims', 'uid'],
+  ['social_profiles', 'uid'], ['social_shown', 'uid'], ['seen', 'id'],
+  ['eco_wallet', 'uid'], ['eco_cards', 'uid'], ['eco_ops', 'uid'], ['eco_daily', 'uid'], ['eco_once', 'uid'], ['mk_fav', 'uid'], ['mk_bids', 'uid'],
+];
+async function ecoWipe(db, uid) {
+  await socialSchema(db).catch(() => {});
+  const now = Date.now(); let rows = 0;
+  // лоты игрока: открытые снимаются (ставки возвращаются), его ставки на чужих лотах снимаются без возврата (кошелёк стирается)
+  const open = (await db.prepare("SELECT id, bidder, bid, key FROM mk_lots WHERE seller = ? AND status = 'open'").bind(uid).all()).results;
+  for (const l of open) {
+    await db.batch([
+      db.prepare("UPDATE mk_lots SET status = 'cancel' WHERE id = ? AND status = 'open'").bind(l.id),
+      ...(l.bidder !== null ? [db.prepare('UPDATE eco_wallet SET coins = coins + ? WHERE uid = ?').bind(l.bid, l.bidder),
+        db.prepare("INSERT INTO eco_led (uid, ts, kind, src, coins, card, ref) VALUES (?, ?, 'refund', 'market', ?, ?, 'продавец сброшен')").bind(l.bidder, now, l.bid, l.key)] : []),
+    ]);
+  }
+  await db.prepare("UPDATE mk_lots SET bidder = NULL, bid = 0 WHERE bidder = ? AND status = 'open'").bind(uid).run();
+  for (const [t, col] of WIPE_TABLES) {
+    let data; try { data = (await db.prepare(`SELECT * FROM ${t} WHERE ${col} = ?`).bind(uid).all()).results; } catch (e) { continue; } // таблицы ещё нет
+    if (!data.length) continue;
+    await db.batch([
+      db.prepare('INSERT INTO wipe_backup (uid, ts, tbl, data) VALUES (?, ?, ?, ?)').bind(uid, now, t + '.' + col, JSON.stringify(data)),
+      db.prepare(`DELETE FROM ${t} WHERE ${col} = ?`).bind(uid),
+    ]);
+    rows += data.length;
+  }
+  // клуб, где игрок был владельцем и больше никого нет, — удаляется
+  await db.prepare('DELETE FROM clubs WHERE owner = ? AND id NOT IN (SELECT club FROM cmembers)').bind(uid).run().catch(() => {});
+  await db.prepare("INSERT INTO eco_led (uid, ts, kind, src, ref) VALUES (?, ?, 'wipe', 'wipe', ?)").bind(uid, now, `стёрто строк: ${rows}`).run();
+  return { ok: true, rows, ts: now };
+}
+// что осталось у игрока после вайпа (для проверки и админки)
+async function ecoWipeCheck(db, uid) {
+  const left = {};
+  for (const [t, col] of WIPE_TABLES) { try { const r = await db.prepare(`SELECT COUNT(*) AS n FROM ${t} WHERE ${col} = ?`).bind(uid).first(); if (r && r.n) left[t] = r.n; } catch (e) { /* нет таблицы */ } }
+  return { ok: true, left, clean: !Object.keys(left).length };
+}
+
+async function eco(env, user, body) {
+  const db = env.DB, uid = user.id, act = String(body.act || '');
+  await schema(db); await ecoSchema(db);
+  const admin = async () => isAdminId(env, uid);
+  if (/^m_/.test(act)) { await mkSettle(db); await mkBots(db).catch(() => 0); }
+  switch (act) {
+    case 'state': return { ok: true, cfg: { v: ECON.v }, catalog: (await ecoCat(db)).n, catv: await ecoSetting(db, 'catv', ''), ...(await ecoState(db, uid)) };
+    case 'earn': return ecoEarn(db, uid, body);
+    case 'spend': return ecoSpend(db, uid, body);
+    case 'grant': return ecoGrant(db, uid, body);
+    case 'starter': return ecoStarter(db, uid, body);
+    case 'rpack': return ecoRewardPack(db, uid, body);
+    case 'consume': return ecoConsume(db, uid, body);
+    case 'pack': return ecoPack(db, uid, body);
+    case 'quick': return ecoQuick(db, uid, body);
+    case 'history': return ecoHistory(db, uid, body);
+    case 'm_search': return mkSearch(db, uid, body);
+    case 'm_list': return mkList(db, uid, body);
+    case 'm_bid': return mkBid(db, uid, body);
+    case 'm_buy': return mkBuy(db, uid, body);
+    case 'm_cancel': return mkCancel(db, uid, body);
+    case 'm_mine': return mkMine(db, uid, body);
+    case 'm_fav': return mkFav(db, uid, body);
+    case 'm_price': return mkPriceInfo(db, body);
+    case 'wipe': return ecoWipe(db, uid); // свой аккаунт — только здесь (проверочный сервер)
+    case 'wipe_check': return ecoWipeCheck(db, uid);
+    // ---- админка ----
+    case 'a_catalog': { // каталог карточек из игры: [key, name, r, rar, pos, club, nat, dr]
+      if (!(await admin())) return { ok: false, error: 'forbidden' };
+      const rows = Array.isArray(body.rows) ? body.rows.slice(0, 600) : [];
+      const st = [];
+      for (let i = 0; i < rows.length; i += 11) {
+        const part = rows.slice(i, i + 11).filter((x) => Array.isArray(x) && typeof x[0] === 'string' && Number.isFinite(Number(x[2])));
+        if (!part.length) continue;
+        st.push(db.prepare(`INSERT INTO eco_cat (key, name, r, rar, pos, club, nat, dr) VALUES ${part.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(', ')}
+          ON CONFLICT(key) DO UPDATE SET name = excluded.name, r = excluded.r, rar = excluded.rar, pos = excluded.pos, club = excluded.club, nat = excluded.nat, dr = excluded.dr`)
+          .bind(...part.flatMap((x) => [x[0].slice(0, 120), String(x[1]).slice(0, 60), Math.floor(Number(x[2])), String(x[3]).slice(0, 12), String(x[4] || '').slice(0, 6), String(x[5] || '').slice(0, 40), String(x[6] || '').slice(0, 40), x[7] ? 1 : 0])));
+      }
+      if (st.length) await db.batch(st);
+      if (body.done) { await setSetting(db, 'eco:catv', String(body.ver || '')); ecoCatMem = null; }
+      return { ok: true, n: rows.length };
+    }
+    case 'a_wipe': { if (!(await admin())) return { ok: false, error: 'forbidden' }; const id = Math.floor(Number(body.uid) || 0); return id ? ecoWipe(db, id) : { ok: false }; }
+    case 'a_check': { if (!(await admin())) return { ok: false, error: 'forbidden' }; return ecoWipeCheck(db, Math.floor(Number(body.uid) || 0)); }
+    case 'a_bots': { if (!(await admin())) return { ok: false, error: 'forbidden' }; if (body.on !== undefined) await setSetting(db, 'eco:bots', body.on ? '1' : '0'); return { ok: true, on: (await ecoSetting(db, 'bots', ECON.bots.on ? '1' : '0')) === '1', acts: body.tick ? await mkBots(db, true) : 0 }; }
+    case 'a_led': { if (!(await admin())) return { ok: false, error: 'forbidden' }; const id = Math.floor(Number(body.uid) || 0); return { ok: true, rows: (await db.prepare('SELECT * FROM eco_led WHERE uid = ? ORDER BY id DESC LIMIT 200').bind(id).all()).results }; }
+    case 'a_stats': {
+      if (!(await admin())) return { ok: false, error: 'forbidden' };
+      const q = async (s) => (await db.prepare(s).first()) || {};
+      return { ok: true, coins: await q('SELECT SUM(coins) AS players, COUNT(*) AS n FROM eco_wallet WHERE uid > 0'), lots: await q("SELECT COUNT(*) AS open, SUM(bot) AS bots FROM mk_lots WHERE status = 'open'"),
+        sales: await q('SELECT COUNT(*) AS n, SUM(price) AS volume, SUM(bot) AS bots FROM mk_sales WHERE ts > ' + (Date.now() - 864e5)), botsSpent: await q("SELECT n FROM eco_daily WHERE uid = 0 AND src = 'bots' AND day = '" + ecoDay() + "'") };
+    }
+    default: return { ok: false, error: 'bad act' };
+  }
+}
 const adminId = async (env) => Number(await getSetting(env.DB, 'admin')) || 0;
 // админов может быть несколько (ведущие канала): список в настройке 'admins', старый одиночный 'admin' тоже считается
 async function adminIds(env) {
@@ -1476,6 +2151,16 @@ async function route(request, env) {
   if (url.pathname === '/presence' && request.method === 'GET') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     return json(await onlinePresence(env, null, { act: 'counts' }));
+  }
+  // экономика, рынок и история — только проверочный сервер (см. STAGING)
+  if (url.pathname === '/eco' && request.method === 'POST') {
+    if (!ecoOn(env, url)) return json({ ok: false, error: 'off' });
+    if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
+    let body;
+    try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
+    const user = await verifyInit(body.initData, botToken(env));
+    if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
+    return json(await eco(env, user, body));
   }
   if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room', '/social', '/ref'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);

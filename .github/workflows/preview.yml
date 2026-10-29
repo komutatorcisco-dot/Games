@@ -33,6 +33,19 @@ jobs:
             case "$test" in *-browser.test.js) continue ;; esac
             node "$test"
           done
+      - name: Резервная копия тестовой базы (перед выкладкой)
+        continue-on-error: true   # нет права на D1 у токена — выкладка всё равно идёт; копия появится, когда право будет
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          export CLOUDFLARE_API_TOKEN=$(echo "$CF_API_TOKEN" | tr -d '[:space:]') CLOUDFLARE_ACCOUNT_ID=$(echo "$CF_ACCOUNT_ID" | tr -d '[:space:]')
+          mkdir -p backup && npx --yes wrangler@3.114.0 d1 export jackson-games-staging --remote --output "backup/staging-$(date -u +%Y%m%d-%H%M).sql"
+          ls -la backup
+      - uses: actions/upload-artifact@v4
+        if: always()
+        continue-on-error: true
+        with: { name: staging-d1-backup, path: backup/, retention-days: 30, if-no-files-found: ignore }
       - name: Сервер превью → jackson-games-staging
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -40,10 +53,13 @@ jobs:
         run: |
           ACC=$(echo "$CF_ACCOUNT_ID" | tr -d '[:space:]')
           [ -n "$ACC" ] || { echo "::error::Нет секретов Cloudflare"; exit 1; }
+          # только для проверочного сервера: STAGING = true включает экономику, рынок и вайп (/eco). Рабочий worker.yml шлёт файл как есть.
+          mkdir -p stage && sed 's/^const STAGING = false;/const STAGING = true;/' server/worker.js > stage/worker.js
+          [ "$(grep -c '^const STAGING = true;' stage/worker.js)" = 1 ] || { echo "::error::Не нашёл строку STAGING в server/worker.js"; exit 1; }
           out=$(curl -sS -X PUT "https://api.cloudflare.com/client/v4/accounts/$ACC/workers/scripts/jackson-games-staging/content" \
             -H "Authorization: Bearer $(echo "$CF_API_TOKEN" | tr -d '[:space:]')" \
             -F 'metadata={"main_module":"worker.js"};type=application/json' \
-            -F 'worker.js=@server/worker.js;type=application/javascript+module')
+            -F 'worker.js=@stage/worker.js;type=application/javascript+module')
           echo "$out" | head -c 600; echo
           echo "$out" | grep -Eq '"success": *true' || { echo "::error::Воркер jackson-games-staging не принял код — см. worker-staging.yml"; exit 1; }
       - name: Тестовый сервер — адрес workers.dev и подключения
