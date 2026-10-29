@@ -13,7 +13,7 @@ const Coach = (() => {
   const active = () => step() !== DONE && !!(Store.d.user && Store.d.user.nick);
   const coachImg = '<img class="co-face" src="img/ui2/coach.webp?v=1" alt="" decoding="async">';
   const finger = '<img class="co-fng" src="img/ui2/finger.webp?v=1" alt="" decoding="async">';
-  const busy = () => Modal.isOpen || document.getElementById('boot') || $('.po, .h2-un, .sx-sheet-wrap');
+  const busy = () => Modal.isOpen || document.getElementById('boot') || $('.po, .h2-un, .sx-sheet-wrap, .ob');
 
   function close() { if (el) { el.remove(); el = null; } }
   function layer(cls = '') {

@@ -3476,7 +3476,9 @@ function checkOffside(a) {
 }
 // ---- статистика матча (для итогов) ----
 const MST = () => MT.stats || (MT.stats = { poss: [0, 0], shots: [0, 0], on: [0, 0], passes: [0, 0], passOk: [0, 0], tackles: [0, 0], off: [0, 0], corners: [0, 0], heads: [0, 0], fouls: [0, 0], yellow: [0, 0], red: [0, 0], lost: { int: 0, head: 0, out: 0, gk: 0, free: 0 }, goals: [] });
-const matchMin = () => Math.max(1, Math.min(90, Math.ceil(((MATCH.time - MT.clock) / MATCH.time) * 90)));
+// ?min=75 — матч идёт с этой минуты до 90-й (часы показывают 75'…90'), ?sc=0-1 — счёт на старте (первый выход: «с 75-й минуты»)
+const MIN0 = Math.max(0, Math.min(85, Number(Q.get('min')) || 0)), SC0 = (Q.get('sc') || '').split('-').map((x) => Math.max(0, Math.min(9, Number(x) || 0)));
+const matchMin = () => Math.max(1, Math.min(90, Math.ceil(MIN0 + ((MATCH.time - MT.clock) / MATCH.time) * (90 - MIN0))));
 function statPass(team) { MST().passes[team]++; MT.passPend = { team }; MT.shotPend = null; }
 function statGot(team, how = 'int') { if (MT.passPend) { if (MT.passPend.team === team) MST().passOk[team]++; else MST().lost[how]++; MT.passPend = null; } MT.shotPend = null; }
 function statShot(team, how = 'нога') { MST().shots[team]++; MT.shotPend = { team }; MT.passPend = null; MT.shotHow = how; MT.shotFrom = Math.round(Math.hypot(B.p.x, B.p.z - attackZ(team))); }
@@ -3631,6 +3633,7 @@ function matchOver() {
   $('#endP').textContent = `Джексоны ${a} : ${b} Гости`;
   $('#again').textContent = 'Реванш'; $('#end').classList.add('on'); matchHud(true);
   matchSummary();
+  if (EMBED) { try { parent.postMessage({ jg: 'football-result', mode: 'match', score: MT.score.slice() }, location.origin); } catch (e) { /* без хаба */ } }
 }
 const escH = (t) => String(t).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]); // имена приходят из адреса
 // итоги: голы с минутами, владение, удары, в створ, точность передач, отборы, угловые, офсайды
@@ -3650,7 +3653,7 @@ let bannerT = 0;
 function matchBanner(text, big = false) { const m = $('#msg'); if (!m) return; m.textContent = text; m.className = 'msg on ' + (big ? 'goal' : 'miss'); clearTimeout(bannerT); bannerT = setTimeout(() => (m.className = 'msg'), big ? 2200 : 1100); }
 function matchHud(force) {
   if (MOM) return momHud(force);
-  const t = Math.ceil(MT.clock), txt = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`, key = txt + MT.score.join(':');
+  const t = Math.ceil(MT.clock), txt = MIN0 ? `${matchMin()}'` : `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`, key = txt + MT.score.join(':'); // с 75-й — часы минутами матча
   if (!force && key === MT.shown) return; MT.shown = key;
   $('#score').textContent = `${MT.score[0]} : ${MT.score[1]}`; const c = $('#mclock'); if (c) c.textContent = txt;
   // кнопки по ситуации: мяч у соперников — «Отбор» и «Прессинг»
@@ -3670,7 +3673,7 @@ function matchButtons() {
   $('#pad').classList.toggle('def', def); $('#pad').classList.toggle('gkm', gm);
 }
 function resetMatch() {
-  MT.score = [0, 0]; MT.clock = MATCH.time; MT.st = 'play'; MT.restart = null; MT.gkHold = null; MT.next = null; MT.shown = ''; MT.stats = null; MT.off = null; MT.back = null; MT.passPend = null; MT.shotPend = null;
+  MT.score = Q.get('sc') ? [SC0[0] || 0, SC0[1] || 0] : [0, 0]; MT.clock = MATCH.time; MT.st = 'play'; MT.restart = null; MT.gkHold = null; MT.next = null; MT.shown = ''; MT.stats = null; MT.off = null; MT.back = null; MT.passPend = null; MT.shotPend = null;
   const L = MATCH.L; GK[0].kc = Object.assign({}, DIFF.gk); const mk = (pl, kit, id) => { recolor(pl, kit); pl.holder.visible = true; pl.off = false; pl.yc = 0; if (pl.sph) pl.sph.forEach((q) => (q.who = id)); play(pl, 'idle', { loop: true, fade: 0.2, follow: true }); resetSpheres(pl); };
   if (shooter0 && shooter !== shooter0) shooter = shooter0;
   // места: наши — me (shooter), mate (wall[0]), t2… (wall[1…N−3]); соперники o1… (дальше); наш вратарь — последняя модель
@@ -3970,6 +3973,7 @@ function lessonAttempt(ok) {
 }
 function lessonDone() {
   if (LS.done) return; LS.done = true; const I = LI(), ok = LS.pts >= I.need;
+  if (EMBED) { try { parent.postMessage({ jg: 'football-result', mode: 'lesson', lesson: LESSON, ok, pts: LS.pts }, location.origin); } catch (e) { /* без хаба */ } }
   try { const st = JSON.parse(localStorage.getItem('shot.lessons') || '{}'); const o = st[LESSON] || {}; st[LESSON] = { best: Math.max(o.best || 0, LS.pts), ok: !!(o.ok || ok) }; localStorage.setItem('shot.lessons', JSON.stringify(st)); } catch (e) { /* без памяти */ }
   setTimeout(() => {
     $('#lrTask').textContent = I.title; $('#lrOk').textContent = ok ? '✓ УСПЕХ' : 'ЕЩЁ НЕМНОГО'; $('#lrOk').classList.toggle('fail', !ok);

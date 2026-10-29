@@ -384,11 +384,12 @@ const App = (() => {
 
   // where: вкладка ('games'), раздел игр ('puzzles') или ничего — вернуться туда, где был
   // lesson — тренировка для новичка (basics / dribble / targets): состав не нужен
-  function openFootball(mode, lesson) {
+  function openFootball(mode, lesson, extra) { // extra — свои параметры игры (первый выход: ?min=75&sc=0-1, ?ep=…)
     const u = Store.d && Store.d.user, q = new URLSearchParams({ mode, embed: '1', snd: Store.d && Store.d.sound ? '1' : '0' });
     if (u && u.nick) q.set('name', String(u.nick).slice(0, 14));
     if (lesson) q.set('lesson', lesson);
     else for (const [k, v] of Object.entries(Football.params())) q.set(k, v); // состав, размер команды, сложность
+    if (extra) for (const [k, v] of Object.entries(extra)) q.set(k, v);
     const fr = $('#football-frame'); fr.onload = fbInsets; fr.src = 'prototypes/shot/index.html?' + q;
     try { if (TG && TG.unlockOrientation) TG.unlockOrientation(); } catch (e) { /* старый Telegram */ } // игра горизонтальная — экран должен поворачиваться
     // на телефоне матч — во весь экран Telegram, без верхней панели; при выходе панель вернётся
@@ -409,7 +410,8 @@ const App = (() => {
   function footballBack() { const w = $('#football-frame').contentWindow; if (w) w.postMessage({ jg: 'back' }, location.origin); else home(); }
   addEventListener('message', (e) => {
     if (e.origin !== location.origin || !e.data || typeof e.data !== 'object') return;
-    if (e.data.jg === 'football-exit' && Screens.current === 'football') home();
+    if (e.data.jg === 'football-result' && typeof Onboard !== 'undefined') Onboard.result(e.data); // результат урока, «Моментов», матча — шагу обучения
+    if (e.data.jg === 'football-exit' && Screens.current === 'football') { home(); if (typeof Onboard !== 'undefined') Onboard.back(); }
     else if (e.data.jg === 'haptic') haptic(e.data.kind);
   });
   function home(where) {
@@ -421,6 +423,7 @@ const App = (() => {
     else if (PANELS.includes(where)) showPanel(where, false);
     else { showPanel(panel, false); if (scrollMem[panel]) window.scrollTo(0, scrollMem[panel]); }
     if (!Store.d.user.nick) later(() => User.ensure(), 250);
+    else if (typeof Onboard !== 'undefined' && Onboard.active) { /* первый выход: никаких всплывающих окон поверх обучения */ }
     else { Track.maybeAsk(); claimDaily(); later(maybeSub, 1600); later(() => { if (!giftShown && Release.feature('cards') && Wheel.gift() && !Modal.isOpen && Screens.current === 'hub') { giftShown = true; Wheel.open(); } }, 2600); }
   }
 
