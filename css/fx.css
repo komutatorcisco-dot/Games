@@ -40,3 +40,9 @@
   @keyframes fx-ready { 50% { box-shadow: inset 0 0 0 2px #c6ff3d, 0 0 22px rgba(198,255,61,.45); } }
 }
 @media (prefers-reduced-motion: reduce) { .fx-sheen, .fx-bit, .fx-ring { display: none !important; } .fm-main .fx-in, .fm-pf img, .fm-sl-card > .cc { animation: none !important; } }
+/* окна и открытие пака — не под кнопками Telegram, вырезом камеры и полоской «домой» */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-sheet, #modal { box-sizing: border-box; padding: var(--fm-t, 6px) var(--fm-r, 10px) var(--fm-b, 0px) var(--fm-l, 10px) !important; }
+  .po { padding: 0 var(--fm-r, 10px) var(--fm-b, 0px) var(--fm-l, 10px); box-sizing: border-box; }
+  .po-top { margin-top: var(--fm-t, 6px); }
+}

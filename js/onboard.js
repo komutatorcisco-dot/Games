@@ -120,7 +120,22 @@ const Onboard = (() => {
     L.innerHTML = `<div class="ob-spot" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px"></div>
       <div class="ob-tip" style="left:${tx}px;${below ? `top:${y + h + 12}px` : `bottom:${innerHeight - y + 12}px`}"><small>${i + 1} из ${TOUR.length}</small><b>${t}</b><p>${d}</p>
       <button class="ob-go sm" data-ob="tour" data-i="${i + 1}">${i + 1 < TOUR.length ? 'Дальше' : 'Начать игру'}</button></div>`;
+    placeTip(L, { x, y, w, h }); tourAt = i;
   }
+  // подсказка целиком на экране: снизу или сверху от подсветки, иначе сбоку; не под кнопками Telegram и вырезом
+  let tourAt = -1;
+  function placeTip(L, s) {
+    const tip = L.querySelector('.ob-tip'); if (!tip) return;
+    const B = typeof FX !== 'undefined' && FX.safe ? FX.safe() : { l: 10, t: 6, r: innerWidth - 10, b: innerHeight };
+    tip.style.top = tip.style.bottom = ''; tip.style.maxWidth = `${Math.max(200, B.r - B.l - 8)}px`;
+    const tw = tip.offsetWidth, th = tip.offsetHeight, g = 12;
+    let left = Math.max(B.l + 4, Math.min(B.r - tw - 4, s.x + s.w / 2 - tw / 2)), top;
+    if (s.y + s.h + g + th <= B.b - 4) top = s.y + s.h + g;
+    else if (s.y - g - th >= B.t + 4) top = s.y - g - th;
+    else { top = Math.max(B.t + 4, Math.min(B.b - th - 4, s.y + s.h / 2 - th / 2)); left = s.x + s.w + g + tw <= B.r ? s.x + s.w + g : Math.max(B.l + 4, s.x - g - tw); }
+    tip.style.left = `${Math.round(left)}px`; tip.style.top = `${Math.round(top)}px`;
+  }
+  addEventListener('resize', () => { if (tourAt >= 0 && el && S().step === STEPS.indexOf('tour')) setTimeout(() => tour(tourAt), 200); });
 
   // ---------- нажатия ----------
   function onClick(e) {

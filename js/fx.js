@@ -84,7 +84,32 @@ const FX = (() => {
     px = (e.clientX / innerWidth - 0.5); py = (e.clientY / innerHeight - 0.5);
     if (!pr) pr = requestAnimationFrame(() => { pr = 0; const st = document.documentElement.style; st.setProperty('--px', px.toFixed(3)); st.setProperty('--py', py.toFixed(3)); });
   }
+  // ---- безопасная зона и автоподгонка окон под экран телефона ----
+  // зона без кнопок Telegram сверху, выреза камеры по бокам и полоски «домой» снизу (переменные --fm-t/l/r/b из css/fcm.css)
+  function safe() {
+    const p = document.createElement('i');
+    p.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;top:var(--fm-t,6px);left:var(--fm-l,10px);right:var(--fm-r,10px);bottom:var(--fm-b,0px)';
+    document.body.appendChild(p); const r = p.getBoundingClientRect(); p.remove();
+    return { l: r.left, t: r.top, r: r.right, b: r.bottom };
+  }
+  // окно больше экрана — уменьшаем его целиком (не обрезаем и не заставляем листать)
+  const FIT = '.ob-intro, .ob-card, .ob-quiz, .ob-nat, .ob-pack, .fm-sh-card, .mk-sh, .fm-prf, .fm-cv, .fm-task, #modal-card';
+  let fitQ = 0;
+  function fitAll() {
+    fitQ = 0; const B = safe(), W = B.r - B.l - 8, H = B.b - B.t - 8; if (W < 50 || H < 50) return;
+    document.querySelectorAll(FIT).forEach((el) => {
+      if (!el.isConnected || el.closest('[hidden]')) return;
+      el.style.zoom = '';
+      const w = Math.max(el.scrollWidth, el.offsetWidth), h = Math.max(el.scrollHeight, el.offsetHeight); if (!w || !h) return;
+      const k = Math.max(0.62, Math.min(1, W / w, H / h));
+      if (k < 0.985) el.style.zoom = k.toFixed(3);
+    });
+  }
+  const fitSoon = () => { if (!fitQ) fitQ = requestAnimationFrame(() => requestAnimationFrame(fitAll)); };
   function init() {
+    new MutationObserver(fitSoon).observe(document.body, { childList: true, subtree: true });
+    addEventListener('resize', fitSoon);
+    try { if (window.Telegram && Telegram.WebApp && Telegram.WebApp.onEvent) ['viewportChanged', 'safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged'].forEach((ev) => Telegram.WebApp.onEvent(ev, fitSoon)); } catch (e) { /* не в Telegram */ }
     document.addEventListener('pointermove', move, { passive: true });
     document.addEventListener('pointerdown', (e) => { move(e); para(e); }, { passive: true });
     document.addEventListener('pointerleave', leave);
@@ -96,5 +121,5 @@ const FX = (() => {
     watch();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
-  return { burst };
+  return { burst, safe, fit: fitAll };
 })();
