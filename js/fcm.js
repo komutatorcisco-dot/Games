@@ -229,9 +229,23 @@ const FCM = (() => {
   }
   // карточки на 3D-газоне: точка схемы → точка поля → экран; дальние меньше, ближние крупнее.
   // С 3D-игроками карточка висит над головой, у выбранного (наезд камеры) — прячется, виден сам игрок.
+  // вход в «Команду»: пока камера наезжает на поле, карточки не трогаем (раньше 11 карточек пересчитывались и
+  // перерисовывались каждый кадр — на телефоне сильно лагало); камера встала — ставим их один раз и показываем по очереди
+  let enterT = 0, prevKey = null, stillN = 0;
   function placeCards() {
     if (!bg3 || tab !== 'team' || !root) return;
     const els = [...root.querySelectorAll('.fm-slot3')]; if (!els.length) return;
+    if (enterT) {
+      // камера почти встала (сдвиг меньше 2 точек за кадр) или прошло 1,4 с — показываем
+      const o0 = bg3.project(0, 0, 0), dt = performance.now() - enterT, mv = prevKey ? Math.hypot(o0.x - prevKey[0], o0.y - prevKey[1]) : 99;
+      prevKey = [o0.x, o0.y];
+      if (mv > 2 && dt < 1400) { stillN = 0; return; }
+      if (++stillN < 2 && dt < 1400) return;
+      enterT = 0; lastPlace = '';
+      const team = root.querySelector('.fm-team');
+      els.forEach((el, k) => el.style.setProperty('--k', k));
+      requestAnimationFrame(() => { if (team) { team.classList.remove('fx-wait'); team.classList.add('fx-pop'); setTimeout(() => team.classList.remove('fx-pop'), 1400); } });
+    }
     const F = XD.FORMATIONS[Squad.S().form], W = bg3.W, H = bg3.H, up = men && men.visible ? MAN_TOP : 0;
     if (up && mixers.length) { const now = performance.now(), dt = menT ? Math.min(0.1, (now - menT) / 1000) : 0; menT = now; mixers.forEach((m) => m.update(dt)); }
     // карточки двигаем, только когда сдвинулась камера (раньше — каждый кадр: 11 карточек с тенями перерисовывались
@@ -586,10 +600,12 @@ const FCM = (() => {
     if (tab === 'store' && sub.store === 'market') { sub.store = 'top'; tab = 'market'; }
     park();
     const body = HOST[tab] ? `<div class="fm-host fm-host-${tab}"></div>` : { play, team, events, quests, store, coll, modes, market: () => Market.render() }[tab]();
+    const entering = tab === 'team' && root.dataset.view !== 'team';
     root.dataset.view = tab;
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
     if (typeof Coins !== 'undefined') Coins.render();
     lastPlace = '';
+    if (entering && bg3) { enterT = performance.now(); prevKey = null; stillN = 0; const tm = root.querySelector('.fm-team'); if (tm) tm.classList.add('fx-wait'); }
     if (bg3) { bg3.view(tab === 'market' ? 'store' : tab); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
     if (tab === 'market') Market.load();
     if (HOST[tab]) { const n = document.getElementById(HOST[tab][0]), h = root.querySelector('.fm-host'); if (n && h) h.appendChild(n); }

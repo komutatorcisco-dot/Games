@@ -1,4 +1,4 @@
-// Наш игрок (assets3d/player.glb + js/playerkit.js) вместо тела игрока Mixamo в «Ударе». ПОКА НЕ ПОДКЛЮЧЁН.
+// Наш игрок (assets3d/player.glb + js/playerkit.js) вместо тела игрока Mixamo в «Ударе». С 30.10 включён в матче (?jg=0 — Мбаппе).
 // Скелет Mixamo остаётся и делает всё, что делал: движения, касания мяча, тень, вратарские сейвы. Его тело прячем,
 // а наш игрок каждый кадр повторяет его позу: поворот каждой кости относительно позы привязки (берётся из матриц
 // скелета, а не из текущей позы; наша кость выравнивается по кости источника), таз — ровно там же, где таз источника,
@@ -59,6 +59,9 @@ export function attach(pl, kit, i) {
   const ob = (n) => bones.find((b) => strip(b.name) === n);
   takeBind(pl.model); man.scale.setScalar(1); H.updateMatrixWorld(true); takeBind(man);
   man.scale.setScalar(leg((n) => src[n]) / Math.max(1e-4, leg(ob))); H.updateMatrixWorld(true); takeBind(man);
+  // поправка роста по полной высоте (29.10): у нашей модели исходная поза другая, по одной ноге выходило вдвое ниже
+  { const hb = new THREE.Box3().setFromObject(pl.model), mb = new THREE.Box3().setFromObject(man), hs = hb.max.y - hb.min.y, ms = mb.max.y - mb.min.y;
+    if (hs > 0.8 && ms > 0.1 && Math.abs(hs / ms - 1) > 0.12) { man.scale.multiplyScalar(hs / ms); H.updateMatrixWorld(true); takeBind(man); } }
   const items = bones.map((b) => {
     const sb = src[strip(b.name)], sRest = hq(sb); let oRest = hq(b);
     const oc = b.children.find((c) => c.isBone && src[strip(c.name)]);

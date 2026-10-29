@@ -46,3 +46,9 @@
   .po { padding: 0 var(--fm-r, 10px) var(--fm-b, 0px) var(--fm-l, 10px); box-sizing: border-box; }
   .po-top { margin-top: var(--fm-t, 6px); }
 }
+/* «Команда»: карточки ждут, пока камера доедет, потом выпрыгивают по очереди (только inner .cc — позицию не трогаем) */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-team.fx-wait .fm-slot3 { visibility: hidden; }
+  .fm-team.fx-pop .fm-slot3 > * { animation: fx-card-in .55s cubic-bezier(.2,1.5,.4,1) both; animation-delay: calc(var(--k, 0) * 45ms); }
+  @keyframes fx-card-in { from { opacity: 0; transform: translateY(26px) scale(.7) rotateX(30deg); } }
+}

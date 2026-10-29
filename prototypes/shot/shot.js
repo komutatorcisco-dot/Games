@@ -19,7 +19,7 @@ if (new URLSearchParams(location.search).get('cfg') === 'baseline') for (const k
 import * as GFX from './gfx.js';
 import { buildStadium } from './stadium-lite.js';
 import { buildTraining } from './training.js'; // окружение тренировочной базы для вида «2 на 1» // лёгкий стадион: чаша с текстурой болельщиков (прежний stadium.js не загружается)
-import * as JG from './jgskin.js?v=20261028-j1'; // наш 3D-игрок поверх скелета Mixamo (?jg=0 — старое тело)
+import * as JG from './jgskin.js?v=20261030-j2'; // наш 3D-игрок поверх скелета Mixamo (?jg=0 — старое тело)
 import { gestureButton } from './controls.js'; // кнопки с жестами (нажал / держишь / оттянул палец) // чаша стадиона, трибуны, болельщики, щиты // профили качества и внешний вид сцены (свет, газон, материалы) // физика мяча, ведение, удар — единый конфиг BP.CFG
 
 const Q = new URLSearchParams(location.search);
@@ -4347,7 +4347,7 @@ if (TRACE) window.__ball = (x, z, vx = 0, vz = 0) => { if (B.state === 'owned' |
   const got = await Promise.all(all);
   // все игроки — модель своей команды (из Tripo), перекрашенная в форму команды; тестовые лица по имени выключены
   got.forEach((pl, i) => { if (pl.kit) recolor(pl, pl.kit); if (i) skinTone(pl, i); }); // вратарь и стенка — в своей форме, разный тон кожи
-  if (Q.get('jg') === '1' && await JG.ready) { jgOn = true; got.forEach((pl, i) => JG.attach(pl, pl.kit, i)); } // наша модель — только для проверки (?jg=1)
+  if (Q.get('jg') !== '0' && await JG.ready) { jgOn = true; got.forEach((pl, i) => JG.attach(pl, pl.kit, i)); } // наша модель (компьютерная сессия) — по умолчанию с 30.10; ?jg=0 — прежняя (Мбаппе)
   [shooter, keeper] = got; shooter0 = shooter; wall.push(...got.slice(2)); blob(ball, 0.45); makeSpheres(keeper, 'gk'); makeSpheres(shooter, 'me'); makeSpheres(wall[0], 'mate');
   GK.push({ pl: keeper, S: GKS, kick: null });
   if (MATCH_ON) { // матч: два соперника и наш вратарь — из тех же моделей «стенки»; поле меньше — вратарь выходит ближе
