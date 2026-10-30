@@ -465,7 +465,7 @@ const FCM = (() => {
           <div class="fm-st-mini">${rest.map((x) => pkCard(x)).join('')}</div>
         </div></div>`;
     } else if (sub.store === 'packs') body = `<div class="fm-pks">${list.map((x) => pkCard(x)).join('')}</div>`;
-    else if (sub.store === 'stars') body = `<div class="fm-offers">${StarShop.ITEMS.filter((x) => x.level === undefined).map((x) => `<div class="fm-of"><span class="fm-of-art">${x.art()}</span><b>${esc(x.name)}</b><small>${esc(x.sub)}</small><button class="fm-btn star" data-ss="${x.id}">${x.stars} ⭐</button></div>`).join('')}</div>`;
+    else if (sub.store === 'stars') body = `<div class="fm-pks">${list.filter((x) => x.stars).map((x) => pkCard(x)).join('')}${StarShop.ITEMS.filter((x) => x.level === undefined).map((x) => `<div class="fm-of fm-pk"><span class="fm-of-art">${x.art()}</span><b>${esc(x.name)}</b><small>${esc(x.sub)}</small><button class="fm-btn star" data-ss="${x.id}">${x.stars} ⭐</button></div>`).join('')}</div>`; // за звёзды: паки и монеты
     else body = `<div class="fm-skins">${StarShop.skinsHtml()}</div>`;
     return `<div class="fm-split">${rail(L, 'store')}<div class="fm-body">${body}</div></div>`;
   }

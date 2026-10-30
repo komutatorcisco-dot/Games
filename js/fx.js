@@ -104,6 +104,14 @@ const FX = (() => {
       const k = Math.max(0.62, Math.min(1, W / w, H / h));
       if (k < 0.985) el.style.zoom = k.toFixed(3);
     });
+    // головоломки лёжа: доска с кнопками ниже края экрана — уменьшаем поле игры целиком, чтобы влезло до низа
+    if (!document.body.classList.contains('fcm-on') || innerWidth < innerHeight) return;
+    document.querySelectorAll('#pz:not([hidden]) .pz-area').forEach((el) => {
+      el.style.zoom = '';
+      let after = 0; for (let n = el.nextElementSibling; n; n = n.nextElementSibling) if (!n.hidden && n.offsetHeight) after += n.offsetHeight + 6; // кнопки под доской
+      const top = el.getBoundingClientRect().top, avail = B.b - top - after - 10, h = el.scrollHeight;
+      if (h > avail && avail > 80) el.style.zoom = Math.max(0.35, avail / h).toFixed(3);
+    });
   }
   const fitSoon = () => { if (!fitQ) fitQ = requestAnimationFrame(() => requestAnimationFrame(fitAll)); };
   function init() {
