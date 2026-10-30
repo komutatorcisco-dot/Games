@@ -1027,3 +1027,45 @@
   .cr-t { padding: 5px 8px; gap: 6px; } .cr-ic { width: 28px; height: 28px; } .cr-tt b { font-size: 12px; }
   .cr-main { min-height: 0; overflow: hidden; } .fm-evw:has(.cr) { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100%; min-height: 0; }
 }
+/* Драфт лёжа (30.10): слева поле во всю высоту, справа рейтинг, скамейка, резерв и кнопки — без длинной прокрутки */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on #xd-body:has(> .xd-pitch) { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-auto-rows: min-content; gap: 6px 14px; align-items: start; padding-top: 4px; }
+  body.fcm-on #xd-body:has(> .xd-pitch) > .xd-pitch { grid-column: 1; grid-row: 1 / span 6; height: calc(100dvh - var(--fm-t, 6px) - 64px); width: auto; aspect-ratio: .7; margin: 0; }
+  body.fcm-on #xd-body:has(> .xd-pitch) > :not(.xd-pitch) { grid-column: 2; margin-top: 0; margin-bottom: 0; }
+  body.fcm-on #xd-body .xd-pitch .xd-slot > * { transform: scale(.7); transform-origin: 50% 60%; }
+  body.fcm-on #xd-body .xd-bench { margin-top: 2px; } body.fcm-on #xd-body .xd-brow { padding: 2px 2px 4px; gap: 4px; }
+  body.fcm-on #xd-body .xd-bench .xd-slot.b { zoom: .64; }
+  body.fcm-on #xd-body .xd-bh b { font-size: 15px; } body.fcm-on #xd-body .xd-act .btn { padding-top: 10px !important; padding-bottom: 10px !important; }
+  body.fcm-on #xd-body .xd-bh { margin-bottom: 0; } body.fcm-on #xd-body .xd-act { margin: 4px 0 0; }
+  body.fcm-on #xd-body .xd-bar { margin-bottom: 0; }
+}
+/* выбор игрока в драфте лёжа: пять карточек ровно в ряд, рамка — по карточке; выбранная крупнее с цифрами, кнопка всегда видна */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on #xd-pick.xp { gap: 6px !important; padding: var(--fm-t, 6px) var(--fm-r, 10px) calc(var(--fm-b, 0px) + 6px) var(--fm-l, 10px) !important; grid-template-rows: auto auto minmax(0, 1fr) auto !important; }
+  body.fcm-on .xp-row5 { grid-template-columns: repeat(5, auto); justify-content: center; gap: clamp(8px, 2.4vw, 22px); }
+  body.fcm-on .xp-row5 .xp-c { display: grid !important; justify-items: center; padding: 3px !important; }
+  body.fcm-on .xp-row5 .xp-c .fu { --cw: clamp(56px, calc((100dvh - 230px) / 1.45), 92px); }
+  body.fcm-on .xp-big { padding: 8px 12px; gap: 12px; min-height: 0; overflow: hidden; }
+  body.fcm-on .xp-bc { display: none !important; } /* выбранная карточка и так видна в ряду — здесь только цифры */
+  body.fcm-on .xp-big { grid-template-columns: 1fr !important; }
+  body.fcm-on .xp-info { gap: 3px; } body.fcm-on .xp-info > b { font-size: 18px; }
+  body.fcm-on .xp-st { grid-template-columns: repeat(3, auto) !important; gap: 2px 14px !important; }
+  body.fcm-on .xp-foot { grid-template-columns: 1fr minmax(180px, 34%); align-items: center; }
+}
+/* итог драфта и матч лёжа */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on #xd-body .xd-res { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-auto-rows: min-content; gap: 6px 14px; align-items: start; }
+  body.fcm-on #xd-body .xd-res > .xd-pitch { grid-column: 1; grid-row: 1 / span 5; height: calc(100dvh - var(--fm-t, 6px) - 64px); width: auto; aspect-ratio: .7; margin: 0; }
+  body.fcm-on #xd-body .xd-res > :not(.xd-pitch) { grid-column: 2; margin-top: 0; }
+  body.fcm-on #xd-body .xd-res .xd-pitch .xd-slot > * { transform: scale(.7); transform-origin: 50% 60%; }
+  body.fcm-on #xd-body .xd-res .xd-bench .xd-slot.b { zoom: .64; }
+  /* матч: слева счёт и поле, справа скорость, события, тактика и статистика */
+  body.fcm-on #xd-body .xm.comm { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto auto; gap: 6px 12px !important; height: calc(100dvh - var(--fm-t, 6px) - 58px); min-height: 0; }
+  body.fcm-on #xd-body .xm.comm > .xm-bug { grid-column: 1; grid-row: 1; justify-self: center; }
+  body.fcm-on #xd-body .xm.comm > .xm-stage { grid-column: 1; grid-row: 2 / span 4; align-self: start; width: min(100%, calc((100dvh - var(--fm-t, 6px) - 140px) * 1.75)); justify-self: center; }
+  body.fcm-on #xd-body .xm.comm > .xm-ctl { grid-column: 2; grid-row: 1; margin: 0; }
+  body.fcm-on #xd-body .xm.comm > .xm-feed { grid-column: 2; grid-row: 2 / span 2; overflow: auto; min-height: 0; align-content: start; }
+  body.fcm-on #xd-body .xm.comm > .xm-tac { grid-column: 2; grid-row: 4; }
+  body.fcm-on #xd-body .xm.comm > .xm-stats { grid-column: 2; grid-row: 5; }
+  body.fcm-on #xd-body .xm.comm > :not(.xm-bug):not(.xm-stage):not(.xm-ctl):not(.xm-feed):not(.xm-tac):not(.xm-stats) { grid-column: 1 / -1; }
+}

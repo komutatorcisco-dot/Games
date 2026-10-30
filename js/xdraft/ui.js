@@ -162,6 +162,7 @@ const XDraft = (() => {
       cards.forEach((c, k) => anim(c, [{ transform: 'translateY(60px) scale(.7)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 420, delay: 60 * k, easing: 'cubic-bezier(.2,1.1,.3,1)', fill: 'backwards' }));
     });
     el.addEventListener('click', (e) => {
+      if (!pick || el.classList.contains('out')) return; // окно уже закрывается (второе быстрое нажатие) — раньше падало «pick.chosen»
       if (e.target.closest('.xp-x')) return closePick();
       const c = e.target.closest('.xp-c');
       if (c && !c.closest('.xp-big')) { const k = +c.dataset.k; if (k === pick.chosen) return confirmPick(); pick.chosen = k; sync(); Sound.play('tap'); haptic('tap'); return; }
@@ -175,6 +176,7 @@ const XDraft = (() => {
   }
   function closePick() { const el = $('#xd-pick'); if (el) { el.id = ''; el.classList.add('out'); setTimeout(() => el.remove(), 200); } pick = null; }
   function confirmPick() {
+    if (!pick) return;
     const a = A(), p = pick.list[pick.chosen]; if (!p) return;
     const srcEl = $$('#xd-pick .xp-c')[pick.chosen], from = rectOf(srcEl && $('.fu', srcEl));
     if (pick.zone === 'capt') { a.captPick = p.name; capFrom = from; save(); closePick(); render(); return; }
