@@ -1,4 +1,4 @@
-// Наш игрок (assets3d/player.glb + js/playerkit.js) вместо тела игрока Mixamo в «Ударе». С 30.10 включён в матче (?jg=0 — Мбаппе).
+// Наш игрок (assets3d/player.glb + js/playerkit.js) вместо тела игрока Mixamo в «Ударе». Включается только ?jg=1 (30.10: с позами Мбаппе кривится, основа футбола — Мбаппе).
 // Скелет Mixamo остаётся и делает всё, что делал: движения, касания мяча, тень, вратарские сейвы. Его тело прячем,
 // а наш игрок каждый кадр повторяет его позу: поворот каждой кости относительно позы привязки (берётся из матриц
 // скелета, а не из текущей позы; наша кость выравнивается по кости источника), таз — ровно там же, где таз источника,
@@ -18,7 +18,7 @@ import { clone as cloneSkinned } from '../balotelli/vendor/utils/SkeletonUtils.j
 
 // PlayerKit объявлен в js/playerkit.js как const — в window его нет, но из модуля он виден по имени
 const PK = typeof PlayerKit !== 'undefined' ? PlayerKit : null; // eslint-disable-line no-undef
-const ON = new URLSearchParams(location.search).get('jg') !== '0' && !!PK;
+const ON = new URLSearchParams(location.search).get('jg') === '1' && !!PK; // модель не грузится, если не нужна
 let G = null;
 export const ready = !ON ? Promise.resolve(null) : new Promise((ok) => {
   const draco = new DRACOLoader().setDecoderPath('./jg/draco/')   // декодер под эту версию three.js (r170); vendor/draco — для r128;
