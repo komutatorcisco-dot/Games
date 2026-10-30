@@ -68,6 +68,7 @@ const FCM = (() => {
   const MODES = [
     { id: 'mom', t: 'Моменты', d: 'Короткие атаки: забей за несколько секунд', ico: 'img/fcm/mode-mom.webp?v=3', cls: 'big lime' },
     { id: '3', t: 'Матч 3 на 3', d: 'Нападающий, защитник и вратарь из твоих карточек', ico: 'img/fcm/mode-three.webp?v=3', cls: 'blue' },
+    { id: 'draft', t: 'Драфт', d: 'Собери состав из случайных карточек и пройди турнир', act: 'xdraft', ico: 'img/fcm/player-stand.webp', cls: 'blue' },
     { id: 'mgr', t: 'Менеджер', d: '«Мой состав» играет сам, ты смотришь', ico: 'img/fcm/mode-mgr.webp?v=3', cls: 'dark' },
     { id: '11', t: '11 на 11 · тест', d: 'Полное поле, 5 минут', ico: 'img/fcm/mode-eleven.webp?v=3', cls: 'dark' },
     { id: 'train', t: 'Тренировки', d: 'Удары, дриблинг, штрафные', ico: 'img/fcm/mode-train.webp?v=3', cls: 'dark' },
