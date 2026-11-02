@@ -101,9 +101,14 @@ function offBalance(P, sv) {
   const k = 1 - 0.22 * f; sv.v.x *= k; sv.v.y *= k; sv.v.z *= k; if (sv.speed) sv.speed *= k; return f;
 }
 function spreadShot(sv, sd, pw = 0) { if (!sd) return sv; const a = gauss() * sd, c = Math.cos(a), sn = Math.sin(a), x = sv.v.x, z = sv.v.z; sv.v.x = x * c + z * sn; sv.v.z = -x * sn + z * c; if (pw) { const m = 1 + gauss() * pw; sv.v.x *= m; sv.v.z *= m; } return sv; }
-const MATCH = { L: 105, HW: 34, N: NSIDE, time: Math.max(30, Math.min(900, Number(Q.get('mt')) || (NSIDE > 3 ? 300 : 180))) };
+// 3 на 3 и 4 на 4 (2.11) — маленькое поле и средние ворота 5×2 м, как в мини-футболе; 5+ — полное поле 105×68
+const SMALL = MATCH_ON && MODE === 'match' && NSIDE <= 4;
+const MATCH = SMALL ? { L: NSIDE === 4 ? 48 : 42, HW: NSIDE === 4 ? 15 : 13, N: NSIDE, time: Math.max(30, Math.min(900, Number(Q.get('mt')) || 180)) }
+  : { L: 105, HW: 34, N: NSIDE, time: Math.max(30, Math.min(900, Number(Q.get('mt')) || (NSIDE > 3 ? 300 : 180))) };
+// разметка: штрафная [полуширина, глубина], вратарская, точка пенальти, дуга, центральный круг
+const MK = SMALL ? { box: [7.5, 7], area: [3.8, 2.5], spot: 7, arc: 0, circle: 4 } : { box: [20.16, 16.5], area: [9.16, 5.5], spot: 11, arc: 9.15, circle: 9.15 };
 const NIGHT = Q.get('night') === '1'; // по умолчанию — дневной матч
-const SHOTS = 5, G = 9.81, R = 0.11, GW = 3.66, GH = 2.44;
+const SHOTS = 5, G = 9.81, R = 0.11, GW = SMALL ? 2.5 : 3.66, GH = SMALL ? 2.0 : 2.44; // GW — полуширина ворот
 let NET_D = 1.5, NET_TOP = 1.5; // глубина сетки внизу и под крышей (ворота-модель — ровная коробка 1,5 м)
 const LOW = Q.get('low') === '1' || (navigator.hardwareConcurrency || 4) <= 2; // слабый телефон: без теней, меньше людей
 const $ = (s) => document.querySelector(s);
@@ -247,7 +252,7 @@ function pitch() {
   g.strokeStyle = g.fillStyle = '#fff'; g.lineWidth = 0.12 * S; // линии 12 см, как на настоящем поле
   const rect = (x0, z0, x1, z1) => g.strokeRect(px(x0), pz(z0), px(x1) - px(x0), pz(z1) - pz(z0));
   // матч 3 на 3 — маленькое поле MATCH.L × 2·MATCH.HW с уменьшенной разметкой; иначе — полное 105×68
-  const F = { L: MATCH_ON ? MATCH.L : 105, HW: MATCH_ON ? MATCH.HW : 34, box: [20.16, 16.5], area: [9.16, 5.5], spot: 11, arc: 9.15, circle: 9.15 }; // размеры по правилам FIFA (как в FC Mobile)
+  const F = { L: MATCH_ON ? MATCH.L : 105, HW: MATCH_ON ? MATCH.HW : 34, ...(MATCH_ON ? MK : { box: [20.16, 16.5], area: [9.16, 5.5], spot: 11, arc: 9.15, circle: 9.15 }) }; // размеры по правилам FIFA (как в FC Mobile)
   const L = F.L, HW = F.HW, ends = [[0, 1], [L, -1]]; // каждая половина: линия ворот и направление в поле
   for (const [gz, dir] of ends) {
     const z = (d) => gz + dir * d;
@@ -393,6 +398,7 @@ async function goalModel() {
         #include <alphatest_fragment>`);
     };
   });
+  if (SMALL) g.scale.set(GW / 3.66, GH / 2.44, 1); // модель — большие ворота 7,32×2,44: сжимаем до средних
   scene.add(g);
   netPanels(NET_D, NET_TOP, true); // дальняя сетка того же размера, что у модели (коробка 1,5 м)
 }
@@ -446,6 +452,8 @@ function stadium() {
   STADIUM = buildStadium(scene, { aniso: Math.min(PQ.aniso, ren.capabilities.getMaxAnisotropy()), ledBrightness: LOOK.led.brightness, ledSpeed: LOOK.led.speed });
   crowd = STADIUM.crowd; crowd.userData.U = STADIUM.U;
   STADIUM.setCrowd(PQ.crowd); STADIUM.setDetail(PQ.detail);
+  // маленькое поле (3 на 3, 4 на 4): трибуны подвигаем к полю — стадион поменьше, без пустого газона вокруг
+  if (SMALL) { const kx = (MATCH.HW + 5) / 42, kz = (MATCH.L + 10) / 123; STADIUM.group.scale.set(kx, Math.max(kx, kz) * 1.15, kz); STADIUM.group.position.z = -5 + 9 * kz; }
 }
 
 // ---------- мяч ----------
@@ -1391,6 +1399,8 @@ const TV_CAMS = {
   side: { label: 'Сбоку', yaw: 0, side: 27.5, h: 30.5, fov: 20, ahead: 7, zMin: 1, near: 4.5, far: 6.5, right: 4, left: 11 },       // ~48° сверху, ~41 м
   diag: { label: 'Диагональ', yaw: 25, side: 29.5, h: 28, fov: 20, ahead: 7, zMin: 1, near: 4.5, far: 6.5, right: 6, left: 12 },
 };
+// маленькое поле: камеры ближе и ниже (поле в 2,5 раза меньше, трибуны придвинуты)
+if (SMALL) Object.values(TV_CAMS).forEach((c) => { c.side *= 0.74; c.h *= 0.76; ['near', 'far', 'right', 'left', 'lead', 'ahead'].forEach((k) => { if (c[k]) c[k] *= 0.7; }); });
 const TV_CAM_ORDER = ['tv', 'behind', 'side', 'diag'];
 const CAM_KEY = MATCH_ON ? 'shot.match.cam2' : 'shot.duo.cam'; // в матче по умолчанию — высокая боковая камера
 let tvCamSel = (() => { const q = Q.get('tvcam'); if (TV_CAMS[q]) return q; try { const v = localStorage.getItem(CAM_KEY); if (TV_CAMS[v]) return v; } catch (e) { /* без памяти */ } return MATCH_ON ? 'tv' : 'behind'; })();
@@ -2502,7 +2512,10 @@ const FORM = {
   // 4-3-3 — те же места, что в «Моём составе» хаба (x — от центра, глубина — от своей линии ворот)
   11: { me: [0, 0.84], slots: [[-20.7, 0.31], [-7.6, 0.27], [7.6, 0.27], [20.7, 0.31], [-14.1, 0.5], [0, 0.46], [14.1, 0.5], [-18.5, 0.78], [18.5, 0.78]] },
 };
-const formOf = () => FORM[NSIDE] || FORM[3];
+FORM[4] = { me: [0, 0.44], slots: [[-9, 0.36], [7, 0.2]] }; // 4 на 4: нападающий, полузащитник, защитник (+ вратарь)
+const formScale = (F) => (SMALL ? { me: [F.me[0] * MATCH.HW / 22, F.me[1]], slots: F.slots.map(([x, d]) => [x * MATCH.HW / 22, d]) } : F); // ширина схемы — под маленькое поле
+const FORM_S = {};
+const formOf = () => FORM_S[NSIDE] || (FORM_S[NSIDE] = formScale(FORM[NSIDE] || FORM[3]));
 function homeBase(a) { // [x, глубина] места игрока: из состава хаба (позиция в схеме) или из стандартной схемы
   if (a.ai && a.ai.hxy) return a.ai.hxy;
   const F = formOf(), list = a.team === 0 ? F.slots : [F.me, ...F.slots]; return (a.id === 'me' ? F.me : list[a.ai.home ?? 0]) || F.me;
@@ -2777,7 +2790,7 @@ function staggerLayer(pl, P, dt) {
 // ---- фолы и карточки ----
 // Свисток: штрафной с места фола или пенальти (фол в своей штрафной). Карточка — по тому, как сфолил: подкат сзади —
 // почти всегда жёлтая, иногда красная; обычный отбор — редко. Вторая жёлтая — красная: игрок уходит с поля.
-const inBoxOf = (team, x, z) => Math.abs(x) < 20.16 && Math.abs(z - ownZ(team)) < 16.5; // в штрафной ворот команды team
+const inBoxOf = (team, x, z) => Math.abs(x) < MK.box[0] && Math.abs(z - ownZ(team)) < MK.box[1]; // в штрафной ворот команды team
 function callFoul(a, v, slide, behind) {
   if (!MATCH_ON || MT.st !== 'play' || state !== 'play' || (MT.restart && MT.restart.kind !== 'kickoff')) return;
   const S = MST(); S.fouls[a.team]++;
@@ -2789,7 +2802,7 @@ function callFoul(a, v, slide, behind) {
   if (yellow) { a.pl.yc = (a.pl.yc || 0) + 1; if (a.pl.yc >= 2) card = 'red2'; else { card = 'yellow'; S.yellow[a.team]++; } }
   if (red) card = 'red';
   if (card.startsWith('red')) S.red[a.team]++;
-  MT.next = pen ? { kind: 'pen', team: v.team, x: 0, z: ownZ(a.team) === 0 ? 11 : MATCH.L - 11 } : { kind: 'free', team: v.team, x: clampX(x, 1), z: clampZ(z, 1.5) };
+  MT.next = pen ? { kind: 'pen', team: v.team, x: 0, z: ownZ(a.team) === 0 ? MK.spot : MATCH.L - MK.spot } : { kind: 'free', team: v.team, x: clampX(x, 1), z: clampZ(z, 1.5) };
   MT.st = 'dead'; MT.stT = 0; run.chase = false; MT.off = null; MT.back = null; MT.passPend = null; MT.shotPend = null;
   sfx.whistle(); if (a.id === 'me' || v.id === 'me') sfx.buzz('heavy');
   matchBanner(card === 'yellow' ? `🟨 ${nm}` : card === 'red2' ? `🟨🟥 ${nm} — удалён` : card === 'red' ? `🟥 ${nm} — удалён` : pen ? 'Пенальти!' : 'Фол', !!card || pen);
@@ -2881,7 +2894,7 @@ function botThink(a) {
     return;
   }
   if (R0 && R0.kind === 'pen' && R0.taker !== a.id) { // пенальти: все, кроме бьющего, — за штрафной
-    const gz = R0.z < MATCH.L / 2 ? 0 : MATCH.L, dz = gz === 0 ? 1 : -1; ai.tx = clampX(P.p.x * 0.6 + (a.team === R0.team ? 6 : -6), 2); ai.tz = gz + dz * (18.5 + Math.random() * 3); ai.sprint = Math.abs(P.p.z - gz) < 18; return;
+    const gz = R0.z < MATCH.L / 2 ? 0 : MATCH.L, dz = gz === 0 ? 1 : -1; ai.tx = clampX(P.p.x * 0.6 + (a.team === R0.team ? 6 : -6), 2); ai.tz = gz + dz * (MK.box[1] + 2 + Math.random() * 3); ai.sprint = Math.abs(P.p.z - gz) < 18; return;
   }
   if (R0 && R0.taker === a.id && B.state === 'free') { ai.tx = B.p.x; ai.tz = B.p.z; ai.sprint = Math.hypot(B.p.x - P.p.x, B.p.z - P.p.z) > 4; ai.want = { x: -B.p.x * 0.1, z: fwdZ(team) }; return; }
   if (owning() && B.owner === a.id) return botWithBall(a, mates, foes);
@@ -3844,7 +3857,7 @@ function minimap() {
   g.clearRect(0, 0, W, H); g.fillStyle = 'rgba(34,92,46,.62)'; g.fillRect(0, 0, W, H);
   g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 1.2; g.strokeRect(pad, pad, W - 2 * pad, H - 2 * pad);
   const mid = at(0, MATCH.L / 2); g.beginPath(); g.moveTo(mid[0], pad); g.lineTo(mid[0], H - pad); g.stroke(); g.beginPath(); g.arc(mid[0], H / 2, (H - 2 * pad) * 0.13, 0, 7); g.stroke();
-  for (const z of [0, MATCH.L]) { const a = at(-20, z), b = at(20, z + (z ? -16.5 : 16.5)); g.strokeRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])); }
+  for (const z of [0, MATCH.L]) { const a = at(-MK.box[0], z), b = at(MK.box[0], z + (z ? -MK.box[1] : MK.box[1])); g.strokeRect(Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])); }
   const me = actorOf('me'); let opp = null, od = 1e9;
   for (const a of actors()) {
     const [px, py] = at(a.P.p.x, a.P.p.z);
@@ -4119,7 +4132,7 @@ function spCam(p, l) {
 }
 // камера не заходит в трибуны (угловой, бег у бровки): если точка ниже чаши трибун (STAND в stadium-lite.js) —
 // отводим её обратно к переднему краю трибуны; высокая телекамера над трибунами остаётся как есть
-const SG = { x: 42 - 1.5, n: -9 + 1.5, s: 114 - 1.5 };
+const SG = SMALL ? { x: MATCH.HW + 5 - 1, n: -5 + 1, s: MATCH.L + 5 - 1 } : { x: 42 - 1.5, n: -9 + 1.5, s: 114 - 1.5 }; // передний край трибун (маленькое поле — придвинутые)
 function standH(d) { const P = [[0, 0], [0, 1.2], [11, 5.6], [12.2, 5.9], [25, 14.6], [25.6, 15.4]]; if (d >= 25.6) return 99; for (let i = 1; i < P.length; i++) if (d <= P[i][0]) { const a = P[i - 1], b = P[i], k = b[0] > a[0] ? (d - a[0]) / (b[0] - a[0]) : 1; return a[1] + (b[1] - a[1]) * k; } return 99; }
 function standGuard(p) {
   const dx = Math.abs(p.x) - SG.x, dz = Math.max(SG.n - p.z, p.z - SG.s), d = Math.max(dx, dz);

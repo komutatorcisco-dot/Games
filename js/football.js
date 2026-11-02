@@ -7,7 +7,7 @@
 'use strict';
 
 const Football = (() => {
-  const S = () => { const d = Store.d; if (!d.fb || typeof d.fb !== 'object') d.fb = {}; const s = d.fb; if (!Array.isArray(s.xi)) s.xi = [null, null, null]; if (s.fmt !== 11 && s.fmt !== 'mom') s.fmt = 3; if (![0, 1, 2].includes(s.diff)) s.diff = 1; return s; };
+  const S = () => { const d = Store.d; if (!d.fb || typeof d.fb !== 'object') d.fb = {}; const s = d.fb; if (s.fmt !== 11 && s.fmt !== 'mom' && s.fmt !== 4) s.fmt = 3; const nx = s.fmt === 4 ? 4 : 3; if (!Array.isArray(s.xi)) s.xi = []; if (s.xi.length !== nx) s.xi = s.xi.length > nx ? [...s.xi.slice(0, nx - 1), s.xi[s.xi.length - 1]] : [...s.xi.slice(0, -1), ...Array(nx - s.xi.length).fill(null), s.xi[s.xi.length - 1] || null]; if (![0, 1, 2].includes(s.diff)) s.diff = 1; return s; };
   const SQ = () => (typeof Squad !== 'undefined' && Squad.S ? Squad.S() : (Store.d.squad || { form: '4-3-3', xi: Array(11).fill(null) }));
   const posOf = (c) => (typeof PlayerPositions !== 'undefined' ? PlayerPositions.get(c.name, c.pos) : [c.pos === 'ВРТ' ? 'GK' : 'CM']);
   const isGK = (c) => !!c && (c.pos === 'ВРТ' || posOf(c)[0] === 'GK');
@@ -21,20 +21,22 @@ const Football = (() => {
     return Array(6).fill(c.r);
   }
 
-  // ---------- 3 на 3: нападающий, защитник, вратарь ----------
-  const LBL3 = ['Нападающий', 'Защитник', 'Вратарь'];
-  const SHORT3 = ['НАП', 'ЗАЩ', 'ВРТ'];
-  const FIT3 = [['ST', 'CF', 'LW', 'RW', 'CAM', 'LM', 'RM', 'LF', 'RF'], ['CB', 'LB', 'RB', 'CDM', 'CM', 'LWB', 'RWB'], ['GK']];
-  const fit3 = (c, i) => !!c && posOf(c).some((p) => FIT3[i].includes(p));
-  const ok3 = (k, i) => { const c = k && Cards.get(k); return !!c && Cards.spare(k) > 0 && (i === 2 ? isGK(c) : !isGK(c)); };
+  // ---------- 3 на 3 (нападающий, защитник, вратарь) и 4 на 4 (+ полузащитник) — маленькое поле ----------
+  const ATT = ['ST', 'CF', 'LW', 'RW', 'CAM', 'LM', 'RM', 'LF', 'RF'], MID = ['CM', 'CAM', 'CDM', 'LM', 'RM'], DEF = ['CB', 'LB', 'RB', 'CDM', 'CM', 'LWB', 'RWB'];
+  const four = () => S().fmt === 4;
+  const LBLS = () => (four() ? ['Нападающий', 'Полузащитник', 'Защитник', 'Вратарь'] : ['Нападающий', 'Защитник', 'Вратарь']);
+  const DEF4 = ['CB', 'LB', 'RB', 'CDM', 'LWB', 'RWB'];
+  const FITS = () => (four() ? [ATT, MID, DEF4, ['GK']] : [ATT, DEF, ['GK']]);
+  const gkI = () => (four() ? 3 : 2);
+  const fit3 = (c, i) => !!c && posOf(c).some((p) => FITS()[i].includes(p));
+  const ok3 = (k, i) => { const c = k && Cards.get(k); return !!c && Cards.spare(k) > 0 && (i === gkI() ? isGK(c) : !isGK(c)); };
   // по умолчанию — лучшие на своих позициях (сначала из «Моего состава»), иначе лучшие полевые
   function auto3() {
     const s = S(), sq = (SQ().xi || []).map((k) => k && Cards.get(k)).filter((c) => c && Cards.spare(c.key) > 0);
     const pool = [...sq, ...mine().sort((a, b) => b.r - a.r)].filter((c, i, a) => a.indexOf(c) === i);
     const used = new Set(), take = (f) => { const c = pool.find((x) => !used.has(x.key) && f(x)); if (c) used.add(c.key); return c || null; };
-    const gk = take(isGK), st = take((c) => fit3(c, 0)) , df = take((c) => fit3(c, 1));
-    const st2 = st || take((c) => !isGK(c)), df2 = df || take((c) => !isGK(c));
-    s.xi = [st2 ? st2.key : null, df2 ? df2.key : null, gk ? gk.key : null];
+    const gk = take(isGK), n = gkI(), field = Array.from({ length: n }, (_, i) => take((c) => fit3(c, i)));
+    s.xi = [...field.map((c) => (c || take((x) => !isGK(x)) || {}).key || null), gk ? gk.key : null];
   }
 
   // ---------- 11 на 11: схема и места из «Моего состава» ----------
@@ -79,7 +81,7 @@ const Football = (() => {
       return `<button class="fbp-l ${r && r.ok ? 'ok' : ''}" data-fblesson="${id}"><i>${r && r.ok ? '✓' : i + 1}</i><b>${t}</b><small>${r ? `${r.best} оч.` : d}</small></button>`; }).join('')}</div>`;
   }
   function head(s) {
-    return `<div class="fbp-seg">${[3, 11, 'mom'].map((n) => `<button data-fbfmt="${n}" class="${s.fmt === n ? 'on' : ''}">${n === 'mom' ? 'Моменты' : `${n} на ${n}${n === 11 ? ' · тест' : ''}`}</button>`).join('')}</div>
+    return `<div class="fbp-seg">${[3, 4, 'mom'].map((n) => `<button data-fbfmt="${n}" class="${s.fmt === n ? 'on' : ''}">${n === 'mom' ? 'Моменты' : `${n} на ${n}`}</button>`).join('')}</div>
       <div class="fbp-seg sm"><span>Соперники</span>${DIFF.map((t, i) => `<button data-fbdiff="${i}" class="${s.diff === i ? 'on' : ''}">${t}</button>`).join('')}</div>`;
   }
   // список карточек для выбранного места: подходящие по позиции — впереди, чужие помечены
@@ -119,18 +121,18 @@ const Football = (() => {
     }
     const slots = s.xi.map((k, i) => {
       const c = k && Cards.get(k);
-      return `<button class="fbp-slot ${i === slot ? 'sel' : ''}" data-fbslot="${i}">${c ? Cards.html(c, { w: 96 }) : '<span class="fbp-empty">Игрок клуба<small>65</small></span>'}<b>${LBL3[i]}</b>${c && !fit3(c, i) ? '<em>не своя позиция</em>' : ''}</button>`;
+      return `<button class="fbp-slot ${i === slot ? 'sel' : ''}" data-fbslot="${i}">${c ? Cards.html(c, { w: 96 }) : '<span class="fbp-empty">Игрок клуба<small>65</small></span>'}<b>${LBLS()[i]}</b>${c && !fit3(c, i) ? '<em>не своя позиция</em>' : ''}</button>`;
     }).join('');
     const used = new Set(s.xi.filter(Boolean));
     el.innerHTML = `${head(s)}<div class="fbp-slots">${slots}</div>
-      <p class="fbp-h">${LBL3[slot]} — ${slot === 2 ? 'вратари' : 'полевые'} из твоей коллекции</p>
-      <div class="fbp-list">${cells((c) => (fit3(c, slot) ? 1 : 0), slot === 2, s.xi[slot], used) || `<p class="fbp-none">${slot === 2 ? 'Вратарей пока нет' : 'Полевых пока нет'} — на поле выйдет игрок клуба. Карточки — из паков и испытаний.</p>`}</div>${lessons()}
+      <p class="fbp-h">${LBLS()[slot]} — ${slot === gkI() ? 'вратари' : 'полевые'} из твоей коллекции</p>
+      <div class="fbp-list">${cells((c) => (fit3(c, slot) ? 1 : 0), slot === gkI(), s.xi[slot], used) || `<p class="fbp-none">${slot === gkI() ? 'Вратарей пока нет' : 'Полевых пока нет'} — на поле выйдет игрок клуба. Карточки — из паков и испытаний.</p>`}</div>${lessons()}
       <div class="fbp-go"><button class="btn" data-act="football-go">На поле!</button></div>`;
   }
   function bind() {
     const el = $('#fbp'); if (!el) return;
     el.addEventListener('click', (e) => {
-      const fm = e.target.closest('[data-fbfmt]'); if (fm) { const v = fm.dataset.fbfmt; S().fmt = v === 'mom' ? 'mom' : +v; slot = 0; Store.save(); Sound.play('tap'); return render(); }
+      const fm = e.target.closest('[data-fbfmt]'); if (fm) { const v = fm.dataset.fbfmt; S().fmt = v === 'mom' ? 'mom' : +v; slot = 0; if (S().fmt !== 'mom' && S().xi.some((k, i) => !ok3(k, i))) auto3(); Store.save(); Sound.play('tap'); return render(); }
       const df = e.target.closest('[data-fbdiff]'); if (df) { S().diff = +df.dataset.fbdiff; Store.save(); Sound.play('tap'); return render(); }
       const le = e.target.closest('[data-fblesson]'); if (le) { Sound.play('tap'); return App.openFootball('fk', le.dataset.fblesson); }
       const fo = e.target.closest('[data-fbform]'); if (fo) { SQ().form = fo.dataset.fbform; Store.save(); Sound.play('tap'); return render(); }
@@ -176,7 +178,7 @@ const Football = (() => {
       const rest = idx.filter((i) => i !== st).sort((a, b) => F.slots[a].y - F.slots[b].y);
       return [st, ...rest, gi].map((i) => row(xi[i], F.slots[i]));
     }
-    return s.xi.map((k, i) => { const c = k && Cards.get(k); return c ? row(c, null, i < 2 ? FIT3[i][0] : 'GK') : ''; });
+    return s.xi.map((k, i) => { const c = k && Cards.get(k); return c ? row(c, null, i < gkI() ? FITS()[i][0] : 'GK') : ''; });
   }
   // параметры игры: состав (p0…, вратарь последний), размер команды, сложность
   function params() {
