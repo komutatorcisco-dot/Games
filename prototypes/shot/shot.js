@@ -102,7 +102,7 @@ function offBalance(P, sv) {
 }
 function spreadShot(sv, sd, pw = 0) { if (!sd) return sv; const a = gauss() * sd, c = Math.cos(a), sn = Math.sin(a), x = sv.v.x, z = sv.v.z; sv.v.x = x * c + z * sn; sv.v.z = -x * sn + z * c; if (pw) { const m = 1 + gauss() * pw; sv.v.x *= m; sv.v.z *= m; } return sv; }
 // 3 на 3 и 4 на 4 (2.11) — маленькое поле и средние ворота 5×2 м, как в мини-футболе; 5+ — полное поле 105×68
-const SMALL = MATCH_ON && MODE === 'match' && NSIDE <= 4;
+const SMALL = Q.get('big') !== '1' && (!MATCH_ON || NSIDE <= 4); // всё — на маленьком поле и со средними воротами (2.11); ?big=1 — старое большое
 const MATCH = SMALL ? { L: NSIDE === 4 ? 48 : 42, HW: NSIDE === 4 ? 15 : 13, N: NSIDE, time: Math.max(30, Math.min(900, Number(Q.get('mt')) || 180)) }
   : { L: 105, HW: 34, N: NSIDE, time: Math.max(30, Math.min(900, Number(Q.get('mt')) || (NSIDE > 3 ? 300 : 180))) };
 // разметка: штрафная [полуширина, глубина], вратарская, точка пенальти, дуга, центральный круг
@@ -448,12 +448,17 @@ if (gfxBtn) gfxBtn.addEventListener('click', () => {
   applyQuality(QCHOICE === 'auto' ? QL : QCHOICE); gfxBtn.blur();
 });
 let autoQ = null;
+const CLIP = [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 999)];
+function smallClip() { if (!SMALL) return; const yaw = (TV_CAMS[tvCamSel] && TV_CAMS[tvCamSel].yaw) || 0; // камера сбоку — убираем ближнюю боковую трибуну, сзади ворот — трибуну за спиной
+  if (yaw > 60) CLIP[0].set(new THREE.Vector3(0, 0, -1), MATCH.L + 3); else CLIP[0].set(new THREE.Vector3(-1, 0, 0), MATCH.HW + 3); }
 function stadium() {
   STADIUM = buildStadium(scene, { aniso: Math.min(PQ.aniso, ren.capabilities.getMaxAnisotropy()), ledBrightness: LOOK.led.brightness, ledSpeed: LOOK.led.speed });
   crowd = STADIUM.crowd; crowd.userData.U = STADIUM.U;
   STADIUM.setCrowd(PQ.crowd); STADIUM.setDetail(PQ.detail);
   // маленькое поле (3 на 3, 4 на 4): трибуны подвигаем к полю — стадион поменьше, без пустого газона вокруг
-  if (SMALL) { const kx = (MATCH.HW + 5) / 42, kz = (MATCH.L + 10) / 123; STADIUM.group.scale.set(kx, Math.max(kx, kz) * 1.15, kz); STADIUM.group.position.z = -5 + 9 * kz; }
+  if (SMALL) { const kx = (MATCH.HW + 5) / 42, kz = (MATCH.L + 10) / 123; STADIUM.group.scale.set(kx, Math.max(kx, kz) * 1.15, kz); STADIUM.group.position.z = -5 + 9 * kz;
+    // трибуна со стороны камеры заслоняла бы поле — её не рисуем (как на телетрансляции); какую — решает smallClip() по выбранной камере
+    ren.localClippingEnabled = true; STADIUM.group.traverse((o) => { if (o.material) [].concat(o.material).forEach((m) => { m.clippingPlanes = CLIP; m.needsUpdate = true; }); }); }
 }
 
 // ---------- мяч ----------
@@ -1400,10 +1405,15 @@ const TV_CAMS = {
   diag: { label: 'Диагональ', yaw: 25, side: 29.5, h: 28, fov: 20, ahead: 7, zMin: 1, near: 4.5, far: 6.5, right: 6, left: 12 },
 };
 // маленькое поле: камеры ближе и ниже (поле в 2,5 раза меньше, трибуны придвинуты)
-if (SMALL) Object.values(TV_CAMS).forEach((c) => { c.side *= 0.74; c.h *= 0.76; ['near', 'far', 'right', 'left', 'lead', 'ahead'].forEach((k) => { if (c[k]) c[k] *= 0.7; }); });
+if (SMALL) Object.assign(TV_CAMS, { // маленькое поле: все камеры видят почти всё поле (подобрано по кадру 844×390)
+  tv: { ...TV_CAMS.tv, side: 30, h: 13, fov: 30, near: 5, far: 6, right: 5, left: 9, lead: 3, ahead: 4 },
+  behind: { ...TV_CAMS.behind, side: 20, h: 24, fov: 34, near: 5, far: 6, right: 2, left: 8, ahead: 4 },
+  side: { ...TV_CAMS.side, side: 24, h: 26, fov: 30, near: 4, far: 5, right: 3, left: 8, ahead: 4 },
+  diag: { ...TV_CAMS.diag, side: 25, h: 24, fov: 30, near: 4, far: 5, right: 4, left: 8, ahead: 4 } });
 const TV_CAM_ORDER = ['tv', 'behind', 'side', 'diag'];
 const CAM_KEY = MATCH_ON ? 'shot.match.cam2' : 'shot.duo.cam'; // в матче по умолчанию — высокая боковая камера
 let tvCamSel = (() => { const q = Q.get('tvcam'); if (TV_CAMS[q]) return q; try { const v = localStorage.getItem(CAM_KEY); if (TV_CAMS[v]) return v; } catch (e) { /* без памяти */ } return MATCH_ON ? 'tv' : 'behind'; })();
+smallClip(); // маленькое поле: какую трибуну не рисовать — по камере
 // матч: в центре кадра — мяч и управляемый игрок (без «ворота справа»), ориентация камеры постоянная, сдвиг плавный
 function matchCam(out, snap) {
   const C = CAM_TV, a = run ? run.P.p : { x: 0, z: MATCH.L / 2 }, celeP = state === 'goal' && MT.cele && MT.stT > 0.8 ? MT.cele.hero.holder.position : null, bp = celeP || ball.position;
@@ -1444,7 +1454,7 @@ function tvCam(out, snap) {
   out.l.set(tvFocus.x, 0.6, tvFocus.z); out.p.set(out.l.x + C.side * dx, C.h, out.l.z + C.side * dz);
 }
 function setTvCam(name, snap = true) {
-  tvCamSel = name; try { localStorage.setItem(CAM_KEY, name); } catch (e) { /* без памяти */ }
+  tvCamSel = name; try { localStorage.setItem(CAM_KEY, name); } catch (e) { /* без памяти */ } smallClip();
   Object.assign(CAM_TV, TV_CAMS[name]); cam.fov = fov(); cam.updateProjectionMatrix();
   const b = $('#camBtn'); if (b) b.textContent = '🎥 ' + TV_CAMS[name].label;
   if (snap && TV() && run) { tvCam(camAim, true); camNow.p.copy(camAim.p); camNow.l.copy(camAim.l); }
@@ -3759,7 +3769,8 @@ function momSetup(i, now = false) {
     const want = E.carrier === 'wing' ? M.wingPl : M.stPl; if (shooter !== want && run.mate && run.mate.pl === want) swapControl('mate'); // с мячом — нужный по роли
     actors(); const all = run._act;
     for (const a of all) {
-      const p = at[a.id]; momBench(a, !p); if (!p) continue;
+      const p0 = at[a.id]; momBench(a, !p0); if (!p0) continue;
+      const p = SMALL ? [p0[0] * 0.42, Math.min(MATCH.L / 2 - 1, p0[1] * 0.62), p0[2]] : p0; // эпизоды рассчитаны на большое поле — сжимаем под маленькое
       const P = a.P; P.p.x = p[0]; P.p.z = p[1]; P.v.x = P.v.z = 0; P.yaw = p[2]; P.drive = null; P.lockYaw = 0;
       a.pl.holder.position.set(P.p.x, 0, P.p.z); a.pl.holder.rotation.set(0, P.yaw, 0); a.pl.vyaw = P.yaw; a.pl.cele = 0; a.pl.mv = null;
       play(a.pl, 'idle', { loop: true, fade: 0.1, follow: true }); resetSpheres(a.pl);
@@ -3935,8 +3946,9 @@ function lessonReset() {
       const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
       ['#ffffff', '#e8343e', '#ffffff', '#e8343e'].forEach((col, i) => { g.fillStyle = col; g.beginPath(); g.arc(64, 64, 62 - i * 15, 0, 7); g.fill(); });
       const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
-      for (const [x, y] of [[-2.85, 1.85], [2.85, 1.85], [-2.85, 0.6], [2.85, 0.6], [-1, 1.95], [1, 1.95]]) {
-        const d = new THREE.Mesh(new THREE.CircleGeometry(0.5, 32), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })); d.position.set(x, y, -0.06); LS.props.add(d); LS.discs.push({ x, y, d, hit: false });
+      const kx = GW / 3.66, ky = GH / 2.44, rr = 0.5 * Math.min(1, kx * 1.25); // средние ворота — мишени ближе и чуть меньше
+      for (const [x, y] of [[-2.85, 1.85], [2.85, 1.85], [-2.85, 0.6], [2.85, 0.6], [-1, 1.95], [1, 1.95]].map(([x, y]) => [x * kx, y * ky])) {
+        const d = new THREE.Mesh(new THREE.CircleGeometry(rr, 32), new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide })); d.position.set(x, y, -0.06); LS.props.add(d); LS.discs.push({ x, y, d, hit: false });
       }
     }
   }
@@ -3977,7 +3989,7 @@ function lessonAttempt(ok) {
   if (LESSON === 'dribble') { if (ok) { lessonPts(1000); const bonus = Math.max(0, Math.min(1000, Math.round((16 - (simT - LS.t0)) * 100))); if (bonus) setTimeout(() => lessonPts(bonus), 500); } }
   if (LESSON === 'targets') {
     const c = LS.cross; let hit = null;
-    if (c) for (const d of LS.discs) if (!d.hit && Math.hypot(c.x - d.x, c.y - d.y) < 0.5 + R) { hit = d; break; }
+    if (c) for (const d of LS.discs) if (!d.hit && Math.hypot(c.x - d.x, c.y - d.y) < d.d.geometry.parameters.radius + R) { hit = d; break; }
     if (hit) { hit.hit = true; hit.d.material.opacity = 0.25; lessonPts(1000, new THREE.Vector3(hit.x, hit.y, 0)); } else if (ok) lessonPts(300);
   }
   LS.att++; lessonHud();
@@ -4125,16 +4137,20 @@ const spWait = (R0) => !R0.gone;
 function spCam(p, l) {
   const R0 = MT.restart; if (!R0 || !R0.lay || R0.kind === 'throw' || !spWait(R0)) return false;
   const gz = attackZ(R0.team), bx = R0.x, bz = R0.z, dg = Math.hypot(bx, bz - gz) || 1;
-  if (R0.kind === 'free' && dg > 34) return false;
-  const ux = -bx / dg, uz = (gz - bz) / dg, back = R0.kind === 'corner' ? 9 : R0.kind === 'pen' ? 7 : 9, up = R0.kind === 'corner' ? 8 : 4.2;
+  if (R0.kind === 'free' && dg > (SMALL ? 14 : 34)) return false; // маленькое поле: своя камера только у штрафной, иначе — обычная трансляция
+  const ux = -bx / dg, uz = (gz - bz) / dg, back = (R0.kind === 'corner' ? 9 : R0.kind === 'pen' ? 7 : 9) * (SMALL ? 1.25 : 1), up = (R0.kind === 'corner' ? 8 : 4.2) * (SMALL ? 1.6 : 1);
   p.set(bx - ux * back, up, bz - uz * back); l.set(bx * 0.25, 0.8, gz + (gz === 0 ? 1 : -1) * (R0.kind === 'corner' ? 9 : 2));
   return true;
 }
 // камера не заходит в трибуны (угловой, бег у бровки): если точка ниже чаши трибун (STAND в stadium-lite.js) —
 // отводим её обратно к переднему краю трибуны; высокая телекамера над трибунами остаётся как есть
 const SG = SMALL ? { x: MATCH.HW + 5 - 1, n: -5 + 1, s: MATCH.L + 5 - 1 } : { x: 42 - 1.5, n: -9 + 1.5, s: 114 - 1.5 }; // передний край трибун (маленькое поле — придвинутые)
-function standH(d) { const P = [[0, 0], [0, 1.2], [11, 5.6], [12.2, 5.9], [25, 14.6], [25.6, 15.4]]; if (d >= 25.6) return 99; for (let i = 1; i < P.length; i++) if (d <= P[i][0]) { const a = P[i - 1], b = P[i], k = b[0] > a[0] ? (d - a[0]) / (b[0] - a[0]) : 1; return a[1] + (b[1] - a[1]) * k; } return 99; }
+// маленькое поле: трибуны сжаты (stadium()) — высота чаши по той же шкале
+const SGK = SMALL ? { x: (MATCH.HW + 5) / 42, y: Math.max((MATCH.HW + 5) / 42, (MATCH.L + 10) / 123) * 1.15 } : null;
+function standH(d) { if (SGK) return standH0(d / SGK.x) * SGK.y; return standH0(d); }
+function standH0(d) { const P = [[0, 0], [0, 1.2], [11, 5.6], [12.2, 5.9], [25, 14.6], [25.6, 15.4]]; if (d >= 25.6) return 99; for (let i = 1; i < P.length; i++) if (d <= P[i][0]) { const a = P[i - 1], b = P[i], k = b[0] > a[0] ? (d - a[0]) / (b[0] - a[0]) : 1; return a[1] + (b[1] - a[1]) * k; } return 99; }
 function standGuard(p) {
+  if (SMALL) return; // маленькое поле: ближняя трибуна не рисуется, камера всегда над полем
   const dx = Math.abs(p.x) - SG.x, dz = Math.max(SG.n - p.z, p.z - SG.s), d = Math.max(dx, dz);
   if (d <= 0 || p.y > standH(d + 1.5) + 2.5) return;
   if (dx > 0) p.x = Math.sign(p.x) * SG.x;

@@ -7,7 +7,7 @@
 'use strict';
 
 const Football = (() => {
-  const S = () => { const d = Store.d; if (!d.fb || typeof d.fb !== 'object') d.fb = {}; const s = d.fb; if (s.fmt !== 11 && s.fmt !== 'mom' && s.fmt !== 4) s.fmt = 3; const nx = s.fmt === 4 ? 4 : 3; if (!Array.isArray(s.xi)) s.xi = []; if (s.xi.length !== nx) s.xi = s.xi.length > nx ? [...s.xi.slice(0, nx - 1), s.xi[s.xi.length - 1]] : [...s.xi.slice(0, -1), ...Array(nx - s.xi.length).fill(null), s.xi[s.xi.length - 1] || null]; if (![0, 1, 2].includes(s.diff)) s.diff = 1; return s; };
+  const S = () => { const d = Store.d; if (!d.fb || typeof d.fb !== 'object') d.fb = {}; const s = d.fb; if (s.fmt !== 'mom' && s.fmt !== 4) s.fmt = 3; // 11 на 11 убран (2.11): только маленькое поле const nx = s.fmt === 4 ? 4 : 3; if (!Array.isArray(s.xi)) s.xi = []; if (s.xi.length !== nx) s.xi = s.xi.length > nx ? [...s.xi.slice(0, nx - 1), s.xi[s.xi.length - 1]] : [...s.xi.slice(0, -1), ...Array(nx - s.xi.length).fill(null), s.xi[s.xi.length - 1] || null]; if (![0, 1, 2].includes(s.diff)) s.diff = 1; return s; };
   const SQ = () => (typeof Squad !== 'undefined' && Squad.S ? Squad.S() : (Store.d.squad || { form: '4-3-3', xi: Array(11).fill(null) }));
   const posOf = (c) => (typeof PlayerPositions !== 'undefined' ? PlayerPositions.get(c.name, c.pos) : [c.pos === 'ВРТ' ? 'GK' : 'CM']);
   const isGK = (c) => !!c && (c.pos === 'ВРТ' || posOf(c)[0] === 'GK');
