@@ -103,7 +103,7 @@ function offBalance(P, sv) {
 function spreadShot(sv, sd, pw = 0) { if (!sd) return sv; const a = gauss() * sd, c = Math.cos(a), sn = Math.sin(a), x = sv.v.x, z = sv.v.z; sv.v.x = x * c + z * sn; sv.v.z = -x * sn + z * c; if (pw) { const m = 1 + gauss() * pw; sv.v.x *= m; sv.v.z *= m; } return sv; }
 // 3 на 3 и 4 на 4 (2.11) — маленькое поле и средние ворота 5×2 м, как в мини-футболе; 5+ — полное поле 105×68
 const SMALL = Q.get('big') !== '1' && (!MATCH_ON || NSIDE <= 4); // всё — на маленьком поле и со средними воротами (2.11); ?big=1 — старое большое
-const MATCH = SMALL ? { L: NSIDE === 4 ? 48 : 42, HW: NSIDE === 4 ? 15 : 13, N: NSIDE, time: Math.max(30, Math.min(900, Number(Q.get('mt')) || 180)) }
+const MATCH = SMALL ? { L: NSIDE === 4 ? 48 : 42, HW: NSIDE === 4 ? 15 : 13, N: NSIDE, time: Math.max(30, Math.min(900, Number(Q.get('mt')) || 120)) } // матч — 2 минуты (2.11)
   : { L: 105, HW: 34, N: NSIDE, time: Math.max(30, Math.min(900, Number(Q.get('mt')) || (NSIDE > 3 ? 300 : 180))) };
 // разметка: штрафная [полуширина, глубина], вратарская, точка пенальти, дуга, центральный круг
 const MK = SMALL ? { box: [7.5, 7], area: [3.8, 2.5], spot: 7, arc: 0, circle: 4 } : { box: [20.16, 16.5], area: [9.16, 5.5], spot: 11, arc: 9.15, circle: 9.15 };
