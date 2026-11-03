@@ -1133,8 +1133,8 @@
   .fm-plate { display: grid !important; grid-template-rows: minmax(0, 1fr) auto; padding: 0 !important; scroll-snap-align: start; }
   /* картинка режима целиком, игроки стоят на светлом пятне газона (3.11: раньше кадр обрезался — головы и ноги) */
   .fm-plate { --gl: color-mix(in srgb, var(--pc) 30%, transparent); }
-  .fm-plate::before { content: ''; position: absolute; left: 4%; right: 4%; bottom: 56px; height: 34px; border-radius: 50%; background: radial-gradient(closest-side, rgba(120,220,140,.45), rgba(40,140,70,.18) 60%, transparent); pointer-events: none; }
-  .fm-pl-img { position: relative; width: calc(var(--z, 1.5) * 100%); margin-left: calc((1 - var(--z, 1.5)) * 50%); height: 100%; min-height: 0; padding: 4px 0 0; box-sizing: border-box; object-fit: contain; object-position: 50% 100%; filter: drop-shadow(0 8px 10px rgba(0,0,0,.45)); transition: transform .35s cubic-bezier(.2,1.4,.4,1); }
+  .fm-plate::before { content: ''; position: absolute; left: 10%; right: 10%; top: 18%; height: 52%; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--pc) 32%, transparent), transparent); pointer-events: none; }
+  .fm-pl-img { position: relative; width: calc(var(--z, 1.5) * 100%); margin-left: calc((1 - var(--z, 1.5)) * 50%); height: 100%; min-height: 0; padding: 12px 10px 6px; box-sizing: border-box; object-fit: contain; object-position: 50% 60%; filter: drop-shadow(0 8px 10px rgba(0,0,0,.45)); transition: transform .35s cubic-bezier(.2,1.4,.4,1); }
   .fm-plate:hover .fm-pl-img, .fm-plate.fx-tilt .fm-pl-img { transform: scale(1.05) translateY(-2px); }
   .fm-pl-icons { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; place-content: center; padding: 14px; min-height: 0; }
   .fm-pl-icons img { width: 100%; aspect-ratio: 1; max-width: 58px; border-radius: 12px; justify-self: center; box-shadow: 0 6px 12px rgba(0,0,0,.4); transform: rotate(-4deg); }

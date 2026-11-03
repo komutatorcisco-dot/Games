@@ -34,7 +34,9 @@ const KIT = {
   blue: { pattern: 'plain', c1: '#1f5bd8', c2: '#ffffff', shorts: '#ffffff', socks: '#1f5bd8' },
   navy: { pattern: 'sleeves', c1: '#11204f', c2: '#c6ff3d', shorts: '#11204f', socks: '#c6ff3d' },
 };
+let NOMEN = false; // плашки без игроков
 function man(kit, look, pose, x, z, ry, s = 1) {
+  if (NOMEN) return new THREE.Group();
   const p = PlayerKit.make(G, PlayerKit.kit(Object.assign({}, KIT[kit], look)), pose);
   p.scale.multiplyScalar(s); p.position.set(x, 0, z); p.rotation.y = ry;
   p.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.frustumCulled = false; } });
@@ -97,6 +99,36 @@ const SCENES = {
     return { pos: [0.2, 2.0, 5.9], look: [0.1, 0.75, 0], fov: 34 }; },
 };
 // tall — высокая плашка «Играть»: шире угол, все фигуры целиком
+// плашки «Играть» без игроков (3.11): только предметы — мини-поле с фишками, ворота с мячом, доска, карточки, фишки
+function miniPitch(n) { const c = document.createElement('canvas'); c.width = 420; c.height = 600; const g = c.getContext('2d');
+  for (let i = 0; i < 8; i++) { g.fillStyle = i % 2 ? '#2f9a52' : '#36a85b'; g.fillRect(0, i * 75, 420, 75); }
+  g.strokeStyle = '#eafff1'; g.lineWidth = 8; g.strokeRect(16, 16, 388, 568); g.beginPath(); g.moveTo(16, 300); g.lineTo(404, 300); g.stroke(); g.beginPath(); g.arc(210, 300, 54, 0, 7); g.stroke();
+  g.strokeRect(120, 16, 180, 70); g.strokeRect(120, 514, 180, 70);
+  const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.08, 3.0), [std('#1d6b38'), std('#1d6b38'), new THREE.MeshStandardMaterial({ map: t, roughness: 0.6 }), std('#1d6b38'), std('#1d6b38'), std('#1d6b38')]);
+  m.receiveShadow = true; m.castShadow = true; const grp = new THREE.Group(); grp.add(m);
+  const tok = (x, z, col) => { const k = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.14, 32), std(col, { metalness: 0.3, roughness: 0.25 })); k.position.set(x, 0.11, z); k.castShadow = true; grp.add(k);
+    const r = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.025, 8, 32), std('#ffffff')); r.rotation.x = Math.PI / 2; r.position.set(x, 0.18, z); grp.add(r); };
+  const us = n === 3 ? [[0, 1.25], [-0.5, 0.45], [0.45, -0.2]] : [[0, 1.25], [-0.55, 0.6], [0.55, 0.6], [0, -0.15]];
+  const them = n === 3 ? [[0, -1.25], [0.5, -0.5], [-0.4, 0.1]] : [[0, -1.25], [-0.55, -0.6], [0.55, -0.6], [0.1, 0.2]];
+  us.forEach(([x, z]) => tok(x, z, '#2b6cff')); them.forEach(([x, z]) => tok(x, z, '#e3243f'));
+  const b = ballM(0.13); b.position.set(0.25, 0.2, -0.05); grp.add(b); return grp; }
+const PLATE = {
+  three(s) { const p = miniPitch(3); p.rotation.set(0.15, 0.35, 0); s.add(p); return { pos: [0, 3.4, 3.6], look: [0, 0, 0.1], fov: 40 }; },
+  eleven(s) { const p = miniPitch(4); p.rotation.set(0.15, -0.35, 0); s.add(p); return { pos: [0, 3.4, 3.6], look: [0, 0, 0.1], fov: 40 }; },
+  mom(s) { const gl = goalM(0.5); gl.position.set(0, 0, -0.8); gl.rotation.y = Math.PI / 2; s.add(gl);
+    const b = ballM(0.22); b.position.set(0.55, 0.75, -0.55); b.rotation.set(0.4, 0.8, 0.2); s.add(b);
+    const pts = [new THREE.Vector3(-0.9, 0.15, 1.6), new THREE.Vector3(-0.1, 0.95, 0.5), new THREE.Vector3(0.45, 0.78, -0.45)];
+    s.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 0.018, 8), new THREE.MeshBasicMaterial({ color: L('#c6ff3d'), transparent: true, opacity: 0.85 })));
+    return { pos: [-0.6, 1.5, 4.4], look: [0.1, 0.7, -0.4], fov: 42 }; },
+  mgr(s) { const v = SCENES.mgr(s); s.children.filter((o) => o.type === 'Group' && o.children.some((c) => c.isSkinnedMesh)).forEach((o) => s.remove(o)); return { pos: [0.35, 1.2, 3.6], look: [0.35, 1.1, -0.3], fov: 40 }; },
+  draft(s) { const v = SCENES.draft(s); return { pos: [0, 1.65, 5.2], look: [0, 1.55, -0.6], fov: 34 }; },
+  train(s) { [[-0.6, -0.5], [0.1, -0.1], [-0.3, 0.5], [0.45, 0.85]].forEach(([x, z]) => s.add(cone(x, z, 0.9))); const b = ballM(0.28); b.position.set(0.5, 0.28, 0.2); s.add(b);
+    const pts = []; for (let i = 0; i <= 40; i++) { const t = i / 40, z = -0.9 + t * 2.2; pts.push(new THREE.Vector3(Math.sin(t * Math.PI * 2.2) * 0.45, 0.03, z)); }
+    s.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 100, 0.035, 8), new THREE.MeshBasicMaterial({ color: L('#ffd23c') })));
+    return { pos: [0, 2.6, 3.4], look: [0, 0.2, 0], fov: 40 }; },
+};
+window.renderPlate = async (id, w, h) => { await ready; const s = rig(w, h); NOMEN = true; let v; try { v = PLATE[id](s); } finally { NOMEN = false; } const cam = new THREE.PerspectiveCamera(v.fov, w / h, 0.1, 100); cam.position.set(...v.pos); cam.lookAt(...v.look); R.render(s, cam); return R.domElement.toDataURL('image/png'); };
 window.renderMode = async (id, w, h, tall) => { await ready; const s = rig(w, h), v = SCENES[id](s); const cam = new THREE.PerspectiveCamera(v.fov * (tall ? 1.45 : 1), w / h, 0.1, 100); cam.position.set(...v.pos); cam.lookAt(...v.look); R.render(s, cam); return R.domElement.toDataURL('image/png'); };
 // ?view=mom — показать сцену в окне (для подбора кадра)
 const VIEW = new URLSearchParams(location.search).get('view');
