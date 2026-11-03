@@ -33,7 +33,8 @@ const PackOpen = (() => {
   function layer(cls = '') {
     const el = document.createElement('div');
     el.className = 'po ' + cls;
-    el.innerHTML = `<div class="po-bg"><i class="po-rays"></i></div><div class="po-flash"></div>
+    // 3.11: за паком — огромное название контуром и световая черта (как в макете 5), логотип канала; сверху — шкала редкости (макет 4)
+    el.innerHTML = `<div class="po-bg"><i class="po-rays"></i></div><b class="po-ghost" aria-hidden="true"></b><i class="po-streak"></i><img class="po-logo" src="img/brand/logo-white.png" alt=""><div class="po-flash"></div>
       <header class="po-top"><small class="po-k"></small><b class="po-name"></b><span class="po-steps"></span></header>
       <main class="po-stage"></main>
       <footer class="po-foot"><p class="po-hint"></p><div class="po-sum"></div><button class="btn gold po-take" hidden>Забрать</button></footer>
@@ -226,7 +227,7 @@ const PackOpen = (() => {
     anim(b, [{ transform: 'translateY(30px)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 360, easing: 'cubic-bezier(.2,1,.3,1)' });
     b.onclick = () => { close(el); onDone && onDone(); };
   }
-  const slam = (nm) => { nm.classList.remove('slam'); void nm.offsetWidth; nm.classList.add('slam'); };
+  const slam = (nm) => { nm.classList.remove('slam'); void nm.offsetWidth; nm.classList.add('slam'); const el = nm.closest('.po'), g = el && $('.po-ghost', el); if (g) { g.textContent = nm.textContent; g.style.setProperty('--n', Math.max(6, nm.textContent.length)); g.classList.remove('slam'); void g.offsetWidth; g.classList.add('slam'); } };
   const tapOnce = (el) => new Promise((r) => { const f = (e) => { if (e.target.closest('.po-x')) return; el.removeEventListener('pointerup', f); r(); }; setTimeout(() => el.addEventListener('pointerup', f), 250); });
   function close(el) { if (el.classList.contains('out')) return; Cover.off(); el.classList.add('out'); setTimeout(() => el.remove(), 320); }
 
@@ -241,11 +242,11 @@ const PackOpen = (() => {
     setCol(el, LV[level].css);
     el.dataset.phase = 'pack';
     $('.po-k', el).textContent = title || (gift ? 'Подарок · пак дня' : 'Пак дня');
-    $('.po-name', el).textContent = LV[level].name;
+    $('.po-name', el).textContent = LV[level].name; $('.po-ghost', el).textContent = LV[level].name; el.classList.add('meter');
     $('.po-steps', el).innerHTML = LV.map((l, i) => `<i style="--c:${l.css}" class="${i <= level ? 'on' : ''}"></i>`).join('');
     const stage = $('.po-stage', el);
     stage.innerHTML = `<div class="po-pack" data-lv="${level}">${art(level, 'xxl', true)}<i class="po-slit"></i></div>`;
-    const hint = $('.po-hint', el); hint.textContent = 'Нажми на пак';
+    const hint = $('.po-hint', el); hint.textContent = 'Жми на пак — редкость может вырасти';
     const packEl = $('.po-pack', stage);
     anim(packEl, [{ transform: 'translateY(50vh) rotateX(40deg) scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,1,.3,1)' });
     $('.po-x', el).onclick = () => { if (!started) close(el); };
