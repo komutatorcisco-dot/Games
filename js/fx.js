@@ -6,7 +6,7 @@
 const FX = (() => {
   const calm = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   // ---- наклон за пальцем ----
-  const TILT = '.fm-gm, .fm-feat, .fm-club, .fm-playt, .fm-lt, .fm-pk, .fm-q, .mk-lot, .fm-ps-c, .fm-mode, .fm-gc, .fm-of, .fm-st-hero, .fm-daypk, .fm-qpass, .fx-card';
+  const TILT = '.fm-plate, .fm-phero, .fm-gm, .fm-feat, .fm-club, .fm-playt, .fm-lt, .fm-pk, .fm-q, .mk-lot, .fm-ps-c, .fm-mode, .fm-gc, .fm-of, .fm-st-hero, .fm-daypk, .fm-qpass, .fx-card';
   let cur = null, raf = 0, last = null;
   function sheen(el) {
     if (el.querySelector(':scope > .fx-sheen')) return;
@@ -55,7 +55,7 @@ const FX = (() => {
     burst(e.clientX || 0, e.clientY || 0, b.matches('[data-fm-claim], [data-fm-ps], [data-fm-road]') ? 22 : 12, b.matches('[data-fm-ps], [data-fm-road]'));
   }
   // ---- появление раздела и подсветка меню ----
-  const STAG = '.fm-gm, .fm-lt, .fm-sl.on, .fm-feat, .fm-club, .fm-playt, .fm-q, .fm-qh, .fm-qpass, .fm-pk, .fm-mode, .fm-rail > button, .mk-lot, .mk-flt, .fm-ps-col, .fm-of, .fm-gc, .fm-node, .fx-card, .bd-row, .sr-b, .fm-st-hero, .fm-daypk, .fm-coll .fm-cl, .fm-cg > *, .fm-tside, .fm-ev-head, .fm-evtabs';
+  const STAG = '.fm-plate, .fm-phero, .fm-gm, .fm-lt, .fm-sl.on, .fm-feat, .fm-club, .fm-playt, .fm-q, .fm-qh, .fm-qpass, .fm-pk, .fm-mode, .fm-rail > button, .mk-lot, .mk-flt, .fm-ps-col, .fm-of, .fm-gc, .fm-node, .fx-card, .bd-row, .sr-b, .fm-st-hero, .fm-daypk, .fm-coll .fm-cl, .fm-cg > *, .fm-tside, .fm-ev-head, .fm-evtabs';
   let view = '', navAt = -1;
   function onRender(root) {
     const v = root.dataset.view || '';

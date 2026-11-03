@@ -14,7 +14,7 @@ const FCM = (() => {
   // переносится в новую оболочку, шапка и нижнее меню — новые; старое нижнее меню и старые экраны не видны
   const HOST = { board: ['board-body', 'Таблица канала'], sbc: ['sbc-body', 'Испытания'], myclub: ['club-body', 'Клуб'] };
   const park = () => Object.entries(HOST).forEach(([id, [bid]]) => { const n = document.getElementById(bid), sec = document.getElementById(id); if (n && sec && root && root.contains(n)) sec.appendChild(n); });
-  let tab = 'play', sub = { quests: 'day', store: 'top', events: 'car', modes: 'fb' };
+  let tab = 'play', sub = { quests: 'day', store: 'top', events: 'car', modes: 'hub' };
   let lastPlace = ''; // положение камеры при прошлой расстановке карточек
   let focusI = -1; // игрок, на которого наехала камера в «Команде»
   let bg3 = null; // 3D-стадион за меню (Arena3D.backdrop), null — нет WebGL или ещё грузится
@@ -48,9 +48,9 @@ const FCM = (() => {
 
   // ---------- верх ----------
   function top() {
-    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? 'Играть' : tab === 'market' ? 'Трансферный рынок' : HOST[tab] ? HOST[tab][1] : (TABS.find((t) => t[0] === tab) || [])[1];
+    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? (sub.modes !== 'hub' && SHELF.find((x) => x[0] === sub.modes) ? SHELF.find((x) => x[0] === sub.modes)[1] : 'Играть') : tab === 'market' ? 'Трансферный рынок' : HOST[tab] ? HOST[tab][1] : (TABS.find((t) => t[0] === tab) || [])[1];
     return `<header class="fm-top">
-      ${title ? `<button class="fm-back" ${HOST[tab] ? 'data-fm-hback' : `data-fm-tab="${tab === 'coll' ? 'team' : tab === 'market' ? 'store' : 'play'}"`} aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
+      ${title ? `<button class="fm-back" ${HOST[tab] ? 'data-fm-hback' : tab === 'modes' && sub.modes !== 'hub' ? 'data-fm-sub="modes:hub"' : `data-fm-tab="${tab === 'coll' ? 'team' : tab === 'market' ? 'store' : 'play'}"`} aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
         : `<button class="fm-me" data-act="profile"><span class="fm-ava">${esc(u.emoji || '⚽')}</span><span class="fm-who"><b>${esc(u.nick || 'Игрок')}</b><small>${cup}${trophies()}</small></span></button>`}
       <i class="fm-sp"></i>
       <span class="fm-cur">${coin}<b class="coin-count">${Store.d.coins || 0}</b></span>
@@ -131,14 +131,45 @@ const FCM = (() => {
     return list;
   }
   const gAttr = (g) => Object.entries(g.data || {}).map(([k, v]) => `data-${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}="${esc(v)}"`).join(' ');
+  // «Играть» как в FC Mobile (3.11): слева крупно — испытание «Джексона» (карьера), справа лента больших плашек режимов;
+  // плашка футбола запускает режим, плашка разделов (Угадай, Викторины…) открывает его игры. Назад — снова сюда.
+  const PLATES = [
+    { go: 'data-fm-mode="3"', t: 'Матч 3 на 3', d: 'Против ботов · 2 минуты', img: 'img/fcm/mode-three.webp?v=3', c: '#2b6cff' },
+    { go: 'data-fm-mode="mom"', t: 'Моменты', d: 'Забей в коротких атаках', img: 'img/fcm/mode-mom.webp?v=3', c: '#c6ff3d' },
+    { go: 'data-fm-mode="4"', t: 'Матч 4 на 4', d: 'Трое в поле и вратарь', img: 'img/fcm/mode-eleven.webp?v=3', c: '#19d3b0' },
+    { go: 'data-act="xdraft"', t: 'Драфт', d: 'Собери состав и пройди турнир', img: 'img/fcm/player-stand.webp', c: '#b98bff' },
+    { go: 'data-fm-mode="mgr"', t: 'Менеджер', d: 'Твой состав играет сам', img: 'img/fcm/mode-mgr.webp?v=3', c: '#ffd23c' },
+    { go: 'data-fm-sub="modes:guess"', t: 'Угадай', d: 'Wordle, клубы, карьеры', cat: 'guess', c: '#56d4ff' },
+    { go: 'data-fm-sub="modes:quiz"', t: 'Викторины', d: 'Дороже, трансферы, счёт', cat: 'quiz', c: '#ff9f43' },
+    { go: 'data-fm-sub="modes:cards"', t: 'Карточные', d: 'Козыри, аукцион, ИПК', cat: 'cards', c: '#ff4f66' },
+    { go: 'data-fm-sub="modes:duo"', t: 'С другом', d: 'Дуэли и онлайн', cat: 'duo', c: '#7fe0a0' },
+    { go: 'data-fm-sub="modes:pz"', t: 'Головоломки', d: '2048, пятнашки, поп-ит', cat: 'pz', c: '#c59bff' },
+    { go: 'data-fm-train="basics"', t: 'Тренировки', d: 'Удары, дриблинг, мишени', img: 'img/fcm/mode-train.webp?v=3', c: '#9fb2cc' },
+  ];
+  function plate(x) {
+    const art = x.img ? `<img class="fm-pl-img" src="${x.img}" alt="" loading="lazy">`
+      : `<span class="fm-pl-icons">${shelfGames(x.cat).slice(0, 4).map((g) => { const im = gImg(g.key); return im ? `<img src="${im}" alt="" loading="lazy">` : ''; }).join('')}</span>`;
+    const n = x.cat ? shelfGames(x.cat).length : 0;
+    return `<button class="fm-plate" ${x.go} style="--pc:${x.c}"><i class="fm-pl-glow"></i>${art}<span class="fm-pl-t"><b>${x.t}</b><small>${x.d}${n ? ` · ${n} игр` : ''}</small></span></button>`;
+  }
+  function playHero() {
+    let ch = { id: 1, t: 'Дворовая команда', col: '#7fe0a0' }, done = 0, all = 7;
+    try { const S0 = ClubPath.S(), c = ClubPath.CH[Math.min(S0.ch, ClubPath.CH.length) - 1]; ch = c; all = c.tasks.length; done = Object.keys(S0.tok).filter((k) => k.startsWith(c.id + ':')).length; } catch (e) { /* без карьеры */ }
+    const jg = Cards.get('JG:nicolas-jackson');
+    return `<button class="fm-phero" data-fm-car style="--pc:${ch.col}">
+      <i class="fm-pl-glow"></i><span class="fm-ph-card">${jg ? Cards.html(jg, { w: 108 }) : ''}</span>
+      <span class="fm-ph-t"><small>Испытание Джексона · глава ${ch.id}</small><b>${esc(ch.t)}</b>
+        <span class="fm-bar"><i style="width:${Math.round(100 * done / all)}%"></i></span><em>${done}/${all} заданий · в конце — карточка Джексона 84</em>
+        <i class="fm-ph-go">Играть главу ›</i></span></button>`;
+  }
   function modes() {
-    if (!SHELF.some((x) => x[0] === sub.modes)) sub.modes = 'fb';
-    const L = SHELF.map(([id, t]) => [id, t, id === 'fb' ? '' : String(shelfGames(id).length)]);
-    let body;
-    if (sub.modes === 'fb') body = `<div class="fm-modes">${MODES.map((m) => `<button class="fm-mode ${m.cls}" ${m.act ? `data-act="${m.act}"` : `data-fm-mode="${m.id}"`}>${m.ico ? `<img class="fm-mi" src="${m.ico}" alt="">` : ''}<b>${m.t}</b><small>${m.d}</small></button>`).join('')}</div>`;
-    else body = `<div class="fm-games">${shelfGames(sub.modes).map((g) => { const im = gImg(g.key);
-      return `<button class="fm-gm" ${gAttr(g)}>${im ? `<img src="${im}" alt="" loading="lazy">` : `<i class="fm-gm-i">${ico('play')}</i>`}<b>${esc(g.title)}</b><small>${esc(g.sub || '')}</small></button>`; }).join('') || '<p class="fm-none">Скоро</p>'}</div>`;
-    return `<div class="fm-split fm-plays">${rail(L, 'modes')}<div class="fm-body">${body}</div></div>`;
+    if (sub.modes === 'fb') sub.modes = 'hub';
+    if (sub.modes !== 'hub' && SHELF.some((x) => x[0] === sub.modes)) {
+      return `<div class="fm-games">${shelfGames(sub.modes).map((g) => { const im = gImg(g.key);
+        return `<button class="fm-gm" ${gAttr(g)}>${im ? `<img src="${im}" alt="" loading="lazy">` : `<i class="fm-gm-i">${ico('play')}</i>`}<b>${esc(g.title)}</b><small>${esc(g.sub || '')}</small></button>`; }).join('') || '<p class="fm-none">Скоро</p>'}</div>`;
+    }
+    sub.modes = 'hub';
+    return `<div class="fm-playhub">${playHero()}<div class="fm-plates">${PLATES.map(plate).join('')}</div></div>`;
   }
   function slideTo(i) {
     if (!root) return; slideI = (i + SLIDES.length) % SLIDES.length;
