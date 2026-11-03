@@ -14,7 +14,7 @@ const FCM = (() => {
   // переносится в новую оболочку, шапка и нижнее меню — новые; старое нижнее меню и старые экраны не видны
   const HOST = { board: ['board-body', 'Таблица канала'], sbc: ['sbc-body', 'Испытания'], myclub: ['club-body', 'Клуб'] };
   const park = () => Object.entries(HOST).forEach(([id, [bid]]) => { const n = document.getElementById(bid), sec = document.getElementById(id); if (n && sec && root && root.contains(n)) sec.appendChild(n); });
-  let tab = 'play', sub = { quests: 'day', store: 'top', events: 'car' };
+  let tab = 'play', sub = { quests: 'day', store: 'top', events: 'car', modes: 'fb' };
   let lastPlace = ''; // положение камеры при прошлой расстановке карточек
   let focusI = -1; // игрок, на которого наехала камера в «Команде»
   let bg3 = null; // 3D-стадион за меню (Arena3D.backdrop), null — нет WebGL или ещё грузится
@@ -109,10 +109,36 @@ const FCM = (() => {
     </div>`;
   }
   // страница «Играть»: все режимы плитками (как раньше на главной)
+  // «Играть» (3.11): все игры по полкам слева, как режимы в FC Mobile. Футбол — плитками, остальное — сеткой с картинками.
+  const SHELF = [
+    ['fb', 'Футбол', null],
+    ['guess', 'Угадай', ['ng:wordle', 'act:guess-career', 'act:career', 'act:club', 'act:nation', 'ng:whoami', 'ng:lineup', 'ng:treble', 'ng:false9', 'ng:context', 'ng:linkup', 'ng:top10']],
+    ['quiz', 'Викторины', ['act:transfer', 'act:hl', 'act:fc', 'act:value', 'ng:replay', 'ng:score', 'ng:numhist', 'ng:timemachine', 'ng:connect', 'ng:rank', 'ng:vs100', 'ng:darts', 'ng:bingo']],
+    ['cards', 'Карточные', ['act:xdraft', 'act:sbc', 'act:auction-bot', 'ng:trumps', 'act:pick-solo', 'act:pick-bot', 'act:ttt', 'act:b2b', 'act:pass-levels']],
+    ['pz', 'Головоломки', 'pz:'],
+    ['duo', 'С другом', ['ng:duel', 'act:pick-duo', 'act:guess-duel', 'act:career-duel', 'act:ttt-duo', 'act:auction-duo']],
+  ];
+  const GIMG = new Set('auction career-duel career club fc flood g2048 guess-duel guess hl memory nation ng-bingo ng-box2box ng-connect ng-context ng-darts ng-draft ng-duel ng-false9 ng-lineup ng-linkup ng-numhist ng-rank ng-replay ng-score ng-timemachine ng-top10 ng-treble ng-trumps ng-vs100 ng-whoami ng-wordle pass pick-duo pick pipes popit sbc slide sort transfer ttt-duo ttt value words'.split(' '));
+  const gImg = (k) => { const [t, n] = k.split(':'); const c = t === 'ng' ? 'ng-' + n : n, alt = { 'auction-bot': 'auction', 'auction-duo': 'auction', 'pick-solo': 'pick', 'pick-bot': 'pick', 'guess-career': 'guess', 'pass-levels': 'pass', xdraft: 'ng-draft', b2b: 'ng-box2box' }[n];
+    const f = GIMG.has(c) ? c : alt && GIMG.has(alt) ? alt : null; return f ? `img/games/${f}.webp` : ''; };
+  function shelfGames(id) {
+    const S0 = SHELF.find((x) => x[0] === id); if (!S0 || !S0[2] || typeof Home === 'undefined' || !Home.catalog) return [];
+    const cat = Home.catalog(), all = [...cat.values()];
+    const used = new Set(SHELF.flatMap((x) => (Array.isArray(x[2]) ? x[2] : [])));
+    if (S0[2] === 'pz:') return all.filter((g) => g.key.startsWith('pz:'));
+    const list = S0[2].map((k) => cat.get(k)).filter(Boolean);
+    if (id === 'quiz') all.forEach((g) => { if (!used.has(g.key) && !g.key.startsWith('pz:')) list.push(g); }); // новые игры без полки — в викторины
+    return list;
+  }
+  const gAttr = (g) => Object.entries(g.data || {}).map(([k, v]) => `data-${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}="${esc(v)}"`).join(' ');
   function modes() {
-    return `<div class="fm-play fm-modes-pg">
-      <div class="fm-modes">${MODES.map((m) => `<button class="fm-mode ${m.cls}" ${m.act ? `data-act="${m.act}"` : `data-fm-mode="${m.id}"`}>${m.ico ? `<img class="fm-mi" src="${m.ico}" alt="">` : ''}<b>${m.t}</b><small>${m.d}</small></button>`).join('')}</div>
-    </div>`;
+    if (!SHELF.some((x) => x[0] === sub.modes)) sub.modes = 'fb';
+    const L = SHELF.map(([id, t]) => [id, t, id === 'fb' ? '' : String(shelfGames(id).length)]);
+    let body;
+    if (sub.modes === 'fb') body = `<div class="fm-modes">${MODES.map((m) => `<button class="fm-mode ${m.cls}" ${m.act ? `data-act="${m.act}"` : `data-fm-mode="${m.id}"`}>${m.ico ? `<img class="fm-mi" src="${m.ico}" alt="">` : ''}<b>${m.t}</b><small>${m.d}</small></button>`).join('')}</div>`;
+    else body = `<div class="fm-games">${shelfGames(sub.modes).map((g) => { const im = gImg(g.key);
+      return `<button class="fm-gm" ${gAttr(g)}>${im ? `<img src="${im}" alt="" loading="lazy">` : `<i class="fm-gm-i">${ico('play')}</i>`}<b>${esc(g.title)}</b><small>${esc(g.sub || '')}</small></button>`; }).join('') || '<p class="fm-none">Скоро</p>'}</div>`;
+    return `<div class="fm-split fm-plays">${rail(L, 'modes')}<div class="fm-body">${body}</div></div>`;
   }
   function slideTo(i) {
     if (!root) return; slideI = (i + SLIDES.length) % SLIDES.length;
