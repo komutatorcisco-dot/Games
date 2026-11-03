@@ -95,7 +95,75 @@ function front(t) {
 function backTex(t) { const c = cv(512, 800), g = c.getContext('2d'); const bg = g.createLinearGradient(0, 0, 512, 800); bg.addColorStop(0, t.base[0]); bg.addColorStop(0.5, t.base[1]); bg.addColorStop(1, t.base[0]); g.fillStyle = bg; g.fillRect(0, 0, 512, 800); return c; }
 
 let R = null;
-async function render(lv, w, h) {
+// ---------- варианты дизайна пака (3.11, на выбор): window.renderPack(lv, w, h, 'a'..'e') ----------
+function crimpEdges(g, t, W, H, CR) {
+  [0, H - CR].forEach((y0) => { const gr = g.createLinearGradient(0, y0, 0, y0 + CR); gr.addColorStop(0, t.rim[2]); gr.addColorStop(0.5, t.rim[1]); gr.addColorStop(1, t.rim[2]);
+    g.fillStyle = gr; g.fillRect(0, y0, W, CR); g.globalAlpha = 0.3; for (let x = 0; x < W; x += 12) { g.fillStyle = (x / 12) % 2 ? '#000' : '#fff'; g.fillRect(x, y0, 6, CR); } g.globalAlpha = 1; });
+  g.globalCompositeOperation = 'destination-out';
+  [[0, 1], [H, -1]].forEach(([y0, d]) => { g.beginPath(); g.moveTo(0, y0); for (let x = 0; x <= W; x += 32) g.lineTo(x + 16, y0 + d * 18), g.lineTo(x + 32, y0); g.closePath(); g.fill(); });
+  g.globalCompositeOperation = 'source-over';
+}
+function mark(g, W, size, y, col) { // знак «ДЖ» с хвостом, залит col
+  const mk = cv(W, size * 1.4), mg = mk.getContext('2d'); mg.font = `800 ${size}px IB`; mg.fillStyle = '#fff';
+  const wd = mg.measureText('Д').width - size * 0.03, wz = mg.measureText('Ж').width, x0 = (W - (wd + wz + size * 0.2)) / 2, my = size * 1.05;
+  mg.fillText('Д', x0, my); smear(mg, 'Ж', x0 + wd, my, size, '#fff', size * 0.36, 0.55); tint(mk, (q) => { q.fillStyle = col; q.fillRect(0, 0, W, size * 1.4); });
+  g.drawImage(mk, 0, y - size * 1.05);
+}
+const VAR = {
+  // A — голограмма: тёмная фольга с радужным переливом, ромбы, логотип сверху, звёзды редкости
+  a(t) { const W = 1024, H = 1600, c = cv(W, H), g = c.getContext('2d'), CR = 70;
+    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#05060a'); bg.addColorStop(0.5, t.base[0]); bg.addColorStop(1, '#05060a'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    const holo = g.createLinearGradient(0, 0, W, H); ['#ff5ea8', '#ffd23c', '#7fffb0', '#56d4ff', '#b98bff', '#ff5ea8'].forEach((col, i) => holo.addColorStop(i / 5, col));
+    g.save(); g.globalAlpha = 0.28; g.globalCompositeOperation = 'screen'; g.fillStyle = holo; g.fillRect(0, 0, W, H); g.restore();
+    g.save(); g.globalAlpha = 0.12; g.strokeStyle = '#fff'; g.lineWidth = 2; for (let y = -W; y < H; y += 60) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y + W); g.moveTo(W, y); g.lineTo(0, y + W); g.stroke(); } g.restore();
+    const gl = g.createRadialGradient(W / 2, H * 0.48, 30, W / 2, H * 0.48, 480); gl.addColorStop(0, t.acc + 'aa'); gl.addColorStop(1, t.acc + '00'); g.fillStyle = gl; g.fillRect(0, 0, W, H);
+    const wm = wordmark(W, '#fff'), ww = 560; g.drawImage(wm, (W - ww) / 2 + 26, CR + 80, ww, wm.height * ww / wm.width);
+    mark(g, W, 400, H * 0.58, t.rim[0]);
+    for (let i = 0; i < 5; i++) { const x = W / 2 + (i - 2) * 96; star(g, x, H * 0.72, 34, 15); g.fillStyle = i < t.stars ? t.acc : 'rgba(255,255,255,.15)'; g.fill(); }
+    g.textAlign = 'center'; g.font = '800 96px IB'; g.fillStyle = '#fff'; g.fillText(t.name, W / 2, H * 0.83);
+    crimpEdges(g, t, W, H, CR); return c; },
+  // B — стадион: прожекторы сверху, линии поля снизу, знак по центру
+  b(t) { const W = 1024, H = 1600, c = cv(W, H), g = c.getContext('2d'), CR = 70;
+    const bg = g.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#04060c'); bg.addColorStop(0.55, t.base[0]); bg.addColorStop(1, '#0b3a1e'); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    [[150, 0.35], [W - 150, -0.35], [W / 2, 0]].forEach(([x, a]) => { g.save(); g.translate(x, CR + 40); g.rotate(a); const gr = g.createLinearGradient(0, 0, 0, 900); gr.addColorStop(0, 'rgba(255,255,255,.55)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.moveTo(-30, 0); g.lineTo(30, 0); g.lineTo(220, 900); g.lineTo(-220, 900); g.fill(); g.restore();
+      g.fillStyle = '#fff'; g.beginPath(); g.arc(x, CR + 40, 26, 0, 7); g.fill(); });
+    g.save(); g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 8; g.beginPath(); g.ellipse(W / 2, H * 0.9, 300, 90, 0, Math.PI, 2 * Math.PI); g.stroke(); g.beginPath(); g.moveTo(0, H * 0.9); g.lineTo(W, H * 0.9); g.stroke(); g.restore();
+    mark(g, W, 380, H * 0.6, t.rim[0]);
+    g.textAlign = 'center'; g.font = '800 92px IB'; g.fillStyle = t.acc; g.fillText(t.name, W / 2, H * 0.72);
+    g.font = '800 44px IB'; g.fillStyle = 'rgba(255,255,255,.8)'; g.fillText('Д Ж Е К С О Н Ы   А Р Е Н А', W / 2, H * 0.77);
+    crimpEdges(g, t, W, H, CR); return c; },
+  // C — мяч: крупный мяч-эмблема в кольце редкости
+  c(t) { const W = 1024, H = 1600, c = cv(W, H), g = c.getContext('2d'), CR = 70;
+    const bg = g.createRadialGradient(W / 2, H * 0.45, 50, W / 2, H * 0.45, 900); bg.addColorStop(0, t.base[1]); bg.addColorStop(1, t.base[0]); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    const cx = W / 2, cy = H * 0.44, R = 300;
+    g.lineWidth = 26; g.strokeStyle = t.acc; g.beginPath(); g.arc(cx, cy, R + 40, 0, 7); g.stroke();
+    const bgB = g.createRadialGradient(cx - 90, cy - 110, 30, cx, cy, R); bgB.addColorStop(0, '#ffffff'); bgB.addColorStop(1, '#b9c2cc'); g.fillStyle = bgB; g.beginPath(); g.arc(cx, cy, R, 0, 7); g.fill();
+    g.save(); g.beginPath(); g.arc(cx, cy, R, 0, 7); g.clip(); g.fillStyle = '#14171f';
+    const pent = (x, y, r) => { g.beginPath(); for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + k * 2 * Math.PI / 5; g.lineTo(x + r * Math.cos(a), y + r * Math.sin(a)); } g.closePath(); g.fill(); };
+    pent(cx, cy, 90); for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + k * 2 * Math.PI / 5; pent(cx + Math.cos(a) * 230, cy + Math.sin(a) * 230, 80); } g.restore();
+    const wm = wordmark(W, '#fff'), ww = 600; g.drawImage(wm, (W - ww) / 2 + 26, CR + 60, ww, wm.height * ww / wm.width);
+    g.textAlign = 'center'; g.font = '800 100px IB'; g.fillStyle = '#fff'; g.fillText(t.name, W / 2, H * 0.78); g.font = '800 46px IB'; g.fillStyle = t.acc; g.fillText('ПАК ИГРОКОВ', W / 2, H * 0.83);
+    crimpEdges(g, t, W, H, CR); return c; },
+  // D — минимал: однотонный, огромное «ДЖ» контуром, название вертикально
+  d(t) { const W = 1024, H = 1600, c = cv(W, H), g = c.getContext('2d'), CR = 70;
+    g.fillStyle = t.base[1]; g.fillRect(0, 0, W, H); const sh = g.createLinearGradient(0, 0, W, 0); sh.addColorStop(0, 'rgba(0,0,0,.35)'); sh.addColorStop(0.5, 'rgba(255,255,255,.12)'); sh.addColorStop(1, 'rgba(0,0,0,.35)'); g.fillStyle = sh; g.fillRect(0, 0, W, H);
+    g.save(); g.font = '800 760px IB'; g.textAlign = 'center'; g.lineWidth = 10; g.strokeStyle = 'rgba(255,255,255,.55)'; g.strokeText('ДЖ', W / 2 + 20, H * 0.66); g.restore();
+    g.save(); g.translate(W - 110, H * 0.82); g.rotate(-Math.PI / 2); g.font = '800 96px IB'; g.fillStyle = '#fff'; g.fillText(t.name, 0, 0); g.restore();
+    g.fillStyle = t.acc; g.fillRect(90, H * 0.86, 280, 14); g.font = '800 44px IB'; g.fillStyle = '#fff'; g.fillText('ДЖЕКСОНЫ', 90, H * 0.84);
+    crimpEdges(g, t, W, H, CR); return c; },
+  // E — щит FUT: герб-щит с рейтингом, диагональные полосы
+  e(t) { const W = 1024, H = 1600, c = cv(W, H), g = c.getContext('2d'), CR = 70;
+    const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, t.base[0]); bg.addColorStop(0.5, t.base[1]); bg.addColorStop(1, t.base[0]); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.save(); g.globalAlpha = 0.18; g.fillStyle = t.acc; for (let i = -H; i < W; i += 140) { g.beginPath(); g.moveTo(i, 0); g.lineTo(i + 60, 0); g.lineTo(i + 60 + H * 0.6, H); g.lineTo(i + H * 0.6, H); g.fill(); } g.restore();
+    const cx = W / 2, cy = H * 0.24, sw = 620, shh = 760;
+    g.save(); g.shadowColor = 'rgba(0,0,0,.6)'; g.shadowBlur = 40; shield(g, cx, cy, sw, shh); g.fillStyle = metal(g, cy, cy + shh, t.rim); g.fill(); g.restore();
+    shield(g, cx, cy + 26, sw - 60, shh - 62); g.fillStyle = '#0a0d14'; g.fill();
+    mark(g, W, 300, cy + shh * 0.62, t.rim[0]);
+    for (let i = 0; i < t.stars; i++) { const x = cx + (i - (t.stars - 1) / 2) * 80; star(g, x, cy + shh * 0.78, 28, 12); g.fillStyle = t.acc; g.fill(); }
+    g.textAlign = 'center'; g.font = '800 100px IB'; g.fillStyle = '#fff'; g.fillText(t.name, W / 2, H * 0.86);
+    crimpEdges(g, t, W, H, CR); return c; },
+};
+async function render(lv, w, h, v) {
   await Promise.all(['italic 900 40px JB', 'italic 900 40px JR', '800 40px IB'].map((f) => document.fonts.load(f, 'JGЖ'))); await document.fonts.ready;
   const t = TIERS[lv];
   if (!R) {
@@ -115,7 +183,7 @@ async function render(lv, w, h) {
   const PW = 2, PH = 3.125, geo = new THREE.PlaneGeometry(PW, PH, 64, 100), p = geo.attributes.position;
   for (let i = 0; i < p.count; i++) { const x = p.getX(i) / (PW / 2), y = p.getY(i) / (PH / 2), crimp = Math.abs(y) > 0.9; p.setZ(i, crimp ? 0.004 : 0.16 * (1 - Math.pow(Math.abs(x), 3)) * (1 - Math.pow(Math.abs(y) / 0.9, 8))); }
   geo.computeVertexNormals();
-  const tex = new THREE.CanvasTexture(front(t)); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 8;
+  const tex = new THREE.CanvasTexture(v && VAR[v] ? VAR[v](t) : front(t)); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 8;
   const mat = new THREE.MeshStandardMaterial({ map: tex, metalness: lv === 4 ? 0.5 : 0.62, roughness: 0.3, envMapIntensity: 1.25, transparent: true, alphaTest: 0.5, side: THREE.FrontSide });
   const pack = new THREE.Group(), fr = new THREE.Mesh(geo, mat); pack.add(fr);
   const bt = new THREE.CanvasTexture(backTex(t)); bt.encoding = THREE.sRGBEncoding;
