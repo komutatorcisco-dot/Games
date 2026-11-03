@@ -1,0 +1,59 @@
+<!doctype html>
+<!-- Варианты экрана открытия пака (3.11) — макеты для выбора: ?v=1..5 -->
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="../art/fonts/fonts.css">
+<style>
+@font-face{font-family:IT;font-weight:900;src:url(../art/fonts/inter-800.ttf)}
+*{box-sizing:border-box;margin:0}html,body{width:844px;height:390px;overflow:hidden;font-family:IT,"Inter Tight",sans-serif;color:#fff;background:#000}
+.v{position:absolute;inset:0;display:none}.v.on{display:block}
+.pk{filter:drop-shadow(0 18px 26px rgba(0,0,0,.7))}
+.tg{position:absolute;top:10px;left:16px;right:16px;height:30px;display:flex;justify-content:space-between;opacity:.35}.tg i{width:110px;border-radius:15px;background:#fff}
+/* 1 Витрина */
+.v1{background:radial-gradient(60% 90% at 50% 100%,#1d3a2a,transparent),radial-gradient(40% 60% at 50% 30%,#14323a,#05070c)}
+.v1 .spot{position:absolute;left:50%;top:-40px;width:420px;height:470px;transform:translateX(-50%);background:conic-gradient(from 160deg at 50% 0,transparent 0 10deg,rgba(198,255,61,.22) 18deg,transparent 26deg 334deg,rgba(198,255,61,.22) 342deg,transparent 350deg);filter:blur(2px)}
+.v1 .ped{position:absolute;left:50%;bottom:34px;width:300px;height:56px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(198,255,61,.55),rgba(198,255,61,.08) 70%,transparent);box-shadow:0 0 60px rgba(198,255,61,.35)}
+.v1 .pk{position:absolute;left:50%;bottom:62px;height:250px;transform:translateX(-50%) rotate(-4deg)}
+.v1 .side{position:absolute;left:44px;top:120px;display:grid;gap:6px}.v1 small{font-size:11px;letter-spacing:.24em;color:#c6ff3d}.v1 b{font-size:40px;line-height:.95;text-transform:uppercase}
+.v1 .chips{display:flex;gap:6px;margin-top:6px}.v1 .chips span{padding:4px 9px;border-radius:7px;background:rgba(255,255,255,.1);font-size:12px}
+.v1 .hint{position:absolute;right:44px;bottom:60px;padding:12px 26px;border-radius:30px;background:#c6ff3d;color:#06101c;font-size:16px;text-transform:uppercase}
+/* 2 FC Mobile: слева шансы, справа пак */
+.v2{background:linear-gradient(115deg,#0a1530,#05080f 55%,#0b2a1d)}
+.v2 .info{position:absolute;left:36px;top:70px;width:330px;display:grid;gap:8px}.v2 small{font-size:11px;letter-spacing:.2em;color:#9fb2cc}.v2 b{font-size:36px;text-transform:uppercase}
+.v2 .row{display:grid;grid-template-columns:76px 1fr 40px;align-items:center;gap:8px;font-size:12px}.v2 .row i{height:8px;border-radius:4px;background:rgba(255,255,255,.1);overflow:hidden}.v2 .row i u{display:block;height:100%;background:linear-gradient(90deg,#19d3b0,#c6ff3d)}
+.v2 .btn{margin-top:10px;width:220px;padding:13px 0;border-radius:10px;background:linear-gradient(180deg,#d8ff6a,#8fe61e);color:#06101c;text-align:center;font-size:16px;text-transform:uppercase}
+.v2 .pk{position:absolute;right:120px;top:40px;height:300px;transform:perspective(600px) rotateY(-18deg) rotate(3deg)}
+.v2 .ring{position:absolute;right:60px;top:50px;width:320px;height:320px;border-radius:50%;border:2px solid rgba(198,255,61,.25);box-shadow:inset 0 0 80px rgba(198,255,61,.15)}
+/* 3 Тоннель: цветные лучи по редкости */
+.v3{background:#020308}
+.v3 .rays{position:absolute;left:50%;top:50%;width:1200px;height:1200px;transform:translate(-50%,-50%);background:repeating-conic-gradient(from 0deg,rgba(86,212,255,.16) 0 6deg,transparent 6deg 18deg);-webkit-mask:radial-gradient(closest-side,#000 20%,transparent 70%);mask:radial-gradient(closest-side,#000 20%,transparent 70%)}
+.v3 .floor{position:absolute;left:0;right:0;bottom:0;height:120px;background:linear-gradient(180deg,transparent,rgba(86,212,255,.18));}
+.v3 .pk{position:absolute;left:50%;top:44px;height:270px;transform:translateX(-50%)}
+.v3 .name{position:absolute;left:0;right:0;bottom:22px;text-align:center}.v3 .name small{display:block;font-size:11px;letter-spacing:.3em;color:#56d4ff}.v3 .name b{font-size:30px;text-transform:uppercase}
+.v3 .tap{position:absolute;right:36px;top:50%;transform:translateY(-50%);width:84px;height:84px;border-radius:50%;display:grid;place-items:center;border:2px solid #56d4ff;font-size:13px;color:#56d4ff;box-shadow:0 0 30px rgba(86,212,255,.4)}
+/* 4 Brawl Stars: шкала редкости и тапы */
+.v4{background:radial-gradient(70% 90% at 50% 60%,#3b1d72,#12081f)}
+.v4 .meter{position:absolute;left:50%;top:22px;transform:translateX(-50%);display:flex;gap:6px}.v4 .meter i{width:72px;height:14px;border-radius:7px;background:rgba(255,255,255,.15);font-style:normal}
+.v4 .meter i.a{background:#7fe0a0}.v4 .meter i.b{background:#56d4ff}.v4 .meter i.c{background:#b98bff;box-shadow:0 0 14px #b98bff}
+.v4 .lbl{position:absolute;left:50%;top:44px;transform:translateX(-50%);font-size:12px;letter-spacing:.2em;color:#d6c8ff}
+.v4 .pk{position:absolute;left:50%;top:70px;height:250px;transform:translateX(-50%) rotate(6deg) scale(1.05)}
+.v4 .burst{position:absolute;left:50%;top:190px;width:380px;height:380px;transform:translate(-50%,-50%);background:radial-gradient(closest-side,rgba(185,139,255,.6),transparent)}
+.v4 .tap{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);font-size:28px;color:#ffd23c;text-shadow:0 3px 0 #8a5a00;letter-spacing:.06em}
+.v4 .cnt{position:absolute;right:40px;bottom:30px;font-size:14px;color:#d6c8ff}
+/* 5 Минимал: чёрный, огромное название за паком */
+.v5{background:#000}
+.v5 .big{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);text-align:center;font-size:150px;line-height:1;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.18);text-transform:uppercase;letter-spacing:-.04em}
+.v5 .streak{position:absolute;left:0;right:0;top:50%;height:2px;background:linear-gradient(90deg,transparent,#c6ff3d,transparent);box-shadow:0 0 18px #c6ff3d}
+.v5 .pk{position:absolute;left:50%;top:50px;height:280px;transform:translateX(-50%)}
+.v5 .k{position:absolute;left:36px;bottom:28px;font-size:12px;letter-spacing:.24em;color:#c6ff3d}
+.v5 .hint{position:absolute;right:36px;bottom:24px;font-size:14px;color:rgba(255,255,255,.7)}
+.v5 .logo{position:absolute;left:36px;top:52px;height:22px;opacity:.9}
+</style></head><body>
+<div class="tg"><i></i><i></i></div>
+<div class="v v1"><i class="spot"></i><i class="ped"></i><img class="pk" src="../../img/packs/pk0-360.webp?v=b1"><div class="side"><small>Пак дня</small><b>Обычный<br>пак</b><div class="chips"><span>3 карты</span><span>шанс золота 7,5%</span></div></div><div class="hint">Открыть</div></div>
+<div class="v v2"><i class="ring"></i><img class="pk" src="../../img/packs/pk1-360.webp?v=b1"><div class="info"><small>Пак · 5 карт</small><b>Сверхредкий</b>
+  <div class="row"><span>Бронза</span><i><u style="width:40%"></u></i><span>40%</span></div><div class="row"><span>Серебро</span><i><u style="width:44%"></u></i><span>44%</span></div><div class="row"><span>Золото</span><i><u style="width:15%"></u></i><span>15%</span></div>
+  <div class="btn">Открыть</div></div></div>
+<div class="v v3"><i class="rays"></i><i class="floor"></i><img class="pk" src="../../img/packs/pk1-360.webp?v=b1"><div class="name"><small>Пак дня</small><b>Сверхредкий</b></div><div class="tap">ТАП</div></div>
+<div class="v v4"><i class="burst"></i><div class="meter"><i class="a"></i><i class="b"></i><i class="c"></i><i></i><i></i></div><div class="lbl">РЕДКОСТЬ РАСТЁТ — ЖМИ!</div><img class="pk" src="../../img/packs/pk2-360.webp?v=b1"><div class="tap">ТАП! ТАП!</div><div class="cnt">2 / 4</div></div>
+<div class="v v5"><div class="big">Обычный</div><i class="streak"></i><img class="pk" src="../../img/packs/pk0-360.webp?v=b1"><img class="logo" src="../../img/brand/logo-white.png"><div class="k">Пак дня · 3 карты</div><div class="hint">Проведи по паку, чтобы открыть →</div></div>
+<script>const v=+(new URLSearchParams(location.search).get('v')||1);document.querySelector('.v'+v).classList.add('on');</script>
+</body></html>
