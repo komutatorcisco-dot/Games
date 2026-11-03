@@ -1144,3 +1144,19 @@
   .fm-pl-t small { font: 600 10.5px/1.2 "Inter Tight", sans-serif; color: #b9c6da; }
   .fm-plate:active, .fm-phero:active { transform: scale(.97); }
 }
+/* главная (3.11): один понятный баннер, без лишних надписей, всё влезает */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-hero2 .fm-sl-go { white-space: nowrap; padding: 9px 18px !important; font-size: clamp(11px, 2.2vh + 4px, 14px) !important; }
+  .fm-hero2 .fm-sl-t { min-width: 0; gap: 6px !important; }
+  .fm-hero2 .fm-sl-t b { font-size: clamp(20px, 7vh, 34px) !important; overflow-wrap: anywhere; }
+  .fm-hero2 .fm-sl-t small { font-size: 10px !important; letter-spacing: .12em !important; }
+  .fm-hb { display: flex; align-items: center; gap: 8px; max-width: 220px; } .fm-hb .fm-bar { flex: 1; height: 7px; } .fm-hb u { font: 800 12px "Inter Tight", sans-serif; text-decoration: none; color: #fff; } .fm-hb .fm-bar { background: rgba(0,0,0,.35); }
+  .fm-hero2 .fm-sl-t small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .fm-club-e { display: block; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,.12); font: 800 12px/1.1 "Inter Tight", sans-serif; font-style: normal; text-align: center; color: #fff; }
+  .fm-who b { font-size: 15px; }
+  .fm-lt.c1 i img { object-fit: contain; }
+  /* живость: карточка Джексона дышит светом, кнопка мерцает */
+  .fm-hero2 .fm-sl-card::after { content: ''; position: absolute; inset: 6% 8%; border-radius: 12px; box-shadow: 0 0 40px 6px rgba(185,140,255,.35); animation: fm-hglow 3s ease-in-out infinite; pointer-events: none; z-index: -1; }
+  @keyframes fm-hglow { 50% { box-shadow: 0 0 60px 12px rgba(198,255,61,.3); } }
+}
+@media (orientation: landscape) and (max-height: 400px) { .fm-hero2 .fm-sl-card { zoom: .86; } }
