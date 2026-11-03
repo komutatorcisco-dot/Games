@@ -76,5 +76,22 @@ h = 240; w = round(im.width * h / im.height); im.resize((w, h), Image.LANCZOS).s
       console.log('mode', id, 'ok');
     }
   }
+  if (what === 'tall') { // высокие плашки «Играть» (3.11): та же сцена, кадр 3:4 — игроки целиком
+    await p.goto('http://localhost:8765/tools/art/modes.html'); await p.waitForTimeout(800);
+    const tmp = path.join(ROOT, 'tools/art/.tmp'); fs.mkdirSync(tmp, { recursive: true });
+    for (const id of (process.argv[3] ? process.argv[3].split(',') : ['mom', 'three', 'mgr', 'eleven', 'train'])) {
+      const url = await p.evaluate((id) => window.renderMode(id, 600, 800, true), id);
+      const png = path.join(tmp, `plate-${id}.png`); fs.writeFileSync(png, Buffer.from(url.split(',')[1], 'base64'));
+      execFileSync('python3', ['-I', '-c', `
+import sys
+from PIL import Image
+im = Image.open(sys.argv[1]).convert('RGBA'); im = im.crop(im.getbbox())
+h = 360; w = round(im.width * h / im.height)
+if w > 300: w = 300; h = round(im.height * w / im.width)
+im.resize((w, h), Image.LANCZOS).save(sys.argv[2], quality=88, method=6)
+`, png, path.join(ROOT, `img/fcm/plate-${id}.webp`)]);
+      console.log('plate', id, 'ok');
+    }
+  }
   await b.close();
 })();

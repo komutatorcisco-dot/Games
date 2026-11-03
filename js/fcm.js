@@ -134,20 +134,20 @@ const FCM = (() => {
   // «Играть» как в FC Mobile (3.11): слева крупно — испытание «Джексона» (карьера), справа лента больших плашек режимов;
   // плашка футбола запускает режим, плашка разделов (Угадай, Викторины…) открывает его игры. Назад — снова сюда.
   const PLATES = [
-    { go: 'data-fm-mode="3"', t: 'Матч 3 на 3', d: 'Против ботов · 2 минуты', img: 'img/fcm/mode-three.webp?v=3', c: '#2b6cff' },
-    { go: 'data-fm-mode="mom"', t: 'Моменты', d: 'Забей в коротких атаках', img: 'img/fcm/mode-mom.webp?v=3', c: '#c6ff3d' },
-    { go: 'data-fm-mode="4"', t: 'Матч 4 на 4', d: 'Трое в поле и вратарь', img: 'img/fcm/mode-eleven.webp?v=3', c: '#19d3b0' },
-    { go: 'data-act="xdraft"', t: 'Драфт', d: 'Собери состав и пройди турнир', img: 'img/fcm/player-stand.webp', c: '#b98bff' },
-    { go: 'data-fm-mode="mgr"', t: 'Менеджер', d: 'Твой состав играет сам', img: 'img/fcm/mode-mgr.webp?v=3', c: '#ffd23c' },
+    { go: 'data-fm-mode="3"', t: 'Матч 3 на 3', d: 'Против ботов · 2 минуты', img: 'img/fcm/plate-three.webp?v=1', c: '#2b6cff', z: 1.2 },
+    { go: 'data-fm-mode="mom"', t: 'Моменты', d: 'Забей в коротких атаках', img: 'img/fcm/plate-mom.webp?v=1', c: '#c6ff3d', z: 1.35 },
+    { go: 'data-fm-mode="4"', t: 'Матч 4 на 4', d: 'Трое в поле и вратарь', img: 'img/fcm/plate-eleven.webp?v=1', c: '#19d3b0' },
+    { go: 'data-act="xdraft"', t: 'Драфт', d: 'Собери состав и пройди турнир', img: 'img/fcm/plate-draft.webp?v=1', c: '#b98bff' },
+    { go: 'data-fm-mode="mgr"', t: 'Менеджер', d: 'Твой состав играет сам', img: 'img/fcm/plate-mgr.webp?v=1', c: '#ffd23c', z: 1.05 },
     { go: 'data-fm-sub="modes:guess"', t: 'Угадай', d: 'Wordle, клубы, карьеры', cat: 'guess', c: '#56d4ff' },
     { go: 'data-fm-sub="modes:quiz"', t: 'Викторины', d: 'Дороже, трансферы, счёт', cat: 'quiz', c: '#ff9f43' },
     { go: 'data-fm-sub="modes:cards"', t: 'Карточные', d: 'Козыри, аукцион, ИПК', cat: 'cards', c: '#ff4f66' },
     { go: 'data-fm-sub="modes:duo"', t: 'С другом', d: 'Дуэли и онлайн', cat: 'duo', c: '#7fe0a0' },
     { go: 'data-fm-sub="modes:pz"', t: 'Головоломки', d: '2048, пятнашки, поп-ит', cat: 'pz', c: '#c59bff' },
-    { go: 'data-fm-train="basics"', t: 'Тренировки', d: 'Удары, дриблинг, мишени', img: 'img/fcm/mode-train.webp?v=3', c: '#9fb2cc' },
+    { go: 'data-fm-train="basics"', t: 'Тренировки', d: 'Удары, дриблинг, мишени', img: 'img/fcm/plate-train.webp?v=1', c: '#9fb2cc' },
   ];
   function plate(x) {
-    const art = x.img ? `<img class="fm-pl-img" src="${x.img}" alt="" loading="lazy">`
+    const art = x.img ? `<img class="fm-pl-img" src="${x.img}" alt="" loading="lazy" style="--z:${x.z || 1.5}">`
       : `<span class="fm-pl-icons">${shelfGames(x.cat).slice(0, 4).map((g) => { const im = gImg(g.key); return im ? `<img src="${im}" alt="" loading="lazy">` : ''; }).join('')}</span>`;
     const n = x.cat ? shelfGames(x.cat).length : 0;
     return `<button class="fm-plate" ${x.go} style="--pc:${x.c}"><i class="fm-pl-glow"></i>${art}<span class="fm-pl-t"><b>${x.t}</b><small>${x.d}${n ? ` · ${n} игр` : ''}</small></span></button>`;

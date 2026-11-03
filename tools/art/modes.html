@@ -79,12 +79,25 @@ const SCENES = {
     s.add(man('blue', { number: 11, skin: 5, style: 'afro' }, 'run2', 0.55, -0.25, -1.9, 1.05));
     const ball = ballM(0.2); ball.position.set(0.05, 0.2, 0.55); s.add(ball);
     return { pos: [0, 1.4, 5.6], look: [0, 0.95, 0], fov: 34 }; },
+  // драфт (3.11): игрок и веер из трёх золотых карточек за спиной
+  draft(s) { const card = (x, y, rz, k) => { const c = document.createElement('canvas'); c.width = 200; c.height = 280; const g = c.getContext('2d');
+      const gr = g.createLinearGradient(0, 0, 200, 280); gr.addColorStop(0, '#fff1b8'); gr.addColorStop(0.45, '#e2b43a'); gr.addColorStop(1, '#8a5a00'); g.fillStyle = gr;
+      g.beginPath(); g.roundRect(6, 6, 188, 268, 22); g.fill(); g.strokeStyle = '#fff6d0'; g.lineWidth = 6; g.stroke();
+      g.fillStyle = '#3b2a05'; g.font = '900 64px sans-serif'; g.fillText(String(88 + k), 22, 76); g.font = '800 26px sans-serif'; g.fillText(['ФРВ', 'ЦП', 'ЦЗ'][k], 26, 108);
+      g.fillStyle = 'rgba(60,40,5,.25)'; g.beginPath(); g.arc(120, 150, 50, 0, 7); g.fill(); g.fillRect(40, 196, 120, 14); g.fillRect(56, 222, 88, 10);
+      const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding;
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 1.33), new THREE.MeshStandardMaterial({ map: t, transparent: true, roughness: 0.3, metalness: 0.4, side: THREE.DoubleSide }));
+      m.position.set(x, y, -0.6); m.rotation.z = rz; m.castShadow = true; s.add(m); };
+    card(-0.85, 1.55, 0.28, 0); card(0, 1.75, 0, 1); card(0.85, 1.55, -0.28, 2);
+    s.add(man('blue', { number: 10, skin: 2, style: 'short' }, 'stand', 0, 0.4, 0.15, 1.05));
+    return { pos: [0, 1.4, 6.0], look: [0, 1.15, 0], fov: 34 }; },
   train(s) { [[-0.95, -0.4], [-0.3, 0.1], [0.35, -0.4], [1.0, 0.1]].forEach(([x, z]) => s.add(cone(x, z, 0.7)));
     s.add(man('navy', { number: 17, skin: 3, style: 'medium' }, 'run', 0.3, 0.9, -0.9, 1.1));
     const b = ballM(0.2); b.position.set(-0.25, 0.2, 1.25); b.rotation.set(0.4, 0.8, 0); s.add(b);
     return { pos: [0.2, 2.0, 5.9], look: [0.1, 0.75, 0], fov: 34 }; },
 };
-window.renderMode = async (id, w, h) => { await ready; const s = rig(w, h), v = SCENES[id](s); const cam = new THREE.PerspectiveCamera(v.fov, w / h, 0.1, 100); cam.position.set(...v.pos); cam.lookAt(...v.look); R.render(s, cam); return R.domElement.toDataURL('image/png'); };
+// tall — высокая плашка «Играть»: шире угол, все фигуры целиком
+window.renderMode = async (id, w, h, tall) => { await ready; const s = rig(w, h), v = SCENES[id](s); const cam = new THREE.PerspectiveCamera(v.fov * (tall ? 1.45 : 1), w / h, 0.1, 100); cam.position.set(...v.pos); cam.lookAt(...v.look); R.render(s, cam); return R.domElement.toDataURL('image/png'); };
 // ?view=mom — показать сцену в окне (для подбора кадра)
 const VIEW = new URLSearchParams(location.search).get('view');
 if (VIEW) { document.body.style.background = '#1a2433'; window.renderMode(VIEW, 900, 600).then(() => { document.title = 'ok ' + VIEW; }, (e) => { document.title = 'error ' + e; }); }
