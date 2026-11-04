@@ -21,8 +21,8 @@ const PackOpen = (() => {
   // модель пака: лицо с голограммой и обжимом, торец, задник; cap — верхняя полоска, которую срывают
   // рисунок пака по редкости (img/packs/pk*.webp); объём нарисован на самой картинке
   const PIMG = ['pk-silver', 'pk-blue', 'pk-purple', 'pk-gold', 'pk-black'];
-  // новые паки Jackson Games (27.10): 3D-рендер, tools/art/packs.html
-  const pimg = (lv, sz) => `img/packs/pk${lv}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp?v=b1`;
+  // паки-мячи (4.11): 3D-рендер, tools/art/packforms.html (renderBall), node tools/art/render.js balls
+  const pimg = (lv, sz) => `img/packs/pk${lv}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp?v=b2`;
   const art = (lv, sz = '', cap = false) => `<span class="fpk p${lv} ${sz} pimg"><span class="fpk-b">
       <i class="fpk-f" style="-webkit-mask-image:url(${pimg(lv, sz)});mask-image:url(${pimg(lv, sz)})"><img class="fpk-img" src="${pimg(lv, sz)}" alt="" decoding="async" draggable="false"><i class="fpk-sh"></i><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;
@@ -206,18 +206,32 @@ const PackOpen = (() => {
     const stage = $('.po-stage', el);
     el.dataset.phase = 'pack'; setCol(el, LV[lv].css);
     $('.po-k', el).textContent = 'Твой пак'; const nm = $('.po-name', el); nm.textContent = name || LV[lv].name; nm.classList.toggle('long', nm.textContent.length > 13); slam(nm);
-    stage.innerHTML = `<div class="po-pack" data-lv="${lv}">${art(lv, 'xxl', true)}<i class="po-slit"></i></div>`;
+    stage.innerHTML = `<div class="po-pack" data-lv="${lv}">${art(lv, 'xxl')}</div>`;
     const packEl = $('.po-pack', stage), hint = $('.po-hint', el);
     anim(packEl, [{ transform: 'translateY(50vh) rotateX(40deg) scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,1,.3,1)' });
     hint.textContent = 'Нажми на пак, чтобы открыть';
     await tapOnce(el);
-    hint.textContent = ''; Sound.play('kick'); haptic('tap');
-    packEl.classList.add('shake'); await wait(650);
-    packEl.classList.remove('shake'); packEl.classList.add('torn');
-    flash(el, true); Sound.play('kick'); haptic('ok');
-    await wait(480);
-    anim(packEl, [{ transform: 'none', opacity: 1 }, { transform: 'translateY(45vh) scale(.8) rotateX(30deg)', opacity: 0 }], { duration: 480, easing: 'cubic-bezier(.5,0,.7,.4)', fill: 'forwards' });
-    await wait(360);
+    hint.textContent = '';
+    await crack(el, packEl);
+    await wait(700);
+  }
+  // мяч-пак (4.11): тряска с разгорающимися трещинами, потом мяч разлетается на куски со вспышкой
+  async function crack(el, packEl) {
+    packEl.classList.add('charge'); Sound.play('kick'); haptic('tap');
+    await wait(330); haptic('tap'); await wait(330); haptic('pop'); await wait(300);
+    const b = $('.fpk-b', packEl), f = $('.fpk-f', packEl), im = $('.fpk-img', packEl);
+    const box = document.createElement('i'); box.className = 'po-shards'; b.appendChild(box);
+    const W = b.offsetWidth, N = reduce ? 0 : 10, a0 = Math.random() * 6.28;
+    for (let i = 0; i < N; i++) {
+      const a1 = a0 + (i / N) * 6.283, a2 = a0 + ((i + 1) / N) * 6.283, pt = (a) => `${50 + Math.cos(a) * 95}% ${60 + Math.sin(a) * 60}%`;
+      const sh = document.createElement('img'); sh.src = im.src; sh.alt = ''; sh.style.clipPath = `polygon(50% 60%, ${pt(a1)}, ${pt((a1 + a2) / 2)}, ${pt(a2)})`; box.appendChild(sh);
+      const m = (a1 + a2) / 2, d = W * (0.9 + Math.random() * 0.8);
+      anim(sh, [{ transform: 'none', opacity: 1 }, { transform: `translate(${Math.cos(m) * d}px, ${Math.sin(m) * d + W * 0.5}px) rotate(${(Math.random() - 0.5) * 260}deg) scale(.7)`, opacity: 0 }],
+        { duration: 780 + Math.random() * 300, easing: 'cubic-bezier(.15,.75,.35,1)', fill: 'forwards' });
+    }
+    packEl.classList.remove('charge'); packEl.classList.add('burst'); f.style.visibility = 'hidden';
+    flash(el, true); Sound.play('goal'); haptic('ok');
+    if (typeof FX !== 'undefined') { const r = f.getBoundingClientRect(); FX.burst(r.left + r.width / 2, r.top + r.height * 0.6, 26, true); }
   }
   function finish(el, list, { onDone, take, coins }) {
     const dup = list.reduce((s, x) => s + x.coins, 0);
@@ -245,7 +259,7 @@ const PackOpen = (() => {
     $('.po-name', el).textContent = LV[level].name; $('.po-ghost', el).textContent = LV[level].name; el.classList.add('meter');
     $('.po-steps', el).innerHTML = LV.map((l, i) => `<i style="--c:${l.css}" class="${i <= level ? 'on' : ''}"></i>`).join('');
     const stage = $('.po-stage', el);
-    stage.innerHTML = `<div class="po-pack" data-lv="${level}">${art(level, 'xxl', true)}<i class="po-slit"></i></div>`;
+    stage.innerHTML = `<div class="po-pack" data-lv="${level}">${art(level, 'xxl')}</div>`;
     const hint = $('.po-hint', el); hint.textContent = 'Жми на пак — редкость может вырасти';
     const packEl = $('.po-pack', stage);
     anim(packEl, [{ transform: 'translateY(50vh) rotateX(40deg) scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,1,.3,1)' });
@@ -265,7 +279,7 @@ const PackOpen = (() => {
       if (!started) { started = true; $('.po-x', el).hidden = true; onStart && onStart(); }
       Sound.play('kick'); haptic('tap');
       if (level < final) {
-        anim($('.fpk-b', packEl), [{ transform: 'rotateY(-18deg) scale(1)' }, { transform: 'rotateY(160deg) scale(.86) translateY(-30px)', offset: 0.45 }, { transform: 'rotateY(342deg) scale(1)' }], { duration: 620, easing: 'cubic-bezier(.4,0,.2,1)' });
+        anim($('.fpk-b', packEl), [{ transform: 'none' }, { transform: 'translateY(-34px) rotate(-200deg) scale(.9)', offset: 0.45 }, { transform: 'translateY(4px) rotate(-360deg) scale(1.08, .9)', offset: 0.8 }, { transform: 'rotate(-360deg)' }], { duration: 620, easing: 'cubic-bezier(.4,0,.2,1)' });
         await wait(300);
         setLevel(level + 1); flash(el, level >= 3);
         Sound.play(level === 4 ? 'whistle' : level >= 3 ? 'goal' : 'coin'); haptic(level >= 3 ? 'ok' : 'pop');
@@ -276,15 +290,10 @@ const PackOpen = (() => {
         return;
       }
       opened = true; hint.textContent = '';
-      // тряска, срыв полоски, вспышка
-      packEl.classList.add('shake');
-      await wait(650);
-      packEl.classList.remove('shake'); packEl.classList.add('torn');
-      flash(el, true); Sound.play('kick'); haptic('ok');
+      // тряска с трещинами, мяч разлетается, вспышка
+      await crack(el, packEl);
       const res = commit ? commit(got) : [];
-      await wait(520);
-      anim(packEl, [{ transform: 'none', opacity: 1 }, { transform: 'translateY(45vh) scale(.8) rotateX(30deg)', opacity: 0 }], { duration: 520, easing: 'cubic-bezier(.5,0,.7,.4)', fill: 'forwards' });
-      await wait(380);
+      await wait(700);
       await showCards(el, res, { coins: got.coins, take: 'Забрать', onDone: () => { onTake && onTake(got); onDone && onDone(got); } });
     }
     stage.addEventListener('pointerup', (e) => { if (el.dataset.phase === 'pack') tap(); });

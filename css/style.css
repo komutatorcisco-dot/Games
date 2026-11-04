@@ -3749,6 +3749,17 @@ body.gated { overflow: hidden; }
 .po-pack.shake { animation: poShake .65s linear; }
 @keyframes poShake { 0%, 100% { transform: none; } 10% { transform: translate(-6px, 2px) rotate(-3deg); } 20% { transform: translate(6px, -2px) rotate(3deg); } 30% { transform: translate(-8px, 1px) rotate(-4deg); }
   40% { transform: translate(8px, -1px) rotate(4deg); } 55% { transform: translate(-10px, 0) rotate(-5deg) scale(1.03); } 70% { transform: translate(10px, 0) rotate(5deg) scale(1.05); } 85% { transform: translate(-6px, 0) rotate(-3deg) scale(1.07); } }
+/* мяч-пак (4.11): без 3D-поворота (иначе мяч становится овалом), трещины разгораются, мяч разлетается на куски */
+.fpk.pimg .fpk-b { transform: none; animation: fpkBall 5s ease-in-out infinite; }
+@keyframes fpkBall { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-5px) rotate(3deg); } }
+.po-pack.charge { animation: poCharge 1s linear forwards; }
+@keyframes poCharge { 0% { transform: none; filter: none; } 12% { transform: translate(-3px, 1px) rotate(-2deg); } 25% { transform: translate(4px, -1px) rotate(2deg); }
+  40% { transform: translate(-6px, 0) rotate(-4deg) scale(1.03); filter: brightness(1.15) drop-shadow(0 0 12px var(--rc)); } 55% { transform: translate(6px, 0) rotate(4deg) scale(1.05); }
+  70% { transform: translate(-8px, 0) rotate(-6deg) scale(1.08); filter: brightness(1.35) drop-shadow(0 0 26px var(--rc)); } 85% { transform: translate(8px, 0) rotate(6deg) scale(1.12); }
+  100% { transform: scale(1.18); filter: brightness(2.2) drop-shadow(0 0 60px var(--rc)); } }
+.po-pack.burst { animation: none; }
+.po-shards { position: absolute; inset: 0; pointer-events: none; }
+.po-shards img { position: absolute; inset: 0; width: 100%; height: 100%; filter: brightness(1.4) drop-shadow(0 0 10px var(--rc)); }
 .po-cap { position: absolute; left: -1px; right: -1px; top: -1px; height: 11%; z-index: 6; font-style: normal;
   background: repeating-linear-gradient(90deg, rgba(255,255,255,.6) 0 2px, rgba(0,0,0,.22) 2px 4px), linear-gradient(var(--c), var(--a)); background-blend-mode: overlay; border-bottom: 2px dashed rgba(0,0,0,.35); }
 .po-pack.torn .po-cap { animation: poCap .7s cubic-bezier(.3,.6,.4,1) forwards; }

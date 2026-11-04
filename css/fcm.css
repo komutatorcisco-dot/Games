@@ -1160,3 +1160,8 @@
   @keyframes fm-hglow { 50% { box-shadow: 0 0 60px 12px rgba(198,255,61,.3); } }
 }
 @media (orientation: landscape) and (max-height: 400px) { .fm-hero2 .fm-sl-card { zoom: .86; } }
+/* мяч-пак (4.11): в магазине и на главной показываем квадрат вокруг мяча — над мячом в картинке пустое место для экрана открытия */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-pk-img, .fm-st-hero img, .fm-daypk img, .fm-pf img { aspect-ratio: 1; object-fit: cover; object-position: 50% 76%; }
+  .fm-st-hero img { height: clamp(76px, 24vh, 100px) !important; } /* не шире прежнего пака — название рядом не обрезается */
+}

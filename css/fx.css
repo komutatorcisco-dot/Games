@@ -22,7 +22,7 @@
   .fm-sl-t { transform: translate3d(calc(var(--px, 0) * 8px), calc(var(--py, 0) * 5px), 0); transition: transform .5s ease-out; }
   .fm-pf { perspective: 600px; }
   .fm-pf:not(.all) img { animation: fx-pk3d 4.2s ease-in-out infinite !important; }
-  @keyframes fx-pk3d { 0%, 100% { transform: translateY(0) rotateY(-16deg) rotateZ(-1deg); } 50% { transform: translateY(-7px) rotateY(16deg) rotateZ(1deg); } }
+  @keyframes fx-pk3d { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-7px) rotate(4deg); } } /* мяч-пак: качается, без поворота боком */
   .fm-pk-img { transform-style: preserve-3d; }
   /* кнопки: мягкое нажатие с отскоком */
   .fcm .fm-btn, .mk-sheet .fm-btn, .fm-sheet .fm-btn { transition: transform .35s cubic-bezier(.2,1.8,.4,1), box-shadow .2s, filter .2s; }

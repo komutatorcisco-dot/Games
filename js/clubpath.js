@@ -119,7 +119,7 @@ const ClubPath = (() => {
     const c = CH[sel - 1], tk = tokens(sel), max = c.steps[c.steps.length - 1][0], all = c.tasks.every((t, i) => isDone(sel, i)), got = s.done.includes(sel);
     const chips = CH.map((x) => `<button class="cr-ch ${x.id === sel ? 'on' : ''} ${open(x.id) ? '' : 'lock'} ${s.done.includes(x.id) ? 'ok' : ''}" data-cr-ch="${x.id}" style="--cc:${x.col}"><small>Глава</small><b>${x.id}</b>${open(x.id) ? '' : lock}</button>`).join('');
     const steps = c.steps.map(([t, r], j) => { const st = s.st[sel + ':' + j] ? 'got' : tk >= t ? 'ready' : 'lock', l = Rewards.rewardLabel(r);
-      const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b1" alt="">` : r.coins ? '<i class="coin big"></i>' : l.ico;
+      const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b2" alt="">` : r.coins ? '<i class="coin big"></i>' : l.ico;
       return `<button class="cr-st ${st}" style="left:${(t / max) * 100}%" ${st === 'ready' ? `data-cr-st="${j}"` : ''}><span>${art}</span><b>${esc(l.txt || l.name)}</b><em>${t}</em></button>`; }).join('');
     const tasks = c.tasks.map((t, i) => { const p = prog(sel, i), n = need(t), dn = p >= n, bl = t.boss && !bossOpen(sel), lk = !open(sel);
       return `<div class="cr-t ${dn ? 'done' : ''} ${t.boss ? 'boss' : ''} ${bl || lk ? 'lock' : ''}">
