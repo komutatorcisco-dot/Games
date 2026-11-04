@@ -1,0 +1,75 @@
+<!doctype html>
+<!-- Эксперименты с формой пака (4.11): мяч с трещинами света, шкафчик, кубок, коробка бутс, футболка в упаковке.
+     window.renderForm(kind, rarity, w, h) → PNG. Цвет редкости — свет трещин, обода, ленты. -->
+<html><head><meta charset="utf-8"><style>@font-face{font-family:IB;font-weight:800;src:url(fonts/inter-800.ttf)}html,body{margin:0;background:transparent}</style></head>
+<body><script src="../../vendor/three.min.js"></script><script src="../../js/arena3d.js"></script><script>
+'use strict';
+const RAR = { blue: ['#56d4ff', '#1546b0', 'СВЕРХРЕДКИЙ'], gold: ['#ffd24a', '#b57a08', 'ЛЕГЕНДАРНЫЙ'] };
+const L = (h) => new THREE.Color(h).convertSRGBToLinear();
+const std = (h, o = {}) => new THREE.MeshStandardMaterial({ color: L(h), roughness: 0.35, metalness: 0.1, ...o });
+const glow = (h) => new THREE.MeshBasicMaterial({ color: L(h) });
+let R = null;
+function rig(w, h, col) {
+  if (!R) { R = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); R.outputEncoding = THREE.sRGBEncoding; R.toneMapping = THREE.ACESFilmicToneMapping; R.shadowMap.enabled = true; document.body.appendChild(R.domElement); }
+  R.setPixelRatio(1); R.setSize(w, h); R.setClearColor(0, 0);
+  const s = new THREE.Scene();
+  s.add(new THREE.HemisphereLight(0xdfe8ff, 0x101420, 0.7));
+  const k = new THREE.DirectionalLight(0xffffff, 1.3); k.position.set(-4, 6, 6); k.castShadow = true; s.add(k);
+  const r = new THREE.PointLight(L(col), 2.2, 12); r.position.set(2.5, 1.5, -2); s.add(r);
+  const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 16, 8), new THREE.MeshBasicMaterial({ color: 0x0c1020, side: THREE.BackSide })));
+  [[-8, 6, 6], [8, 3, 5]].forEach(([x, y, z]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(10, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); });
+  s.environment = new THREE.PMREMGenerator(R).fromScene(env, 0.02).texture;
+  const gt = canvasTex(256, 256, (g) => { const r = g.createRadialGradient(128, 128, 4, 128, 128, 128); r.addColorStop(0, col + 'cc'); r.addColorStop(0.45, col + '44'); r.addColorStop(1, col + '00'); g.fillStyle = r; g.fillRect(0, 0, 256, 256); });
+  const halo = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), new THREE.MeshBasicMaterial({ map: gt, transparent: true, depthWrite: false })); halo.position.set(0, 0.1, -1.6); s.add(halo);
+  const fl = new THREE.Mesh(new THREE.PlaneGeometry(20, 20), new THREE.ShadowMaterial({ opacity: 0.35 })); fl.rotation.x = -Math.PI / 2; fl.position.y = -1.25; fl.receiveShadow = true; s.add(fl);
+  return s;
+}
+function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; return t; }
+const FORMS = {
+  // 1. Мяч: чёрно-белый мяч с трещинами, из которых бьёт свет редкости
+  ball(s, [col]) { const b = Arena3D.ball('classic', 1.05); b.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.material.color.convertSRGBToLinear(); } }); b.rotation.set(0.3, 0.5, 0.1); s.add(b);
+    const crack = (pts) => { const c = new THREE.CatmullRomCurve3(pts.map(([x, y]) => { const v = new THREE.Vector3(x, y, Math.sqrt(Math.max(0, 1.07 * 1.07 - x * x - y * y))); return v; }));
+      s.add(new THREE.Mesh(new THREE.TubeGeometry(c, 60, 0.045, 8), glow('#ffffff'))); s.add(new THREE.Mesh(new THREE.TubeGeometry(c, 60, 0.11, 8), new THREE.MeshBasicMaterial({ color: L(col), transparent: true, opacity: 0.55, depthWrite: false }))); };
+    crack([[-0.7, 0.55], [-0.35, 0.3], [-0.42, 0.0], [-0.1, -0.2], [0.05, -0.55], [0.35, -0.7]]); crack([[-0.35, 0.3], [0.05, 0.42], [0.35, 0.25], [0.7, 0.4]]); crack([[-0.1, -0.2], [0.3, -0.1], [0.6, -0.35]]);
+    return { pos: [0, 0.2, 5], look: [0, 0, 0], fov: 38 }; },
+  // 2. Шкафчик раздевалки: дверца с номером и щелью света, табличка «ДЖ»
+  locker(s, [col, dark]) { const body = new THREE.Mesh(new THREE.BoxGeometry(1.4, 2.5, 1.0), std(dark, { metalness: 0.6, roughness: 0.3 })); body.castShadow = true; s.add(body);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(1.25, 2.32, 0.06), std(dark, { metalness: 0.7, roughness: 0.25 })); door.position.set(0.04, 0, 0.53); door.rotation.y = -0.14; door.castShadow = true; s.add(door);
+    const slit = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 2.3), glow(col)); slit.position.set(-0.6, 0, 0.51); s.add(slit);
+    for (let i = 0; i < 4; i++) { const v = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.04, 0.02), std('#0a0d14')); v.position.set(0.1, 0.9 - i * 0.1, 0.56); v.rotation.y = -0.14; s.add(v); }
+    const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.6, 0.6), new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (g) => { g.fillStyle = '#f4f4f0'; g.fillRect(0, 0, 256, 256); g.fillStyle = '#0a0d14'; g.font = '800 150px IB'; g.textAlign = 'center'; g.fillText('10', 128, 185); }), roughness: 0.5 }));
+    plate.position.set(0.12, 0.2, 0.58); plate.rotation.y = -0.14; s.add(plate);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.42, 0.14, 1.02), std(col, { metalness: 0.6, roughness: 0.3 })); top.position.y = 1.32; s.add(top);
+    return { pos: [0.6, 0.6, 5.2], look: [0, 0.05, 0], fov: 38 }; },
+  // 3. Кубок: металлический кубок цвета редкости со светом изнутри
+  cup(s, [col]) { const pts = [[0, -1.2], [0.6, -1.2], [0.6, -1.05], [0.28, -0.95], [0.18, -0.5], [0.2, -0.25], [0.65, 0.2], [0.78, 0.8], [0.8, 1.05], [0.74, 1.08]].map(([x, y]) => new THREE.Vector2(x, y));
+    const cup = new THREE.Mesh(new THREE.LatheGeometry(pts, 64), std(col, { metalness: 1, roughness: 0.18 })); cup.castShadow = true; s.add(cup);
+    const glowD = new THREE.Mesh(new THREE.CircleGeometry(0.74, 48), glow('#ffffff')); glowD.rotation.x = -Math.PI / 2; glowD.position.y = 1.06; s.add(glowD);
+    [-1, 1].forEach((sx) => { const h = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.06, 12, 32, Math.PI), std(col, { metalness: 1, roughness: 0.2 })); h.position.set(sx * 0.72, 0.5, 0); h.rotation.z = sx > 0 ? -Math.PI / 2 : Math.PI / 2; s.add(h); });
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(0.71, 0.71, 0.18, 64, 1, true), new THREE.MeshStandardMaterial({ map: canvasTex(1024, 128, (g, w, h) => { g.fillStyle = '#0a0d14'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; g.font = '800 70px IB'; g.textAlign = 'center'; for (let i = 0; i < 2; i++) g.fillText('ДЖЕКСОНЫ', 256 + i * 512, 92); }), roughness: 0.4 }));
+    band.position.y = 0.42; s.add(band);
+    return { pos: [0, 0.6, 5.2], look: [0, 0.05, 0], fov: 38 }; },
+  // 4. Коробка от бутс: крышка приоткрыта, изнутри свет, полоса цвета редкости
+  box(s, [col, dark]) { const lid = canvasTex(1024, 512, (g, w, h) => { g.fillStyle = '#0d0f14'; g.fillRect(0, 0, w, h); g.fillStyle = col; g.fillRect(0, h * 0.42, w, 70); g.fillStyle = '#fff'; g.font = '800 120px IB'; g.textAlign = 'center'; g.fillText('ДЖЕКСОНЫ', w / 2, h * 0.34); g.font = '800 46px IB'; g.fillStyle = '#0d0f14'; g.fillText('ПАК ИГРОКОВ', w / 2, h * 0.42 + 52); });
+    const fr = canvasTex(1024, 360, (g, w, h) => { g.fillStyle = '#0d0f14'; g.fillRect(0, 0, w, h); g.fillStyle = col; g.fillRect(0, h * 0.62, w, 60); g.fillStyle = '#fff'; g.font = '800 140px IB'; g.textAlign = 'center'; g.fillText('ДЖЕКСОНЫ', w / 2, h * 0.5); });
+    const dk = std('#0d0f14', { roughness: 0.55 }), base = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.9, 1.5), [dk, dk, dk, dk, new THREE.MeshStandardMaterial({ map: fr, roughness: 0.5 }), dk]); base.position.y = -0.8; base.castShadow = true; s.add(base);
+        const inner = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.4), glow(col)); inner.rotation.x = -Math.PI / 2; inner.position.y = -0.34; s.add(inner);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.18, 1.6), [std('#0d0f14'), std('#0d0f14'), new THREE.MeshStandardMaterial({ map: lid, roughness: 0.5 }), std('#0d0f14'), std('#0d0f14'), std('#0d0f14')]);
+    top.position.set(0, 0.05, -0.55); top.rotation.x = -0.75; top.castShadow = true; s.add(top);
+    return { pos: [0, 1.2, 4.8], look: [0, -0.45, 0], fov: 38 }; },
+  // 5. Футболка в упаковке: сложенная майка с номером под прозрачной плёнкой, наклейка редкости
+  shirt(s, [col, dark]) { const shirt = canvasTex(600, 800, (g, w, h) => { const gr = g.createLinearGradient(0, 0, w, h); gr.addColorStop(0, dark); gr.addColorStop(1, '#05070c'); g.fillStyle = gr; g.fillRect(0, 0, w, h);
+      g.fillStyle = col; g.fillRect(0, 0, w, 60); g.beginPath(); g.moveTo(w / 2 - 90, 60); g.quadraticCurveTo(w / 2, 150, w / 2 + 90, 60); g.fill();
+      g.strokeStyle = 'rgba(255,255,255,.1)'; g.lineWidth = 3; for (let x = 0; x < w; x += 40) { g.beginPath(); g.moveTo(x, 60); g.lineTo(x, h); g.stroke(); }
+      g.fillStyle = '#fff'; g.font = '800 340px IB'; g.textAlign = 'center'; g.fillText('10', w / 2, 520); g.font = '800 70px IB'; g.fillText('ДЖЕКСОНЫ', w / 2, 650); });
+    const fold = new THREE.Mesh(new THREE.BoxGeometry(1.7, 2.2, 0.28), [std(dark), std(dark), std(dark), std(dark), new THREE.MeshStandardMaterial({ map: shirt, roughness: 0.7 }), std(dark)]); fold.castShadow = true; s.add(fold);
+    const film = new THREE.Mesh(new THREE.BoxGeometry(1.8, 2.3, 0.34), new THREE.MeshPhysicalMaterial({ color: 0xffffff, transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0, clearcoat: 1 })); s.add(film);
+    const stk = new THREE.Mesh(new THREE.CircleGeometry(0.32, 40), new THREE.MeshStandardMaterial({ map: canvasTex(256, 256, (g) => { g.fillStyle = col; g.beginPath(); g.arc(128, 128, 126, 0, 7); g.fill(); g.fillStyle = '#0a0d14'; g.font = '800 92px IB'; g.textAlign = 'center'; g.fillText('ДЖ', 128, 160); }), roughness: 0.3 }));
+    stk.position.set(0.55, 0.75, 0.18); stk.rotation.z = 0.2; s.add(stk);
+    s.children.filter((o) => o.isMesh && o !== s.children[0]).forEach(() => {});
+    const g2 = new THREE.Group(); [fold, film, stk].forEach((o) => g2.add(o)); g2.rotation.set(-0.15, -0.35, 0.06); s.add(g2);
+    return { pos: [0, 0.2, 4.6], look: [0, 0, 0], fov: 40 }; },
+};
+window.renderForm = async (kind, rar, w, h) => { await document.fonts.load('800 40px IB'); const c = RAR[rar], s = rig(w, h, c[0]), v = FORMS[kind](s, c);
+  const cam = new THREE.PerspectiveCamera(v.fov, w / h, 0.1, 100); cam.position.set(...v.pos); cam.lookAt(...v.look); R.render(s, cam); return R.domElement.toDataURL('image/png'); };
+</script></body></html>
