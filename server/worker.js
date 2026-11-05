@@ -602,7 +602,7 @@ const Price = {
 };
 // ECON:END
 let ecoReady = false;
-const PASS_CAT = [["PS:f10","Букайо Сака",89,"ps","ПВ","Арсенал","Англия"],["PS:f20","Педри",91,"ps","ЦП","Барселона","Испания"],["PS:f30","Гарри Кейн",93,"ps","ФРВ","Бавария","Англия"],["PS:p10","Джуд Беллингем",94,"psp","ЦАП","Реал Мадрид","Англия"],["PS:p20","Эрлинг Холанд",96,"psp","ФРВ","Манчестер Сити","Норвегия"],["PS:p30","Килиан Мбаппе",98,"psp","ФРВ","Реал Мадрид","Франция"]];
+const PASS_CAT = [["PS:f10","Мало Гюсто",82,"ps","ПЗ","Челси","Франция"],["PS:f20","Мейсон Маунт",83,"ps","ЦАП","Манчестер Юнайтед","Англия"],["PS:f30","Габриэл Мартинелли",84,"ps","ЛВ","Аль-Хиляль","Бразилия"],["PS:p10","Леви Колуилл",83,"psp","ЦЗ","Челси","Англия"],["PS:p20","Нони Мадуэке",84,"psp","ПВ","Арсенал","Англия"],["PS:p30","Габриэл Жезус",85,"psp","ФРВ","Барселона","Бразилия"]];
 async function ecoSchema(db) {
   if (ecoReady) return;
   await db.batch([
@@ -632,7 +632,7 @@ async function ecoSchema(db) {
     db.prepare('CREATE INDEX IF NOT EXISTS wipe_backup_uid ON wipe_backup (uid, ts)'),
   ]);
   // карточки пропуска (5.11, как PASS_CARDS в js/cards.js): в каталоге всегда, из паков не выпадают (dr = 0)
-  await db.batch(PASS_CAT.map((c) => db.prepare('INSERT OR IGNORE INTO eco_cat (key, name, r, rar, pos, club, nat, dr) VALUES (?, ?, ?, ?, ?, ?, ?, 0)').bind(...c)));
+  await db.batch(PASS_CAT.map((c) => db.prepare('INSERT INTO eco_cat (key, name, r, rar, pos, club, nat, dr) VALUES (?, ?, ?, ?, ?, ?, ?, 0) ON CONFLICT(key) DO UPDATE SET name = excluded.name, r = excluded.r, rar = excluded.rar, pos = excluded.pos, club = excluded.club, nat = excluded.nat, dr = 0').bind(...c)));
   // один раз: стереть накопленную историю (оставить отметки о стартовых монетах)
   if (!(await db.prepare("SELECT v FROM settings WHERE k = 'migration:eco-led-off'").first())) await db.batch([
     db.prepare("DELETE FROM eco_led WHERE NOT (kind = 'earn' AND src = 'start')"),
