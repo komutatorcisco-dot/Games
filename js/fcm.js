@@ -92,7 +92,7 @@ const FCM = (() => {
     try { const S0 = ClubPath.S(), c = ClubPath.CH[Math.min(S0.ch, ClubPath.CH.length) - 1]; ch = c; all = c.tasks.length; done = Object.keys(S0.tok).filter((k) => k.startsWith(c.id + ':')).length; ready = ClubPath.ready(); } catch (e) { /* без карьеры */ }
     return `<button class="fm-sl jg on" data-i="0" data-fm-car>
         <span class="fm-sl-art">${jg ? `<span class="fm-sl-card">${Cards.html(jg, { w: 150 })}</span>` : ''}</span>
-        <span class="fm-sl-t"><small>Глава ${ch.id} · испытание Джексона</small><b>${esc(ch.t)}</b>
+        <span class="fm-sl-t"><small>Карьера · глава ${ch.id}</small><b>${esc(ch.t)}</b>
           <span class="fm-hb"><span class="fm-bar"><i style="width:${Math.max(3, Math.round(100 * done / all))}%"></i></span><u>${done}/${all}</u></span>
           <i class="fm-sl-go">${ready ? 'Забрать награду' : done ? 'Продолжить' : 'Начать главу'}</i></span></button>`;
   }
@@ -216,7 +216,7 @@ const FCM = (() => {
   function team() {
     const { s, F, cards, have, ovr, owned } = teamData(), u = Store.d.user || {};
     const panel = `<div class="fm-tside">
-        <div class="fm-club"><span class="fm-ovr"><small>ОБЩ</small><b>${ovr || '—'}</b></span></div>
+        <div class="fm-club">${ovr ? `<span class="fm-ovr"><small>ОБЩ</small><b>${ovr}</b></span>` : '<span class="fm-club-hint">Поставь игроков — появится рейтинг команды</span>'}</div>
         <div class="fm-stats"><span><small>Схема</small><b>${esc(s.form)}</b></span><span><small>Химия</small><b>${Squad.info ? Squad.info().chem : '—'}</b></span><span><small>Состав</small><b>${have.length}/11</b></span></div>
         <button class="fm-btn gold" data-fm-auto>Лучший состав</button>
         <button class="fm-btn" data-act="collection">Коллекция</button>

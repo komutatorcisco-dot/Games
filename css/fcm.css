@@ -1207,3 +1207,10 @@
   .ps2-note { margin: 0; font: 500 11px "Inter Tight", sans-serif; color: #9fb2cc; }
   .fm-body:has(> .ps2) { height: 100%; min-height: 0; }
 }
+/* мелкие правки (5.11): цены у маленьких паков не вылезают, последняя награда главы не обрезается, пустой состав без «ОБЩ —» */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-st-mini .fm-pk-p { flex-wrap: wrap; justify-content: center; row-gap: 3px; } .fm-st-mini .fm-pr { height: 22px; }
+  .cr-st:last-of-type { transform: translateX(-88%); }
+  .cr-st span img { height: 34px; width: 34px; max-height: none; object-fit: cover; object-position: 50% 76%; }
+  .fm-club-hint { display: block; padding: 10px 12px; font: 700 12px/1.3 "Inter Tight", sans-serif; color: #9fb2cc; text-align: center; }
+}
