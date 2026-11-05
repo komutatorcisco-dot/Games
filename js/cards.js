@@ -26,6 +26,9 @@ const Cards = (() => {
   // долгий рост (5.11): не звёзды, рейтинг 82–85; премиум на уровне — на 1 выше бесплатной
   const PASS_CARDS = [[10, 'f', 'Мало Гюсто', 82], [20, 'f', 'Мейсон Маунт', 83], [30, 'f', 'Габриэл Мартинелли', 84],
     [10, 'p', 'Леви Колуилл', 83], [20, 'p', 'Нони Мадуэке', 84], [30, 'p', 'Габриэл Жезус', 85]];
+  // путь трофеев (5.11): уникальные карточки той же расцветки, что у пропуска; на 15 000 — золотая (psp). [трофеи, игрок, рейтинг]
+  const ROAD_CARDS = [[2500, 'Диогу Далот', 80], [4000, 'Ромео Лавия', 81], [6000, 'Уэсли Фофана', 82], [8000, 'Йосип Станишич', 83],
+    [10000, 'Кертис Джонс', 84], [12500, 'Нико Гонсалес Иглесиас', 85], [15000, 'Эдуардо Камавинга', 86]];
   let ALL = null, BY = null;
   function all() {
     if (ALL) return ALL;
@@ -55,7 +58,8 @@ const Cards = (() => {
     const low = typeof CARDS_LOW === 'undefined' ? [] : CARDS_LOW.filter((x) => !have.has(x[1])).map(([id, name, r, pos, club, lg, nat, flag, born, st]) => ({ key: 'L:' + id, name, r, pos, club, lg, nat, flag, born, face: id, st, rar: r >= 65 ? 'silver' : 'bronze' }));
     // карточки пропуска (5.11): уровни 10, 20, 30; бесплатные (СЕЗОН) и премиум (СЕЗОН · ПРЕМИУМ — рейтинг выше). Только из пропуска.
     const pass = PASS_CARDS.map(([lv, line, name, r]) => { const b = cur.find((c) => c.name === name); return b && { ...b, key: `PS:${line}${lv}`, r, rar: line === 'p' ? 'psp' : 'ps', sbcOnly: true, series: line === 'p' ? 'Пропуск · Премиум' : 'Пропуск', passLv: lv, st: FC_STATS[name].slice(1, 7).map((v) => Math.min(99, v + (r - b.r))) }; }).filter(Boolean);
-    ALL = [...cur, ...low, ...legs, ...jack, ...future, ...forgotten, ...jg, ...pass];
+    const road = ROAD_CARDS.map(([t, name, r]) => { const b = cur.find((c) => c.name === name); return b && { ...b, key: `RD:${t}`, r, rar: t >= 15000 ? 'psp' : 'ps', sbcOnly: true, series: 'Путь трофеев', roadT: t, st: FC_STATS[name].slice(1, 7).map((v) => Math.min(99, v + (r - b.r))) }; }).filter(Boolean);
+    ALL = [...cur, ...low, ...legs, ...jack, ...future, ...forgotten, ...jg, ...pass, ...road];
     if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
       c.positions = PlayerPositions.get(c.name, c.pos);
       if (!c.posFix) c.pos = PlayerPositions.RU[c.positions[0]] || c.pos;
@@ -388,6 +392,7 @@ const Cards = (() => {
       Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>${esc(c.series)}</h2><p>Награда испытания. Из паков не выпадает, за монеты не продаётся.</p>${c.model3d && typeof Model3D !== 'undefined' ? '<button class="btn ghost cd-wo" data-model3d="' + esc(c.key) + '">Посмотреть в 3D</button>' : ''}</div>`, [{ label: 'К испытанию', onClick: () => Legends.open(c.challenge) }, { label: 'Закрыть', cls: 'ghost' }]);
       return;
     }
+    if (c.roadT) { Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>Путь трофеев</h2><p>Награда за ${c.roadT} трофеев. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]); return; }
     if (c.rar === 'ps' || c.rar === 'psp') { Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>Карточка пропуска</h2><p>${c.rar === 'psp' ? 'Премиум-линия' : 'Бесплатная линия'} пропуска, уровень ${c.passLv}. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]); return; }
     if (c.rar === 'jg') { Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>Особая карточка</h2><p>Награда события Jackson Games. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'Понятно', cls: 'ghost' }]); return; }
     if (c.sbcOnly) {

@@ -71,10 +71,12 @@ const Rewards = (() => {
   const ROAD = [
     [10, { coins: 50 }], [25, { coins: 80 }], [50, { coins: 100 }], [80, { pack: 1 }], [100, { coins: 120 }],
     [120, { pack: 1 }], [170, { card: 'gold' }], [230, { pack: 2 }], [300, { pack: 2 }], [400, { card: 'legend' }],
-    [500, { pack: 3 }], [600, { coins: 500 }], [700, { pack: 2 }], [800, { card: 'legend' }], [950, { pack: 3 }],
-    [1100, { pack: 2 }], [1300, { card: 'jack' }], [1500, { pack: 3 }], [1750, { coins: 800 }], [2000, { pack: 4 }],
+    [500, { pack: 3 }], [600, { lime: 60 }], [700, { pack: 2 }], [800, { card: 'legend' }], [950, { pack: 3 }],
+    [1100, { pack: 2 }], [1300, { card: 'jack' }], [1500, { pack: 3 }], [1750, { lime: 120 }], [2000, { pack: 4 }],
     // дальше дорога идёт вместе с новыми играми (по одной на 200 трофеев): награда между ними
-    ...Array.from({ length: 20 }, (_, i) => [2300 + i * 250, [{ pack: 3 }, { coins: 900 }, { card: 'legend' }, { pack: 2 }, { pack: 4 }][i % 5]]),
+    // 5.11: дальше — до 15 000 каждые 250: лаймовые очки, паки, монеты; на 2 500…15 000 — уникальные карточки пути (RD: в js/cards.js)
+    ...Array.from({ length: 51 }, (_, i) => { const t = 2500 + i * 250, CARD = [2500, 4000, 6000, 8000, 10000, 12500, 15000];
+      return [t, CARD.includes(t) ? { key: `RD:${t}` } : t % 5000 === 0 ? { pack: 4 } : [{ lime: 80 + i * 6 }, { pack: 2 }, { coins: 900 }, { lime: 100 + i * 6 }, { pack: 3 }][i % 5]]; }),
   ];
   const OLD_ROAD = [10, 25, 50, 80, 120, 170, 230, 300, 380, 470, 570, 680, 800, 950, 1100, 1300, 1500, 1750, 2000];
   const PACKNAME = ['Обычный пак', 'Сверхредкий пак', 'Эпический пак', 'Легендарный пак', 'Пак «ДЖЕКСОН!!»'];
@@ -82,6 +84,7 @@ const Rewards = (() => {
   const CARDNAME = { gold: 'Золотая карточка', legend: 'Карточка-легенда', jack: 'Карточка «Джексон»' };
   function rewardLabel(r) {
     if (r.key) { const c = Cards.get(r.key); return c ? { ico: `<span class="rs-pc">${Cards.html(c, { w: 34 })}</span>`, txt: `${Cards.surname ? Cards.surname(c.name) : c.name} ${c.r}`, art: `<span class="rs-pc big">${Cards.html(c, { w: 120 })}</span>`, name: `${c.name} · ${c.r}` } : { ico: Ui.get('gift'), txt: 'Карточка', art: Ui.get('gift'), name: 'Карточка' }; }
+    if (r.lime) return { ico: '<i class="lime"></i>', txt: `${r.lime}`, art: '<i class="lime big"></i>', name: `+${r.lime} лаймовых очков` };
     if (r.coins) return { ico: '<i class="coin"></i>', txt: `${r.coins}`, art: `<span class="rs-coins">${Art.img(r.coins >= 150 ? 'coinpile' : 'coins')}</span>`, name: `+${r.coins}` };
     if (r.lives) return { ico: `<span class="ui-red">${Ui.get('heart')}</span>`, txt: `×${r.lives}`, art: `<span class="rs-heart">${Ui.get('heart')}</span>`, name: `Жизни ×${r.lives}` };
     if (r.card) return { ico: `<span class="rs-card sm ${r.card}">?</span>`, txt: CARDNAME[r.card].split(' ')[0], art: `<span class="rs-card ${r.card}">?</span>`, name: CARDNAME[r.card].replace('Карточка-', '').replace('Карточка ', '') };
@@ -90,6 +93,7 @@ const Rewards = (() => {
     return { ico: Ui.get('gift'), txt: '', art: Ui.get('gift'), name: '' };
   }
   function giveReward(r, title) {
+    if (r.lime && typeof Lime !== 'undefined') { Lime.add(r.lime, /ДОРОГА/.test(title || '') ? 'road' : 'pass'); toast(`+${r.lime} лаймовых очков прокачки`); }
     if (r.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(r.coins); }
     if (r.lives) { Store.d.shop.lives += r.lives; Store.save(); toast(`+${r.lives} ${plural(r.lives, 'жизнь', 'жизни', 'жизней')}`); }
     if (r.pack !== undefined) openDrop({ title, minLevel: r.pack });
@@ -109,8 +113,8 @@ const Rewards = (() => {
   const PASS = Array.from({ length: PASS_LEVELS }, (_, i) => {
     const L = i + 1;
     // 5.11: на 10, 20 и 30 уровнях — карточки пропуска (премиум — с рейтингом выше); жизней в пропуске больше нет
-    const free = L % 10 === 0 ? { key: `PS:f${L}` } : L % 5 === 0 ? { pack: 2 } : L % 2 === 0 ? { pack: 0 } : { coins: 30 + L * 2 };
-    const prem = L === 1 ? { pack: 2 } : L % 10 === 0 ? { key: `PS:p${L}` } : L === 25 ? { pack: 4 } : L % 5 === 0 ? { pack: 3 } : L % 2 === 0 ? { pack: 1 } : { coins: 60 + L * 4 };
+    const free = L % 10 === 0 ? { key: `PS:f${L}` } : L % 5 === 0 ? { pack: 2 } : L % 2 === 0 ? { pack: 0 } : L % 4 === 3 ? { lime: 20 + L * 2 } : { coins: 30 + L * 2 };
+    const prem = L === 1 ? { pack: 2 } : L % 10 === 0 ? { key: `PS:p${L}` } : L === 25 ? { pack: 4 } : L % 5 === 0 ? { pack: 3 } : L % 2 === 0 ? { pack: 1 } : L % 4 === 3 ? { lime: 40 + L * 4 } : { coins: 60 + L * 4 };
     return [free, prem];
   });
   function passSync() {

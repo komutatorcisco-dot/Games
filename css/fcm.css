@@ -1214,3 +1214,12 @@
   .cr-st span img { height: 34px; width: 34px; max-height: none; object-fit: cover; object-position: 50% 76%; }
   .fm-club-hint { display: block; padding: 10px 12px; font: 700 12px/1.3 "Inter Tight", sans-serif; color: #9fb2cc; text-align: center; }
 }
+/* путь трофеев (5.11): одна дорожка, как у пропуска; карточки пути подсвечены */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .ps2-body.rd { grid-template-columns: minmax(0, 1fr); }
+  .ps2-col.rd { --ch: clamp(76px, calc(100dvh - var(--fm-b, 0px) - 196px), 150px); grid-template-rows: var(--ch) 22px; flex-basis: 96px; }
+  .ps2-col.rd::before { top: auto; bottom: 9px; margin-top: 0; }
+  .ps2-col.rd .ps2-n { min-width: 46px; font-size: 11px; }
+  .ps2-col.rd.sp { flex-basis: 112px; }
+  .ps2-lv.tr { background: radial-gradient(circle at 35% 30%, #ffe58a, #e0a300); color: #2a1a00; } .ps2-lv.tr svg { width: 20px; height: 20px; }
+}

@@ -35,7 +35,7 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
 (async () => {
   assert.equal(T.ecoOn({}, new URL('https://jackson-games.komutatorcisco.workers.dev/eco')), false, 'рабочий сервер: /eco выключен');
   await T.schema(db); await T.ecoSchema(db);
-  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM eco_cat WHERE key LIKE 'PS:%' AND dr = 0").get().n, 6, 'карточки пропуска сразу в каталоге сервера и не выпадают из паков');
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM eco_cat WHERE (key LIKE 'PS:%' OR key LIKE 'RD:%') AND dr = 0").get().n, 13, 'карточки пропуска сразу в каталоге сервера и не выпадают из паков');
   // каталог: 30 бронзы, 30 серебра, 30 золота 75–90, особая карточка
   const ins = sql.prepare('INSERT INTO eco_cat (key, name, r, rar, pos, club, nat, dr) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
   assert.ok((await call(77, { act: 'a_catalog', rows: [['B0', 'Бронза 0', 50, 'bronze', 'ВРТ', 'Клуб', 'Бразилия', 1]] })).ok, 'пустой каталог заливает любой');
@@ -169,12 +169,13 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
   // ---- лаймовые очки и прокачка (5.11) ----
   assert.ok((await call(90, { act: 'grant', keys: ['B0'], src: 'event', op: op() })).ok);
   const l1 = await call(90, { act: 'lime', n: 500, src: 'drop', op: op() });
-  assert.equal(l1.got, T.ECON.lime.cap, 'очков в день — не больше потолка'); assert.equal(l1.lime, T.ECON.lime.cap);
+  assert.equal((await call(91, { act: 'lime', n: 2000, src: 'road', op: op() })).got, 2000, 'путь трофеев — свой потолок');
+  assert.equal(l1.got, T.ECON.lime.capSrc.drop, 'очков в день — не больше потолка'); assert.equal(l1.lime, T.ECON.lime.capSrc.drop);
   assert.equal((await call(90, { act: 'lime', n: 50, src: 'drop', op: op() })).got, 0, 'после потолка — ноль');
   sql.exec('UPDATE eco_wallet SET coins = 100000 WHERE uid = 90');
   const r0 = sql.prepare("SELECT r FROM eco_cat WHERE key = 'B0'").get().r;
   const LC = (r) => { const L = T.ECON.lime, pts = Math.max(L.base, Math.round((L.base * Math.pow(L.k, r - L.from)) / 5) * 5); return { pts, coins: pts * L.coinK }; };
-  let lime = T.ECON.lime.cap, cn = 100000, ups = 0;
+  let lime = T.ECON.lime.capSrc.drop, cn = 100000, ups = 0;
   while (LC(r0 + ups).pts <= lime) { const o = op(), u = await call(90, { act: 'upgrade', key: 'B0', op: o }); assert.ok(u.ok, 'прокачка ' + (ups + 1)); lime -= LC(r0 + ups).pts; cn -= LC(r0 + ups).coins; ups++;
     assert.equal(u.lime, lime); assert.equal(u.coins, cn); assert.equal(u.r, r0 + ups);
     if (ups === 1) assert.equal((await call(90, { act: 'upgrade', key: 'B0', op: o })).ok, false, 'тот же op второй раз не проходит'); }

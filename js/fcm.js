@@ -440,11 +440,11 @@ const FCM = (() => {
     return `<button class="fm-ps-c ${st}" ${attr}><span class="fm-ps-a">${art}</span><b>${esc(l.txt || l.name)}</b>${st === 'got' ? '<i>✓</i>' : st === 'ready' ? '<em>Забрать</em>' : st === 'buy' ? '<em class="pr">Премиум</em>' : ''}</button>`;
   }
   // ---- пропуск (5.11): сверху премиум-линия, снизу бесплатная, посередине уровни на линии прогресса; дорожка встаёт на текущий уровень ----
-  function psCell(r, st, attr, prem) {
+  function psCell(r, st, attr, prem, cw = 42) {
     const l = Rewards.rewardLabel(r);
     const pc = r.key && Cards.get(r.key);
-    const art = pc ? `<span class="ps2-card">${Cards.html(pc, { w: 42 })}</span>` : r.pack !== undefined ? `<img class="ps2-pk" src="img/packs/pk${r.pack}-160.webp?v=b2" alt="">` : r.coins ? '<i class="coin big"></i>' : `<span class="ps2-ic">${l.ico}</span>`;
-    const name = pc ? l.txt : r.pack !== undefined ? l.txt : r.coins ? `${r.coins}` : (l.name || l.txt);
+    const art = pc ? `<span class="ps2-card">${Cards.html(pc, { w: cw })}</span>` : r.pack !== undefined ? `<img class="ps2-pk" src="img/packs/pk${r.pack}-160.webp?v=b2" alt="">` : r.coins ? '<i class="coin big"></i>' : r.lime ? '<i class="lime big"></i>' : `<span class="ps2-ic">${l.ico}</span>`;
+    const name = r.lime ? `${r.lime}` : pc ? l.txt : r.pack !== undefined ? l.txt : r.coins ? `${r.coins}` : (l.name || l.txt);
     const tag = st === 'got' ? '<i class="ps2-ok">✓</i>' : st === 'ready' ? '<em>Забрать</em>' : /buy/.test(st) ? `<i class="ps2-lock">${ico('lock')}</i>` : '';
     return `<button class="ps2-c ${st} ${prem ? 'pr' : ''} ${pc ? 'sp' : ''}" ${attr}><span class="ps2-a">${art}</span><b>${esc(name)}</b>${tag}</button>`;
   }
@@ -467,14 +467,19 @@ const FCM = (() => {
   }
   // ---- путь трофеев: награды за число трофеев ----
   function roadView() {
-    const s = Rewards.S(), t = s.trophies || 0;
-    const items = Rewards.ROAD.map(([th, r], i) => ({ th, r, i })).filter((x) => x.th <= Math.max(t + 1500, 1000));
-    const next = items.find((x) => x.th > t);
-    return `<div class="fm-ps">
-      <div class="fm-qh"><span class="fm-qh-t"><b>Путь трофеев</b><small>${cup}${t} трофеев${next ? ` · до следующей награды ${next.th - t}` : ''}</small></span></div>
-      <div class="fm-ps-track road">${items.map((x) => { const st = s.road.includes(x.i) ? 'got' : t >= x.th ? 'ready' : 'lock';
-        return `<div class="fm-ps-col ${t >= x.th ? 'reach' : ''}">${rwCell(x.r, st, st === 'ready' ? `data-fm-road="${x.i}"` : '')}<span class="fm-ps-n">${cup}${x.th}</span></div>`; }).join('')}</div>
-      <p class="mk-note">Трофеи — за победы в матчах и играх.</p></div>`;
+    const s = Rewards.S(), t = s.trophies || 0, R = Rewards.ROAD;
+    let ready = 0;
+    const cols = R.map(([th, r], i) => { const st = s.road.includes(i) ? 'got' : t >= th ? 'ready' : 'lock'; if (st === 'ready') ready++;
+      const c = r.key && Cards.get(r.key);
+      return `<div class="ps2-col rd ${t >= th ? 'reach' : ''} ${c ? 'sp' : ''}">${psCell(r, st, st === 'ready' ? `data-fm-road="${i}"` : '', c && c.rar === 'psp', Math.max(42, Math.min(80, Math.round((innerHeight - 260) / 1.45))))}<span class="ps2-n">${th}</span></div>`; }).join('');
+    const ni = R.findIndex(([th]) => th > t), next = ni < 0 ? null : R[ni][0], prev = ni > 0 ? R[ni - 1][0] : 0;
+    const pct = next ? Math.round(100 * (t - prev) / Math.max(1, next - prev)) : 100;
+    const firstReady = R.findIndex(([th], i) => t >= th && !s.road.includes(i)), cur = firstReady >= 0 ? firstReady : Math.max(0, ni);
+    return `<div class="ps2 rdv">
+      <div class="ps2-head"><span class="ps2-lv tr">${cup}</span>
+        <span class="ps2-t"><b>Путь трофеев · ${t}</b><span class="fm-bar"><i style="width:${pct}%"></i></span><small>${next ? `до следующей награды ${next - t}` : 'пройден до конца'}${ready ? ` · <u>забрать: ${ready}</u>` : ''}</small></span></div>
+      <div class="ps2-body rd"><div class="ps2-track" data-cur="${cur}">${cols}</div></div>
+      <p class="ps2-note">Трофеи — за победы. На 2 500, 4 000, 6 000 … 15 000 — уникальные карточки пути.</p></div>`;
   }
   function quests() {
     let q; try { q = Rewards.questSync(); } catch (e) { q = { list: [], wlist: [], slist: [] }; }

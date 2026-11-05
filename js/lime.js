@@ -25,9 +25,10 @@ const Lime = (() => {
   // начислить очки (мяч-дроп, злой мяч и т. п.): потолок в день — как на сервере
   async function add(v, src = 'drop') {
     v = Math.max(0, Math.floor(v)); if (!v) return 0;
-    const s = S(); if (s.day !== day()) { s.day = day(); s.got = 0; }
-    const got = Math.min(v, ECON.lime.cap - s.got); if (got <= 0) return 0;
-    s.got += got; s.n = n() + got; Store.save(); render();
+    const s = S(), cs = ECON.lime.capSrc || {}; if (!cs[src]) src = 'drop';
+    if (s.day !== day() || typeof s.got !== 'object') { s.day = day(); s.got = {}; }
+    const got = Math.min(v, (cs[src] || ECON.lime.cap) - (s.got[src] || 0)); if (got <= 0) return 0;
+    s.got[src] = (s.got[src] || 0) + got; s.n = n() + got; Store.save(); render();
     if (srv()) { const res = await Eco.post('lime', { n: got, src, op: Eco.opid() }); if (res && typeof res.lime === 'number') apply(res); }
     return got;
   }

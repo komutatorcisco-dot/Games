@@ -576,7 +576,7 @@ const ECON = {
   jp: { start: 0 },
   // ---- лаймовые очки прокачки (5.11): прокачка карточки +1 к рейтингу, каждый уровень дороже на 28%, до 99, без другого потолка ----
   // цена шага r → r+1: очки = 10 · 1,28^(r−60) (не меньше 10), монеты = очки × 5. 71→80 ≈ 4 400 очков, 80→89 ≈ 41 000.
-  lime: { cap: 400, base: 10, k: 1.28, from: 60, coinK: 5, max: 99,
+  lime: { cap: 400, capSrc: { drop: 400, angry: 600, road: 2500, pass: 1500 }, base: 10, k: 1.28, from: 60, coinK: 5, max: 99,
     drop: [[10, 25], [20, 45], [35, 70], [60, 110], [100, 180]], // мяч-дроп по редкости: [от, до] очков
     angry: [[120, 200], [180, 300], [260, 420]] },              // злой мяч: эпический, легендарный, «Джексон»
   // ---- боты рынка (только проверочный сервер, выключаются в настройках) ----
@@ -609,7 +609,7 @@ const Price = {
 };
 // ECON:END
 let ecoReady = false;
-const PASS_CAT = [["PS:f10","Мало Гюсто",82,"ps","ПЗ","Челси","Франция"],["PS:f20","Мейсон Маунт",83,"ps","ЦАП","Манчестер Юнайтед","Англия"],["PS:f30","Габриэл Мартинелли",84,"ps","ЛВ","Аль-Хиляль","Бразилия"],["PS:p10","Леви Колуилл",83,"psp","ЦЗ","Челси","Англия"],["PS:p20","Нони Мадуэке",84,"psp","ПВ","Арсенал","Англия"],["PS:p30","Габриэл Жезус",85,"psp","ФРВ","Барселона","Бразилия"]];
+const PASS_CAT = [["PS:f10","Мало Гюсто",82,"ps","ПЗ","Челси","Франция"],["PS:f20","Мейсон Маунт",83,"ps","ЦАП","Манчестер Юнайтед","Англия"],["PS:f30","Габриэл Мартинелли",84,"ps","ЛВ","Аль-Хиляль","Бразилия"],["PS:p10","Леви Колуилл",83,"psp","ЦЗ","Челси","Англия"],["PS:p20","Нони Мадуэке",84,"psp","ПВ","Арсенал","Англия"],["PS:p30","Габриэл Жезус",85,"psp","ФРВ","Барселона","Бразилия"],["RD:2500","Диогу Далот",80,"ps","ПЗ","Манчестер Юнайтед","Португалия"],["RD:4000","Ромео Лавия",81,"ps","ЦОП","Челси","Бельгия"],["RD:6000","Уэсли Фофана",82,"ps","ЦЗ","Челси","Франция"],["RD:8000","Йосип Станишич",83,"ps","ПЗ","Бавария","Хорватия"],["RD:10000","Кертис Джонс",84,"ps","ЦП","Интер","Англия"],["RD:12500","Нико Гонсалес Иглесиас",85,"ps","ЦОП","Манчестер Сити","Испания"],["RD:15000","Эдуардо Камавинга",86,"psp","ЦП","Реал Мадрид","Франция"]];
 async function ecoSchema(db) {
   if (ecoReady) return;
   await db.batch([
@@ -641,7 +641,7 @@ async function ecoSchema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS wipe_backup (id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, ts INTEGER NOT NULL, tbl TEXT NOT NULL, data TEXT NOT NULL)'),
     db.prepare('CREATE INDEX IF NOT EXISTS wipe_backup_uid ON wipe_backup (uid, ts)'),
   ]);
-  // карточки пропуска (5.11, как PASS_CARDS в js/cards.js): в каталоге всегда, из паков не выпадают (dr = 0)
+  // карточки пропуска и пути трофеев (5.11, как PASS_CARDS и ROAD_CARDS в js/cards.js): в каталоге всегда, из паков не выпадают (dr = 0)
   await db.batch(PASS_CAT.map((c) => db.prepare('INSERT INTO eco_cat (key, name, r, rar, pos, club, nat, dr) VALUES (?, ?, ?, ?, ?, ?, ?, 0) ON CONFLICT(key) DO UPDATE SET name = excluded.name, r = excluded.r, rar = excluded.rar, pos = excluded.pos, club = excluded.club, nat = excluded.nat, dr = 0').bind(...c)));
   // один раз: стереть накопленную историю (оставить отметки о стартовых монетах)
   if (!(await db.prepare("SELECT v FROM settings WHERE k = 'migration:eco-led-off'").first())) await db.batch([
@@ -885,16 +885,17 @@ async function ecoQuick(db, uid, body) {
 }
 // ---- лаймовые очки (5.11): начисление с потолком в день; прокачка карточки за очки и монеты (цена — LimeCost по рейтингу) ----
 async function ecoLime(db, uid, body) {
-  const op = ecoOp(body.op), want = Math.max(1, Math.min(500, Math.floor(Number(body.n) || 0))), now = Date.now(), day = ecoDay();
+  const op = ecoOp(body.op), want = Math.max(1, Math.min(3000, Math.floor(Number(body.n) || 0))), now = Date.now(), day = ecoDay();
   if (!op) return { ok: false, error: 'bad op' };
-  const got = await db.prepare("SELECT n FROM eco_daily WHERE uid = ? AND day = ? AND src = 'lime'").bind(uid, day).first();
-  const n = Math.min(want, ECON.lime.cap - (got ? got.n : 0));
+  const src = Object.prototype.hasOwnProperty.call(ECON.lime.capSrc, body.src) ? body.src : 'drop', tag = 'lime:' + src; // у каждого источника свой потолок в день
+  const got = await db.prepare('SELECT n FROM eco_daily WHERE uid = ? AND day = ? AND src = ?').bind(uid, day, tag).first();
+  const n = Math.min(want, ECON.lime.capSrc[src] - (got ? got.n : 0));
   if (n <= 0) return { ok: true, got: 0, capped: true, ...(await ecoState(db, uid, true)) };
   try {
     await db.batch([
       db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
       db.prepare('INSERT INTO eco_lime (uid, n) VALUES (?1, ?2) ON CONFLICT(uid) DO UPDATE SET n = n + ?2').bind(uid, n),
-      db.prepare("INSERT INTO eco_daily (uid, day, src, n) VALUES (?1, ?2, 'lime', ?3) ON CONFLICT(uid, day, src) DO UPDATE SET n = n + ?3").bind(uid, day, n),
+      db.prepare('INSERT INTO eco_daily (uid, day, src, n) VALUES (?1, ?2, ?4, ?3) ON CONFLICT(uid, day, src) DO UPDATE SET n = n + ?3').bind(uid, day, n, tag),
     ]);
   } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
   return { ok: true, got: n, ...(await ecoState(db, uid, true)) };
@@ -1239,7 +1240,7 @@ async function eco(env, user, body) {
     // ---- админка ----
     case 'a_catalog': { // каталог карточек из игры: [key, name, r, rar, pos, club, nat, dr]
       // первая заливка в пустой каталог — с любого аккаунта (на проверочном сервере может не быть админа), дальше — только админ
-      const boot = !(await db.prepare("SELECT 1 FROM eco_cat WHERE key NOT LIKE 'PS:%' LIMIT 1").first()) || (await ecoSetting(db, 'catboot', '')) === String(uid);
+      const boot = !(await db.prepare("SELECT 1 FROM eco_cat WHERE key NOT LIKE 'PS:%' AND key NOT LIKE 'RD:%' LIMIT 1").first()) || (await ecoSetting(db, 'catboot', '')) === String(uid);
       if (!boot && !(await admin())) return { ok: false, error: 'forbidden' };
       if (boot && !(await ecoSetting(db, 'catboot', ''))) await setSetting(db, 'eco:catboot', String(uid));
       if (body.done && boot) await setSetting(db, 'eco:catboot', 'done');
