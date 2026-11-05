@@ -38,6 +38,7 @@ const FCM = (() => {
     puzzle: '<path d="M10 2.5a2.5 2.5 0 0 1 2.5 2.5V6H17a1 1 0 0 1 1 1v4.5h1a2.5 2.5 0 0 1 0 5h-1V21a1 1 0 0 1-1 1h-4.5v-1.2a2.5 2.5 0 0 0-5 0V22H3a1 1 0 0 1-1-1v-4.5h1.2a2.5 2.5 0 0 0 0-5H2V7a1 1 0 0 1 1-1h4.5V5A2.5 2.5 0 0 1 10 2.5z"/>',
     bolt: '<path d="M13.5 2 4 13.5h6.2L9 22l10-12.2h-6.3z"/>',
     timer: '<path fill-rule="evenodd" d="M9 1h6v2H9zm3 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm0 2.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM11 8h2v5.2l3.4 2-1 1.7L11 14.3z"/>',
+    lock: '<path d="M7 10V7a5 5 0 0 1 10 0v3h1.5a1.5 1.5 0 0 1 1.5 1.5v9a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 20.5v-9A1.5 1.5 0 0 1 5.5 10H7zm2.5 0h5V7a2.5 2.5 0 0 0-5 0v3z"/>',
     star: '<path d="m12 2 3 6.3 6.9.9-5 4.8 1.2 6.8L12 17.6l-6.1 3.2L7.1 14l-5-4.8 6.9-.9z"/>',
   };
   const ico = (k, cls = '') => `<svg class="fm-ic ${cls}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${IC[k] || IC.star}</svg>`;
@@ -436,19 +437,30 @@ const FCM = (() => {
     const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b2" alt="">` : r.coins ? '<i class="coin big"></i>' : l.ico;
     return `<button class="fm-ps-c ${st}" ${attr}><span class="fm-ps-a">${art}</span><b>${esc(l.txt || l.name)}</b>${st === 'got' ? '<i>✓</i>' : st === 'ready' ? '<em>Забрать</em>' : st === 'buy' ? '<em class="pr">Премиум</em>' : ''}</button>`;
   }
+  // ---- пропуск (5.11): сверху премиум-линия, снизу бесплатная, посередине уровни на линии прогресса; дорожка встаёт на текущий уровень ----
+  function psCell(r, st, attr, prem) {
+    const l = Rewards.rewardLabel(r);
+    const art = r.pack !== undefined ? `<img class="ps2-pk" src="img/packs/pk${r.pack}-160.webp?v=b2" alt="">` : r.coins ? '<i class="coin big"></i>' : `<span class="ps2-ic">${l.ico}</span>`;
+    const name = r.pack !== undefined ? l.txt : r.coins ? `${r.coins}` : (l.name || l.txt);
+    const tag = st === 'got' ? '<i class="ps2-ok">✓</i>' : st === 'ready' ? '<em>Забрать</em>' : /buy/.test(st) ? `<i class="ps2-lock">${ico('lock')}</i>` : '';
+    return `<button class="ps2-c ${st} ${prem ? 'pr' : ''}" ${attr}><span class="ps2-a">${art}</span><b>${esc(name)}</b>${tag}</button>`;
+  }
   function passView() {
     const p = Rewards.passSync(), L = Rewards.passLevel(), max = Rewards.PASS_LEVELS, step = Rewards.PASS_STEP, xp = L >= max ? step : p.xp - L * step;
     const left = Math.max(0, Math.ceil((Rewards.seasonEnd() - Date.now()) / 864e5));
+    let ready = 0;
     const cols = Rewards.PASS.map(([f, pr], i) => {
-      const fs = p.free.includes(i) ? 'got' : L > i ? 'ready' : 'lock', ps = p.prem.includes(i) ? 'got' : L > i ? (p.premium ? 'ready' : 'buy') : 'lock';
-      return `<div class="fm-ps-col ${L > i ? 'reach' : ''} ${L === i ? 'cur' : ''}">${rwCell(pr, ps, ps === 'ready' ? `data-fm-ps="prem:${i}"` : ps === 'buy' ? 'data-fm-psbuy' : '')}
-        <span class="fm-ps-n">${i + 1}</span>${rwCell(f, fs, fs === 'ready' ? `data-fm-ps="free:${i}"` : '')}</div>`; }).join('');
-    return `<div class="fm-ps">
-      <div class="fm-qh"><span class="fm-qp-lv"><small>Ур.</small><b>${L}</b></span><span class="fm-qp-t"><b>Пропуск · сезон ${Rewards.season()}</b><span class="fm-bar"><i style="width:${Math.round(100 * xp / step)}%"></i></span><small>${L >= max ? 'Пропуск пройден' : `${xp}/${step} очков до уровня ${L + 1}`} · ${left} ${plural(left, 'день', 'дня', 'дней')} до конца</small></span>
-        ${p.premium ? '<em class="fm-ps-on">Премиум активен</em>' : '<button class="fm-btn star sm" data-fm-psbuy>Премиум</button>'}</div>
-      <div class="fm-ps-lines"><small>Премиум</small><small>Бесплатно</small></div>
-      <div class="fm-ps-track">${cols}</div>
-      <p class="mk-note">Очки пропуска — за задания (больше всего), победы и матчи.</p></div>`;
+      const fs = p.free.includes(i) ? 'got' : L > i ? 'ready' : 'lock', ps = p.prem.includes(i) ? 'got' : L > i ? (p.premium ? 'ready' : 'buy') : p.premium ? 'lock' : 'buy lock';
+      ready += (fs === 'ready') + (ps === 'ready');
+      return `<div class="ps2-col ${L > i ? 'reach' : ''} ${L === i + 1 ? 'cur' : ''}" data-i="${i}">${psCell(pr, ps, ps === 'ready' ? `data-fm-ps="prem:${i}"` : /buy/.test(ps) ? 'data-fm-psbuy' : '', 1)}
+        <span class="ps2-n">${i + 1}</span>${psCell(f, fs, fs === 'ready' ? `data-fm-ps="free:${i}"` : '')}</div>`; }).join('');
+    return `<div class="ps2">
+      <div class="ps2-head"><span class="ps2-lv"><small>Ур.</small><b>${L}</b></span>
+        <span class="ps2-t"><b>Пропуск · сезон ${Rewards.season()}</b><span class="fm-bar"><i style="width:${Math.round(100 * xp / step)}%"></i></span><small>${L >= max ? 'Все уровни пройдены' : `${xp} из ${step} очков до уровня ${L + 1}`} · ещё ${left} дн.${ready ? ` · <u>забрать: ${ready}</u>` : ''}</small></span>
+        ${p.premium ? `<span class="ps2-prem on">${ico('star')} Премиум</span>` : `<button class="ps2-prem" data-fm-psbuy>${ico('star')} Купить премиум</button>`}</div>
+      <div class="ps2-body"><div class="ps2-lab"><b class="g">Премиум</b><b>Бесплатно</b></div>
+        <div class="ps2-track" data-cur="${Math.max(0, L - 1)}">${cols}</div></div>
+      <p class="ps2-note">Очки пропуска — за задания, победы и матчи.</p></div>`;
   }
   // ---- путь трофеев: награды за число трофеев ----
   function roadView() {
@@ -670,7 +682,10 @@ const FCM = (() => {
     const body = HOST[tab] ? `<div class="fm-host fm-host-${tab}"></div>` : { play, team, events, quests, store, coll, modes, market: () => Market.render() }[tab]();
     const entering = tab === 'team' && root.dataset.view !== 'team';
     root.dataset.view = tab;
+    const oldTrk = root.querySelector('.ps2-track'), keepX = oldTrk && root.dataset.view === tab ? oldTrk.scrollLeft : null;
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
+    { const trk = root.querySelector('.ps2-track'); if (trk) { // пропуск: после «Забрать» дорожка не прыгает, при входе — встаёт на текущий уровень
+      if (keepX !== null) trk.scrollLeft = keepX; else { const c = trk.children[+trk.dataset.cur || 0]; if (c) trk.scrollLeft = Math.max(0, c.offsetLeft - trk.clientWidth / 2 + c.offsetWidth / 2); } } }
     if (typeof Coins !== 'undefined') Coins.render();
     lastPlace = '';
     if (entering && bg3) { enterT = performance.now(); prevKey = null; stillN = 0; const tm = root.querySelector('.fm-team'); if (tm) tm.classList.add('fx-wait'); }

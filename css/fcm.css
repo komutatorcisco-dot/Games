@@ -1165,3 +1165,41 @@
   .fm-pk-img, .fm-st-hero img, .fm-daypk img, .fm-pf img { aspect-ratio: 1; object-fit: cover; object-position: 50% 76%; }
   .fm-st-hero img { height: clamp(76px, 24vh, 100px) !important; } /* не шире прежнего пака — название рядом не обрезается */
 }
+/* пропуск (5.11): премиум сверху (золото), бесплатно снизу, уровни на линии прогресса */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .ps2 { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 6px; min-width: 0; height: 100%; }
+  .ps2-head { display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: 12px; background: rgba(8,16,32,.82); box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .ps2-lv { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #c6ff3d, #6aa10a); color: #06101c; line-height: 1; flex: none; }
+  .ps2-lv small { font: 800 8px "Inter Tight", sans-serif; text-transform: uppercase; } .ps2-lv b { font: 900 17px "Inter Tight", sans-serif; margin-top: -6px; }
+  .ps2-t { flex: 1; display: grid; gap: 4px; min-width: 0; } .ps2-t b { font: 900 15px/1 "Inter Tight", sans-serif; text-transform: uppercase; }
+  .ps2-t small { font: 600 11px/1 "Inter Tight", sans-serif; color: #9fb2cc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ps2-t u { text-decoration: none; color: var(--fm-lime); font-weight: 800; }
+  .ps2-prem { display: flex; align-items: center; gap: 6px; padding: 8px 14px !important; border: 0; border-radius: 10px; background: linear-gradient(180deg, #ffe07a, #f0b32e) !important; color: #2a1a00 !important; font: 900 13px "Inter Tight", sans-serif !important; text-transform: uppercase; white-space: nowrap; box-shadow: 0 4px 14px rgba(240,179,46,.35); }
+  .ps2-prem .fm-ic { width: 15px; height: 15px; } .ps2-prem.on { background: rgba(255,210,60,.15) !important; color: #ffd23c !important; box-shadow: inset 0 0 0 1px rgba(255,210,60,.4); }
+  .ps2-body { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 4px; min-height: 0; }
+  .ps2-lab { --ch: clamp(58px, calc((100dvh - var(--fm-b, 0px) - 222px) / 2), 112px); display: grid; grid-template-rows: var(--ch) 22px var(--ch); gap: 6px; align-content: start; padding-top: 2px; } .ps2-lab b { writing-mode: vertical-rl; transform: rotate(180deg); justify-self: center; align-self: center; font: 800 10px "Inter Tight", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #9fb2cc; }
+  .ps2-lab b.g { color: #ffd23c; } .ps2-lab::after { content: ''; grid-row: 2; }
+  .ps2-lab b:last-child { grid-row: 3; }
+  .ps2-track { display: flex; overflow-x: auto; overflow-y: hidden; scroll-behavior: smooth; scrollbar-width: none; padding: 2px 2px 4px; min-height: 0; }
+  .ps2-track::-webkit-scrollbar { display: none; }
+  .ps2-col { --ch: clamp(58px, calc((100dvh - var(--fm-b, 0px) - 222px) / 2), 112px); position: relative; flex: 0 0 88px; display: grid; grid-template-rows: var(--ch) 22px var(--ch); gap: 6px; padding: 0 4px; align-content: start; }
+  /* линия прогресса через номера уровней */
+  .ps2-col::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; background: rgba(255,255,255,.1); }
+  .ps2-col.reach::before { background: var(--fm-lime); box-shadow: 0 0 8px rgba(198,255,61,.5); }
+  .ps2-n { position: relative; z-index: 1; justify-self: center; display: grid; place-items: center; min-width: 28px; height: 22px; padding: 0 6px; border-radius: 11px; background: #18233a; font: 800 12px "Inter Tight", sans-serif; color: #9fb2cc; box-shadow: 0 0 0 2px #0b1222; }
+  .ps2-col.reach .ps2-n { background: var(--fm-lime); color: #06101c; }
+  .ps2-col.cur .ps2-n { box-shadow: 0 0 0 2px #fff, 0 0 12px rgba(198,255,61,.7); transform: scale(1.12); }
+  .ps2-c { position: relative; display: grid !important; grid-template-rows: minmax(0, 1fr) auto; justify-items: center; align-items: center; gap: 2px; min-height: 0; padding: 6px 4px 8px !important; border: 0; border-radius: 12px;
+    background: linear-gradient(180deg, rgba(24,36,62,.95), rgba(10,16,30,.95)) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); color: #fff; overflow: visible; }
+  .ps2-c.pr { background: linear-gradient(180deg, rgba(96,70,8,.9), rgba(26,19,4,.95)) !important; box-shadow: inset 0 0 0 1px rgba(255,210,60,.35); }
+  .ps2-a { display: grid; place-items: center; width: 100%; height: 100%; min-height: 0; }
+  .ps2-pk { height: min(52px, calc(var(--ch) - 30px)); aspect-ratio: 1; width: auto; object-fit: cover; object-position: 50% 76%; filter: drop-shadow(0 3px 5px rgba(0,0,0,.5)); }
+  .ps2-a .coin.big { width: 30px; height: 30px; } .ps2-ic { display: grid; place-items: center; width: 30px; height: 30px; color: #ff6a7a; } .ps2-ic svg { width: 28px; height: 28px; }
+  .ps2-c b { max-width: 100%; font: 800 10px/1.1 "Inter Tight", sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: none; }
+  .ps2-c.lock { opacity: .55; } .ps2-c.got { opacity: .4; }
+  .ps2-c.ready { box-shadow: inset 0 0 0 2px var(--fm-lime), 0 0 16px rgba(198,255,61,.35); }
+  .ps2-c em { position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); padding: 2px 8px; border-radius: 8px; background: var(--fm-lime); color: #06101c; font: 900 9px "Inter Tight", sans-serif; font-style: normal; text-transform: uppercase; white-space: nowrap; }
+  .ps2-ok { position: absolute; top: 4px; right: 6px; font-style: normal; font-weight: 900; color: var(--fm-lime); }
+  .ps2-lock { position: absolute; top: 4px; right: 5px; width: 14px; height: 14px; color: #ffd23c; } .ps2-lock .fm-ic { width: 14px; height: 14px; }
+  .ps2-note { margin: 0; font: 500 11px "Inter Tight", sans-serif; color: #9fb2cc; }
+  .fm-body:has(> .ps2) { height: 100%; min-height: 0; }
+}

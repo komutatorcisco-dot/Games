@@ -506,6 +506,8 @@ async function top(env, user, scope, game = '') {
 }
 
 // ---------- статистика, ошибки, админ ----------
+// сезон пропуска по времени — те же числа, что SEASON_START и SEASON_DAYS в js/rewards.js
+const passSeason = (t) => Math.max(1, Math.floor((t - Date.parse('2026-10-05T08:00:00Z')) / (28 * 864e5)) + 1);
 const getSetting = async (db, k) => { const r = await db.prepare('SELECT v FROM settings WHERE k = ?').bind(k).first(); return r ? r.v : null; };
 const setSetting = (db, k, v) => db.prepare('INSERT INTO settings (k, v) VALUES (?1, ?2) ON CONFLICT(k) DO UPDATE SET v = ?2').bind(k, String(v)).run();
 
@@ -1223,6 +1225,11 @@ async function hello(env, user, body) {
     db.prepare('INSERT OR IGNORE INTO friends (a, b, ts) VALUES (?, ?, ?)').bind(Number(ref[1]), user.id, now),
   ]);
   const pass = (await db.prepare("SELECT season FROM purchases WHERE id = ? AND item = 'pass'").bind(user.id).all()).results.map((r) => r.season);
+  // Пропуск из старой игры (5.11): кто купил премиум до запуска новой версии, получает премиум сезона запуска.
+  // Момент запуска — первый /hello нового сервера (settings 'launch:ts', пишется один раз). Сезоны — как в js/rewards.js.
+  await db.prepare("INSERT OR IGNORE INTO settings (k, v) VALUES ('launch:ts', ?)").bind(String(now)).run();
+  const launch = Number(await getSetting(db, 'launch:ts')) || now;
+  if (await db.prepare("SELECT 1 AS ok FROM purchases WHERE id = ? AND item = 'pass' AND ts < ?").bind(user.id, launch).first()) { const sn = passSeason(launch); if (!pass.includes(sn)) pass.push(sn); }
   // покупки в магазине: клиент сам выдаёт те, что ещё не выдал (номер покупки n)
   const shop = (await db.prepare("SELECT item, season AS n FROM purchases WHERE id = ? AND item != 'pass' ORDER BY ts DESC LIMIT 60").bind(user.id).all()).results;
   if (typeof body.remind === 'boolean') await db.prepare('INSERT INTO prefs (id, remind) VALUES (?1, ?2) ON CONFLICT(id) DO UPDATE SET remind = ?2').bind(user.id, body.remind ? 1 : 0).run();
