@@ -306,23 +306,39 @@ const Rewards = (() => {
   // откуда: онлайн-победы (не больше 2 в день), недельные задания, пройденная глава «Карьеры»
   function angry(n = 1) { const s = S(); s.angry = (s.angry || 0) + n; Store.save(); refresh(); setTimeout(() => toast('Злой мяч! Открой его на главной'), 900); }
   function angryWin() { const s = S(), d = Day.key(); if (!s.ad || s.ad.day !== d) s.ad = { day: d, n: 0 }; if (s.ad.n >= 2) return; s.ad.n++; angry(1); }
+  // награда злого мяча по его редкости (0 — редкий … 4 — легендарный): в основном лаймовые очки и карточки
+  const ANGRY_W = [{ lime: 70, coins: 30 }, { lime: 60, card: 25, coins: 15 }, { lime: 55, card: 35, pack: 10 }, { lime: 50, card: 35, pack: 15 }, { lime: 45, card: 35, pack: 20 }];
+  const ANGRY_MIN = [0, 0, 80, 83, 85], ANGRY_PACK = [0, 0, 2, 3, 4], ANGRY_COINS = [[150, 250], [300, 500]];
   function angryPrize(lv) {
-    const L = ECON.lime.angry[Math.max(0, Math.min(2, lv - 2))];
-    if (typeof Lime !== 'undefined' && Math.random() < 0.6) return { lime: rnd(L[0], L[1]) };
-    const c = Cards.draw('gold'); return c ? { key: c.key } : { lime: L[1] };
+    const W = ANGRY_W[lv] || ANGRY_W[0]; let x = Math.random() * Object.values(W).reduce((a, b) => a + b, 0), kind = 'lime';
+    for (const [k, w] of Object.entries(W)) { if ((x -= w) <= 0) { kind = k; break; } }
+    if (kind === 'lime' && typeof Lime === 'undefined') kind = 'coins';
+    if (kind === 'lime') { const L = ECON.lime.angry[lv]; return { lime: rnd(L[0], L[1]) }; }
+    if (kind === 'coins') { const C = ANGRY_COINS[Math.min(1, lv)]; return { coins: Math.round(rnd(C[0], C[1]) / 5) * 5 }; }
+    if (kind === 'pack') return { pack: ANGRY_PACK[lv] };
+    const pool = Cards.all().filter((c) => c.rar === 'gold' && !c.sbcOnly && c.r >= ANGRY_MIN[lv]);
+    const c = pool.length ? pool[Math.floor(Math.random() * pool.length)] : Cards.draw('gold');
+    return c ? { key: c.key } : { lime: ECON.lime.angry[lv][1] };
   }
   function openAngry() {
     const s = S(); if (!s.angry) return openPending();
     let prize = null;
-    const next = () => setTimeout(() => (S().angry ? openAngry() : S().pending ? openPending() : null), 500);
-    PackOpen.drop({ title: `ЗЛОЙ МЯЧ · ОСТАЛОСЬ ${s.angry}`, single: true, angry: true, minLevel: 2,
-      contents: (lv) => { prize = angryPrize(lv); return { prize, coins: 0, cards: prize.key ? [prize.key] : [] }; },
-      commit: (got) => { const p = got.prize; if (p.lime) Lime.add(p.lime, 'angry'); const res = got.cards.length ? Cards.add(got.cards) : [], dup = res.reduce((a, r) => a + r.coins, 0); if (dup) Coins.add(dup); refresh(); return res; },
-      onStart: () => { s.angry = Math.max(0, s.angry - 1); Store.save(); refresh(); }, onDone: next });
+    const next = () => setTimeout(() => (S().angry ? openAngry() : null), 500);
+    PackOpen.angry({ title: `Злой мяч · осталось ${s.angry}`,
+      prize: (lv) => (prize = angryPrize(lv)),
+      commit: (p) => {
+        if (p.lime) Lime.add(p.lime, 'angry');
+        if (p.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(p.coins, 'game'); }
+        const res = p.key ? Cards.add([p.key]) : [], dup = res.reduce((a, r) => a + r.coins, 0); if (dup) Coins.add(dup);
+        refresh(); return res;
+      },
+      onStart: () => { s.angry = Math.max(0, s.angry - 1); Store.save(); refresh(); },
+      onDone: () => { if (prize && prize.pack !== undefined) openDrop({ title: 'ПАК ИЗ ЗЛОГО МЯЧА', minLevel: prize.pack, onDone: next }); else next(); } });
   }
   // все неоткрытые мячи: сначала злые
-  const balls = () => (S().pending || 0) + (S().angry || 0);
-  const openBalls = () => (S().angry ? openAngry() : openPending());
+  const balls = () => S().pending || 0; // обычные мячи; злые — отдельно (angryN, openAngry)
+  const angryN = () => S().angry || 0;
+  const openBalls = () => openPending();
 
   // ---------- экран «Награды»: дорога трофеев лентой, ниже коллекция / пропуск / задания ----------
   let tab = 'road', scrolled = false;
@@ -503,5 +519,5 @@ const Rewards = (() => {
     header();
   }
 
-  return { angry, angryWin, openAngry, balls, openBalls, passLevel, passSync, PASS, PASS_STEP, PASS_LEVELS, seasonEnd, questArt, claimPass, claimRoad, ROAD, questSync, qdef, claimQuest, DAILY, weekend, onEnd, addTrophies, MAX_TROPHIES, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
+  return { angry, angryWin, openAngry, angryN, balls, openBalls, passLevel, passSync, PASS, PASS_STEP, PASS_LEVELS, seasonEnd, questArt, claimPass, claimRoad, ROAD, questSync, qdef, claimQuest, DAILY, weekend, onEnd, addTrophies, MAX_TROPHIES, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
 })();

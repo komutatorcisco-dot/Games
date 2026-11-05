@@ -323,6 +323,48 @@ const PackOpen = (() => {
     return { final };
   }
 
+  // ---------- злой мяч (5.11): отдельная система, как стардропы — своя лестница редкостей, мяч и экран в цвет редкости ----------
+  // prize(lv) → награда; commit(p) → результат карточек (как у мяч-дропа)
+  const AR = [{ n: 'Редкий', c: '#3fd94a', h: 120 }, { n: 'Сверхредкий', c: '#2f8cff', h: 215 }, { n: 'Эпический', c: '#b14bff', h: 285 },
+    { n: 'Мифический', c: '#ff3b3b', h: 0 }, { n: 'Легендарный', c: '#ffd23c', h: 48 }];
+  const AW = [50, 28, 14, 6, 2];
+  async function angry({ title = 'Злой мяч', prize, commit, onStart, onDone } = {}) {
+    let x = Math.random() * AW.reduce((a, b) => a + b, 0), final = 0; while ((x -= AW[final]) > 0 && final < 4) final++;
+    if (typeof window.__angryLv === 'number') final = window.__angryLv;
+    const el = layer('pack angry2'); let level = 0, busy = false, opened = false, started = false;
+    el.dataset.phase = 'pack';
+    const stage = $('.po-stage', el);
+    stage.innerHTML = `<div class="po-pack" data-lv="0">${art(0, 'xxl')}</div>`;
+    const packEl = $('.po-pack', stage), im = $('.fpk-img', packEl), AIMG = 'img/packs/angry-360.webp?v=a1';
+    im.src = AIMG; im.parentNode.style.webkitMaskImage = im.parentNode.style.maskImage = `url(${AIMG})`;
+    $('.po-k', el).textContent = title; el.classList.add('meter');
+    $('.po-steps', el).innerHTML = AR.map((a, i) => `<i style="--c:${a.c}" class="${i <= 0 ? 'on' : ''}"></i>`).join('');
+    const paint = () => { const a = AR[level]; setCol(el, a.c); el.style.setProperty('--ah', a.h + 'deg'); const nm = $('.po-name', el); nm.textContent = a.n; slam(nm);
+      el.querySelectorAll('.po-steps i').forEach((st, i) => st.classList.toggle('on', i <= level)); };
+    paint();
+    anim(packEl, [{ transform: 'translateY(50vh) scale(.5) rotate(-30deg)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,1,.3,1)' });
+    $('.po-x', el).onclick = () => { if (!started) close(el); };
+    async function tap() {
+      if (busy || opened) return; busy = true;
+      if (!started) { started = true; $('.po-x', el).hidden = true; onStart && onStart(); }
+      Sound.play('kick'); haptic('tap');
+      if (level < final) {
+        anim($('.fpk-b', packEl), [{ transform: 'none' }, { transform: 'translateY(-40px) rotate(-200deg) scale(.9)', offset: 0.45 }, { transform: 'translateY(4px) rotate(-360deg) scale(1.1, .88)', offset: 0.8 }, { transform: 'rotate(-360deg)' }], { duration: 620, easing: 'cubic-bezier(.4,0,.2,1)' });
+        await wait(300); level++; paint(); flash(el, level >= 3);
+        Sound.play(level >= 3 ? 'goal' : 'coin'); haptic(level >= 3 ? 'ok' : 'pop');
+        if (level === 4 && typeof confetti === 'function') confetti();
+        await wait(380); busy = false; return;
+      }
+      opened = true;
+      await crack(el, packEl);
+      const p = prize(level), res = commit ? commit(p) : [];
+      await wait(700);
+      if (res.length) return showCards(el, res, { take: 'Забрать', onDone });
+      showPrize(el, p, onDone);
+    }
+    stage.addEventListener('pointerup', () => { if (el.dataset.phase === 'pack') tap(); });
+  }
+
   // одиночные награды (покупка, ИПК, дорога трофеев): сразу выход карточки
   // opts.pack — уровень купленного пака: тогда сначала открываем сам пак
   async function reveal(res, onDone, opts = {}) {
@@ -333,5 +375,5 @@ const PackOpen = (() => {
     showCards(el, res, { onDone, take: res.length > 1 ? 'В коллекцию' : 'Отлично' });
   }
 
-  return { LV, art, drop, reveal, rollLevel };
+  return { LV, art, drop, reveal, rollLevel, angry, AR };
 })();

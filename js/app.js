@@ -463,6 +463,7 @@ const App = (() => {
     squad: () => Squad.open(),
     'rw-packs': () => Rewards.openBalls(),
     balls: () => Rewards.openBalls(),
+    angry: () => Rewards.openAngry(),
     'rw-buy': () => Rewards.buyPass(),
     // позвать друга: ссылка с твоим id — кто откроет игры по ней, попадёт к тебе в «Друзья» в таблице
     invite: () => {

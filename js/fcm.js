@@ -105,14 +105,15 @@ const FCM = (() => {
         <span class="fm-sl-art">${x.k === 'jg' ? (jg ? `<span class="fm-sl-card">${Cards.html(jg, { w: 150 })}</span>` : '') : `<img src="${x.img}" alt="">`}</span>
         <span class="fm-sl-t"><small>${x.small}</small><b>${x.t}</b><em>${x.d}</em><i class="fm-sl-go">${x.btn}</i></span></button>`;
     return `<div class="fm-home">
-      <div class="fm-hl">
+      <div class="fm-hl ${typeof Rewards !== 'undefined' && Rewards.angryN && Rewards.angryN() ? 'n4' : ''}">
+        ${typeof Rewards !== 'undefined' && Rewards.angryN && Rewards.angryN() ? `<button class="fm-lt fm-angry" data-act="angry"><span class="fm-lt-i"><img src="img/packs/angry-160.webp?v=a1" alt=""></span><b>Злой мяч</b><em class="fm-ang-n">${Rewards.angryN()}</em></button>` : ''}
         ${tile('data-fm-tab="market"', '<img src="img/fcm/plate-draft.webp?v=2" alt="">', 'Рынок', false, 'c1')}
         ${typeof Wheel !== 'undefined' ? tile('data-act="wheel"', '<img src="img/packs/pk0-160.webp?v=b2" alt="">', day ? 'Пак дня' : 'Завтра', day, 'c2') : ''}
         ${tile('data-act="dly"', '<img src="img/fcm/ic-daily.webp" alt="">', 'Игрок дня', false, 'c3')}
       </div>
       <div class="fm-hero2">${homeHero(jg)}</div>
       <div class="fm-hr">
-        ${typeof Rewards !== 'undefined' && Rewards.balls && Rewards.balls() ? (() => { const A = Rewards.S().angry || 0, P = Rewards.S().pending || 0;
+        ${typeof Rewards !== 'undefined' && Rewards.balls && Rewards.balls() ? (() => { const A = 0, P = Rewards.S().pending || 0; /* злые мячи — своей плиткой слева */
           return `<button class="fm-feat fm-balls ${A ? 'angry' : ''}" data-act="balls"><b>${A ? 'Злой мяч' : 'Мяч-дроп'}</b><span class="fm-bl-art">${A ? '<img class="a" src="img/packs/angry-360.webp?v=a1" alt="">' : ''}${P ? '<img src="img/packs/pk0-360.webp?v=b2" alt="">' : ''}</span><em class="fm-bl-n">${A + P}</em><i class="fm-bl-go">Открыть</i></button>`; })() : `<button class="fm-feat" data-fm-tab="store"><b>Паки</b>${PKS.map((x, i) => `<span class="fm-pf ${i === pkI ? 'on' : ''} ${x.lv.length > 1 ? 'all' : ''}" data-i="${i}">${x.lv.map((l) => `<img src="img/packs/pk${l}-360.webp?v=b2" alt="">`).join('')}<em>${x.t}</em></span>`).join('')}</button>`}
         <div class="fm-hr2">
           <button class="fm-club" data-fm-tab="team"><b>Клуб</b><span>${inf.r ? ovrBadge(inf.r, true) : '<em class="fm-club-e">Собери состав</em>'}</span></button>
