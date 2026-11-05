@@ -1259,3 +1259,9 @@
   .fm-club.ov3w .ov3-t { display: grid !important; position: static !important; flex: 1; }
   .fm-club.ov3w .ov3-t > * { position: static !important; display: block !important; margin: 0 !important; padding: 0 !important; transform: none !important; background: none !important; width: auto !important; height: auto !important; white-space: normal; text-align: left !important; }
 }
+/* карточка игрока (5.11): «Прокачать» и «Продать» — своим рядом, листание и «Подробнее» — ниже */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-cv-act { display: flex; gap: 6px; } .fm-cv-act .fm-btn { flex: 1; min-height: 36px; padding: 0 10px !important; font-size: 14px !important; white-space: nowrap; }
+  .fm-pi-btn { grid-template-columns: 40px minmax(0, 1fr) 40px !important; }
+  .fm-pi-btn .fm-btn { white-space: nowrap; overflow: hidden; }
+}

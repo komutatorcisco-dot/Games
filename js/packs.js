@@ -58,7 +58,7 @@ const PackOpen = (() => {
     $('.po-k', el).textContent = top.isNew ? 'Новая карточка' : 'Повтор';
     const nm = $('.po-name', el); nm.textContent = Cards.RAR[top.c.rar].n; nm.classList.toggle('long', nm.textContent.length > 13); slam(nm);
     $('.po-steps', el).innerHTML = '';
-    const big = Math.min(240, Math.floor(innerWidth * 0.6), Math.floor((innerHeight - 170) / 1.45)); // лёжа карточка влезает по высоте
+    const big = Math.min(240, Math.floor(innerWidth * 0.4), Math.floor((innerHeight - 70) / 1.55)); // лёжа карточка влезает по высоте
     stage.innerHTML = `<div class="po-walk"><div class="po-flip" style="--w:${big}px"><div class="po-back ${top.c.rar}"><b>ДЖ</b></div><div class="po-front">${Cards.html(top.c, { w: big })}</div></div>
       <div class="po-tag ${top.isNew ? 'new' : ''}">${top.isNew ? 'NEW' : `+${top.coins} <i class="coin"></i>`}</div></div>`;
     if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(stage);

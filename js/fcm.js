@@ -699,15 +699,16 @@ const FCM = (() => {
           <p>${esc(c.pos)} · ${esc(c.club || c.series || '')}<br>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</p>
           <div class="fm-pi-st">${N.map((n, k) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[k]))}%" class="${st[k] >= 85 ? 'hi' : st[k] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[k]}</b></span>`).join('')}</div>
           <p class="fm-cv-own">${has ? `В клубе: ×${Cards.spare ? Cards.spare(c.key) : 1}` : 'Ещё нет в клубе — может выпасть из пака'}</p>
-          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button>${has && typeof Lime !== 'undefined' ? '<button class="fm-btn limeb" data-cv-up>Прокачать</button>' : ''}<button class="fm-btn gold" data-cv-more>Подробнее</button>${has && Eco.on() && !(typeof Lime !== 'undefined' && Lime.up(c.key)) ? '<button class="fm-btn" data-cv-sell>Продать</button>' : ''}<button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
+          ${has ? `<div class="fm-cv-act">${typeof Lime !== 'undefined' ? '<button class="fm-btn limeb" data-cv-up>Прокачать</button>' : ''}${Eco.on() && !(typeof Lime !== 'undefined' && Lime.up(c.key)) ? '<button class="fm-btn" data-cv-sell>Продать</button>' : ''}</div>` : ''}
+          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button><button class="fm-btn gold" data-cv-more>Подробнее</button><button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
         </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
       if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el); };
     draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
     const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); };
     // наклон карточки за пальцем
-    el.addEventListener('pointermove', (e) => { const cd = el.querySelector('.fm-cv-card'); if (!cd) return; const r = cd.getBoundingClientRect(), x = (e.clientX - r.left) / r.width - 0.5, y = (e.clientY - r.top) / r.height - 0.5;
+    el.addEventListener('pointermove', (e) => { const cd = el.querySelector('.fm-cv-card'); if (!cd) return; const r = cd.getBoundingClientRect(), cl = (v) => Math.max(-0.5, Math.min(0.5, v)), x = cl((e.clientX - r.left) / r.width - 0.5), y = cl((e.clientY - r.top) / r.height - 0.5); if (e.pointerType !== 'mouse' && !e.buttons) return; // наклон — не больше ±12°, на телефоне только пока палец на экране
       cd.style.setProperty('--rx', `${(-y * 18).toFixed(1)}deg`); cd.style.setProperty('--ry', `${(x * 24).toFixed(1)}deg`); cd.classList.add('hand'); });
-    el.addEventListener('pointerleave', () => { const cd = el.querySelector('.fm-cv-card'); if (cd) cd.classList.remove('hand'); });
+    ['pointerleave', 'pointerup', 'pointercancel'].forEach((ev) => el.addEventListener(ev, () => { const cd = el.querySelector('.fm-cv-card'); if (cd) cd.classList.remove('hand'); }));
     el.addEventListener('click', (e) => {
       if (e.target === el || e.target.closest('.fm-sh-x')) { Sound.play('tap'); return close(); }
       const st = e.target.closest('[data-cv]'); if (st) { Sound.play('tap'); i = (i + +st.dataset.cv + L.length) % L.length; return draw(); }
