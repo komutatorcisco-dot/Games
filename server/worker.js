@@ -875,7 +875,7 @@ async function ecoQuick(db, uid, body) {
   try {
     const r = await db.batch([
       db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
-      db.prepare('UPDATE eco_cards SET n = n - ?1, lk = MAX(0, lk - ?1), op = ?2 WHERE uid = ?3 AND key = ?4 AND n >= ?1').bind(n, op, uid, key), // сначала уходят непередаваемые
+      db.prepare('UPDATE eco_cards SET n = n - ?1, lk = MAX(0, lk - ?1), op = ?2 WHERE uid = ?3 AND key = ?4 AND n >= ?1 AND NOT EXISTS (SELECT 1 FROM eco_up WHERE uid = ?3 AND key = ?4 AND up > 0)').bind(n, op, uid, key), // сначала уходят непередаваемые; прокачанную не продать
       db.prepare(`UPDATE eco_wallet SET coins = coins + ?1, ts = ?2 WHERE uid = ?3 AND ${g}`).bind(v, now, uid),
       db.prepare(`INSERT INTO eco_led (uid, ts, kind, src, coins, card, ref) SELECT ?1, ?2, 'quick', 'quick', ?3, ?4, ?5 WHERE ${g}`).bind(uid, now, v, key, `×${n}`),
     ]);

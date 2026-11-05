@@ -186,6 +186,7 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
   sql.exec("UPDATE eco_cards SET n = 2, lk = 0 WHERE uid = 90 AND key = 'B0'");
   const [blo, bhi] = T.Price.range(sql.prepare("SELECT * FROM eco_cat WHERE key = 'B0'").get());
   assert.equal((await call(90, { act: 'm_list', key: 'B0', start: blo, bin: bhi, dur: 1, op: op() })).ok, false, 'прокачанную карточку на рынок нельзя');
+  assert.equal((await call(90, { act: 'quick', key: 'B0', n: 1, op: op() })).ok, false, 'прокачанную карточку не продать и быстрой продажей');
   sql.exec("DELETE FROM eco_up WHERE uid = 90");
   assert.equal((await call(90, { act: 'm_list', key: 'B0', start: blo, bin: bhi, dur: 1, op: op() })).ok, true, 'та же карточка без прокачки — продаётся (цена верная)');
   console.log('Экономика и рынок: паки, быстрая продажа, рамки цен, ставки, выкуп, гонка, налог, возвраты, аукцион, боты, вайп — ок');

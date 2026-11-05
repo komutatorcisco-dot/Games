@@ -658,7 +658,7 @@ const FCM = (() => {
           <p>${esc(c.pos)} · ${esc(c.club || c.series || '')}<br>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</p>
           <div class="fm-pi-st">${N.map((n, k) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[k]))}%" class="${st[k] >= 85 ? 'hi' : st[k] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[k]}</b></span>`).join('')}</div>
           <p class="fm-cv-own">${has ? `В клубе: ×${Cards.spare ? Cards.spare(c.key) : 1}` : 'Ещё нет в клубе — может выпасть из пака'}</p>
-          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button>${has && typeof Lime !== 'undefined' ? '<button class="fm-btn lime" data-cv-up>Прокачать</button>' : ''}<button class="fm-btn gold" data-cv-more>Подробнее</button>${has && Eco.on() ? '<button class="fm-btn" data-cv-sell>Продать</button>' : ''}<button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
+          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button>${has && typeof Lime !== 'undefined' ? '<button class="fm-btn lime" data-cv-up>Прокачать</button>' : ''}<button class="fm-btn gold" data-cv-more>Подробнее</button>${has && Eco.on() && !(typeof Lime !== 'undefined' && Lime.up(c.key)) ? '<button class="fm-btn" data-cv-sell>Продать</button>' : ''}<button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
         </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
       if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el); };
     draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));

@@ -64,7 +64,7 @@ const Eco = (() => {
   // ---- паки, стартовый пак, быстрая продажа — карточки выбирает сервер ----
   async function pack(id) { const r = await post('pack', { pack: id, op: opid() }); if (r && typeof r.coins === 'number') Store.d.coins = r.coins; return r; }
   async function starter(nat) { const r = await post('starter', { nat, op: opid() }); return r; }
-  async function quick(key, n = 1) { const r = await post('quick', { key, n, op: opid() }); if (r && r.ok) { const s = Store.d.cards.own; s[key] = Math.max(0, (s[key] || 0) - n); if (!s[key]) delete s[key]; apply(r); } return r; }
+  async function quick(key, n = 1) { if (typeof Lime !== 'undefined' && Lime.up(key) > 0) { toast('Прокачанного игрока продать нельзя'); return { ok: false, error: 'upgraded' }; } const r = await post('quick', { key, n, op: opid() }); if (r && r.ok) { const s = Store.d.cards.own; s[key] = Math.max(0, (s[key] || 0) - n); if (!s[key]) delete s[key]; apply(r); } return r; }
   const fmt = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
   // ---- подмена старых путей монет и карточек (только превью) ----
@@ -192,6 +192,7 @@ const Market = (() => {
   async function sellSheet(key) {
     const c = Cards.get(key); if (!c) return;
     if (!Eco.on()) return toast('Продажа работает в Telegram (превью)');
+    if (typeof Lime !== 'undefined' && Lime.up(key) > 0) return toast('Прокачанного игрока продать нельзя — ни на рынке, ни быстрой продажей');
     const pi = await Eco.post('m_price', { key });
     if (!pi || !pi.ok) return toast('Сервер не знает эту карточку — каталог обновляется');
     const own = Store.d.cards.own[key] || 0, free = own - ((Store.d.cards.lock || {})[key] || 0);
