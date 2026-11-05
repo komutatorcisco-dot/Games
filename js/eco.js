@@ -19,6 +19,7 @@ const Eco = (() => {
   function apply(r) {
     if (!r) return;
     if (typeof r.coins === 'number') { Store.d.coins = r.coins; }
+    if (typeof Lime !== 'undefined' && (typeof r.lime === 'number' || Array.isArray(r.up))) Lime.apply(r);
     if (Array.isArray(r.cards)) {
       const s = Store.d.cards || (Store.d.cards = { own: {}, fresh: [] }), was = s.own || {};
       s.own = {}; s.lock = {}; r.cards.forEach(([k, n, lk]) => { if (n > 0) s.own[k] = n; if (lk > 0) s.lock[k] = lk; }); // lock — копии из наград, на рынок нельзя
@@ -103,7 +104,7 @@ const Market = (() => {
     const now = x.bid ? `<small>Ставка</small><b>${coin}${F(x.bid)}</b>` : `<small>Старт</small><b>${coin}${F(x.start)}</b>`;
     const st = x.status !== 'open' ? `<em class="mk-st ${x.won ? 'win' : ''}">${x.status === 'sold' ? (x.won ? 'Твой ✓' : x.mine ? `Продано · ${F(x.price)}` : 'Продано') : x.status === 'expired' ? 'Не продано' : 'Снято'}</em>` : `<em class="mk-t">${left(x.ends)}</em>`;
     return `<button class="mk-lot ${x.top ? 'top' : ''} ${x.mine ? 'mine' : ''}" data-mk-lot="${x.id}">
-      <span class="mk-c">${Cards.html(c, { w: 84 })}</span>
+      <span class="mk-c">${Cards.html(c, { w: 84, base: true })}</span>
       <span class="mk-i"><span class="mk-now">${now}</span><span class="mk-bin"><small>Сразу</small><b>${coin}${F(x.bin)}</b></span>${st}${x.top && x.status === 'open' ? '<em class="mk-lead">Ты лидер</em>' : ''}${x.bot ? '' : ''}</span></button>`;
   }
   const grid = (L, empty) => (L && L.length ? `<div class="mk-grid">${L.map(tile).join('')}</div>` : `<p class="fm-none">${empty}</p>`);

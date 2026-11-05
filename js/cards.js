@@ -166,16 +166,18 @@ const Cards = (() => {
   const LEAGUE_ICO = { 'АПЛ': 'apl', 'Ла Лига': 'll', 'Серия А': 'sa', 'Бундеслига': 'bl', 'Лига 1': 'l1', 'MLS': 'mls' };
   const STN = ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'], STN_GK = ['НЫР', 'РУК', 'УДР', 'РЕА', 'СКР', 'ПОЗ'];
   function statsOf(c) { if (c.st) return c.st; const f = typeof FC_STATS !== 'undefined' && FC_STATS[c.name]; return f ? f.slice(1, 7) : null; }
-  function html(c, { w = 150, locked = false, cls = '' } = {}) {
+  function html(c, { w = 150, locked = false, cls = '', base = false } = {}) {
     if (!c) return '';
     const fr = FRAME[c.rar] || 'spec', sm = w < 110 ? ' sm' : '';
     const bg = `<div class="cc-bk" style="background-image:url(img/cards2/back-${fr}.webp)"></div>`, fg = `<div class="cc-fr" style="background-image:url(img/cards2/front-${fr}.webp)"></div>`;
     const st0 = `--w:${w}px;--k:${(w / 228).toFixed(4)}`; // карточка собирается в 228×330 и уменьшается целиком (мелкий шрифт браузер не уменьшает)
     if (locked) return `<div class="cc v2 lock ${fr} ${cls}${sm}" style="${st0}" data-lock="${esc(c.key)}"><div class="cc-in">${bg}<div class="cc-fw"><span class="cc-sil"></span></div>${fg}<div class="cc-r"><b>??</b></div><div class="cc-n"><b>???</b></div><div class="cc-st"><span>${RAR[c.rar].n}</span></div></div></div>`;
-    const cr = c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : ''), lg = LEAGUE_ICO[c.lg], st = statsOf(c), gk = c.pos === 'ВРТ';
+    // прокачка (js/lime.js): своя карточка показывается с прокачанным рейтингом и значком +N; чужие (рынок) — base
+    const upN = !base && typeof Lime !== 'undefined' ? Lime.up(c.key) : 0, rr = upN ? Lime.r(c) : c.r;
+    const cr = c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : ''), lg = LEAGUE_ICO[c.lg], st0s = statsOf(c), st = st0s && upN ? st0s.map((v) => Math.min(99, v + upN)) : st0s, gk = c.pos === 'ВРТ';
     const face = c.faceUrl || c.face ? `<img class="cc-face" src="${esc(c.faceUrl || img(c.face))}" alt="" loading="lazy">` : '<span class="cc-sil"></span>';
     return `<div class="cc v2 ${c.rar} ${fr} ${cls}${sm}" style="${st0}" data-card="${esc(c.key)}"><div class="cc-in">${bg}<div class="cc-fw">${face}</div>${fg}
-      <div class="cc-r"><b>${c.r}</b><i>${esc(c.pos)}</i></div>${fr === 'spec' ? `<div class="cc-tag">${esc((c.series || 'Jackson Games').toUpperCase())}</div>` : ''}
+      <div class="cc-r"><b>${rr}</b><i>${esc(c.pos)}</i></div>${upN ? `<div class="cc-up">+${upN}</div>` : ''}${fr === 'spec' ? `<div class="cc-tag">${esc((c.series || 'Jackson Games').toUpperCase())}</div>` : ''}
       <div class="cc-n"><b>${esc(surname(c.name))}</b></div>
       ${st ? `<div class="cc-st">${st.map((v, i) => `<span>${(gk ? STN_GK : STN)[i]}<b>${v}</b></span>`).join('')}</div>` : ''}
       <div class="cc-ic">${c.flag ? `<span class="cc-fl">${c.flag}</span>` : ''}${lg ? `<img src="img/leagues/${lg}.webp" alt="">` : ''}${cr ? `<img src="${esc(cr)}" alt="">` : ''}</div></div></div>`;

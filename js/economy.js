@@ -54,9 +54,16 @@ const ECON = {
   rewardCards: { low: 40, gold: 8 },
   // Jackson Points — отдельная валюта: только косметика и особые предметы, не паки и не рынок
   jp: { start: 0 },
+  // ---- лаймовые очки прокачки (5.11): прокачка карточки +1 к рейтингу, каждый уровень дороже на 28%, до 99, без другого потолка ----
+  // цена шага r → r+1: очки = 10 · 1,28^(r−60) (не меньше 10), монеты = очки × 5. 71→80 ≈ 4 400 очков, 80→89 ≈ 41 000.
+  lime: { cap: 400, base: 10, k: 1.28, from: 60, coinK: 5, max: 99,
+    drop: [[10, 25], [20, 45], [35, 70], [60, 110], [100, 180]], // мяч-дроп по редкости: [от, до] очков
+    angry: [[120, 200], [180, 300], [260, 420]] },              // злой мяч: эпический, легендарный, «Джексон»
   // ---- боты рынка (только проверочный сервер, выключаются в настройках) ----
   bots: { on: true, n: 12, budgetDay: 600000, maxShare: 0.08, buyBelow: 0.9, bidUpTo: 0.85, listMax: 140, tickSec: 60, actions: 6, durH: [1, 3, 6, 12] },
 };
+// цена одного шага прокачки с рейтинга r (текущего, с учётом прокачки)
+const LimeCost = (r) => { const L = ECON.lime, pts = Math.max(L.base, Math.round((L.base * Math.pow(L.k, r - L.from)) / 5) * 5); return { pts, coins: pts * L.coinK }; };
 // Цены карточек: одни и те же функции на сервере и в игре
 const Price = {
   _f(t, c) { // особые версии (легенды, «Джексон»…) — по кривой золота и со своим множителем
@@ -81,4 +88,4 @@ const Price = {
   net: (p) => Math.floor(p * (1 - ECON.market.tax)),
 };
 // ECON:END
-if (typeof module !== 'undefined') module.exports = { ECON, Price };
+if (typeof module !== 'undefined') module.exports = { ECON, Price, LimeCost };

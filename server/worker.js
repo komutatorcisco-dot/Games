@@ -574,9 +574,16 @@ const ECON = {
   rewardCards: { low: 40, gold: 8 },
   // Jackson Points — отдельная валюта: только косметика и особые предметы, не паки и не рынок
   jp: { start: 0 },
+  // ---- лаймовые очки прокачки (5.11): прокачка карточки +1 к рейтингу, каждый уровень дороже на 28%, до 99, без другого потолка ----
+  // цена шага r → r+1: очки = 10 · 1,28^(r−60) (не меньше 10), монеты = очки × 5. 71→80 ≈ 4 400 очков, 80→89 ≈ 41 000.
+  lime: { cap: 400, base: 10, k: 1.28, from: 60, coinK: 5, max: 99,
+    drop: [[10, 25], [20, 45], [35, 70], [60, 110], [100, 180]], // мяч-дроп по редкости: [от, до] очков
+    angry: [[120, 200], [180, 300], [260, 420]] },              // злой мяч: эпический, легендарный, «Джексон»
   // ---- боты рынка (только проверочный сервер, выключаются в настройках) ----
   bots: { on: true, n: 12, budgetDay: 600000, maxShare: 0.08, buyBelow: 0.9, bidUpTo: 0.85, listMax: 140, tickSec: 60, actions: 6, durH: [1, 3, 6, 12] },
 };
+// цена одного шага прокачки с рейтинга r (текущего, с учётом прокачки)
+const LimeCost = (r) => { const L = ECON.lime, pts = Math.max(L.base, Math.round((L.base * Math.pow(L.k, r - L.from)) / 5) * 5); return { pts, coins: pts * L.coinK }; };
 // Цены карточек: одни и те же функции на сервере и в игре
 const Price = {
   _f(t, c) { // особые версии (легенды, «Джексон»…) — по кривой золота и со своим множителем
@@ -611,6 +618,9 @@ async function ecoSchema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS eco_ops (uid INTEGER NOT NULL, op TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (uid, op))'),
     db.prepare('CREATE TABLE IF NOT EXISTS eco_led (id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, ts INTEGER NOT NULL, kind TEXT NOT NULL, src TEXT, coins INTEGER NOT NULL DEFAULT 0, card TEXT, ref TEXT, bot INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE INDEX IF NOT EXISTS eco_led_uid ON eco_led (uid, id)'),
+    // лаймовые очки и прокачка карточек (5.11)
+    db.prepare('CREATE TABLE IF NOT EXISTS eco_lime (uid INTEGER PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0, op TEXT)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS eco_up (uid INTEGER NOT NULL, key TEXT NOT NULL, up INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (uid, key))'),
     // истории операций больше нет (5.11): строка сразу удаляется, остаётся только отметка о стартовых монетах (по ней их не дают дважды)
     db.prepare("CREATE TRIGGER IF NOT EXISTS eco_led_off AFTER INSERT ON eco_led WHEN NOT (NEW.kind = 'earn' AND NEW.src = 'start') BEGIN DELETE FROM eco_led WHERE id = NEW.id; END"),
     db.prepare('CREATE TABLE IF NOT EXISTS eco_daily (uid INTEGER NOT NULL, day TEXT NOT NULL, src TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (uid, day, src))'),
@@ -824,6 +834,8 @@ async function ecoRewardPack(db, uid, body) {
 async function ecoState(db, uid, light) {
   const w = await ecoWallet(db, uid);
   const out = { coins: w.coins, jp: w.jp };
+  const lm = await db.prepare('SELECT n FROM eco_lime WHERE uid = ?').bind(uid).first(); out.lime = lm ? lm.n : 0;
+  out.up = (await db.prepare('SELECT key, up FROM eco_up WHERE uid = ? AND up > 0').bind(uid).all()).results.map((x) => [x.key, x.up]);
   if (!light) {
     out.cards = (await db.prepare('SELECT key, n, lk FROM eco_cards WHERE uid = ? AND n > 0').bind(uid).all()).results.map((x) => [x.key, x.n, x.lk]);
     out.started = !!(await db.prepare("SELECT 1 FROM eco_once WHERE uid = ? AND k = 'starter'").bind(uid).first());
@@ -871,6 +883,48 @@ async function ecoQuick(db, uid, body) {
   } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
   return { ok: true, got: v, ...(await ecoState(db, uid, true)) };
 }
+// ---- лаймовые очки (5.11): начисление с потолком в день; прокачка карточки за очки и монеты (цена — LimeCost по рейтингу) ----
+async function ecoLime(db, uid, body) {
+  const op = ecoOp(body.op), want = Math.max(1, Math.min(500, Math.floor(Number(body.n) || 0))), now = Date.now(), day = ecoDay();
+  if (!op) return { ok: false, error: 'bad op' };
+  const got = await db.prepare("SELECT n FROM eco_daily WHERE uid = ? AND day = ? AND src = 'lime'").bind(uid, day).first();
+  const n = Math.min(want, ECON.lime.cap - (got ? got.n : 0));
+  if (n <= 0) return { ok: true, got: 0, capped: true, ...(await ecoState(db, uid, true)) };
+  try {
+    await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      db.prepare('INSERT INTO eco_lime (uid, n) VALUES (?1, ?2) ON CONFLICT(uid) DO UPDATE SET n = n + ?2').bind(uid, n),
+      db.prepare("INSERT INTO eco_daily (uid, day, src, n) VALUES (?1, ?2, 'lime', ?3) ON CONFLICT(uid, day, src) DO UPDATE SET n = n + ?3").bind(uid, day, n),
+    ]);
+  } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
+  return { ok: true, got: n, ...(await ecoState(db, uid, true)) };
+}
+async function ecoUpgrade(db, uid, body) {
+  const op = ecoOp(body.op), key = String(body.key || ''), now = Date.now();
+  const cat = await ecoCat(db), c = cat.by.get(key);
+  if (!op || !c) return { ok: false, error: 'bad card' };
+  const own = await db.prepare('SELECT n FROM eco_cards WHERE uid = ? AND key = ?').bind(uid, key).first();
+  if (!own || own.n < 1) return { ok: false, error: 'not owned' };
+  const cu = await db.prepare('SELECT up FROM eco_up WHERE uid = ? AND key = ?').bind(uid, key).first(), up = cu ? cu.up : 0, r = c.r + up;
+  if (r >= ECON.lime.max) return { ok: false, error: 'max' };
+  const cost = LimeCost(r);
+  await ecoWallet(db, uid);
+  await db.prepare('INSERT OR IGNORE INTO eco_lime (uid, n) VALUES (?, 0)').bind(uid).run();
+  const g = `EXISTS (SELECT 1 FROM eco_lime WHERE uid = ${Number(uid)} AND op = '${op}')`;
+  try {
+    const res = await db.batch([
+      db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
+      // всё или ничего: очков и монет хватает, карточка своя, уровень не изменился с момента расчёта цены
+      db.prepare(`UPDATE eco_lime SET n = n - ?1, op = ?2 WHERE uid = ?3 AND n >= ?1
+        AND EXISTS (SELECT 1 FROM eco_wallet WHERE uid = ?3 AND coins >= ?4) AND EXISTS (SELECT 1 FROM eco_cards WHERE uid = ?3 AND key = ?5 AND n > 0)
+        AND COALESCE((SELECT up FROM eco_up WHERE uid = ?3 AND key = ?5), 0) = ?6`).bind(cost.pts, op, uid, cost.coins, key, up),
+      db.prepare(`UPDATE eco_wallet SET coins = coins - ?1, ts = ?2 WHERE uid = ?3 AND ${g}`).bind(cost.coins, now, uid),
+      db.prepare(`INSERT INTO eco_up (uid, key, up) SELECT ?1, ?2, 1 WHERE ${g} ON CONFLICT(uid, key) DO UPDATE SET up = up + 1`).bind(uid, key),
+    ]);
+    if (!res[1].meta.changes) return { ok: false, error: 'not enough', cost, ...(await ecoState(db, uid, true)) };
+  } catch (e) { return { ok: false, dup: true, ...(await ecoState(db, uid, true)) }; }
+  return { ok: true, key, r: r + 1, cost, ...(await ecoState(db, uid, true)) };
+}
 // ---- история аккаунта ----
 async function ecoHistory(db, uid, body) {
   return { ok: true, rows: [] }; // истории нет (5.11)
@@ -898,7 +952,7 @@ async function mkList(db, uid, body, isBot = false) {
     const r = await db.batch([
       db.prepare('INSERT INTO eco_ops (uid, op, ts) VALUES (?, ?, ?)').bind(uid, op, now),
       // не больше maxLots открытых лотов и только своя карточка
-      db.prepare(`UPDATE eco_cards SET n = n - 1, op = ?1 WHERE uid = ?2 AND key = ?3 AND n - lk >= 1
+      db.prepare(`UPDATE eco_cards SET n = n - 1, op = ?1 WHERE uid = ?2 AND key = ?3 AND n - lk >= 1 AND NOT EXISTS (SELECT 1 FROM eco_up WHERE uid = ?2 AND key = ?3 AND up > 0)
         AND (SELECT COUNT(*) FROM mk_lots WHERE seller = ?2 AND status = 'open') < ?4`).bind(op, uid, key, isBot ? 100000 : M.maxLots),
       db.prepare(`INSERT INTO mk_lots (seller, key, name, r, rar, pos, club, nat, start, bin, ends, ts, bot, op)
         SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14 WHERE ${g}`).bind(uid, key, c.name, c.r, c.rar, c.pos || '', c.club || '', c.nat || '', start, bin, now + dur * 3600e3, now, isBot ? 1 : 0, op),
@@ -1105,7 +1159,7 @@ const WIPE_TABLES = [
   ['purchases', 'id'], ['cmembers', 'id'], ['crole', 'id'], ['creq', 'uid'], ['cgift', 'uid'], ['croom', 'uid'], ['friends', 'a'], ['friends', 'b'],
   ['refs', 'invitee'], ['ref_miles', 'id'], ['mm', 'id'], ['mmg', 'id'], ['presence', 'id'], ['draft_tours', 'uid'], ['legend_marks', 'uid'], ['legend_claims', 'uid'],
   ['social_profiles', 'uid'], ['social_shown', 'uid'], ['seen', 'id'],
-  ['eco_wallet', 'uid'], ['eco_cards', 'uid'], ['eco_ops', 'uid'], ['eco_daily', 'uid'], ['eco_once', 'uid'], ['mk_fav', 'uid'], ['mk_bids', 'uid'],
+  ['eco_wallet', 'uid'], ['eco_cards', 'uid'], ['eco_ops', 'uid'], ['eco_daily', 'uid'], ['eco_once', 'uid'], ['mk_fav', 'uid'], ['mk_bids', 'uid'], ['eco_lime', 'uid'], ['eco_up', 'uid'],
 ];
 async function ecoWipe(db, uid) {
   await socialSchema(db).catch(() => {});
@@ -1156,6 +1210,8 @@ async function eco(env, user, body) {
     case 'consume': return ecoConsume(db, uid, body);
     case 'pack': return ecoPack(db, uid, body);
     case 'quick': return ecoQuick(db, uid, body);
+    case 'lime': return ecoLime(db, uid, body);
+    case 'upgrade': return ecoUpgrade(db, uid, body);
     case 'history': return ecoHistory(db, uid, body);
     case 'm_search': return mkSearch(db, uid, body);
     case 'm_list': return mkList(db, uid, body);

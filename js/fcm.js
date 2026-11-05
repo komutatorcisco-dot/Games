@@ -54,6 +54,7 @@ const FCM = (() => {
       ${title ? `<button class="fm-back" ${HOST[tab] ? 'data-fm-hback' : tab === 'modes' && sub.modes !== 'hub' ? 'data-fm-sub="modes:hub"' : `data-fm-tab="${tab === 'coll' ? 'team' : tab === 'market' ? 'store' : 'play'}"`} aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
         : `<button class="fm-me" data-act="profile"><span class="fm-ava">${esc(u.emoji || '⚽')}</span><span class="fm-who"><b>${esc(u.nick || 'Игрок')}</b></span></button>`}
       <i class="fm-sp"></i>
+      ${typeof Lime !== 'undefined' ? `<span class="fm-cur fm-lime" title="Лаймовые очки прокачки">${Lime.ico()}<b class="lime-count">${Lime.n()}</b></span>` : ''}
       <span class="fm-cur">${coin}<b class="coin-count">${Store.d.coins || 0}</b></span>
       <span class="fm-cur fm-tr">${cup}<b>${trophies()}</b></span>
     </header>`;
@@ -656,7 +657,7 @@ const FCM = (() => {
           <p>${esc(c.pos)} · ${esc(c.club || c.series || '')}<br>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</p>
           <div class="fm-pi-st">${N.map((n, k) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[k]))}%" class="${st[k] >= 85 ? 'hi' : st[k] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[k]}</b></span>`).join('')}</div>
           <p class="fm-cv-own">${has ? `В клубе: ×${Cards.spare ? Cards.spare(c.key) : 1}` : 'Ещё нет в клубе — может выпасть из пака'}</p>
-          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button><button class="fm-btn gold" data-cv-more>Подробнее</button>${has && Eco.on() ? '<button class="fm-btn" data-cv-sell>Продать</button>' : ''}<button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
+          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button>${has && typeof Lime !== 'undefined' ? '<button class="fm-btn lime" data-cv-up>Прокачать</button>' : ''}<button class="fm-btn gold" data-cv-more>Подробнее</button>${has && Eco.on() ? '<button class="fm-btn" data-cv-sell>Продать</button>' : ''}<button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
         </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
       if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el); };
     draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
@@ -668,6 +669,7 @@ const FCM = (() => {
     el.addEventListener('click', (e) => {
       if (e.target === el || e.target.closest('.fm-sh-x')) { Sound.play('tap'); return close(); }
       const st = e.target.closest('[data-cv]'); if (st) { Sound.play('tap'); i = (i + +st.dataset.cv + L.length) % L.length; return draw(); }
+      if (e.target.closest('[data-cv-up]')) { Sound.play('tap'); const k = (L[i] || {}).key; close(); return Lime.open(k); }
       if (e.target.closest('[data-cv-sell]')) { Sound.play('tap'); const k = (L[i] || {}).key; close(); return Market.sellSheet(k); }
       if (e.target.closest('[data-cv-more]')) { Sound.play('tap'); const k = (L[i] || {}).key; close(); if (k && Cards.details) Cards.details(k); }
     });

@@ -19,6 +19,10 @@ const Squad = (() => {
 
   // карточка → игрок для движка драфта (у легенд нет статистики FC — берём рейтинг и позицию с карточки)
   function obj(key) {
+    const o = obj0(key), u = o && typeof Lime !== 'undefined' ? Lime.up(key) : 0; // прокачка (js/lime.js): +1 к рейтингу и характеристикам за уровень
+    return u ? { ...o, r: Math.min(99, o.r + u), st: o.st.map((v) => Math.min(99, v + u)) } : o;
+  }
+  function obj0(key) {
     const c = key && Cards.get(key); if (!c) return null;
     const positions = PlayerPositions.get(c.name, c.pos);
     if (c.st) return { ...c, pos: positions, st: c.st.slice() };

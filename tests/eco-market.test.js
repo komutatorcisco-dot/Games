@@ -166,5 +166,27 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
   await T.setSetting(db, 'admins', '[1]');
   assert.equal((await call(1, { act: 'a_wipe', uid: 30 })).ok, true, 'админ может сбросить игрока');
   assert.equal((await call(2, { act: 'a_wipe', uid: 30 })).ok, false, 'не админ — нельзя');
+  // ---- лаймовые очки и прокачка (5.11) ----
+  assert.ok((await call(90, { act: 'grant', keys: ['B0'], src: 'event', op: op() })).ok);
+  const l1 = await call(90, { act: 'lime', n: 500, src: 'drop', op: op() });
+  assert.equal(l1.got, T.ECON.lime.cap, 'очков в день — не больше потолка'); assert.equal(l1.lime, T.ECON.lime.cap);
+  assert.equal((await call(90, { act: 'lime', n: 50, src: 'drop', op: op() })).got, 0, 'после потолка — ноль');
+  sql.exec('UPDATE eco_wallet SET coins = 100000 WHERE uid = 90');
+  const r0 = sql.prepare("SELECT r FROM eco_cat WHERE key = 'B0'").get().r;
+  const LC = (r) => { const L = T.ECON.lime, pts = Math.max(L.base, Math.round((L.base * Math.pow(L.k, r - L.from)) / 5) * 5); return { pts, coins: pts * L.coinK }; };
+  let lime = T.ECON.lime.cap, cn = 100000, ups = 0;
+  while (LC(r0 + ups).pts <= lime) { const o = op(), u = await call(90, { act: 'upgrade', key: 'B0', op: o }); assert.ok(u.ok, 'прокачка ' + (ups + 1)); lime -= LC(r0 + ups).pts; cn -= LC(r0 + ups).coins; ups++;
+    assert.equal(u.lime, lime); assert.equal(u.coins, cn); assert.equal(u.r, r0 + ups);
+    if (ups === 1) assert.equal((await call(90, { act: 'upgrade', key: 'B0', op: o })).ok, false, 'тот же op второй раз не проходит'); }
+  assert.ok(ups >= 5, 'бронзу прокачивают дёшево');
+  assert.equal((await call(90, { act: 'upgrade', key: 'B0', op: op() })).error, 'not enough', 'без очков — нельзя');
+  assert.equal(sql.prepare("SELECT up FROM eco_up WHERE uid = 90 AND key = 'B0'").get().up, ups);
+  assert.equal((await call(90, { act: 'upgrade', key: 'B1', op: op() })).ok, false, 'чужую (не свою) карточку не прокачать');
+  assert.deepEqual([...(await call(90, { act: 'state' })).up.map((x) => [...x])], [['B0', ups]], 'прокачка в состоянии игрока');
+  sql.exec("UPDATE eco_cards SET n = 2, lk = 0 WHERE uid = 90 AND key = 'B0'");
+  const [blo, bhi] = T.Price.range(sql.prepare("SELECT * FROM eco_cat WHERE key = 'B0'").get());
+  assert.equal((await call(90, { act: 'm_list', key: 'B0', start: blo, bin: bhi, dur: 1, op: op() })).ok, false, 'прокачанную карточку на рынок нельзя');
+  sql.exec("DELETE FROM eco_up WHERE uid = 90");
+  assert.equal((await call(90, { act: 'm_list', key: 'B0', start: blo, bin: bhi, dur: 1, op: op() })).ok, true, 'та же карточка без прокачки — продаётся (цена верная)');
   console.log('Экономика и рынок: паки, быстрая продажа, рамки цен, ставки, выкуп, гонка, налог, возвраты, аукцион, боты, вайп — ок');
 })().catch((e) => { console.error(e); process.exitCode = 1; });
