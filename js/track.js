@@ -122,16 +122,32 @@ const Track = (() => {
   // ---------- Админка ----------
   const sec = (ms) => (ms ? (ms >= 60000 ? `${Math.floor(ms / 60000)} мин ${Math.round((ms % 60000) / 1000)} с` : `${Math.round(ms / 1000)} с`) : '—');
   const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 60 ? `${m} мин назад` : m < 1440 ? `${Math.round(m / 60)} ч назад` : `${Math.round(m / 1440)} дн назад`; };
+  // ---------- свои трофеи (только админ; сервер проверяет права) ----------
+  const troBox = () => `<div class="ad-tro"><h3 class="section-label">Мои трофеи</h3><div class="ad-tro-row"><button class="btn ghost" data-adtro="-1000">−1000</button><input id="ad-tro" type="number" min="0" max="15000" step="100" value="${Rewards.S().trophies}" inputmode="numeric"><button class="btn ghost" data-adtro="1000">+1000</button></div><button class="btn gold" data-adtro="save">Сохранить</button><p class="ad-note">От 0 до 15 000. Меняет только твой счёт.</p></div>`;
+  let troBusy = false;
+  document.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-adtro]'), inp = $('#ad-tro'); if (!b || !inp || !Store.d.admin) return;
+    const v = () => Math.max(0, Math.min(15000, Math.floor(Number(inp.value) || 0)));
+    if (b.dataset.adtro !== 'save') { inp.value = Math.max(0, Math.min(15000, v() + Number(b.dataset.adtro))); return; }
+    if (troBusy) return; troBusy = true; b.disabled = true;
+    try {
+      const r = await post('/admin/tro', { tro: v() });
+      if (!r || !r.ok) throw new Error((r && r.error) || 'ошибка');
+      Rewards.S().trophies = r.tro; inp.value = r.tro; Store.save(true); Rewards.refresh(); if (typeof renderHub === 'function') safe('hub', renderHub);
+      toast(`Трофеи: ${r.tro}`);
+    } catch (err) { toast('Не удалось: ' + (err.message || err)); }
+    troBusy = false; b.disabled = false;
+  });
   async function admin() {
     Modal.close();
     Screens.show('admin');
     const box = $('#admin-body');
     box.innerHTML = '<div class="bd-empty"><div class="bd-spin"></div><p>Считаем…</p></div>';
     let st;
-    try { st = await post('/admin/stats', {}); if (!st.ok) throw new Error(st.error); } catch (e) { box.innerHTML = `<div class="bd-empty"><span>📡</span><p>Не удалось загрузить: ${esc(String(e.message || e))}</p></div>`; return; }
+    try { st = await post('/admin/stats', {}); if (!st.ok) throw new Error(st.error); } catch (e) { box.innerHTML = `${troBox()}<div class="bd-empty"><span>📡</span><p>Не удалось загрузить: ${esc(String(e.message || e))}</p></div>`; return; }
     const max = Math.max(1, ...st.dau.map((d) => d.n));
     const wd = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
-    box.innerHTML = `
+    box.innerHTML = `${troBox()}
       <div class="ad-kpis">
         <div><b>${st.total}</b><small>игроков всего</small></div>
         <div><b>${st.dau[6].n}</b><small>всего играли сегодня</small></div>

@@ -4711,3 +4711,7 @@ body.dg-on { overscroll-behavior: none; }
 @keyframes seekPulse { 70% { box-shadow: 0 0 0 10px rgba(63,210,107,0); } 100% { box-shadow: 0 0 0 0 rgba(63,210,107,0); } }
 @media (prefers-reduced-motion: reduce) { .seek-bar, .seek-dot, .rf-hero > * { animation: none; } }
 #profile .pf-tiles .pf-wide { grid-column: 1 / -1; }
+/* «Админка»: свои трофеи */
+.ad-tro { display: grid; gap: 8px; margin-bottom: 14px; }
+.ad-tro-row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; }
+.ad-tro-row input { min-width: 0; height: 44px; padding: 0 12px; border: 0; border-radius: 12px; background: rgba(255,255,255,.08); color: #fff; font: 800 18px Rubik, sans-serif; text-align: center; }

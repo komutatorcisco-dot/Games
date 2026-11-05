@@ -1472,7 +1472,7 @@ async function route(request, env) {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     return json(await onlinePresence(env, null, { act: 'counts' }));
   }
-  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room', '/social', '/ref'].includes(url.pathname) && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room', '/social', '/ref', '/admin/tro'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
@@ -1492,6 +1492,14 @@ async function route(request, env) {
     if (url.pathname === '/social') return json(await social(env, user, body));
     if (url.pathname === '/save') return json(await saveData(env, user, body));
     if (url.pathname === '/load') return json(await loadData(env, user));
+    // админ ставит себе трофеи из «Админки» (только себе, 0…15 000); телефон берёт значение из ответа
+    if (url.pathname === '/admin/tro') {
+      if (!(await isAdminId(env, user.id))) return json({ ok: false, error: 'forbidden' }, 403);
+      const tro = Math.max(0, Math.min(15000, Math.floor(Number(body.tro) || 0)));
+      await schema(env.DB);
+      await env.DB.prepare('INSERT INTO ustats (id, trophies, updated) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET trophies = ?2, updated = ?3').bind(user.id, tro, Date.now()).run();
+      return json({ ok: true, tro });
+    }
     if (url.pathname === '/admin/stats') {
       if (!(await isAdminId(env, user.id))) return json({ ok: false, error: 'forbidden' }, 403);
       return json({ ok: true, ...(await stats(env)) });
