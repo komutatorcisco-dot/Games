@@ -49,9 +49,9 @@ vm.runInContext(fs.readFileSync('server/worker.js','utf8').replace(/^export \{[^
 
   const user={id:99,username:'test'};
   for(let n=0;n<5;n++) await api.saveScore(env,user,{xp:0,tro:50000});
-  assert.equal(sql.prepare('SELECT trophies FROM ustats WHERE id=99').get().trophies,11000,'repeated trophy requests stop at the hard server cap');
+  assert.equal(sql.prepare('SELECT trophies FROM ustats WHERE id=99').get().trophies,15000,'repeated trophy requests stop at the hard server cap');
   await api.saveData(env,user,{data:JSON.stringify({ts:Date.now(),rw:{trophies:99999}})});
   const loaded=await api.loadData(env,user);
-  assert.equal(loaded.tro,11000); assert.equal(JSON.parse(loaded.data).rw.trophies,11000,'cloud save/load is clamped too');
-  console.log('Online state: heartbeat expiry, one persistent draft attempt, single prize claim, and 11,000 trophy cap passed');
+  assert.equal(loaded.tro,15000); assert.equal(JSON.parse(loaded.data).rw.trophies,15000,'cloud save/load is clamped too');
+  console.log('Online state: heartbeat expiry, one persistent draft attempt, single prize claim, and 15,000 trophy cap passed');
 })().catch(e=>{console.error(e);process.exitCode=1;});

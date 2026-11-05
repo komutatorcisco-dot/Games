@@ -7,7 +7,7 @@
 'use strict';
 
 const Rewards = (() => {
-  const DROPS_PER_DAY = 5, WIN_TROPHIES = 12, PLAY_TROPHIES = 3, MAX_TROPHIES = 11000;
+  const DROPS_PER_DAY = 5, WIN_TROPHIES = 12, PLAY_TROPHIES = 3, MAX_TROPHIES = 15000;
   const PASS_LEVELS = 30, PASS_STEP = 300, PASS_STARS = 100; // 300 очков на уровень: пропуск идёт весь сезон, а не неделю
   const SEASON_START = Date.parse('2026-10-05T08:00:00Z'), SEASON_DAYS = 28;
 
@@ -235,6 +235,7 @@ const Rewards = (() => {
     const x2 = 1;
     if (!win) { addTrophies(PLAY_TROPHIES * x2); Store.save(); refresh(); safe('board', () => Board.submit()); return ''; }
     quest('win', game);
+    { const u = Store.d.ult || (Store.d.ult = { w: 0 }); u.w = (Number(u.w) || 0) + 1; } // победы для задания «Ультимейт Джексон» — считаются с 5.11
     addTrophies(WIN_TROPHIES * x2);
     if (game) { const gw = Store.d.gw || (Store.d.gw = {}); gw[game] = (gw[game] || 0) + 1; } // победы по играм — для таблицы
     safe('board', () => Board.submit());

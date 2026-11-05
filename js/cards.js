@@ -14,8 +14,9 @@ const Cards = (() => {
     jack: { n: 'ДЖЕКСОН!!', dup: 100 },
     future: { n: 'БУДУЩИЕ ЗВЁЗДЫ', dup: 100 },
     forgotten: { n: 'ЗАБЫТЫЕ ЛЕГЕНДЫ', dup: 100 },
+    ult: { n: 'УЛЬТИМЕЙТ', dup: 100 },
   };
-  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten'];
+  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten', 'ult'];
   const LEAGUES = ['АПЛ', 'Ла Лига', 'Серия А', 'Бундеслига', 'Лига 1'];
   const POS = { ГК: 'ВРТ' };
 
@@ -37,9 +38,13 @@ const Cards = (() => {
     // поэтому серия не даёт химии «общий клуб». hero — как Heroes в FC: 3 химии на своей позиции, связь через сборную.
     // Характеристики Балотелли — предложение под рейтинг 95 (в базе FC его нет), утверждаются вместе с карточкой.
     const forgotten = [{ key: 'FL:mario-balotelli', name: 'Марио Балотелли', r: 95, pos: 'ФРВ', posFix: true, club: '', series: 'Забытые легенды', crestUrl: 'img/brand/fl-badge.svg', flag: '🇮🇹', nat: 'Италия', lg: '', rar: 'forgotten', sbcOnly: true, hero: true, challenge: 'fl:balotelli', walkout: 'balotelli', model3d: 'balotelli', faceUrl: 'img/players/balotelli-face.webp', st: [90, 96, 80, 89, 42, 94] }];
-    ALL = [...cur, ...legs, ...jack, ...future, ...forgotten];
+    // «Ультимейт» (5.11): Николас Джексон 99 — только за ИПК «Ультимейт Джексон» и задание, выдачу отмечает сервер (/legend, act ult).
+    // Основная позиция ФРВ, но играет на любой, даже в воротах (allPos); hero — 3/3 химии на своей позиции, значит на любой.
+    const ult = [{ key: 'UL:nicolas-jackson', name: 'Николас Джексон', r: 99, pos: 'ФРВ', posFix: true, allPos: true, club: 'Астон Вилла', flag: '🇸🇳', nat: 'Сенегал', lg: 'АПЛ', face: FACES['Николас Джексон'], rar: 'ult', sbcOnly: true, hero: true, challenge: 'ul:jackson', st: [97, 99, 93, 97, 80, 96] }];
+    ALL = [...cur, ...legs, ...jack, ...future, ...forgotten, ...ult];
     if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
       c.positions = PlayerPositions.get(c.name, c.pos);
+      if (c.allPos) c.positions = ['ST', ...Object.keys(PlayerPositions.RU).filter((p) => p !== 'ST')];
       if (!c.posFix) c.pos = PlayerPositions.RU[c.positions[0]] || c.pos;
       if (c.icon && !c.st) c.st = legendStats(c.r, c.positions[0]);
     });
@@ -194,14 +199,14 @@ const Cards = (() => {
   }
 
   // ---------- галерея как в EA FC: лиги → клубы → игроки; собрал клуб или лигу — награда ----------
-  const GROUPS = [...LEAGUES, 'Другие', 'Легенды', 'Джексон', 'Будущие звёзды', 'Забытые легенды'];
+  const GROUPS = [...LEAGUES, 'Другие', 'Легенды', 'Джексон', 'Будущие звёзды', 'Забытые легенды', 'Ультимейт'];
   const GROUP_ICO = { 'АПЛ': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Ла Лига': '🇪🇸', 'Серия А': '🇮🇹', 'Бундеслига': '🇩🇪', 'Лига 1': '🇫🇷', 'Другие': Ui.get('globe'), 'Легенды': Ui.get('crown'), 'Джексон': Ui.get('flame') };
-  const groupOf = (c) => (c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : c.rar === 'forgotten' ? 'Забытые легенды' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
-  GROUP_ICO['Будущие звёзды'] = Ui.get('star');
+  const groupOf = (c) => (c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : c.rar === 'forgotten' ? 'Забытые легенды' : c.rar === 'ult' ? 'Ультимейт' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
+  GROUP_ICO['Будущие звёзды'] = Ui.get('star'); GROUP_ICO['Ультимейт'] = Ui.get('flame');
   GROUP_ICO['Забытые легенды'] = '<img class="gl-series" src="img/brand/fl-badge.svg" alt="">';
   // серии из испытаний: карточку нельзя купить, поэтому за «сбор» серии награды нет (экономика не меняется)
-  const NOPRIZE = new Set(['Забытые легенды']);
-  const SINGLE = new Set(['Джексон', 'Забытые легенды']); // без деления на клубы
+  const NOPRIZE = new Set(['Забытые легенды', 'Ультимейт']);
+  const SINGLE = new Set(['Джексон', 'Забытые легенды', 'Ультимейт']); // без деления на клубы
   // серия видна в галерее, когда сервер включил испытание или карточка уже получена
   const shown = (g) => g !== 'Забытые легенды' || have(groupCards(g)) > 0 || (typeof Legends !== 'undefined' && Legends.enabled());
   const hiddenCard = (c) => c.rar === 'forgotten' && !shown('Забытые легенды');
@@ -339,13 +344,17 @@ const Cards = (() => {
     const stats = st ? `<div class="cd-st">${names.map((n, i) => `<span><b>${st[i + 1]}</b>${n}</span>`).join('')}</div>` : '';
     const s = S(); s.fresh = s.fresh.filter((k) => k !== key); Store.save();
     Modal.open(`<div class="cd">${html(c, { w: 220 })}<h2>${esc(c.name)}</h2><p class="cd-m">${c.series ? `${esc(c.series)} · ${esc(c.nat)}` : `${esc(c.club)}${c.rar === 'legend' || c.rar === 'jack' ? '' : ` · ${esc(c.lg || '')}`}`}</p>${stats}
-      ${c.positions ? `<p class="cd-m">Позиции: ${c.posFix ? esc(c.pos) : PlayerPositions.labels(c.positions)}</p>` : ''}${c.icon ? `<p class="cd-m">Кумир · ${esc(c.nat)}<br>Новая химия: 3/3 на своей позиции, +1 к каждой лиге и своей сборной.</p>` : ''}${c.hero ? `<p class="cd-m">Химия: 3/3 на своей позиции, связь — через сборную (${esc(c.nat)}). Эмблема серии не считается клубом.</p>` : ''}${c.walkout && typeof Walkout !== 'undefined' ? '<button class="btn ghost cd-wo" data-walkout="' + esc(c.key) + '">Посмотреть выход</button>' : ''}${c.model3d && typeof Model3D !== 'undefined' ? '<button class="btn ghost cd-wo" data-model3d="' + esc(c.key) + '">Покрутить в 3D</button>' : ''}<p class="cd-own">В клубе: ×${spare(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
+      ${c.positions ? `<p class="cd-m">Позиции: ${c.allPos ? 'ФРВ — основная; играет на любой позиции, даже в воротах' : c.posFix ? esc(c.pos) : PlayerPositions.labels(c.positions)}</p>` : ''}${c.icon ? `<p class="cd-m">Кумир · ${esc(c.nat)}<br>Новая химия: 3/3 на своей позиции, +1 к каждой лиге и своей сборной.</p>` : ''}${c.hero && c.allPos ? `<p class="cd-m">Химия: 3/3 на любой позиции, связь — через сборную (${esc(c.nat)}). Лучшая карточка игры: только за ИПК «Ультимейт Джексон».</p>` : ''}${c.hero && !c.allPos ? `<p class="cd-m">Химия: 3/3 на своей позиции, связь — через сборную (${esc(c.nat)}). Эмблема серии не считается клубом.</p>` : ''}${c.walkout && typeof Walkout !== 'undefined' ? '<button class="btn ghost cd-wo" data-walkout="' + esc(c.key) + '">Посмотреть выход</button>' : ''}${c.model3d && typeof Model3D !== 'undefined' ? '<button class="btn ghost cd-wo" data-model3d="' + esc(c.key) + '">Покрутить в 3D</button>' : ''}<p class="cd-own">В клубе: ×${spare(key)} · повтор даёт +${RAR[c.rar].dup} <i class="coin"></i></p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]);
     if (typeof Tilt !== 'undefined') Tilt.spin($('#modal-card .cd > .cc'));
   }
   // купить недостающую карточку: как трансферный рынок
   const price = (c) => (c.sbcOnly || c.rar === 'jack' ? 0 : c.rar === 'legend' ? 6000 + Math.max(0, c.r - 90) * 600 : c.rar === 'gold' ? 900 + Math.max(0, c.r - 78) * 300 : c.rar === 'silver' ? 320 : 120);
   function buy(key) {
     const c = get(key); if (!c || owned(key)) return;
+    if (c.rar === 'ult') {
+      Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>Ультимейт · ${c.r}</h2><p>Лучшая карточка игры. Из паков не выпадает, за монеты не продаётся: только за ИПК «Ультимейт Джексон» и задание.</p></div>`, [{ label: 'К испытанию', onClick: () => SBC.open('ul:jackson') }, { label: 'Закрыть', cls: 'ghost' }]);
+      return;
+    }
     if (c.sbcOnly && c.challenge && typeof Legends !== 'undefined') {
       Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>${esc(c.series)}</h2><p>Награда испытания. Из паков не выпадает, за монеты не продаётся.</p>${c.model3d && typeof Model3D !== 'undefined' ? '<button class="btn ghost cd-wo" data-model3d="' + esc(c.key) + '">Посмотреть в 3D</button>' : ''}</div>`, [{ label: 'К испытанию', onClick: () => Legends.open(c.challenge) }, { label: 'Закрыть', cls: 'ghost' }]);
       return;

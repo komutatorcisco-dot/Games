@@ -20,7 +20,7 @@ const Squad = (() => {
   // карточка → игрок для движка драфта (у легенд нет статистики FC — берём рейтинг и позицию с карточки)
   function obj(key) {
     const c = key && Cards.get(key); if (!c) return null;
-    const positions = PlayerPositions.get(c.name, c.pos);
+    const positions = c.allPos ? c.positions.slice() : PlayerPositions.get(c.name, c.pos); // «Ультимейт» — на любой позиции
     if (c.st) return { ...c, pos: positions, st: c.st.slice() };
     const b = XDraft.P(c.name), up = c.rar === 'jack' ? 4 : 0;
     if (b) return { ...b, key, icon: c.icon, nat: c.nat || b.nat, pos: positions, r: c.r, st: b.st.map((v) => Math.min(99, v + up)), rar: c.rar };

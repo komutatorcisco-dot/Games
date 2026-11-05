@@ -56,7 +56,7 @@ function saveSpare(save, key) {
   return Math.max(0, Math.floor(Number(c.own[key]) || 0) - Math.floor(used));
 }
 // Особые карточки выдаёт только сервер — без его записи о выдаче карточку не показываем, что бы ни было в сохранении.
-const SERVER_GRANTED = /^FL:/;
+const SERVER_GRANTED = /^(FL|UL):/;
 async function verifyShowcase(db, uid, showcase, save) {
   const keys = [0, 1, 2].map((i) => { const k = Array.isArray(showcase) ? showcase[i] : null; return socialKey(k) && saveSpare(save, k) >= 1 ? k : null; });
   for (let i = 0; i < 3; i++) {
@@ -131,7 +131,7 @@ async function social(env, user, body) {
     // Existing profile statistics are server-stored but retain legacy client-result trust limitations.
     // Витрина — только проверенная сервером (social_shown), а не то, что игрок выбрал.
     return { ok: true, private: false, nick: String(u && u.nick || 'Игрок').slice(0, 32), emoji: String(u && u.emoji || '⚽').slice(0, 16),
-      level: thresholds.filter(n => xp >= n).length, trophies: Math.max(0, Math.min(11000, Number(t && t.trophies) || 0)),
+      level: thresholds.filter(n => xp >= n).length, trophies: Math.max(0, Math.min(15000, Number(t && t.trophies) || 0)),
       achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase: await shownFor(db, row.uid), showcaseEnabled: true };
   }
   if (!['self', 'edit'].includes(body.act)) return { ok: false, error: 'bad operation' };
@@ -366,7 +366,7 @@ async function saveScore(env, user, body) {
   const tro = Math.max(0, Math.floor(Number(body.tro) || 0));
   if (tro) {
     const ot = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(id).first();
-    const t = Math.min(11000, ot ? Math.max(ot.trophies, Math.min(tro, ot.trophies + 3000)) : Math.min(tro, 5000));
+    const t = Math.min(15000, ot ? Math.max(ot.trophies, Math.min(tro, ot.trophies + 3000)) : Math.min(tro, 5000));
     if (!ot || ot.trophies !== t) ops.push(db.prepare('INSERT INTO ustats (id, trophies, updated) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET trophies = ?2, updated = ?3 WHERE trophies != ?2').bind(id, t, now));
   }
   // победы по играм: { 'ng:wordle': 12, … }
@@ -536,7 +536,7 @@ async function hello(env, user, body) {
   const prev = weekKey(now - 7 * 864e5), cupWin = Number(await getSetting(db, 'cupwin:' + prev)) === user.id ? prev : null;
   const sv = await db.prepare('SELECT ts, tro FROM saves WHERE id = ?').bind(user.id).first();
   const ut = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(user.id).first();
-  return { admin: await isAdminId(env, user.id), refGift, pass, shop, cupWin, save: sv ? { ts: sv.ts, tro: Math.min(11000, sv.tro) } : null, tro: ut ? Math.min(11000, ut.trophies) : 0 };
+  return { admin: await isAdminId(env, user.id), refGift, pass, shop, cupWin, save: sv ? { ts: sv.ts, tro: Math.min(15000, sv.tro) } : null, tro: ut ? Math.min(15000, ut.trophies) : 0 };
 }
 
 // ---------- пригласи друга ----------
@@ -565,7 +565,7 @@ async function referrals(env, user, body) {
     LEFT JOIN seen s ON s.id = r.invitee LEFT JOIN ustats u ON u.id = r.invitee WHERE r.inviter = ? ORDER BY r.ts DESC LIMIT ?`).bind(uid, REF_MAX).all()).results || [];
   const miles = ((await db.prepare('SELECT mile FROM ref_miles WHERE id = ?').bind(uid).all()).results || []).map((r) => r.mile);
   return { ok: true, need: REF_TRO, reward: REF_REWARD, miles: Object.entries(REF_MILES).map(([n, rw]) => ({ n: Number(n), reward: rw, claimed: miles.includes(Number(n)) })),
-    friends: rows.map((r) => ({ id: r.id, nick: r.nick || 'Игрок', tro: Math.min(11000, r.tro), ready: r.tro >= REF_TRO, claimed: !!r.claimed })) };
+    friends: rows.map((r) => ({ id: r.id, nick: r.nick || 'Игрок', tro: Math.min(15000, r.tro), ready: r.tro >= REF_TRO, claimed: !!r.claimed })) };
 }
 
 // ---------- резервное сохранение ----------
@@ -577,7 +577,7 @@ async function saveData(env, user, body) {
   const str = typeof body.data === 'string' ? body.data : '';
   if (!str || str.length > 900000) return { ok: false, error: 'size' };
   let d; try { d = JSON.parse(str); } catch (e) { return { ok: false, error: 'bad data' }; }
-  const tro = Math.max(0, Math.min(11000, Math.floor(Number(d && d.rw && d.rw.trophies) || 0))), ts = Math.floor(Number(d && d.ts) || Date.now());
+  const tro = Math.max(0, Math.min(15000, Math.floor(Number(d && d.rw && d.rw.trophies) || 0))), ts = Math.floor(Number(d && d.ts) || Date.now());
   if (d.rw) d.rw.trophies = tro;
   const safeData = JSON.stringify(d);
   const old = await db.prepare('SELECT ts, tro FROM saves WHERE id = ?').bind(user.id).first();
@@ -590,8 +590,8 @@ async function loadData(env, user) {
   await schema(env.DB);
   const r = await env.DB.prepare('SELECT ts, tro, data FROM saves WHERE id = ?').bind(user.id).first();
   if (!r) return { ok: true, data: null };
-  let data = r.data, tro = Math.min(11000, Math.max(0, Number(r.tro) || 0));
-  try { const d = JSON.parse(data); if (d.rw) d.rw.trophies = Math.min(11000, Math.max(0, Number(d.rw.trophies) || 0)); data = JSON.stringify(d); } catch (e) { /* проверка будет на клиенте */ }
+  let data = r.data, tro = Math.min(15000, Math.max(0, Number(r.tro) || 0));
+  try { const d = JSON.parse(data); if (d.rw) d.rw.trophies = Math.min(15000, Math.max(0, Number(d.rw.trophies) || 0)); data = JSON.stringify(d); } catch (e) { /* проверка будет на клиенте */ }
   return { ok: true, ts: r.ts, tro, data };
 }
 
@@ -1228,6 +1228,7 @@ async function flStatus(db, uid, start) {
   return { card: FL.card, need: { matches: FL.matches, wins: FL.wins, italians: FL.italians }, tasks, done, claimed: !!got };
 }
 async function legends(env, user, body) {
+  if (body && body.act === 'ult') return ultimate(env, user, body);
   // Испытание открыто всем (запуск 13.10.2026). FL_ENABLED: не задана или «1» — всем; «0»/«off» — выключено (кроме FL_TESTERS);
   // «admins» — только админам игры. FL_TESTERS — список Telegram ID через запятую, им открыто всегда.
   const mode = String(env.FL_ENABLED ?? '').trim(), testers = String(env.FL_TESTERS || '').split(/[\s,]+/).filter(Boolean).map(Number);
@@ -1253,6 +1254,23 @@ async function legends(env, user, body) {
     return { ok: true, granted: !!r.meta.changes, already: !r.meta.changes, ...st, claimed: true };
   }
   return { ok: true, ...(await flStatus(db, uid, start)) };
+}
+
+// ---------- «Ультимейт» (5.11): Николас Джексон 99 за ИПК и задание ----------
+// Составы сдаются и победы считаются на устройстве; сервер проверяет трофеи по своей таблице ustats и один раз отмечает выдачу
+// в legend_claims (по этой отметке в новой версии игры игрок получит Джексона 86 «OLD»).
+const UL = { card: 'UL:nicolas-jackson', tro: 8000, wins: 25 };
+async function ultimate(env, user, body) {
+  const db = env.DB, uid = user.id;
+  await schema(db);
+  const got = await db.prepare('SELECT 1 AS ok FROM legend_claims WHERE uid = ? AND card = ?').bind(uid, UL.card).first();
+  if (!body.claim) return { ok: true, card: UL.card, claimed: !!got };
+  if (got) return { ok: true, card: UL.card, claimed: true, already: true };
+  if ((Number(body.wins) || 0) < UL.wins) return { ok: false, error: `Нужно ${UL.wins} побед` };
+  const t = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(uid).first(), tro = t ? t.trophies : 0;
+  if (tro < UL.tro) return { ok: false, error: `На сервере у тебя ${tro} трофеев из ${UL.tro}. Сыграй ещё игру — счёт обновится` };
+  await db.prepare('INSERT OR IGNORE INTO legend_claims (uid, card, created) VALUES (?, ?, ?)').bind(uid, UL.card, Date.now()).run();
+  return { ok: true, card: UL.card, claimed: true, granted: true };
 }
 
 // ---------- онлайн: подбор случайного соперника для дуэли ----------

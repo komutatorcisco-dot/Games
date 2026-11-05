@@ -34,7 +34,7 @@ const Tilt = (() => {
     if (!cc || cc.closest('.spin3d')) return;
     const wrap = document.createElement('div'); wrap.className = 'spin3d';
     const inner = document.createElement('div'); inner.className = 'spin-in';
-    const back = document.createElement('div'); back.className = 'spin-back ' + (['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten'].find((r) => cc.classList.contains(r)) || '');
+    const back = document.createElement('div'); back.className = 'spin-back ' + (['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten', 'ult'].find((r) => cc.classList.contains(r)) || '');
     back.innerHTML = '<b>ДЖ</b>';
     cc.parentNode.insertBefore(wrap, cc); inner.appendChild(cc); inner.appendChild(back); wrap.appendChild(inner);
     let ry = 0, rx = 0, vy = 0, drag = null, raf = 0, settle = false;
@@ -128,6 +128,15 @@ const SBC = (() => {
           req: [{ t: 'rating', v: r }, ...(i === 1 ? [{ t: 'from', k: 'nat', v: 'Испания', min: 2 }] : i === 2 ? [{ t: 'from', k: 'club', v: 'Барселона', min: 1 }] : i === 3 ? [{ t: 'from', k: 'lg', v: 'Ла Лига', min: 3 }] : [])],
           reward: { coins: 100 }, limit: 1,
         })) },
+      // «Ультимейт» (5.11): 5 тяжёлых составов + задание (8 000 трофеев и 25 побед с 5.11). Карточку выдаёт сервер — ultClaim().
+      { id: 'ul:jackson', cat: 'pl', group: true, ult: true, ico: 'flame', diff: 4, title: 'Ультимейт: Николас Джексон 99', desc: 'Лучшая карточка игры: 99, играет на любой позиции, даже в воротах. 5 составов и задание: 8 000 трофеев и 25 побед. Без срока.', reward: { card: 'UL:nicolas-jackson' }, limit: 1,
+        items: [
+          { id: 'ul:jackson:1', ico: 'crown', diff: 4, title: 'Легенды', desc: 'Четыре легенды в составе на 88', n: 11, req: [{ t: 'rar', in: ['legend'], min: 4 }, { t: 'rating', v: 88 }], reward: { coins: 100 }, limit: 1 },
+          { id: 'ul:jackson:2', ico: 'flame', diff: 4, title: 'Джексон!!', desc: 'Три карточки «Джексон» в составе на 89', n: 11, req: [{ t: 'rar', in: ['jack'], min: 3 }, { t: 'rating', v: 89 }], reward: { coins: 100 }, limit: 1 },
+          { id: 'ul:jackson:3', ico: 'stadium', diff: 4, title: 'Пять лиг', desc: 'Игрок из каждой топ-лиги, состав на 87', n: 11, req: [...LEAGUES.map((v) => ({ t: 'from', k: 'lg', v, min: 1 })), { t: 'rating', v: 87 }], reward: { coins: 100 }, limit: 1 },
+          { id: 'ul:jackson:4', ico: 'globe', diff: 4, title: 'Сборная мира', desc: 'Одиннадцать разных стран, состав на 87', n: 11, req: [{ t: 'diff', k: 'nat', min: 11 }, { t: 'rating', v: 87 }], reward: { coins: 100 }, limit: 1 },
+          { id: 'ul:jackson:5', ico: 'star', diff: 4, title: 'Финал', desc: 'Пять легенд или «Джексонов», состав на 90', n: 11, req: [{ t: 'rar', in: ['legend', 'jack'], min: 5 }, { t: 'rating', v: 90 }], reward: { coins: 100 }, limit: 1 },
+        ] },
       { id: 'up:b:' + D, cat: 'up', ico: 'medal:#d9905a', diff: 1, title: 'Бронзовое улучшение', desc: '11 бронзовых за 5 карточек, включая золотую. Раз в день.', n: 11, req: [{ t: 'only', in: ['bronze'] }], reward: { pack: 1 }, limit: 1, ends: dayEnd() },
       { id: 'up:s:' + D, cat: 'up', ico: 'medal:#d6dde6', diff: 2, title: 'Серебряное улучшение', desc: '11 серебряных за 8 карточек, включая две золотые. Раз в день.', n: 11, req: [{ t: 'only', in: ['silver'] }], reward: { pack: 2 }, limit: 1, ends: dayEnd() },
       { id: 'up:g:' + W, cat: 'up', ico: 'medal:#ffcf3a', diff: 4, title: 'Улучшение 85+', desc: '11 золотых или особых карт, рейтинг состава 85. Пак с легендой — раз в неделю.', n: 11, req: [{ t: 'only', in: GOLDUP }, { t: 'rating', v: 85 }], reward: { pack: 3 }, limit: 1, ends: weekEnd() },
@@ -306,7 +315,34 @@ const SBC = (() => {
         <div class="fx-gl"><b>${esc(g.title)}</b><p>${esc(g.desc)}</p>
           <div class="fx-prog"><span class="fx-seg">${g.items.map((it) => `<i class="${doneN(it.id) ? 'on' : ''}"></i>`).join('')}</span><small>${n} из ${g.items.length} ИПК</small></div>
           <div class="fx-f">${diffChip(g.diff, g.cost)}${g.ends ? `<span class="fx-left"><i class="fx-ic">${Ui.get('clock')}</i><b data-left="${g.ends}">${left(g.ends)}</b></span>` : '<span class="fx-left">Без срока</span>'}</div></div></div>
-      <div class="fx-list">${g.items.map((x, i) => card(x, i)).join('')}</div>`;
+      ${g.ult ? ultHTML(g) : ''}<div class="fx-list">${g.items.map((x, i) => card(x, i)).join('')}</div>`;
+  }
+  // ---------- «Ультимейт Джексон»: задание и выдача (сервер проверяет трофеи и отмечает выдачу в legend_claims) ----------
+  const ULT = { tro: 8000, wins: 25 };
+  const ultWins = () => Math.max(0, Math.floor(Number((Store.d.ult || {}).w) || 0));
+  const ultTro = () => Rewards.S().trophies;
+  const ultReady = (g) => groupDone(g) === g.items.length && ultTro() >= ULT.tro && ultWins() >= ULT.wins;
+  let ulBusy = false;
+  function ultHTML(g) {
+    const row = (t, v, n) => { const ok = v >= n; return `<li class="${ok ? 'ok' : ''}"><i>${ok ? '✓' : ''}</i><span><b>${t}</b><span class="gl-bar"><i style="width:${Math.round(Math.min(1, v / n) * 100)}%"></i></span></span><em>${Math.min(v, n)} / ${n}</em></li>`; };
+    const got = closed(g) || Cards.owned(g.reward.card) > 0;
+    const btn = got ? '<p class="ul-got">✓ Карточка у тебя</p>'
+      : ultReady(g) ? `<button class="btn gold ul-claim" data-ulc="1" ${ulBusy ? 'disabled' : ''}>${ulBusy ? 'Проверяем…' : 'Забрать Джексона 99'}</button>` : '';
+    return `<div class="ul-box"><b class="ul-h">Задание</b><ul class="fl-tasks">${row('Набери 8 000 трофеев', ultTro(), ULT.tro)}${row('Выиграй 25 игр (с 5 ноября)', ultWins(), ULT.wins)}${row('Сдай все 5 составов', groupDone(g), g.items.length)}</ul>${btn}</div>`;
+  }
+  async function ultClaim() {
+    const g = find('ul:jackson'); if (!g || ulBusy || closed(g) || !ultReady(g)) return;
+    if (typeof Board === 'undefined' || !Board.ready()) return toast('Открой игру в Telegram — выдачу подтверждает сервер');
+    ulBusy = true; paint();
+    let r = null;
+    try { r = await Board.post('/legend', { act: 'ult', claim: 1, wins: ultWins() }); } catch (e) { r = { ok: false, error: 'Нет связи с сервером' }; }
+    ulBusy = false;
+    if (!r || !r.ok) { paint(); return toast((r && r.error) || 'Пока нельзя забрать'); }
+    S().done[g.id] = 1;
+    const res = Cards.owned(g.reward.card) ? [] : Cards.add([g.reward.card]);
+    Store.save(); Sound.play('goal'); haptic('ok'); if (typeof confetti === 'function') confetti();
+    paint(enterFx);
+    if (res.length) Cards.reveal(res, () => paint(enterFx));
   }
   const rows = (n) => ({ 3: [3], 4: [2, 2], 5: [3, 2], 7: [3, 2, 2], 11: [3, 3, 4, 1] }[n] || [n]);
   let lastOk = {};
@@ -378,7 +414,7 @@ const SBC = (() => {
     const r = x.reward;
     let what = '';
     if (r.pack !== undefined) what = `<p class="cd-m"><b>${PACK_N[r.pack]} ${plural(PACK_N[r.pack], 'карточка', 'карточки', 'карточек')}</b>${PACK_SURE[r.pack] ? `, гарантированно ${PACK_SURE[r.pack]}` : ''}. Пак может «прокачаться» до более редкого прямо при открытии.</p>`;
-    else if (r.card) { const c = Cards.get(r.card); what = c ? `<p class="cd-m">${esc(Cards.RAR[c.rar].n)}: ${esc(c.name)}, рейтинг <b>${c.r}</b>. ${c.sbcOnly ? 'Только за 10 составов этого ИПК. В паках и магазине недоступна.' : 'Особая награда за выполнение группы.'}</p>` : ''; }
+    else if (r.card) { const c = Cards.get(r.card); what = c ? `<p class="cd-m">${esc(Cards.RAR[c.rar].n)}: ${esc(c.name)}, рейтинг <b>${c.r}</b>. ${c.rar === 'ult' ? 'Только за 5 составов этого ИПК и задание: 8 000 трофеев и 25 побед. Играет на любой позиции, даже в воротах. В паках и магазине недоступна.' : c.sbcOnly ? 'Только за 10 составов этого ИПК. В паках и магазине недоступна.' : 'Особая награда за выполнение группы.'}</p>` : ''; }
     else what = `<p class="cd-m">${r.coins} монет сразу на счёт.</p>`;
     const reqs = x.items ? `<ol class="fx-steps">${x.items.map((it) => `<li class="${doneN(it.id) ? 'ok' : ''}"><b>${esc(it.title)}</b><span>${it.n} игроков · ${it.req.map(label).join(' · ')}</span><em>${esc(rewardTxt(it.reward))}</em></li>`).join('')}</ol>`
       : `<ul class="fx-rl">${[`Игроков в составе: ${x.n}`, ...x.req.map(label)].map((t) => `<li>${t}</li>`).join('')}</ul>`;
@@ -552,6 +588,7 @@ const SBC = (() => {
   }
   function claimGroup(parent) {
     if (!parent || closed(parent) || groupDone(parent) !== parent.items.length) return [];
+    if (parent.ult) return []; // «Ультимейт» забирают кнопкой после задания — ultClaim()
     S().done[parent.id] = 1;
     const res = parent.reward.card ? Cards.add([parent.reward.card]) : [];
     const dup = res.reduce((sum, item) => sum + item.coins, 0);
@@ -585,6 +622,7 @@ const SBC = (() => {
     const box = $('#sbc-body'); if (!box) return;
     $('#sbc-back').addEventListener('click', back);
     box.addEventListener('click', (e) => {
+      if (e.target.closest('[data-ulc]')) { Sound.play('tap'); return ultClaim(); }
       const inf = e.target.closest('[data-sbi]'); if (inf) { Sound.play('tap'); return info(inf.dataset.sbi); }
       const t = e.target.closest('[data-sbt]'); if (t) {
         if (t.dataset.sbt === view.tab) return;
