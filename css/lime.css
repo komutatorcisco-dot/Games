@@ -60,3 +60,22 @@
 @keyframes lmBoom { to { width: 420px; opacity: 0; } }
 @keyframes lmPop { from { transform: scale(1.8); } }
 @media (prefers-reduced-motion: reduce) { .lm-rays, .lm-ring, .lm-card, .lm-big.pop { animation: none !important; } }
+/* мяч-дроп: экран одной награды (js/packs.js showPrize) */
+.po-prize { position: relative; display: grid; justify-items: center; align-content: center; gap: 6px; min-height: 60vh; }
+.pz-rays { position: absolute; left: 50%; top: 42%; width: min(80vh, 520px); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+  background: repeating-conic-gradient(color-mix(in srgb, var(--rc) 35%, transparent) 0 8deg, transparent 8deg 20deg); -webkit-mask: radial-gradient(closest-side, #000 20%, transparent); mask: radial-gradient(closest-side, #000 20%, transparent); animation: lmSpin 14s linear infinite; }
+.pz-art { position: relative; display: grid; place-items: center; height: min(34vh, 180px); filter: drop-shadow(0 0 24px color-mix(in srgb, var(--rc) 60%, transparent)); animation: lmFloat 3s ease-in-out infinite; }
+.pz-lime { width: min(26vh, 130px) !important; height: min(26vh, 130px) !important; } .pz-lime::after { width: 40%; height: 28%; top: -10%; }
+.pz-coins { position: relative; width: min(30vh, 150px); height: min(26vh, 130px); }
+.pz-coins .coin { position: absolute; width: 46%; height: auto; aspect-ratio: 1; }
+.pz-coins .coin:nth-child(1) { left: 27%; top: 0; } .pz-coins .coin:nth-child(2) { left: 0; top: 30%; } .pz-coins .coin:nth-child(3) { left: 54%; top: 30%; } .pz-coins .coin:nth-child(4) { left: 14%; top: 56%; } .pz-coins .coin:nth-child(5) { left: 42%; top: 56%; }
+.pz-xp { display: grid; place-items: center; width: min(26vh, 130px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #e6f8ff, #56b8ff 55%, #1546b0); color: #fff; font: 900 min(16vh, 80px)/1 sans-serif; box-shadow: inset 0 -6px 12px rgba(0,20,80,.5); }
+.pz-pk { height: 100%; width: auto; aspect-ratio: 1; object-fit: cover; object-position: 50% 76%; }
+.pz-n { position: relative; font: 900 min(12vh, 56px)/1 "Inter Tight", sans-serif; color: #fff; text-shadow: 0 0 20px color-mix(in srgb, var(--rc) 70%, transparent); }
+.po-prize small { position: relative; font: 800 14px "Inter Tight", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--rc); }
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .po.prize .po-stage { position: absolute; inset: calc(var(--top, 0px) + 24px) 0 calc(var(--fm-b, 0px) + 64px) 0; display: grid; place-items: center; z-index: 2; }
+  body .po.prize .po-top, body.fcm-on .po.prize[data-phase] .po-top { display: none !important; }
+  .po.prize .po-foot { position: absolute; left: 0; right: 0; bottom: calc(var(--fm-b, 0px) + 12px); display: grid; justify-items: center; z-index: 3; }
+  .po.prize .po-take { width: min(320px, 60vw); }
+}

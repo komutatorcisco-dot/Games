@@ -233,6 +233,24 @@ const PackOpen = (() => {
     flash(el, true); Sound.play('goal'); haptic('ok');
     if (typeof FX !== 'undefined') { const r = f.getBoundingClientRect(); FX.burst(r.left + r.width / 2, r.top + r.height * 0.6, 26, true); }
   }
+  // мяч-дроп (5.11): одна награда — монеты, лаймовые очки, очки пропуска или пак — крупно, с лучами и всплеском
+  async function showPrize(el, p, onDone) {
+    const stage = $('.po-stage', el), K = typeof Eco !== 'undefined' && Eco.on() ? Eco.K() : 1, F = (v) => String(Math.round(v)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    el.dataset.phase = 'prize'; el.classList.add('prize');
+    const [art, big, sub, col] = p.coins ? [`<span class="pz-coins">${'<i class="coin"></i>'.repeat(5)}</span>`, `+${F(p.coins * K)}`, 'монет', '#ffd23c']
+      : p.lime ? ['<i class="lime pz-lime"></i>', `+${F(p.lime)}`, 'лаймовых очков прокачки', '#c6ff3d']
+      : p.xp ? ['<span class="pz-xp">★</span>', `+${p.xp}`, 'очков пропуска', '#7fd8ff']
+      : [`<img class="pz-pk" src="img/packs/pk${p.pack}-360.webp?v=b2" alt="">`, LV[p.pack].name, 'откроется следом', LV[p.pack].css];
+    setCol(el, col);
+    $('.po-k', el).textContent = 'Мяч-дроп'; const nm = $('.po-name', el); nm.textContent = sub.toUpperCase(); nm.classList.remove('long'); slam(nm);
+    stage.innerHTML = `<div class="po-prize"><i class="pz-rays"></i><span class="pz-art">${art}</span><b class="pz-n">${esc(big)}</b><small>${esc(sub)}</small></div>`;
+    anim($('.pz-art', stage), [{ transform: 'scale(.2) rotate(-40deg)', opacity: 0 }, { transform: 'scale(1.25) rotate(8deg)', opacity: 1, offset: 0.6 }, { transform: 'none' }], { duration: 700, easing: 'cubic-bezier(.2,1.3,.4,1)' });
+    anim($('.pz-n', stage), [{ transform: 'translateY(30px) scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 500, delay: 250, easing: 'cubic-bezier(.2,1.4,.4,1)', fill: 'backwards' });
+    flash(el, true); Sound.play(p.coins ? 'coin' : 'goal'); haptic('ok');
+    if (typeof FX !== 'undefined') setTimeout(() => { const a = $('.pz-art', stage); if (a) { const r = a.getBoundingClientRect(); FX.burst(r.left + r.width / 2, r.top + r.height / 2, 20, true); } }, 350);
+    await wait(500);
+    finish(el, [], { onDone, take: 'Забрать', coins: 0 });
+  }
   function finish(el, list, { onDone, take, coins }) {
     const dup = list.reduce((s, x) => s + x.coins, 0);
     el.dataset.phase = 'done';
@@ -247,7 +265,7 @@ const PackOpen = (() => {
 
   // ---------- сам пак ----------
   // contents(level) → { coins, cards:[keys] }; commit(got) записывает награду и возвращает [{c,isNew,coins}]
-  async function drop({ gift = false, title = '', minLevel = 0, contents, commit, onStart, onTake, onDone, label = '' } = {}) {
+  async function drop({ gift = false, title = '', minLevel = 0, contents, commit, onStart, onTake, onDone, label = '', single = false } = {}) {
     const final = Math.max(minLevel, typeof window.__packLv === 'number' ? window.__packLv : rollLevel());
     PIMG.forEach((_, i) => { if (i >= minLevel && i <= final) new Image().src = pimg(i, 'xxl'); }); // смена редкости без мигания
     const got = contents ? contents(final) : { coins: 0, cards: [] };
@@ -260,7 +278,7 @@ const PackOpen = (() => {
     $('.po-steps', el).innerHTML = LV.map((l, i) => `<i style="--c:${l.css}" class="${i <= level ? 'on' : ''}"></i>`).join('');
     const stage = $('.po-stage', el);
     stage.innerHTML = `<div class="po-pack" data-lv="${level}">${art(level, 'xxl')}</div>`;
-    const hint = $('.po-hint', el); hint.textContent = 'Жми на пак — редкость может вырасти';
+    const hint = $('.po-hint', el); hint.textContent = single ? 'Жми на мяч — редкость может вырасти' : 'Жми на пак — редкость может вырасти';
     const packEl = $('.po-pack', stage);
     anim(packEl, [{ transform: 'translateY(50vh) rotateX(40deg) scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,1,.3,1)' });
     $('.po-x', el).onclick = () => { if (!started) close(el); };
@@ -285,7 +303,7 @@ const PackOpen = (() => {
         Sound.play(level === 4 ? 'whistle' : level >= 3 ? 'goal' : 'coin'); haptic(level >= 3 ? 'ok' : 'pop');
         if (level === 4 && typeof confetti === 'function') confetti();
         await wait(380);
-        hint.textContent = level < 4 ? 'Жми ещё — пак может стать лучше' : 'Нажми, чтобы открыть';
+        hint.textContent = level < 4 ? (single ? 'Жми ещё — мяч может стать лучше' : 'Жми ещё — пак может стать лучше') : 'Нажми, чтобы открыть';
         busy = false;
         return;
       }
@@ -294,7 +312,9 @@ const PackOpen = (() => {
       await crack(el, packEl);
       const res = commit ? commit(got) : [];
       await wait(700);
-      await showCards(el, res, { coins: got.coins, take: 'Забрать', onDone: () => { onTake && onTake(got); onDone && onDone(got); } });
+      const done = () => { onTake && onTake(got); onDone && onDone(got); };
+      if (single && !res.length && got.prize) return showPrize(el, got.prize, done);
+      await showCards(el, res, { coins: got.coins, take: 'Забрать', onDone: done });
     }
     stage.addEventListener('pointerup', (e) => { if (el.dataset.phase === 'pack') tap(); });
     $('.po-hint', el).addEventListener('pointerup', () => { if (el.dataset.phase === 'pack') tap(); });

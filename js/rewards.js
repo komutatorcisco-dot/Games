@@ -255,15 +255,46 @@ const Rewards = (() => {
     if (s.drops.day !== dayKey()) s.drops = { day: dayKey(), n: 0 };
     let note = `<span>${Ui.get('trophy')} +${WIN_TROPHIES * x2}${x2 > 1 ? ' · выходные ×2' : ''}</span>`;
     const dmax = DROPS_PER_DAY + (passSync().premium ? 1 : 0);
-    if (Release.feature('cards') && s.drops.n < dmax) { s.drops.n++; s.pending++; note += `<span class="rw-new"><i class="rw-pk"></i>+1 пак · ${s.drops.n}/${dmax} сегодня</span>`; }
+    if (Release.feature('cards') && s.drops.n < dmax) { s.drops.n++; s.pending++; note += `<span class="rw-new"><i class="rw-pk"></i>+1 мяч-дроп · ${s.drops.n}/${dmax} сегодня</span>`; }
     Store.save(); refresh();
     return `<div class="rw-earn">${note}</div>`;
   }
   // открыть накопленные паки по одному
+  // ---------- мяч-дроп (5.11) вместо пака за победу: одна награда, редкость растёт тапами — чем редче, тем лучше ----------
+  // веса по редкости мяча: монеты, лаймовые очки, очки пропуска, карточка, пак
+  const DROP_W = [
+    { coins: 45, lime: 30, xp: 20, card: 5 }, { coins: 35, lime: 35, xp: 15, card: 15 }, { coins: 25, lime: 40, xp: 10, card: 20, pack: 5 },
+    { coins: 20, lime: 40, card: 25, pack: 15 }, { coins: 15, lime: 40, card: 25, pack: 20 },
+  ];
+  const DROP_COINS = [[25, 50], [60, 100], [120, 200], [250, 400], [500, 800]], DROP_XP = [40, 60, 90, 120, 160];
+  const DROP_CARD = ['silver', 'gold', 'gold', 'gold', 'gold'], DROP_PACK = [0, 0, 0, 1, 2];
+  const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  function ballPrize(lv) {
+    const W = DROP_W[lv] || DROP_W[0]; let x = Math.random() * Object.values(W).reduce((a, b) => a + b, 0), kind = 'coins';
+    for (const [k, w] of Object.entries(W)) { if ((x -= w) <= 0) { kind = k; break; } }
+    if (kind === 'lime' && typeof Lime === 'undefined') kind = 'coins';
+    if (kind === 'coins') return { coins: Math.round(rnd(...DROP_COINS[lv]) / 5) * 5 };
+    if (kind === 'lime') { const L = ECON.lime.drop[lv]; return { lime: rnd(L[0], L[1]) }; }
+    if (kind === 'xp') return { xp: DROP_XP[lv] };
+    if (kind === 'pack') return { pack: DROP_PACK[lv] };
+    const c = Cards.draw(DROP_CARD[lv]); return c ? { key: c.key } : { coins: DROP_COINS[lv][1] };
+  }
   function openPending() {
     const s = S(); if (!s.pending) return;
-    openDrop({ title: `ПАК ЗА ПОБЕДУ · ОСТАЛОСЬ ${s.pending}`, onStart: () => { s.pending = Math.max(0, s.pending - 1); Store.save(); refresh(); },
-      onDone: () => { if (S().pending) setTimeout(openPending, 500); } });
+    let prize = null;
+    const next = () => { if (S().pending) setTimeout(openPending, 500); };
+    PackOpen.drop({ title: `МЯЧ-ДРОП · ОСТАЛОСЬ ${s.pending}`, single: true,
+      contents: (lv) => { prize = ballPrize(lv); return { prize, coins: 0, cards: prize.key ? [prize.key] : [] }; },
+      commit: (got) => {
+        const p = got.prize;
+        if (p.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(p.coins, 'drop'); }
+        if (p.lime) Lime.add(p.lime, 'drop');
+        if (p.xp) addPassXp(p.xp);
+        const res = got.cards.length ? Cards.add(got.cards) : [], dup = res.reduce((a, r) => a + r.coins, 0); if (dup) Coins.add(dup);
+        refresh(); return res;
+      },
+      onStart: () => { s.pending = Math.max(0, s.pending - 1); Store.save(); refresh(); },
+      onDone: () => { if (prize && prize.pack !== undefined) openDrop({ title: 'ПАК ИЗ МЯЧ-ДРОПА', minLevel: prize.pack, onDone: next }); else next(); } });
   }
 
   // ---------- экран «Награды»: дорога трофеев лентой, ниже коллекция / пропуск / задания ----------
