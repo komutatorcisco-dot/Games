@@ -728,9 +728,11 @@ const FCM = (() => {
       if (keepX !== null) trk.scrollLeft = keepX; else { const c = trk.children[+trk.dataset.cur || 0]; if (c) trk.scrollLeft = Math.max(0, c.offsetLeft - trk.clientWidth / 2 + c.offsetWidth / 2); } } }
     if (typeof Coins !== 'undefined') Coins.render();
     lastPlace = '';
-    if (entering && bg3) { enterT = performance.now(); prevKey = null; stillN = 0; const tm = root.querySelector('.fm-team'); if (tm) tm.classList.add('fx-wait'); }
-    if (bg3) { bg3.view(tab === 'market' ? 'store' : tab); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
+    // вход в «Команду» (5.11): камера сразу на поле (без наезда), карточки — сразу, с коротким появлением
+    if (entering) { const tm = root.querySelector('.fm-team'); if (tm) { tm.querySelectorAll('.fm-slot3').forEach((el, k) => el.style.setProperty('--k', k)); tm.classList.add('fx-pop'); setTimeout(() => tm.classList.remove('fx-pop'), 700); } }
+    if (bg3) { bg3.view(tab === 'market' ? 'store' : tab, entering); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
     if (tab === 'market') Market.load();
+    if (!render.pre && typeof Squad !== 'undefined' && Cards.preload) { render.pre = 1; const go = () => { try { Cards.preload(Squad.S().xi); } catch (e) { /* нет состава */ } }; if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 2500 }); else setTimeout(go, 1500); }
     if (HOST[tab]) { const n = document.getElementById(HOST[tab][0]), h = root.querySelector('.fm-host'); if (n && h) h.appendChild(n); }
   }
   // Telegram во весь экран: сверху ряд его кнопок («Назад»/«Закрыть» слева, «⋁ …» справа). Свою шапку ставим в этот

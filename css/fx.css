@@ -49,7 +49,7 @@
 /* «Команда»: карточки ждут, пока камера доедет, потом выпрыгивают по очереди (только inner .cc — позицию не трогаем) */
 @media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-team.fx-wait .fm-slot3 { visibility: hidden; }
-  .fm-team.fx-pop .fm-slot3 > * { animation: fx-card-in .55s cubic-bezier(.2,1.5,.4,1) both; animation-delay: calc(var(--k, 0) * 45ms); }
+  .fm-team.fx-pop .fm-slot3 > * { animation: fx-card-in .35s cubic-bezier(.2,1.4,.4,1) both; animation-delay: calc(var(--k, 0) * 18ms); }
   @keyframes fx-card-in { from { opacity: 0; transform: translateY(26px) scale(.7) rotateX(30deg); } }
 }
 /* Открытие пака (3.11, макеты 4 + 5): чёрный фон, свет цвета редкости, огромное название контуром за паком, световая черта,

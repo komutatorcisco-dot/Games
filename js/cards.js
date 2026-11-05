@@ -430,5 +430,7 @@ const Cards = (() => {
     const rest = $$('.gl-h, .gl-ready, .gl-almost, .gl-list, .rw-note.gl-foot');
     rest.forEach((el) => { el.hidden = (view.q || '').trim().length >= 2; });
   }
-  return { onInput, reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, stats: (c) => statsOf(c), crestOf: (c) => c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : ''), PACKS, details, spare, use, owned, surname, freshN: () => S().fresh.length, clearFresh: () => { S().fresh = []; Store.save(); }, RAR };
+  // заранее загрузить фото (состав открывается сразу с лицами, 5.11)
+  const preload = (keys) => (keys || []).forEach((k) => { const c = k && get(k); if (c && (c.faceUrl || c.face)) { const im = new Image(); im.decoding = 'async'; im.src = c.faceUrl || img(c.face); } });
+  return { preload, onInput, reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, stats: (c) => statsOf(c), crestOf: (c) => c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : ''), PACKS, details, spare, use, owned, surname, freshN: () => S().fresh.length, clearFresh: () => { S().fresh = []; Store.save(); }, RAR };
 })();
