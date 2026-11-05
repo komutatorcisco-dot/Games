@@ -40,7 +40,7 @@ const Cards = (() => {
     const forgotten = [{ key: 'FL:mario-balotelli', name: 'Марио Балотелли', r: 95, pos: 'ФРВ', posFix: true, club: '', series: 'Забытые легенды', crestUrl: 'img/brand/fl-badge.svg', flag: '🇮🇹', nat: 'Италия', lg: '', rar: 'forgotten', sbcOnly: true, hero: true, challenge: 'fl:balotelli', walkout: 'balotelli', model3d: 'balotelli', faceUrl: 'img/players/balotelli-face.webp', st: [90, 96, 80, 89, 42, 94] }];
     // «Ультимейт» (5.11): Николас Джексон 99 — только за ИПК «Ультимейт Джексон» и задание, выдачу отмечает сервер (/legend, act ult).
     // Основная позиция ФРВ, но играет на любой, даже в воротах (allPos); hero — 3/3 химии на своей позиции, значит на любой.
-    const ult = [{ key: 'UL:nicolas-jackson', name: 'Николас Джексон', r: 99, pos: 'ФРВ', posFix: true, allPos: true, club: 'Астон Вилла', flag: '🇸🇳', nat: 'Сенегал', lg: 'АПЛ', face: FACES['Николас Джексон'], rar: 'ult', sbcOnly: true, hero: true, challenge: 'ul:jackson', st: [97, 99, 93, 97, 80, 96] }];
+    const ult = [{ key: 'UL:nicolas-jackson', name: 'Николас Джексон', r: 99, pos: 'ФРВ', posFix: true, allPos: true, club: 'Астон Вилла', flag: '🇸🇳', nat: 'Сенегал', lg: 'АПЛ', face: FACES['Николас Джексон'], rar: 'ult', sbcOnly: true, hero: true, challenge: 'ul:jackson', st: [99, 99, 99, 99, 99, 99] }];
     ALL = [...cur, ...legs, ...jack, ...future, ...forgotten, ...ult];
     if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
       c.positions = PlayerPositions.get(c.name, c.pos);
