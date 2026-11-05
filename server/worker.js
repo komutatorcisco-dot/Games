@@ -139,7 +139,7 @@ async function social(env, user, body) {
     // Existing profile statistics are server-stored but retain legacy client-result trust limitations.
     // Витрина — только проверенная сервером (social_shown), а не то, что игрок выбрал.
     return { ok: true, private: false, nick: String(u && u.nick || 'Игрок').slice(0, 32), emoji: String(u && u.emoji || '⚽').slice(0, 16),
-      level: thresholds.filter(n => xp >= n).length, trophies: Math.max(0, Math.min(11000, Number(t && t.trophies) || 0)),
+      level: thresholds.filter(n => xp >= n).length, trophies: Math.max(0, Math.min(15000, Number(t && t.trophies) || 0)),
       achievements: d && d.n > 0 ? ['Игрок дня'] : [], showcase, showcaseEnabled: true,
       // подтверждено сервером: особые карточки прошли проверку записи о выдаче (legend_claims); обычные — только по сохранению игрока
       verified: showcase.map((k) => !!k && SERVER_GRANTED.test(k)),
@@ -381,7 +381,7 @@ async function saveScore(env, user, body) {
   const tro = Math.max(0, Math.floor(Number(body.tro) || 0));
   if (tro) {
     const ot = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(id).first();
-    const t = Math.min(11000, ot ? Math.max(ot.trophies, Math.min(tro, ot.trophies + 3000)) : Math.min(tro, 5000));
+    const t = Math.min(15000, ot ? Math.max(ot.trophies, Math.min(tro, ot.trophies + 3000)) : Math.min(tro, 5000));
     if (!ot || ot.trophies !== t) ops.push(db.prepare('INSERT INTO ustats (id, trophies, updated) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET trophies = ?2, updated = ?3 WHERE trophies != ?2').bind(id, t, now));
   }
   // победы по играм: { 'ng:wordle': 12, … }
@@ -1201,7 +1201,20 @@ async function eco(env, user, body) {
   const admin = async () => isAdminId(env, uid);
   if (/^m_/.test(act)) { await mkSettle(db); await mkBots(db).catch(() => 0); }
   switch (act) {
-    case 'state': return { ok: true, cfg: { v: ECON.v }, catalog: Math.max(0, (await ecoCat(db)).n - PASS_CAT.length), catv: await ecoSetting(db, 'catv', ''), ...(await ecoState(db, uid)) };
+    case 'state': { const ids = await adminIds(env); return { ok: true, cfg: { v: ECON.v }, catalog: Math.max(0, (await ecoCat(db)).n - PASS_CAT.length), catv: await ecoSetting(db, 'catv', ''), admin: ids.includes(Number(uid)), noAdmin: !ids.length, ...(await ecoState(db, uid)) }; }
+    // ---- админка проверочного сервера (5.11): /eco работает только на staging ----
+    case 'a_claim': { // первый, кто нажмёт, пока админов нет, становится админом (рабочий сервер сюда не ходит — там /eco выключен)
+      const ids = await adminIds(env); if (ids.length) return { ok: false, error: 'admin exists', admin: ids.includes(Number(uid)) };
+      await setSetting(db, 'admins', JSON.stringify([Number(uid)])); return { ok: true, admin: true }; }
+    case 'a_give': { if (!(await admin())) return { ok: false, error: 'forbidden' }; // себе: монеты и лаймовые очки (только тест)
+      const c = Math.max(0, Math.min(1e6, Math.floor(Number(body.coins) || 0))), l = Math.max(0, Math.min(1e5, Math.floor(Number(body.lime) || 0)));
+      await ecoWallet(db, uid);
+      await db.batch([db.prepare('UPDATE eco_wallet SET coins = coins + ? WHERE uid = ?').bind(c, uid), db.prepare('INSERT INTO eco_lime (uid, n) VALUES (?1, ?2) ON CONFLICT(uid) DO UPDATE SET n = n + ?2').bind(uid, l)]);
+      return { ok: true, ...(await ecoState(db, uid, true)) }; }
+    case 'a_tro': { if (!(await admin())) return { ok: false, error: 'forbidden' }; // свои трофеи 0…15 000
+      const tro = Math.max(0, Math.min(15000, Math.floor(Number(body.tro) || 0)));
+      await db.prepare('INSERT INTO ustats (id, trophies, updated) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET trophies = ?2, updated = ?3').bind(uid, tro, Date.now()).run();
+      return { ok: true, tro }; }
     case 'earn': return ecoEarn(db, uid, body);
     case 'spend': return ecoSpend(db, uid, body);
     case 'grant': return ecoGrant(db, uid, body);
@@ -1304,7 +1317,7 @@ async function hello(env, user, body) {
   const prev = weekKey(now - 7 * 864e5), cupWin = Number(await getSetting(db, 'cupwin:' + prev)) === user.id ? prev : null;
   const sv = await db.prepare('SELECT ts, tro FROM saves WHERE id = ?').bind(user.id).first();
   const ut = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(user.id).first();
-  return { admin: await isAdminId(env, user.id), refGift, pass, shop, cupWin, save: sv ? { ts: sv.ts, tro: Math.min(11000, sv.tro) } : null, tro: ut ? Math.min(11000, ut.trophies) : 0 };
+  return { admin: await isAdminId(env, user.id), refGift, pass, shop, cupWin, save: sv ? { ts: sv.ts, tro: Math.min(15000, sv.tro) } : null, tro: ut ? Math.min(15000, ut.trophies) : 0 };
 }
 
 // ---------- пригласи друга ----------
@@ -1333,7 +1346,7 @@ async function referrals(env, user, body) {
     LEFT JOIN seen s ON s.id = r.invitee LEFT JOIN ustats u ON u.id = r.invitee WHERE r.inviter = ? ORDER BY r.ts DESC LIMIT ?`).bind(uid, REF_MAX).all()).results || [];
   const miles = ((await db.prepare('SELECT mile FROM ref_miles WHERE id = ?').bind(uid).all()).results || []).map((r) => r.mile);
   return { ok: true, need: REF_TRO, reward: REF_REWARD, miles: Object.entries(REF_MILES).map(([n, rw]) => ({ n: Number(n), reward: rw, claimed: miles.includes(Number(n)) })),
-    friends: rows.map((r) => ({ id: r.id, nick: r.nick || 'Игрок', tro: Math.min(11000, r.tro), ready: r.tro >= REF_TRO, claimed: !!r.claimed })) };
+    friends: rows.map((r) => ({ id: r.id, nick: r.nick || 'Игрок', tro: Math.min(15000, r.tro), ready: r.tro >= REF_TRO, claimed: !!r.claimed })) };
 }
 
 // ---------- резервное сохранение ----------
@@ -1345,7 +1358,7 @@ async function saveData(env, user, body) {
   const str = typeof body.data === 'string' ? body.data : '';
   if (!str || str.length > 900000) return { ok: false, error: 'size' };
   let d; try { d = JSON.parse(str); } catch (e) { return { ok: false, error: 'bad data' }; }
-  const tro = Math.max(0, Math.min(11000, Math.floor(Number(d && d.rw && d.rw.trophies) || 0))), ts = Math.floor(Number(d && d.ts) || Date.now());
+  const tro = Math.max(0, Math.min(15000, Math.floor(Number(d && d.rw && d.rw.trophies) || 0))), ts = Math.floor(Number(d && d.ts) || Date.now());
   if (d.rw) d.rw.trophies = tro;
   const safeData = JSON.stringify(d);
   const old = await db.prepare('SELECT ts, tro FROM saves WHERE id = ?').bind(user.id).first();
@@ -1358,8 +1371,8 @@ async function loadData(env, user) {
   await schema(env.DB);
   const r = await env.DB.prepare('SELECT ts, tro, data FROM saves WHERE id = ?').bind(user.id).first();
   if (!r) return { ok: true, data: null };
-  let data = r.data, tro = Math.min(11000, Math.max(0, Number(r.tro) || 0));
-  try { const d = JSON.parse(data); if (d.rw) d.rw.trophies = Math.min(11000, Math.max(0, Number(d.rw.trophies) || 0)); data = JSON.stringify(d); } catch (e) { /* проверка будет на клиенте */ }
+  let data = r.data, tro = Math.min(15000, Math.max(0, Number(r.tro) || 0));
+  try { const d = JSON.parse(data); if (d.rw) d.rw.trophies = Math.min(15000, Math.max(0, Number(d.rw.trophies) || 0)); data = JSON.stringify(d); } catch (e) { /* проверка будет на клиенте */ }
   return { ok: true, ts: r.ts, tro, data };
 }
 

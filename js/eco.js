@@ -19,6 +19,7 @@ const Eco = (() => {
   function apply(r) {
     if (!r) return;
     if (typeof r.coins === 'number') { Store.d.coins = r.coins; }
+    if (typeof r.admin === 'boolean') { Store.d.admin = r.admin; Store.d.ecoNoAdmin = !!r.noAdmin; } // админка превью
     if (typeof Lime !== 'undefined' && (typeof r.lime === 'number' || Array.isArray(r.up))) Lime.apply(r);
     if (Array.isArray(r.cards)) {
       const s = Store.d.cards || (Store.d.cards = { own: {}, fresh: [] }), was = s.own || {};

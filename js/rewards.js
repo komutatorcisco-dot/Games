@@ -7,7 +7,7 @@
 'use strict';
 
 const Rewards = (() => {
-  const DROPS_PER_DAY = 5, WIN_TROPHIES = 12, PLAY_TROPHIES = 3, MAX_TROPHIES = 11000;
+  const DROPS_PER_DAY = 5, WIN_TROPHIES = 12, PLAY_TROPHIES = 3, MAX_TROPHIES = 15000;
   const PASS_LEVELS = 30, PASS_STEP = 300, PASS_STARS = 100; // 300 очков на уровень: пропуск идёт весь сезон, а не неделю
   const SEASON_START = Date.parse('2026-10-05T08:00:00Z'), SEASON_DAYS = 28;
 

@@ -11,7 +11,7 @@
 
 @media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .fm-lime b { color: #d8ff6a; }
-  .fm-btn.lime { color: #0b1a00 !important; background: linear-gradient(180deg, #eaffa0, #8fe61e) !important; box-shadow: 0 0 14px rgba(198,255,61,.45); }
+  .fm-btn.limeb { color: #0b1a00 !important; background: linear-gradient(180deg, #eaffa0, #8fe61e) !important; box-shadow: 0 0 14px rgba(198,255,61,.45); }
   .lm-sheet { position: fixed; inset: 0; z-index: 9600; display: grid; place-items: center; background: rgba(2,6,14,.72); opacity: 0; transition: opacity .25s; }
   .lm-sheet.in { opacity: 1; }
   .lm { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 22px; align-items: center; width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 20px); overflow: hidden;
@@ -91,4 +91,13 @@
   .fm-balls.angry .fm-bl-n { background: #ff3b3b; color: #fff; box-shadow: 0 0 14px rgba(255,59,59,.6); }
   .fm-bl-go { position: absolute; left: 56px; bottom: 18px; font: 900 13px "Inter Tight", sans-serif; font-style: normal; text-transform: uppercase; color: #fff; letter-spacing: .06em; }
   .po.angry .po-rays { filter: hue-rotate(-40deg) saturate(1.4); }
+}
+/* админка превью (js/fcm.js adminSheet) */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-prf.adm { display: grid; gap: 10px; width: min(640px, calc(100vw - 32px)); }
+  .adm-g { display: grid; gap: 6px; } .adm-g > small { font: 800 11px "Inter Tight", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #9fb2cc; }
+  .adm-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .adm-row input { width: 110px; height: 36px; border: 0; border-radius: 10px; background: rgba(255,255,255,.08); color: #fff; font: 800 16px "Inter Tight", sans-serif; text-align: center; }
+  .adm-row .fm-btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px !important; }
+  .fm-pf-row.adm span { color: #c6ff3d; }
 }

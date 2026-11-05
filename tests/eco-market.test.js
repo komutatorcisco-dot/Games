@@ -189,5 +189,16 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
   assert.equal((await call(90, { act: 'quick', key: 'B0', n: 1, op: op() })).ok, false, 'прокачанную карточку не продать и быстрой продажей');
   sql.exec("DELETE FROM eco_up WHERE uid = 90");
   assert.equal((await call(90, { act: 'm_list', key: 'B0', start: blo, bin: bhi, dur: 1, op: op() })).ok, true, 'та же карточка без прокачки — продаётся (цена верная)');
+  // ---- админка превью (5.11) ----
+  sql.exec("DELETE FROM settings WHERE k = 'admins'");
+  const st0 = await call(95, { act: 'state' }); assert.equal(st0.noAdmin, true, 'админов нет — можно стать');
+  assert.equal((await call(96, { act: 'a_give', coins: 10000 })).ok, false, 'не админ — нельзя выдать');
+  assert.ok((await call(95, { act: 'a_claim' })).ok, 'первый становится админом');
+  assert.equal((await call(96, { act: 'a_claim' })).ok, false, 'второй — уже нет');
+  const c95 = coins(95) || 0, g = await call(95, { act: 'a_give', coins: 10000, lime: 1000 });
+  assert.ok(g.ok); assert.equal(g.coins, c95 + 10000); assert.equal(g.lime, 1000);
+  assert.equal((await call(95, { act: 'a_tro', tro: 99999 })).tro, 15000, 'трофеи — до 15 000');
+  assert.equal((await call(96, { act: 'a_tro', tro: 500 })).ok, false);
+  assert.equal((await call(95, { act: 'state' })).admin, true);
   console.log('Экономика и рынок: паки, быстрая продажа, рамки цен, ставки, выкуп, гонка, налог, возвраты, аукцион, боты, вайп — ок');
 })().catch((e) => { console.error(e); process.exitCode = 1; });

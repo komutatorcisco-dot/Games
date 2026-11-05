@@ -565,15 +565,47 @@ const FCM = (() => {
           <button class="fm-pf-row" data-fmp="coll"><span>Коллекция</span><b>›</b></button>
           ${row('board', 'Таблица канала', '›')}
           ${row('report', 'Нашёл ошибку', '›')}
+          ${Store.d.admin ? '<button class="fm-pf-row adm" data-fmp="admin"><span>Админка</span><b>›</b></button>' : Store.d.ecoNoAdmin && typeof Eco !== 'undefined' && Eco.on() ? '<button class="fm-pf-row adm" data-fmp="claim"><span>Стать админом (тест)</span><b>›</b></button>' : ''}
           ${typeof CONFIG !== 'undefined' && CONFIG.stage ? '<button class="fm-pf-row danger" data-act="wipe"><span>Начать заново (только превью)</span><b>↺</b></button>' : ''}
         </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`; };
     draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
     const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); };
     el.addEventListener('click', (e) => {
       if (e.target === el || e.target.closest('.fm-sh-x')) return close();
-      const p = e.target.closest('[data-fmp]'); if (p) { close(); if (p.dataset.fmp === 'coll') { tab = 'coll'; render(); } else { Market.open('hist'); tab = 'market'; render(); } return; }
+      const p = e.target.closest('[data-fmp]'); if (p) { close(); if (p.dataset.fmp === 'coll') { tab = 'coll'; render(); }
+        else if (p.dataset.fmp === 'admin') adminSheet();
+        else if (p.dataset.fmp === 'claim') Eco.post('a_claim', {}).then((r) => { if (r && r.ok) { Store.d.admin = true; Store.d.ecoNoAdmin = false; Store.save(); toast('Ты админ проверочного сервера'); adminSheet(); } else toast('Админ уже есть'); });
+        return; }
       const a = e.target.closest('[data-act]'); if (a && /^(music|sound)$/.test(a.dataset.act)) setTimeout(draw, 50);
       else if (a) close();
+    });
+  }
+  // ---- админка (5.11, только превью): свои трофеи, монеты, лаймовые очки, мячи, уровень пропуска ----
+  function adminSheet() {
+    const el = document.createElement('div'); el.className = 'fm-sheet fm-adm';
+    const draw = () => { const R = Rewards.S(); el.innerHTML = `<div class="fm-prf adm">
+        <div class="fm-pf-me"><span class="fm-ava big">🛠</span><span><b>Админка</b><small>Меняет только твой аккаунт · проверочный сервер</small></span></div>
+        <div class="adm-g"><small>Трофеи</small><div class="adm-row"><button class="fm-btn" data-adm="tro:-1000">−1000</button><input id="adm-tro" type="number" min="0" max="15000" step="100" value="${R.trophies}"><button class="fm-btn" data-adm="tro:1000">+1000</button><button class="fm-btn gold" data-adm="tro-save">Сохранить</button></div></div>
+        <div class="adm-g"><small>Выдать себе</small><div class="adm-row">
+          <button class="fm-btn" data-adm="coins">${coin} +10 000</button><button class="fm-btn limeb" data-adm="lime">${Lime.ico()} +1 000</button>
+          <button class="fm-btn" data-adm="balls">Мяч-дроп +5</button><button class="fm-btn" data-adm="angry">Злой мяч +3</button><button class="fm-btn" data-adm="pass">Пропуск +5 ур.</button></div></div>
+        <p class="mk-note">У тебя: ${Rewards.S().pending || 0} мячей, ${Rewards.S().angry || 0} злых · пропуск ур. ${Rewards.passLevel()} · ${Lime.n()} лаймовых очков</p>
+        <button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`; };
+    draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
+    const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); render(); };
+    el.addEventListener('click', async (e) => {
+      if (e.target === el || e.target.closest('.fm-sh-x')) return close();
+      const b = e.target.closest('[data-adm]'); if (!b) return; const a = b.dataset.adm, inp = el.querySelector('#adm-tro'); Sound.play('tap');
+      if (a.startsWith('tro:')) { inp.value = Math.max(0, Math.min(15000, (+inp.value || 0) + +a.split(':')[1])); return; }
+      b.disabled = true;
+      try {
+        if (a === 'tro-save') { const r = await Eco.post('a_tro', { tro: +inp.value || 0 }); if (!r || !r.ok) throw new Error(r && r.error); Rewards.S().trophies = r.tro; Store.save(); toast(`Трофеи: ${r.tro}`); }
+        if (a === 'coins' || a === 'lime') { const r = await Eco.post('a_give', a === 'coins' ? { coins: 10000 } : { lime: 1000 }); if (!r || !r.ok) throw new Error(r && r.error); Eco.apply(r); toast('Готово'); }
+        if (a === 'balls') { Rewards.S().pending = (Rewards.S().pending || 0) + 5; Store.save(); toast('+5 мяч-дропов — открой на главной'); }
+        if (a === 'angry') { Rewards.S().angry = (Rewards.S().angry || 0) + 3; Store.save(); toast('+3 злых мяча — открой на главной'); }
+        if (a === 'pass') { Rewards.passSync().xp += 5 * Rewards.PASS_STEP; Store.save(); toast('Пропуск +5 уровней'); }
+      } catch (err) { toast('Не получилось: ' + (err.message || 'нет связи')); }
+      b.disabled = false; draw(); if (typeof Coins !== 'undefined') Coins.render();
     });
   }
   function packSheet(id) {
@@ -658,7 +690,7 @@ const FCM = (() => {
           <p>${esc(c.pos)} · ${esc(c.club || c.series || '')}<br>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</p>
           <div class="fm-pi-st">${N.map((n, k) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[k]))}%" class="${st[k] >= 85 ? 'hi' : st[k] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[k]}</b></span>`).join('')}</div>
           <p class="fm-cv-own">${has ? `В клубе: ×${Cards.spare ? Cards.spare(c.key) : 1}` : 'Ещё нет в клубе — может выпасть из пака'}</p>
-          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button>${has && typeof Lime !== 'undefined' ? '<button class="fm-btn lime" data-cv-up>Прокачать</button>' : ''}<button class="fm-btn gold" data-cv-more>Подробнее</button>${has && Eco.on() && !(typeof Lime !== 'undefined' && Lime.up(c.key)) ? '<button class="fm-btn" data-cv-sell>Продать</button>' : ''}<button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
+          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button>${has && typeof Lime !== 'undefined' ? '<button class="fm-btn limeb" data-cv-up>Прокачать</button>' : ''}<button class="fm-btn gold" data-cv-more>Подробнее</button>${has && Eco.on() && !(typeof Lime !== 'undefined' && Lime.up(c.key)) ? '<button class="fm-btn" data-cv-sell>Продать</button>' : ''}<button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
         </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
       if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el); };
     draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
