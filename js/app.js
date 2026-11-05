@@ -461,7 +461,8 @@ const App = (() => {
     xdraft: () => XDraft.open(),
     sbc: () => SBC.open(),
     squad: () => Squad.open(),
-    'rw-packs': () => Rewards.openPending(),
+    'rw-packs': () => Rewards.openBalls(),
+    balls: () => Rewards.openBalls(),
     'rw-buy': () => Rewards.buyPass(),
     // позвать друга: ссылка с твоим id — кто откроет игры по ней, попадёт к тебе в «Друзья» в таблице
     invite: () => {

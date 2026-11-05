@@ -35,6 +35,13 @@ for h in (360, 160):
       console.log('ball', lv, 'ok');
     }
   }
+  if (what === 'angry') { // злой мяч (5.11): img/packs/angry-{360,160}.webp, тот же кадр 223×360
+    await p.goto('http://localhost:8765/tools/art/packforms.html'); await p.waitForTimeout(1500);
+    const tmp = path.join(ROOT, 'tools/art/.tmp'); fs.mkdirSync(tmp, { recursive: true });
+    const url = await p.evaluate(() => window.renderAngry(669, 1080)); const png = path.join(tmp, 'angry.png'); fs.writeFileSync(png, Buffer.from(url.split(',')[1], 'base64'));
+    execFileSync('python3', ['-I', '-c', "import sys\nfrom PIL import Image\nim=Image.open(sys.argv[1]).convert('RGBA')\nfor w,h in ((223,360),(99,160)): im.resize((w,h), Image.LANCZOS).save(sys.argv[2]+f'-{h}.webp', quality=90, method=6)", png, path.join(ROOT, 'img/packs/angry')]);
+    console.log('angry ok');
+  }
   if (what === 'icons') {
     await p.goto('http://localhost:8765/tools/art/icons.html'); await p.waitForTimeout(600); fs.mkdirSync(path.join(ROOT, 'tools/art/.tmp'), { recursive: true });
     for (const id of ['events', 'daily']) { const url = await p.evaluate((id) => window.renderIcon(id), id); const png = path.join(ROOT, `tools/art/.tmp/ic-${id}.png`); fs.writeFileSync(png, Buffer.from(url.split(',')[1], 'base64'));

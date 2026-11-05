@@ -235,6 +235,7 @@ const Rewards = (() => {
     const q = questSync(), x = [...q.list, ...q.wlist, ...(q.slist || [])].find((y) => y.id === id);
     if (!x || !x.done || x.got) return;
     x.got = true; addPassXp(qdef(id).xp); Sound.play('coin'); haptic('ok'); refresh();
+    if (q.wlist.includes(x)) angry(1); // недельное задание — злой мяч
   }
 
   // ---------- сыграли партию ----------
@@ -287,7 +288,7 @@ const Rewards = (() => {
       contents: (lv) => { prize = ballPrize(lv); return { prize, coins: 0, cards: prize.key ? [prize.key] : [] }; },
       commit: (got) => {
         const p = got.prize;
-        if (p.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(p.coins, 'drop'); }
+        if (p.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(p.coins, 'game'); /* мяч — за победу: потолок «игры» */ }
         if (p.lime) Lime.add(p.lime, 'drop');
         if (p.xp) addPassXp(p.xp);
         const res = got.cards.length ? Cards.add(got.cards) : [], dup = res.reduce((a, r) => a + r.coins, 0); if (dup) Coins.add(dup);
@@ -296,6 +297,28 @@ const Rewards = (() => {
       onStart: () => { s.pending = Math.max(0, s.pending - 1); Store.save(); refresh(); },
       onDone: () => { if (prize && prize.pack !== undefined) openDrop({ title: 'ПАК ИЗ МЯЧ-ДРОПА', minLevel: prize.pack, onDone: next }); else next(); } });
   }
+
+  // ---------- злой мяч (5.11): чёрно-красный, минимум эпический, внутри лаймовые очки или золотая карточка ----------
+  // откуда: онлайн-победы (не больше 2 в день), недельные задания, пройденная глава «Карьеры»
+  function angry(n = 1) { const s = S(); s.angry = (s.angry || 0) + n; Store.save(); refresh(); setTimeout(() => toast('Злой мяч! Открой его на главной'), 900); }
+  function angryWin() { const s = S(), d = Day.key(); if (!s.ad || s.ad.day !== d) s.ad = { day: d, n: 0 }; if (s.ad.n >= 2) return; s.ad.n++; angry(1); }
+  function angryPrize(lv) {
+    const L = ECON.lime.angry[Math.max(0, Math.min(2, lv - 2))];
+    if (typeof Lime !== 'undefined' && Math.random() < 0.6) return { lime: rnd(L[0], L[1]) };
+    const c = Cards.draw('gold'); return c ? { key: c.key } : { lime: L[1] };
+  }
+  function openAngry() {
+    const s = S(); if (!s.angry) return openPending();
+    let prize = null;
+    const next = () => setTimeout(() => (S().angry ? openAngry() : S().pending ? openPending() : null), 500);
+    PackOpen.drop({ title: `ЗЛОЙ МЯЧ · ОСТАЛОСЬ ${s.angry}`, single: true, angry: true, minLevel: 2,
+      contents: (lv) => { prize = angryPrize(lv); return { prize, coins: 0, cards: prize.key ? [prize.key] : [] }; },
+      commit: (got) => { const p = got.prize; if (p.lime) Lime.add(p.lime, 'angry'); const res = got.cards.length ? Cards.add(got.cards) : [], dup = res.reduce((a, r) => a + r.coins, 0); if (dup) Coins.add(dup); refresh(); return res; },
+      onStart: () => { s.angry = Math.max(0, s.angry - 1); Store.save(); refresh(); }, onDone: next });
+  }
+  // все неоткрытые мячи: сначала злые
+  const balls = () => (S().pending || 0) + (S().angry || 0);
+  const openBalls = () => (S().angry ? openAngry() : openPending());
 
   // ---------- экран «Награды»: дорога трофеев лентой, ниже коллекция / пропуск / задания ----------
   let tab = 'road', scrolled = false;
@@ -476,5 +499,5 @@ const Rewards = (() => {
     header();
   }
 
-  return { passLevel, passSync, PASS, PASS_STEP, PASS_LEVELS, seasonEnd, questArt, claimPass, claimRoad, ROAD, questSync, qdef, claimQuest, DAILY, weekend, onEnd, addTrophies, MAX_TROPHIES, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
+  return { angry, angryWin, openAngry, balls, openBalls, passLevel, passSync, PASS, PASS_STEP, PASS_LEVELS, seasonEnd, questArt, claimPass, claimRoad, ROAD, questSync, qdef, claimQuest, DAILY, weekend, onEnd, addTrophies, MAX_TROPHIES, quest, openPending, openDrop, open, bind, refresh, buyPass, serverPass, claimable, contents, season, S, giveReward, giveCards, rewardLabel };
 })();

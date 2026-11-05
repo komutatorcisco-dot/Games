@@ -265,7 +265,7 @@ const PackOpen = (() => {
 
   // ---------- сам пак ----------
   // contents(level) → { coins, cards:[keys] }; commit(got) записывает награду и возвращает [{c,isNew,coins}]
-  async function drop({ gift = false, title = '', minLevel = 0, contents, commit, onStart, onTake, onDone, label = '', single = false } = {}) {
+  async function drop({ gift = false, title = '', minLevel = 0, contents, commit, onStart, onTake, onDone, label = '', single = false, angry = false } = {}) {
     const final = Math.max(minLevel, typeof window.__packLv === 'number' ? window.__packLv : rollLevel());
     PIMG.forEach((_, i) => { if (i >= minLevel && i <= final) new Image().src = pimg(i, 'xxl'); }); // смена редкости без мигания
     const got = contents ? contents(final) : { coins: 0, cards: [] };
@@ -280,13 +280,15 @@ const PackOpen = (() => {
     stage.innerHTML = `<div class="po-pack" data-lv="${level}">${art(level, 'xxl')}</div>`;
     const hint = $('.po-hint', el); hint.textContent = single ? 'Жми на мяч — редкость может вырасти' : 'Жми на пак — редкость может вырасти';
     const packEl = $('.po-pack', stage);
+    const AIMG = 'img/packs/angry-360.webp?v=a1';
+    if (angry) { el.classList.add('angry'); const im = $('.fpk-img', packEl); im.src = AIMG; im.parentNode.style.webkitMaskImage = im.parentNode.style.maskImage = `url(${AIMG})`; }
     anim(packEl, [{ transform: 'translateY(50vh) rotateX(40deg) scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,1,.3,1)' });
     $('.po-x', el).onclick = () => { if (!started) close(el); };
 
     function setLevel(lv) {
       level = lv;
       setCol(el, LV[lv].css);
-      const f = $('.fpk', packEl); f.className = f.className.replace(/\bp\d\b/, 'p' + lv); $('.fpk-f em', packEl).textContent = LV[lv].short; const im = $('.fpk-img', packEl); if (im) { im.src = pimg(lv, 'xxl'); im.parentNode.style.webkitMaskImage = im.parentNode.style.maskImage = `url(${pimg(lv, 'xxl')})`; }
+      const f = $('.fpk', packEl); f.className = f.className.replace(/\bp\d\b/, 'p' + lv); $('.fpk-f em', packEl).textContent = LV[lv].short; const im = $('.fpk-img', packEl); if (im && !angry) { im.src = pimg(lv, 'xxl'); im.parentNode.style.webkitMaskImage = im.parentNode.style.maskImage = `url(${pimg(lv, 'xxl')})`; }
       const nm = $('.po-name', el); nm.textContent = LV[lv].name; slam(nm);
       $$('.po-steps i', el).forEach((s, i) => s.classList.toggle('on', i <= lv));
       el.classList.toggle('jackson', lv === 4);

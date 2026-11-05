@@ -115,6 +115,26 @@ window.renderBall = async (lv, w, h) => { const L0 = BALL_LV[lv], s = rig(w, h, 
   for (let i = 0; i < 6 + lv * 3; i++) { const a = rnd() * Math.PI * 2, rr = 1.2 + rnd() * 0.5, sp = new THREE.Mesh(new THREE.SphereGeometry(0.014 + rnd() * 0.02, 8, 6), glow(L0.col)); sp.position.set(Math.cos(a) * rr, Math.sin(a) * rr * 1.1 + 0.15, 0.3); s.add(sp); }
   // высокий кадр как у прежнего пака (0.62), мяч чуть ниже середины
   const cam = new THREE.PerspectiveCamera(30, w / h, 0.1, 100); cam.position.set(0, 0.55, 6.6); cam.lookAt(0, 0.35, 0); R.render(s, cam); return R.domElement.toDataURL('image/png'); };
+// злой мяч (5.11): чёрно-красный, с горящими злыми глазами (рисуются в emissive рядом с передней точкой развёртки)
+window.renderAngry = async (w, h) => { const L0 = { base: '#0d0607', pent: '#c4141f', col: '#ff3b3b', cracks: 3, dark: true }, s = rig(w, h, L0.col);
+  s.children.forEach((o) => { if (o.isMesh && o.geometry.type === 'PlaneGeometry' && o.material.map) o.scale.setScalar(0.45); });
+  const em = crackTex(L0, 3), cv = em.image, g = cv.getContext('2d'), W = cv.width, H = cv.height, X0 = W * 0.25, Y0 = H * 0.42, k = 1.6;
+  // глаза: скошенные внутрь, жёлтые с красным ореолом; над ними — злые брови
+  const eye = (sx) => { g.save(); g.translate(X0 + sx * W * 0.032 * k, Y0 - H * 0.02 * k); g.scale(sx, 1);
+    g.shadowColor = '#ff2a00'; g.shadowBlur = 40; g.fillStyle = '#ffd23c';
+    g.beginPath(); g.moveTo(-W * 0.024 * k, H * 0.006 * k); g.lineTo(W * 0.022 * k, -H * 0.018 * k); g.quadraticCurveTo(W * 0.014 * k, H * 0.05 * k, -W * 0.016 * k, H * 0.042 * k); g.closePath(); g.fill();
+    g.fillStyle = '#fff6c8'; g.shadowBlur = 0; g.beginPath(); g.ellipse(-W * 0.008 * k, H * 0.022 * k, W * 0.004 * k, H * 0.008 * k, 0, 0, 7); g.fill();
+    g.strokeStyle = '#ff3b3b'; g.lineWidth = W * 0.006 * k; g.lineCap = 'round'; g.shadowColor = '#ff2a00'; g.shadowBlur = 30;
+    g.beginPath(); g.moveTo(-W * 0.03 * k, -H * 0.004 * k); g.lineTo(W * 0.026 * k, -H * 0.042 * k); g.stroke(); g.restore(); };
+  // чистим место под лицо (трещины не лезут на глаза)
+  g.save(); g.globalCompositeOperation = 'destination-out'; g.beginPath(); g.ellipse(X0, Y0 + H * 0.01, W * 0.1, H * 0.15, 0, 0, 7); g.fill(); g.restore();
+  g.fillStyle = '#000'; g.beginPath(); g.ellipse(X0, Y0 + H * 0.01, W * 0.1, H * 0.15, 0, 0, 7); g.fill();
+  eye(-1); eye(1); em.needsUpdate = true;
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 128, 96), new THREE.MeshStandardMaterial({ map: ballTex(L0, new THREE.Euler(0.4, 0.7, 0.15)), emissiveMap: em, emissive: new THREE.Color(0xffffff), emissiveIntensity: 1.8, metalness: 0.3, roughness: 0.3, envMapIntensity: 1.1 }));
+  ball.rotation.set(0.1, -0.06, 0); ball.castShadow = true; s.add(ball);
+  let sd = 11; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 16; i++) { const a = rnd() * Math.PI * 2, rr = 1.2 + rnd() * 0.5, sp = new THREE.Mesh(new THREE.SphereGeometry(0.014 + rnd() * 0.02, 8, 6), glow(i % 3 ? '#ff3b3b' : '#ffd23c')); sp.position.set(Math.cos(a) * rr, Math.sin(a) * rr * 1.1 + 0.15, 0.3); s.add(sp); }
+  const cam = new THREE.PerspectiveCamera(30, w / h, 0.1, 100); cam.position.set(0, 0.55, 6.6); cam.lookAt(0, 0.35, 0); R.render(s, cam); return R.domElement.toDataURL('image/png'); };
 window.renderForm = async (kind, rar, w, h) => { await document.fonts.load('800 40px IB'); const c = RAR[rar], s = rig(w, h, c[0]), v = FORMS[kind](s, c);
   const cam = new THREE.PerspectiveCamera(v.fov, w / h, 0.1, 100); cam.position.set(...v.pos); cam.lookAt(...v.look); R.render(s, cam); return R.domElement.toDataURL('image/png'); };
 </script></body></html>

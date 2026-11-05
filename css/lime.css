@@ -79,3 +79,16 @@
   .po.prize .po-foot { position: absolute; left: 0; right: 0; bottom: calc(var(--fm-b, 0px) + 12px); display: grid; justify-items: center; z-index: 3; }
   .po.prize .po-take { width: min(320px, 60vw); }
 }
+/* главная: плитка «Мячи» вместо «Паки», пока есть неоткрытые мячи */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-balls { position: relative; overflow: hidden; background: radial-gradient(60% 70% at 60% 55%, rgba(198,255,61,.35), transparent 70%), linear-gradient(160deg, #13220c, #05080a) !important; box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.5), 0 0 22px rgba(198,255,61,.25) !important; }
+  .fm-balls.angry { background: radial-gradient(60% 70% at 60% 55%, rgba(255,59,59,.4), transparent 70%), linear-gradient(160deg, #2a0708, #070304) !important; box-shadow: inset 0 0 0 1.5px rgba(255,80,80,.6), 0 0 22px rgba(255,59,59,.3) !important; }
+  .fm-balls::before { content: ''; position: absolute; left: 50%; top: 50%; width: 160%; aspect-ratio: 1; transform: translate(-50%, -50%); background: repeating-conic-gradient(rgba(255,255,255,.08) 0 8deg, transparent 8deg 22deg); animation: lmSpin 18s linear infinite; pointer-events: none; }
+  .fm-bl-art { position: absolute; right: 6%; top: 50%; height: 80%; transform: translateY(-50%); display: flex; align-items: center; }
+  .fm-bl-art img { height: 100%; aspect-ratio: 1; object-fit: cover; object-position: 50% 76%; filter: drop-shadow(0 6px 10px rgba(0,0,0,.6)); animation: fpkBall 2.4s ease-in-out infinite; }
+  .fm-bl-art img + img { height: 62%; margin-left: -14%; animation-delay: -1.2s; }
+  .fm-bl-n { position: absolute; left: 12px; bottom: 12px; min-width: 34px; height: 34px; display: grid; place-items: center; padding: 0 8px; border-radius: 17px; background: #c6ff3d; color: #06101c; font: 900 18px "Inter Tight", sans-serif; font-style: normal; box-shadow: 0 0 14px rgba(198,255,61,.6); animation: lmPop 1.6s ease-in-out infinite alternate; }
+  .fm-balls.angry .fm-bl-n { background: #ff3b3b; color: #fff; box-shadow: 0 0 14px rgba(255,59,59,.6); }
+  .fm-bl-go { position: absolute; left: 56px; bottom: 18px; font: 900 13px "Inter Tight", sans-serif; font-style: normal; text-transform: uppercase; color: #fff; letter-spacing: .06em; }
+  .po.angry .po-rays { filter: hue-rotate(-40deg) saturate(1.4); }
+}

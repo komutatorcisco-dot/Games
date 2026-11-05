@@ -105,6 +105,7 @@ const ClubPath = (() => {
     if (s.done.includes(ch) || !c.tasks.every((t, i) => isDone(ch, i))) return false;
     s.done.push(ch); if (s.ch === ch && ch < CH.length) s.ch = ch + 1; Store.save();
     const p = c.prize;
+    if (typeof Rewards.angry === 'function') setTimeout(() => Rewards.angry(1), 1800); // глава пройдена — ещё и злой мяч
     if (p.card) { if (typeof Rewards.giveCards === 'function' && Cards.get(p.card)) Rewards.giveCards([p.card]); }
     else { if (p.coins) Rewards.giveReward({ coins: p.coins }, `ГЛАВА ${ch} ПРОЙДЕНА`); if (p.pack !== undefined) setTimeout(() => Rewards.giveReward({ pack: p.pack }, `ГЛАВА ${ch} ПРОЙДЕНА`), p.coins ? 900 : 0); }
     return true;
