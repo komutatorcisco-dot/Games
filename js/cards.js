@@ -13,13 +13,18 @@ const Cards = (() => {
     legend: { n: 'ЛЕГЕНДА', dup: 40 },
     jack: { n: 'ДЖЕКСОН!!', dup: 100 },
     jg: { n: 'ОСОБАЯ', dup: 100 },
+    ps: { n: 'СЕЗОН', dup: 100 },
+    psp: { n: 'СЕЗОН · ПРЕМИУМ', dup: 100 },
     future: { n: 'БУДУЩИЕ ЗВЁЗДЫ', dup: 100 },
     forgotten: { n: 'ЗАБЫТЫЕ ЛЕГЕНДЫ', dup: 100 },
   };
-  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten', 'jg'];
+  const ORDER = ['bronze', 'silver', 'gold', 'legend', 'jack', 'future', 'forgotten', 'jg', 'ps', 'psp'];
   const LEAGUES = ['АПЛ', 'Ла Лига', 'Серия А', 'Бундеслига', 'Лига 1'];
   const POS = { ГК: 'ВРТ' };
 
+  // [уровень, линия (f — бесплатно, p — премиум), игрок, рейтинг]
+  const PASS_CARDS = [[10, 'f', 'Букайо Сака', 89], [20, 'f', 'Педри', 91], [30, 'f', 'Гарри Кейн', 93],
+    [10, 'p', 'Джуд Беллингем', 94], [20, 'p', 'Эрлинг Холанд', 96], [30, 'p', 'Килиан Мбаппе', 98]];
   let ALL = null, BY = null;
   function all() {
     if (ALL) return ALL;
@@ -47,7 +52,9 @@ const Cards = (() => {
     // бронза и серебро 65–69 из полной базы FC 27 (js/data/cards-low.js): ключ 'L:<номер EA>', лицо — по номеру EA через воркер
     const have = new Set(cur.map((c) => c.name));
     const low = typeof CARDS_LOW === 'undefined' ? [] : CARDS_LOW.filter((x) => !have.has(x[1])).map(([id, name, r, pos, club, lg, nat, flag, born, st]) => ({ key: 'L:' + id, name, r, pos, club, lg, nat, flag, born, face: id, st, rar: r >= 65 ? 'silver' : 'bronze' }));
-    ALL = [...cur, ...low, ...legs, ...jack, ...future, ...forgotten, ...jg];
+    // карточки пропуска (5.11): уровни 10, 20, 30; бесплатные (СЕЗОН) и премиум (СЕЗОН · ПРЕМИУМ — рейтинг выше). Только из пропуска.
+    const pass = PASS_CARDS.map(([lv, line, name, r]) => { const b = cur.find((c) => c.name === name); return b && { ...b, key: `PS:${line}${lv}`, r, rar: line === 'p' ? 'psp' : 'ps', sbcOnly: true, series: line === 'p' ? 'Пропуск · Премиум' : 'Пропуск', passLv: lv, st: FC_STATS[name].slice(1, 7).map((v) => Math.min(99, v + (r - b.r))) }; }).filter(Boolean);
+    ALL = [...cur, ...low, ...legs, ...jack, ...future, ...forgotten, ...jg, ...pass];
     if (typeof PlayerPositions !== 'undefined') ALL.forEach(c => {
       c.positions = PlayerPositions.get(c.name, c.pos);
       if (!c.posFix) c.pos = PlayerPositions.RU[c.positions[0]] || c.pos;
@@ -223,7 +230,7 @@ const Cards = (() => {
   const OLD = ['Будущие звёзды', 'Забытые легенды'];
   const GROUPS = [...LEAGUES, 'Другие', 'Особые', ...OLD];
   const GROUP_ICO = { 'АПЛ': '🏴󠁧󠁢󠁥󠁮󠁧󠁿', 'Ла Лига': '🇪🇸', 'Серия А': '🇮🇹', 'Бундеслига': '🇩🇪', 'Лига 1': '🇫🇷', 'Другие': Ui.get('globe'), 'Легенды': Ui.get('crown'), 'Джексон': Ui.get('flame') };
-  const groupOf = (c) => (c.rar === 'jg' ? 'Особые' : c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : c.rar === 'forgotten' ? 'Забытые легенды' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
+  const groupOf = (c) => (c.rar === 'jg' || c.rar === 'ps' || c.rar === 'psp' ? 'Особые' : c.rar === 'legend' ? 'Легенды' : c.rar === 'jack' ? 'Джексон' : c.rar === 'forgotten' ? 'Забытые легенды' : LEAGUES.includes(c.lg) ? c.lg : 'Другие');
   GROUP_ICO['Будущие звёзды'] = Ui.get('star');
   GROUP_ICO['Забытые легенды'] = '<img class="gl-series" src="img/brand/fl-badge.svg" alt="">';
   // серии из испытаний: карточку нельзя купить, поэтому за «сбор» серии награды нет (экономика не меняется)
@@ -378,6 +385,7 @@ const Cards = (() => {
       Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>${esc(c.series)}</h2><p>Награда испытания. Из паков не выпадает, за монеты не продаётся.</p>${c.model3d && typeof Model3D !== 'undefined' ? '<button class="btn ghost cd-wo" data-model3d="' + esc(c.key) + '">Посмотреть в 3D</button>' : ''}</div>`, [{ label: 'К испытанию', onClick: () => Legends.open(c.challenge) }, { label: 'Закрыть', cls: 'ghost' }]);
       return;
     }
+    if (c.rar === 'ps' || c.rar === 'psp') { Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>Карточка пропуска</h2><p>${c.rar === 'psp' ? 'Премиум-линия' : 'Бесплатная линия'} пропуска, уровень ${c.passLv}. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'Закрыть', cls: 'ghost' }]); return; }
     if (c.rar === 'jg') { Modal.open(`<div class="cd">${html(c, { w: 180, locked: true })}<h2>Особая карточка</h2><p>Награда события Jackson Games. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'Понятно', cls: 'ghost' }]); return; }
     if (c.sbcOnly) {
       Modal.open(`<div class="cd">${html(c, { w: 180 })}<h2>${esc(c.name)} · ${c.r}</h2><p>Будущие звёзды · Барселона · левый защитник</p><p>Уникальная награда ИПК: выполни 10 составов. Из паков не выпадает, за монеты не продаётся.</p></div>`, [{ label: 'К испытанию', onClick: () => SBC.open('fs:espart') }, { label: 'Закрыть', cls: 'ghost' }]);

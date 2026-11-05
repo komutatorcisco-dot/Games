@@ -69,7 +69,7 @@ const Rewards = (() => {
   // ---------- путь трофеев ----------
   // до 80 🏆 паков и карточек ещё нет (раздел открывается на 80) — ранние награды монетами
   const ROAD = [
-    [10, { coins: 50 }], [25, { coins: 80 }], [50, { coins: 100 }], [80, { pack: 1 }], [100, { lives: 2 }],
+    [10, { coins: 50 }], [25, { coins: 80 }], [50, { coins: 100 }], [80, { pack: 1 }], [100, { coins: 120 }],
     [120, { pack: 1 }], [170, { card: 'gold' }], [230, { pack: 2 }], [300, { pack: 2 }], [400, { card: 'legend' }],
     [500, { pack: 3 }], [600, { coins: 500 }], [700, { pack: 2 }], [800, { card: 'legend' }], [950, { pack: 3 }],
     [1100, { pack: 2 }], [1300, { card: 'jack' }], [1500, { pack: 3 }], [1750, { coins: 800 }], [2000, { pack: 4 }],
@@ -81,6 +81,7 @@ const Rewards = (() => {
   const PACKCOL = ['#7fe0a0', '#56d4ff', '#b98bff', '#f2cb5c', '#c6ff3d'];
   const CARDNAME = { gold: 'Золотая карточка', legend: 'Карточка-легенда', jack: 'Карточка «Джексон»' };
   function rewardLabel(r) {
+    if (r.key) { const c = Cards.get(r.key); return c ? { ico: `<span class="rs-pc">${Cards.html(c, { w: 34 })}</span>`, txt: `${Cards.surname ? Cards.surname(c.name) : c.name} ${c.r}`, art: `<span class="rs-pc big">${Cards.html(c, { w: 120 })}</span>`, name: `${c.name} · ${c.r}` } : { ico: Ui.get('gift'), txt: 'Карточка', art: Ui.get('gift'), name: 'Карточка' }; }
     if (r.coins) return { ico: '<i class="coin"></i>', txt: `${r.coins}`, art: `<span class="rs-coins">${Art.img(r.coins >= 150 ? 'coinpile' : 'coins')}</span>`, name: `+${r.coins}` };
     if (r.lives) return { ico: `<span class="ui-red">${Ui.get('heart')}</span>`, txt: `×${r.lives}`, art: `<span class="rs-heart">${Ui.get('heart')}</span>`, name: `Жизни ×${r.lives}` };
     if (r.card) return { ico: `<span class="rs-card sm ${r.card}">?</span>`, txt: CARDNAME[r.card].split(' ')[0], art: `<span class="rs-card ${r.card}">?</span>`, name: CARDNAME[r.card].replace('Карточка-', '').replace('Карточка ', '') };
@@ -93,6 +94,7 @@ const Rewards = (() => {
     if (r.lives) { Store.d.shop.lives += r.lives; Store.save(); toast(`+${r.lives} ${plural(r.lives, 'жизнь', 'жизни', 'жизней')}`); }
     if (r.pack !== undefined) openDrop({ title, minLevel: r.pack });
     if (r.card) giveCards([Cards.draw(r.card).key]);
+    if (r.key && Cards.get(r.key)) giveCards([r.key]);
     if (r.skin && typeof Skins !== 'undefined') { Skins.grant(r.skin); toast('Эксклюзивный скин «Золото» — включён. Сменить можно в Профиле → Оформление'); }
     refresh();
   }
@@ -106,9 +108,9 @@ const Rewards = (() => {
   // [бесплатная, премиум] на каждом уровне
   const PASS = Array.from({ length: PASS_LEVELS }, (_, i) => {
     const L = i + 1;
-    const free = L % 10 === 0 ? { pack: 3 } : L % 5 === 0 ? { pack: 2 } : L % 2 === 0 ? { pack: 0 } : { coins: 30 + L * 2 };
-    const prem = L === 1 ? { pack: 2 } : // скинов в игре больше нет (29.10): первый уровень премиума — эпический пак
-       L === PASS_LEVELS ? { pack: 4 } : L % 5 === 0 ? { pack: 3 } : L % 3 === 0 ? { lives: 1 } : L % 2 === 0 ? { pack: 1 } : { coins: 60 + L * 4 };
+    // 5.11: на 10, 20 и 30 уровнях — карточки пропуска (премиум — с рейтингом выше); жизней в пропуске больше нет
+    const free = L % 10 === 0 ? { key: `PS:f${L}` } : L % 5 === 0 ? { pack: 2 } : L % 2 === 0 ? { pack: 0 } : { coins: 30 + L * 2 };
+    const prem = L === 1 ? { pack: 2 } : L % 10 === 0 ? { key: `PS:p${L}` } : L === 25 ? { pack: 4 } : L % 5 === 0 ? { pack: 3 } : L % 2 === 0 ? { pack: 1 } : { coins: 60 + L * 4 };
     return [free, prem];
   });
   function passSync() {

@@ -62,3 +62,7 @@
 .m3d-x { position: absolute; top: max(14px, env(safe-area-inset-top), calc(var(--tg-content-safe-area-inset-top, 0px) + var(--tg-safe-area-inset-top, 0px) + 8px), calc(var(--safe-top, 0px) + 8px)); right: 12px; z-index: 2; width: 38px; height: 38px; border: 0; border-radius: 50%; color: #fff; font-size: 16px; background: rgba(255,255,255,.12); touch-action: manipulation; }
 .m3d-hint { position: absolute; left: 16px; right: 16px; bottom: max(18px, env(safe-area-inset-bottom), calc(var(--tg-safe-area-inset-bottom, 0px) + 12px)); margin: 0; line-height: 1.4; text-align: center; font: 600 12px var(--font-body, sans-serif); color: rgba(255,255,255,.7); pointer-events: none; transition: opacity .4s; }
 .m3d-wrap.used .m3d-hint { opacity: 0; transition-delay: 1.2s; }
+/* карточки пропуска (5.11): особая рамка, перекрашенная — СЕЗОН голубой, СЕЗОН · ПРЕМИУМ золотой */
+.cc.v2.ps :is(.cc-bk, .cc-fr) { filter: hue-rotate(95deg) saturate(1.2); } .cc.v2.ps .cc-r b { color: #8fe3ff; } .cc.v2.ps .cc-tag { color: #8fe3ff; }
+.cc.v2.psp :is(.cc-bk, .cc-fr) { filter: hue-rotate(-50deg) saturate(1.5) brightness(1.08); } .cc.v2.psp .cc-r b { color: #ffd23c; } .cc.v2.psp .cc-tag { color: #ffd23c; }
+.cc.v2.psp { filter: drop-shadow(0 0 .6em rgba(255,200,40,.45)); }

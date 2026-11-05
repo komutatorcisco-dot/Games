@@ -602,6 +602,7 @@ const Price = {
 };
 // ECON:END
 let ecoReady = false;
+const PASS_CAT = [["PS:f10","Букайо Сака",89,"ps","ПВ","Арсенал","Англия"],["PS:f20","Педри",91,"ps","ЦП","Барселона","Испания"],["PS:f30","Гарри Кейн",93,"ps","ФРВ","Бавария","Англия"],["PS:p10","Джуд Беллингем",94,"psp","ЦАП","Реал Мадрид","Англия"],["PS:p20","Эрлинг Холанд",96,"psp","ФРВ","Манчестер Сити","Норвегия"],["PS:p30","Килиан Мбаппе",98,"psp","ФРВ","Реал Мадрид","Франция"]];
 async function ecoSchema(db) {
   if (ecoReady) return;
   await db.batch([
@@ -610,6 +611,8 @@ async function ecoSchema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS eco_ops (uid INTEGER NOT NULL, op TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (uid, op))'),
     db.prepare('CREATE TABLE IF NOT EXISTS eco_led (id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, ts INTEGER NOT NULL, kind TEXT NOT NULL, src TEXT, coins INTEGER NOT NULL DEFAULT 0, card TEXT, ref TEXT, bot INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE INDEX IF NOT EXISTS eco_led_uid ON eco_led (uid, id)'),
+    // истории операций больше нет (5.11): строка сразу удаляется, остаётся только отметка о стартовых монетах (по ней их не дают дважды)
+    db.prepare("CREATE TRIGGER IF NOT EXISTS eco_led_off AFTER INSERT ON eco_led WHEN NOT (NEW.kind = 'earn' AND NEW.src = 'start') BEGIN DELETE FROM eco_led WHERE id = NEW.id; END"),
     db.prepare('CREATE TABLE IF NOT EXISTS eco_daily (uid INTEGER NOT NULL, day TEXT NOT NULL, src TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (uid, day, src))'),
     db.prepare('CREATE TABLE IF NOT EXISTS eco_once (uid INTEGER NOT NULL, k TEXT NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (uid, k))'),
     db.prepare('CREATE TABLE IF NOT EXISTS eco_cat (key TEXT PRIMARY KEY, name TEXT NOT NULL, r INTEGER NOT NULL, rar TEXT NOT NULL, pos TEXT, club TEXT, nat TEXT, dr INTEGER NOT NULL DEFAULT 1)'),
@@ -627,6 +630,13 @@ async function ecoSchema(db) {
     db.prepare('CREATE INDEX IF NOT EXISTS mk_sales_key ON mk_sales (key, id)'),
     db.prepare('CREATE TABLE IF NOT EXISTS wipe_backup (id INTEGER PRIMARY KEY AUTOINCREMENT, uid INTEGER NOT NULL, ts INTEGER NOT NULL, tbl TEXT NOT NULL, data TEXT NOT NULL)'),
     db.prepare('CREATE INDEX IF NOT EXISTS wipe_backup_uid ON wipe_backup (uid, ts)'),
+  ]);
+  // карточки пропуска (5.11, как PASS_CARDS в js/cards.js): в каталоге всегда, из паков не выпадают (dr = 0)
+  await db.batch(PASS_CAT.map((c) => db.prepare('INSERT OR IGNORE INTO eco_cat (key, name, r, rar, pos, club, nat, dr) VALUES (?, ?, ?, ?, ?, ?, ?, 0)').bind(...c)));
+  // один раз: стереть накопленную историю (оставить отметки о стартовых монетах)
+  if (!(await db.prepare("SELECT v FROM settings WHERE k = 'migration:eco-led-off'").first())) await db.batch([
+    db.prepare("DELETE FROM eco_led WHERE NOT (kind = 'earn' AND src = 'start')"),
+    db.prepare("INSERT OR IGNORE INTO settings (k, v) VALUES ('migration:eco-led-off', '1')"),
   ]);
   ecoReady = true;
 }
@@ -863,6 +873,7 @@ async function ecoQuick(db, uid, body) {
 }
 // ---- история аккаунта ----
 async function ecoHistory(db, uid, body) {
+  return { ok: true, rows: [] }; // истории нет (5.11)
   const before = Math.floor(Number(body.before) || 0), kind = ['earn', 'spend', 'pack', 'card', 'quick', 'sell', 'buy', 'bid', 'refund', 'list', 'unlist'].includes(body.kind) ? body.kind : null;
   const rows = (await db.prepare(`SELECT id, ts, kind, src, coins, card, ref FROM eco_led WHERE uid = ?1 ${before ? 'AND id < ?2' : 'AND ?2 = ?2'} ${kind ? 'AND kind = ?3' : 'AND ?3 = ?3'} ORDER BY id DESC LIMIT 50`).bind(uid, before || 0, kind || '').all()).results;
   return { ok: true, rows };
@@ -1136,7 +1147,7 @@ async function eco(env, user, body) {
   const admin = async () => isAdminId(env, uid);
   if (/^m_/.test(act)) { await mkSettle(db); await mkBots(db).catch(() => 0); }
   switch (act) {
-    case 'state': return { ok: true, cfg: { v: ECON.v }, catalog: (await ecoCat(db)).n, catv: await ecoSetting(db, 'catv', ''), ...(await ecoState(db, uid)) };
+    case 'state': return { ok: true, cfg: { v: ECON.v }, catalog: Math.max(0, (await ecoCat(db)).n - PASS_CAT.length), catv: await ecoSetting(db, 'catv', ''), ...(await ecoState(db, uid)) };
     case 'earn': return ecoEarn(db, uid, body);
     case 'spend': return ecoSpend(db, uid, body);
     case 'grant': return ecoGrant(db, uid, body);
@@ -1159,7 +1170,7 @@ async function eco(env, user, body) {
     // ---- админка ----
     case 'a_catalog': { // каталог карточек из игры: [key, name, r, rar, pos, club, nat, dr]
       // первая заливка в пустой каталог — с любого аккаунта (на проверочном сервере может не быть админа), дальше — только админ
-      const boot = !(await db.prepare('SELECT 1 FROM eco_cat LIMIT 1').first()) || (await ecoSetting(db, 'catboot', '')) === String(uid);
+      const boot = !(await db.prepare("SELECT 1 FROM eco_cat WHERE key NOT LIKE 'PS:%' LIMIT 1").first()) || (await ecoSetting(db, 'catboot', '')) === String(uid);
       if (!boot && !(await admin())) return { ok: false, error: 'forbidden' };
       if (boot && !(await ecoSetting(db, 'catboot', ''))) await setSetting(db, 'eco:catboot', String(uid));
       if (body.done && boot) await setSetting(db, 'eco:catboot', 'done');

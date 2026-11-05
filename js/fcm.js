@@ -440,10 +440,11 @@ const FCM = (() => {
   // ---- пропуск (5.11): сверху премиум-линия, снизу бесплатная, посередине уровни на линии прогресса; дорожка встаёт на текущий уровень ----
   function psCell(r, st, attr, prem) {
     const l = Rewards.rewardLabel(r);
-    const art = r.pack !== undefined ? `<img class="ps2-pk" src="img/packs/pk${r.pack}-160.webp?v=b2" alt="">` : r.coins ? '<i class="coin big"></i>' : `<span class="ps2-ic">${l.ico}</span>`;
-    const name = r.pack !== undefined ? l.txt : r.coins ? `${r.coins}` : (l.name || l.txt);
+    const pc = r.key && Cards.get(r.key);
+    const art = pc ? `<span class="ps2-card">${Cards.html(pc, { w: 42 })}</span>` : r.pack !== undefined ? `<img class="ps2-pk" src="img/packs/pk${r.pack}-160.webp?v=b2" alt="">` : r.coins ? '<i class="coin big"></i>' : `<span class="ps2-ic">${l.ico}</span>`;
+    const name = pc ? l.txt : r.pack !== undefined ? l.txt : r.coins ? `${r.coins}` : (l.name || l.txt);
     const tag = st === 'got' ? '<i class="ps2-ok">✓</i>' : st === 'ready' ? '<em>Забрать</em>' : /buy/.test(st) ? `<i class="ps2-lock">${ico('lock')}</i>` : '';
-    return `<button class="ps2-c ${st} ${prem ? 'pr' : ''}" ${attr}><span class="ps2-a">${art}</span><b>${esc(name)}</b>${tag}</button>`;
+    return `<button class="ps2-c ${st} ${prem ? 'pr' : ''} ${pc ? 'sp' : ''}" ${attr}><span class="ps2-a">${art}</span><b>${esc(name)}</b>${tag}</button>`;
   }
   function passView() {
     const p = Rewards.passSync(), L = Rewards.passLevel(), max = Rewards.PASS_LEVELS, step = Rewards.PASS_STEP, xp = L >= max ? step : p.xp - L * step;
@@ -560,7 +561,6 @@ const FCM = (() => {
           ${row('music', 'Фоновая музыка', Store.d.music === false ? 'Выкл' : 'Вкл')}
           ${row('sound', 'Звуки', Store.d.sound ? 'Вкл' : 'Выкл')}
           <button class="fm-pf-row" data-fmp="coll"><span>Коллекция</span><b>›</b></button>
-          ${typeof Eco !== 'undefined' && Eco.stage() ? '<button class="fm-pf-row" data-fmp="hist"><span>История операций</span><b>›</b></button>' : ''}
           ${row('board', 'Таблица канала', '›')}
           ${row('report', 'Нашёл ошибку', '›')}
           ${typeof CONFIG !== 'undefined' && CONFIG.stage ? '<button class="fm-pf-row danger" data-act="wipe"><span>Начать заново (только превью)</span><b>↺</b></button>' : ''}
@@ -604,7 +604,7 @@ const FCM = (() => {
   const RARG = [['', 'Все'], ['silver', 'Серебро'], ['gold', 'Золото'], ['legend', 'Легенды'], ['sp', 'Особые']];
   const POSG = [['', 'Все'], ['gk', 'Вратари'], ['def', 'Защита'], ['mid', 'Полузащита'], ['att', 'Атака']];
   const POSOF = { 'ВРТ': 'gk', 'ЦЗ': 'def', 'ЛЗ': 'def', 'ПЗ': 'def', 'ЦОП': 'mid', 'ЦП': 'mid', 'ЦАП': 'mid', 'ЛП': 'mid', 'ПП': 'mid', 'ФРВ': 'att', 'ЛВ': 'att', 'ПВ': 'att' };
-  const SPECIAL = new Set(['jack', 'jg', 'future', 'forgotten']);
+  const SPECIAL = new Set(['jack', 'jg', 'future', 'forgotten', 'ps', 'psp']);
   const own = (c) => (Cards.owned ? Cards.owned(c.key) : 0) > 0;
   function collList() {
     const q = CQ.q.trim().toLowerCase();

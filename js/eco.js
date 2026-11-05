@@ -129,14 +129,14 @@ const Market = (() => {
   function body() {
     if (!Eco.on()) return `<div class="mk-off"><b>Рынок работает в Telegram</b><p>Открой превью через бота — рынок, история и монеты хранятся на проверочном сервере.</p></div>`;
     if (S.tab === 'search') return filters() + `<div class="mk-res">${S.lots ? grid(S.lots, 'Ничего не нашлось — смени фильтры') : '<p class="fm-none">Загрузка…</p>'}</div>`;
-    if (S.tab === 'hist') return histRows();
+    if (S.tab === 'hist') S.tab = 'search';
     const m = S.mine; if (!m) return '<p class="fm-none">Загрузка…</p>';
     if (S.tab === 'lots') return `<p class="mk-note">Выставить карточку: Команда → Коллекция → карточка → «Продать». Налог с продажи — ${Math.round(ECON.market.tax * 100)}%.</p>` + grid(m.lots, 'Ты ещё ничего не выставил');
     if (S.tab === 'bids') return grid(m.bids, 'Ставок нет');
     return grid(m.favs, 'Нажми ☆ в лоте, чтобы следить за ним');
   }
   function render() {
-    const L = [['search', 'Поиск'], ['lots', 'Мои лоты'], ['bids', 'Ставки'], ['favs', 'Избранное'], ['hist', 'История']];
+    const L = [['search', 'Поиск'], ['lots', 'Мои лоты'], ['bids', 'Ставки'], ['favs', 'Избранное']]; // истории операций нет (5.11): она забивала базу
     return `<div class="fm-split mk">${`<div class="fm-rail">${L.map(([id, t]) => `<button class="${S.tab === id ? 'on' : ''}" data-mk-tab="${id}"><b>${t}</b></button>`).join('')}</div>`}<div class="fm-body mk-body">${body()}</div></div>`;
   }
   const paint = () => { const b = document.querySelector('.mk-body'); if (b) b.innerHTML = body(); if (typeof Photos !== 'undefined' && Photos.hydrate && b) Photos.hydrate(b); };

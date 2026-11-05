@@ -35,6 +35,7 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
 (async () => {
   assert.equal(T.ecoOn({}, new URL('https://jackson-games.komutatorcisco.workers.dev/eco')), false, 'рабочий сервер: /eco выключен');
   await T.schema(db); await T.ecoSchema(db);
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM eco_cat WHERE key LIKE 'PS:%' AND dr = 0").get().n, 6, 'карточки пропуска сразу в каталоге сервера и не выпадают из паков');
   // каталог: 30 бронзы, 30 серебра, 30 золота 75–90, особая карточка
   const ins = sql.prepare('INSERT INTO eco_cat (key, name, r, rar, pos, club, nat, dr) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
   assert.ok((await call(77, { act: 'a_catalog', rows: [['B0', 'Бронза 0', 50, 'bronze', 'ВРТ', 'Клуб', 'Бразилия', 1]] })).ok, 'пустой каталог заливает любой');
@@ -103,7 +104,8 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
   assert.equal(coins(40), 200000, 'лидеру аукциона ставка вернулась при выкупе');
   assert.equal((await call(40, { act: 'm_buy', lot, op: op() })).ok, false, 'проданный лот не купить');
   const hist = await call(20, { act: 'history' });
-  assert.ok(hist.rows.some((r) => r.kind === 'sell' && /налог/.test(r.ref)), 'в истории продажа с налогом');
+  assert.equal(hist.rows.length, 0, 'истории операций нет (5.11)');
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM eco_led WHERE NOT (kind = 'earn' AND src = 'start')").get().n, 0, 'в базе остаются только отметки о стартовых монетах');
 
   // ---- аукцион до конца и лот без ставок ----
   const [lo2, hi2] = T.Price.range(g75, 0, 0);
@@ -137,6 +139,7 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
   // награды карточками: особая — один раз, золото — не больше 8 в день
   assert.ok((await call(60, { act: 'grant', keys: ['JG:x'], src: 'event', op: op() })).ok);
   assert.equal((await call(60, { act: 'grant', keys: ['JG:x'], src: 'event', op: op() })).ok, false, 'особую карточку не выдать дважды');
+
   assert.equal((await call(60, { act: 'grant', keys: Array(9).fill('G3'), src: 'event', op: op() })).ok, false, 'больше 8 золотых в день нельзя');
   // обмен (SBC): всё или ничего
   sql.exec("INSERT INTO eco_cards (uid, key, n) VALUES (60, 'S1', 1) ON CONFLICT(uid, key) DO UPDATE SET n = 1");
@@ -149,7 +152,7 @@ const total = () => sql.prepare('SELECT SUM(coins) AS s FROM eco_wallet').get().
   const botLots = sql.prepare("SELECT key, r, rar, pos, start, bin FROM mk_lots WHERE bot = 1 AND status = 'open'").all();
   assert.ok(acts > 0 && botLots.length > 0, 'боты выставили карточки');
   for (const x of botLots) { const [l, h] = T.Price.range(x, 0, 0); assert.ok(x.start >= l && x.bin <= h && x.start <= x.bin, 'цены ботов внутри рамки'); }
-  assert.ok(sql.prepare("SELECT COUNT(*) AS n FROM eco_led WHERE bot = 1").get().n > 0, 'операции ботов помечены в истории');
+  assert.equal(sql.prepare("SELECT COUNT(*) AS n FROM eco_led WHERE bot = 1").get().n, 0, 'операции ботов в историю не пишутся');
   await T.setSetting(db, 'eco:bots', '0'); assert.equal(await T.mkBots(db, true), 0, 'боты выключаются настройкой');
 
   // ---- вайп: копия и полная очистка ----
