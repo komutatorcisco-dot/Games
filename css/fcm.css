@@ -1223,3 +1223,39 @@
   .ps2-col.rd.sp { flex-basis: 112px; }
   .ps2-lv.tr { background: radial-gradient(circle at 35% 30%, #ffe58a, #e0a300); color: #2a1a00; } .ps2-lv.tr svg { width: 20px; height: 20px; }
 }
+/* рейтинг команды (5.11): объёмный жетон вместо красного щита */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-club.ov3w { display: flex !important; align-items: center; gap: 12px; padding: 10px 12px !important; }
+  .ov3 { --tc: #ffd23c; --m1: #fff3c4; --m2: #e6a817; --m3: #7a4d00; --ink: #2a1a00; position: relative; flex: none; display: grid; place-items: center; width: 70px; aspect-ratio: 1; border-radius: 50%;
+    transform-style: preserve-3d; animation: ov3Sway 5s ease-in-out infinite; filter: drop-shadow(0 8px 10px rgba(0,0,0,.55)) drop-shadow(0 0 12px color-mix(in srgb, var(--tc) 45%, transparent)); }
+  .ov3.t-elite { --tc: #c6ff3d; --m1: #3a4a2a; --m2: #11160c; --m3: #000; --ink: #c6ff3d; }
+  .ov3.t-silver { --tc: #dfe7f2; --m1: #ffffff; --m2: #aab6c6; --m3: #4c5868; --ink: #1d232c; }
+  .ov3.t-bronze { --tc: #e9a06a; --m1: #ffd9b8; --m2: #c0743c; --m3: #5a2d0d; --ink: #3a1d08; }
+  /* кольцо прогресса до 99 */
+  .ov3-ring { position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(from -90deg, var(--tc) calc(var(--p) * 1%), rgba(255,255,255,.12) 0);
+    -webkit-mask: radial-gradient(closest-side, transparent 78%, #000 80%); mask: radial-gradient(closest-side, transparent 78%, #000 80%); }
+  /* металлическая монета с фаской */
+  .ov3-in { position: absolute; inset: 7px; display: grid; place-items: center; align-content: center; border-radius: 50%; color: var(--ink);
+    background: radial-gradient(circle at 32% 26%, var(--m1) 0 14%, var(--m2) 48%, var(--m3) 100%);
+    box-shadow: inset 0 3px 2px rgba(255,255,255,.55), inset 0 -4px 6px rgba(0,0,0,.45), 0 0 0 2px rgba(0,0,0,.35); }
+  .ov3.t-elite .ov3-in { box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.6), inset 0 3px 2px rgba(255,255,255,.18), inset 0 -4px 6px rgba(0,0,0,.6); }
+  .ov3-in b { font: italic 900 27px/.9 "Barlow Condensed", sans-serif; letter-spacing: -.02em; text-shadow: 0 1px 0 rgba(255,255,255,.35); }
+  .ov3.t-elite .ov3-in b { text-shadow: 0 0 10px rgba(198,255,61,.7); }
+  .ov3-in small { font: 800 9px/1 "Inter Tight", sans-serif; letter-spacing: .12em; opacity: .8; }
+  /* бегущий блик */
+  .ov3-sh { position: absolute; inset: 7px; border-radius: 50%; overflow: hidden; pointer-events: none; }
+  .ov3-sh::after { content: ''; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.55), transparent); transform: skewX(-18deg); animation: ov3Shine 3.4s ease-in-out infinite; }
+  .ov3.sm { width: 52px; } .ov3.sm .ov3-in { inset: 5px; } .ov3.sm .ov3-sh { inset: 5px; } .ov3.sm .ov3-in b { font-size: 20px; } .ov3.sm .ov3-in small { font-size: 7px; }
+  .ov3-t { display: grid; gap: 3px; min-width: 0; }
+  .ov3-t small { font: 700 10px "Inter Tight", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #9fb2cc; }
+  .ov3-t b { font: 900 18px/1 "Inter Tight", sans-serif; text-transform: uppercase; color: #ffd23c; }
+  .ov3-t b.t-elite { color: #c6ff3d; } .ov3-t b.t-silver { color: #dfe7f2; } .ov3-t b.t-bronze { color: #e9a06a; }
+  .ov3-t em { font: 600 10px/1.2 "Inter Tight", sans-serif; font-style: normal; color: #9fb2cc; }
+}
+@keyframes ov3Sway { 0%, 100% { transform: perspective(240px) rotateY(-14deg) rotateX(4deg); } 50% { transform: perspective(240px) rotateY(14deg) rotateX(-3deg); } }
+@keyframes ov3Shine { 0%, 55% { left: -60%; } 85%, 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) { .ov3, .ov3-sh::after { animation: none !important; } }
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-club.ov3w .ov3-t { display: grid !important; position: static !important; flex: 1; }
+  .fm-club.ov3w .ov3-t > * { position: static !important; display: block !important; margin: 0 !important; padding: 0 !important; transform: none !important; background: none !important; width: auto !important; height: auto !important; white-space: normal; text-align: left !important; }
+}

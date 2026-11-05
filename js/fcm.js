@@ -115,7 +115,7 @@ const FCM = (() => {
         ${typeof Rewards !== 'undefined' && Rewards.balls && Rewards.balls() ? (() => { const A = Rewards.S().angry || 0, P = Rewards.S().pending || 0;
           return `<button class="fm-feat fm-balls ${A ? 'angry' : ''}" data-act="balls"><b>${A ? 'Злой мяч' : 'Мяч-дроп'}</b><span class="fm-bl-art">${A ? '<img class="a" src="img/packs/angry-360.webp?v=a1" alt="">' : ''}${P ? '<img src="img/packs/pk0-360.webp?v=b2" alt="">' : ''}</span><em class="fm-bl-n">${A + P}</em><i class="fm-bl-go">Открыть</i></button>`; })() : `<button class="fm-feat" data-fm-tab="store"><b>Паки</b>${PKS.map((x, i) => `<span class="fm-pf ${i === pkI ? 'on' : ''} ${x.lv.length > 1 ? 'all' : ''}" data-i="${i}">${x.lv.map((l) => `<img src="img/packs/pk${l}-360.webp?v=b2" alt="">`).join('')}<em>${x.t}</em></span>`).join('')}</button>`}
         <div class="fm-hr2">
-          <button class="fm-club" data-fm-tab="team"><b>Клуб</b><span>${inf.r ? `<i class="fm-ovr"><small>ОБЩ</small><b>${inf.r}</b></i>` : '<em class="fm-club-e">Собери состав</em>'}</span></button>
+          <button class="fm-club" data-fm-tab="team"><b>Клуб</b><span>${inf.r ? ovrBadge(inf.r, true) : '<em class="fm-club-e">Собери состав</em>'}</span></button>
           <button class="fm-playt" data-fm-tab="modes"><svg class="fm-pt-tri" viewBox="0 0 440 220" preserveAspectRatio="none" aria-hidden="true"><path d="M132 116h7l-4 5z" opacity="0.39"/><path d="M156 116h8l-4 6z" opacity="0.42"/><path d="M180 116h9l-4 6z" opacity="0.44"/><path d="M203 115h9l-5 7z" opacity="0.46"/><path d="M227 115h10l-5 7z" opacity="0.49"/><path d="M251 115h11l-5 7z" opacity="0.51"/><path d="M120 140h8l-4 5z" opacity="0.40"/><path d="M144 140h9l-4 6z" opacity="0.44"/><path d="M167 139h10l-5 7z" opacity="0.47"/><path d="M191 139h11l-5 7z" opacity="0.51"/><path d="M214 139h11l-6 8z" opacity="0.54"/><path d="M238 139h12l-6 9z" opacity="0.58"/><path d="M261 138h13l-7 9z" opacity="0.61"/><path d="M84 164h7l-4 5z" opacity="0.39"/><path d="M108 164h9l-4 6z" opacity="0.44"/><path d="M131 163h10l-5 7z" opacity="0.48"/><path d="M154 163h11l-6 8z" opacity="0.53"/><path d="M178 163h12l-6 9z" opacity="0.57"/><path d="M201 162h14l-7 9z" opacity="0.62"/><path d="M225 162h15l-7 10z" opacity="0.66"/><path d="M248 162h16l-8 11z" opacity="0.71"/><path d="M96 188h8l-4 6z" opacity="0.41"/><path d="M119 187h10l-5 7z" opacity="0.47"/><path d="M142 187h11l-6 8z" opacity="0.53"/><path d="M166 187h13l-6 9z" opacity="0.58"/><path d="M189 186h14l-7 10z" opacity="0.64"/><path d="M212 186h16l-8 11z" opacity="0.70"/><path d="M235 185h17l-9 12z" opacity="0.75"/><path d="M259 185h19l-9 13z" opacity="0.81"/><path d="M84 212h9l-4 6z" opacity="0.44"/><path d="M107 211h10l-5 7z" opacity="0.50"/><path d="M130 211h12l-6 9z" opacity="0.57"/><path d="M153 210h14l-7 10z" opacity="0.64"/><path d="M176 210h16l-8 11z" opacity="0.71"/><path d="M199 209h18l-9 12z" opacity="0.77"/><path d="M222 209h19l-10 14z" opacity="0.84"/><path d="M245 208h21l-11 15z" opacity="0.91"/></svg><img class="fm-pt-ball" src="img/fcm/ball-net.webp?v=2" alt=""><b>Играть</b></button>
         </div>
       </div>
@@ -211,14 +211,18 @@ const FCM = (() => {
   // Нет WebGL — плоское поле, как раньше.
   function teamData() {
     const s = Squad.S(), F = XD.FORMATIONS[s.form], cards = s.xi.map((k) => (k && Cards.get(k) ? Cards.get(k) : null)), have = cards.filter(Boolean);
-    const ovr = have.length ? Math.round(have.reduce((a, c) => a + c.r, 0) / have.length) : 0;
+    const ovr = have.length ? Math.round(have.reduce((a, c) => a + (typeof Lime !== 'undefined' ? Lime.r(c) : c.r), 0) / have.length) : 0; // с прокачкой
     const owned = Cards.all().filter((c) => Cards.spare && Cards.spare(c.key) > 0).length;
     return { s, F, cards, have, ovr, owned };
   }
+  // рейтинг команды (5.11): объёмный жетон — металл по уровню, кольцо прогресса до 99, блик
+  const OVT = (o) => (o >= 85 ? ['elite', 'Элита'] : o >= 78 ? ['gold', 'Золото'] : o >= 68 ? ['silver', 'Серебро'] : ['bronze', 'Бронза']);
+  const ovrBadge = (o, sm = false) => { const [t] = OVT(o), p = Math.max(4, Math.min(100, Math.round(((o - 45) / 54) * 100)));
+    return `<span class="ov3 t-${t} ${sm ? 'sm' : ''}" style="--p:${p}"><i class="ov3-ring"></i><span class="ov3-in"><b>${o}</b><small>ОБЩ</small></span><i class="ov3-sh"></i></span>`; };
   function team() {
     const { s, F, cards, have, ovr, owned } = teamData(), u = Store.d.user || {};
     const panel = `<div class="fm-tside">
-        <div class="fm-club">${ovr ? `<span class="fm-ovr"><small>ОБЩ</small><b>${ovr}</b></span>` : '<span class="fm-club-hint">Поставь игроков — появится рейтинг команды</span>'}</div>
+        <div class="fm-club ov3w">${ovr ? `${ovrBadge(ovr)}<span class="ov3-t"><small>Рейтинг команды</small><b class="t-${OVT(ovr)[0]}">${OVT(ovr)[1]}</b><em>${ovr < 99 ? `до ${ovr + 1}: прокачай игроков` : 'максимум'}</em></span>` : '<span class="fm-club-hint">Поставь игроков — появится рейтинг команды</span>'}</div>
         <div class="fm-stats"><span><small>Схема</small><b>${esc(s.form)}</b></span><span><small>Химия</small><b>${Squad.info ? Squad.info().chem : '—'}</b></span><span><small>Состав</small><b>${have.length}/11</b></span></div>
         <button class="fm-btn gold" data-fm-auto>Лучший состав</button>
         <button class="fm-btn" data-act="collection">Коллекция</button>
