@@ -49,7 +49,7 @@ const FCM = (() => {
 
   // ---------- верх ----------
   function top() {
-    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? (sub.modes !== 'hub' && SHELF.find((x) => x[0] === sub.modes) ? SHELF.find((x) => x[0] === sub.modes)[1] : 'Играть') : tab === 'market' ? 'Трансферный рынок' : HOST[tab] ? HOST[tab][1] : (TABS.find((t) => t[0] === tab) || [])[1];
+    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? (sub.modes !== 'hub' && SHELF.find((x) => x[0] === sub.modes) ? SHELF.find((x) => x[0] === sub.modes)[1] : 'Играть') : tab === 'div' ? 'Дивизионы' : tab === 'market' ? 'Трансферный рынок' : HOST[tab] ? HOST[tab][1] : (TABS.find((t) => t[0] === tab) || [])[1];
     return `<header class="fm-top">
       ${title ? `<button class="fm-back" ${HOST[tab] ? 'data-fm-hback' : tab === 'modes' && sub.modes !== 'hub' ? 'data-fm-sub="modes:hub"' : `data-fm-tab="${tab === 'coll' ? 'team' : tab === 'market' ? 'store' : 'play'}"`} aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
         : `<button class="fm-me" data-act="profile"><span class="fm-ava">${esc(u.emoji || '⚽')}</span><span class="fm-who"><b>${esc(u.nick || 'Игрок')}</b></span></button>`}
@@ -97,6 +97,36 @@ const FCM = (() => {
           <span class="fm-hb"><span class="fm-bar"><i style="width:${Math.max(3, Math.round(100 * done / all))}%"></i></span><u>${done}/${all}</u></span>
           <i class="fm-sl-go">${ready ? 'Забрать награду' : done ? 'Продолжить' : 'Начать главу'}</i></span></button>`;
   }
+  // ---- дивизионы (5.11, js/division.js) ----
+  const carLabel = () => { try { const S0 = ClubPath.S(), c = ClubPath.CH[Math.min(S0.ch, ClubPath.CH.length) - 1]; return `Глава ${c.id} · ${c.t}`; } catch (e) { return 'Сюжет и задания'; } };
+  const dvBadge = (i, big) => `<span class="dvb t-${Division.tier(i)} ${big ? 'big' : ''}"><i class="dvb-glow"></i><span class="dvb-sh"><span class="dvb-in"><small>${i >= 9 ? 'Элита' : 'Дивизион'}</small><b>${i >= 9 ? '★' : Division.num(i)}</b></span></span><i class="dvb-shine"></i></span>`;
+  const dvBar = () => { const D = Division, s = D.week(), i = D.idx(), nx = D.START[i + 1]; return { s, i, nx, pct: nx ? Math.max(3, Math.round(100 * (s.pts - D.START[i]) / (nx - D.START[i]))) : 100 }; };
+  function divHero() {
+    const { s, i, nx, pct } = dvBar();
+    return `<button class="fm-sl dvh on" data-i="0" data-fm-tab="div">
+        <span class="dvh-art">${dvBadge(i, true)}</span>
+        <span class="fm-sl-t"><small>Дивизионы · матч 3 на 3</small><b>${esc(Division.name(i))}</b>
+          <span class="fm-hb"><span class="fm-bar"><i style="width:${pct}%"></i></span><u>${nx ? `${s.pts}/${nx}` : s.pts}</u></span>
+          <i class="fm-sl-go">${s.prize ? 'Забрать награду недели' : 'Играть матч'}</i></span></button>`;
+  }
+  function divView() {
+    const D = Division, { s, i, nx, pct } = dvBar(), L = s.last && !s.last.seen ? s.last : null;
+    if (L) { s.last.seen = true; Store.save(); if (L.up) setTimeout(() => { if (typeof confetti === 'function') confetti(); Sound.play('whistle'); }, 400); }
+    const K = typeof Eco !== 'undefined' && Eco.on() ? Eco.K() : 1, [a, lime, cn] = D.WEEK[s.wbest];
+    const lad = D.START.map((_, k) => `<span class="dvl t-${D.tier(k)} ${k === i ? 'on' : ''} ${k < i ? 'done' : ''}"><b>${k >= 9 ? '★' : D.num(k)}</b></span>`).join('<i class="dvl-ln"></i>');
+    return `<div class="dv">
+      <div class="dv-l">${dvBadge(i, true)}<b class="dv-n">${esc(D.name(i))}</b>
+        <span class="fm-bar dv-bar"><i style="width:${pct}%"></i></span><small>${nx ? `${s.pts} / ${nx} очков до ${esc(D.name(i + 1))}` : `${s.pts} очков · вершина`}</small>
+        <small class="dv-rec">Победы ${s.w} · ничьи ${s.dr} · поражения ${s.l}</small></div>
+      <div class="dv-r">
+        ${L ? `<div class="dv-res ${L.res}"><b>${L.res === 'win' ? 'Победа' : L.res === 'draw' ? 'Ничья' : 'Поражение'} ${L.score[0]}:${L.score[1]}</b><span>${L.dp >= 0 ? '+' : ''}${L.dp} очков дивизиона${L.tro ? ` · +${L.tro} ${cup}` : ''}${L.up ? ' · <u>Новый дивизион!</u>' : ''}</span></div>` : ''}
+        <div class="dv-lad">${lad}</div>
+        <div class="dv-wk">${s.prize ? `<span><small>Неделя закончилась</small><b>Награда за ${esc(D.name(s.prize.i))}</b></span><button class="fm-btn gold" data-dv-week>Забрать</button>`
+          : `<span><small>Награда недели за ${esc(D.name(s.wbest))}</small><b><img class="dv-ang" src="img/packs/angry-160.webp?v=a1" alt="">×${a} · ${Lime.ico()} ${lime} · ${coin} ${Math.round(cn * K)}</b></span>`}</div>
+        <div class="dv-go"><button class="fm-btn" data-dv-team>Состав</button><button class="fm-btn gold dv-play" data-dv-play>Играть матч 3 на 3</button></div>
+        <p class="mk-note">Победа: +${D.PTS.win} очков и +${D.tro('win', i)} трофеев · ничья +${D.PTS.draw} · поражение ${D.PTS.loss}. Ниже начала дивизиона не опустишься. Трофеи дают только матчи дивизионов.</p>
+      </div></div>`;
+  }
   function play() {
     const jg = Cards.get('JG:nicolas-jackson'), inf = Squad.info ? Squad.info() : { r: 0 };
     const day = typeof Wheel !== 'undefined' && Wheel.ready();
@@ -111,13 +141,13 @@ const FCM = (() => {
         ${typeof Wheel !== 'undefined' ? tile('data-act="wheel"', '<img src="img/packs/pk0-160.webp?v=b2" alt="">', day ? 'Пак дня' : 'Завтра', day, 'c2') : ''}
         ${tile('data-act="dly"', '<img src="img/fcm/ic-daily.webp" alt="">', 'Игрок дня', false, 'c3')}
       </div>
-      <div class="fm-hero2">${homeHero(jg)}</div>
+      <div class="fm-hero2">${typeof Division !== 'undefined' ? divHero() : homeHero(jg)}</div>
       <div class="fm-hr">
         ${typeof Rewards !== 'undefined' && Rewards.balls && Rewards.balls() ? (() => { const A = 0, P = Rewards.S().pending || 0; /* злые мячи — своей плиткой слева */
           return `<button class="fm-feat fm-balls ${A ? 'angry' : ''}" data-act="balls"><b>${A ? 'Злой мяч' : 'Мяч-дроп'}</b><span class="fm-bl-art">${A ? '<img class="a" src="img/packs/angry-360.webp?v=a1" alt="">' : ''}${P ? '<img src="img/packs/pk0-360.webp?v=b2" alt="">' : ''}</span><em class="fm-bl-n">${A + P}</em><i class="fm-bl-go">Открыть</i></button>`; })() : `<button class="fm-feat" data-fm-tab="store"><b>Паки</b>${PKS.map((x, i) => `<span class="fm-pf ${i === pkI ? 'on' : ''} ${x.lv.length > 1 ? 'all' : ''}" data-i="${i}">${x.lv.map((l) => `<img src="img/packs/pk${l}-360.webp?v=b2" alt="">`).join('')}<em>${x.t}</em></span>`).join('')}</button>`}
         <div class="fm-hr2">
-          <button class="fm-club" data-fm-tab="team"><b>Клуб</b><span>${inf.r ? ovrBadge(inf.r, true) : '<em class="fm-club-e">Собери состав</em>'}</span></button>
-          <button class="fm-playt" data-fm-tab="modes"><svg class="fm-pt-tri" viewBox="0 0 440 220" preserveAspectRatio="none" aria-hidden="true"><path d="M132 116h7l-4 5z" opacity="0.39"/><path d="M156 116h8l-4 6z" opacity="0.42"/><path d="M180 116h9l-4 6z" opacity="0.44"/><path d="M203 115h9l-5 7z" opacity="0.46"/><path d="M227 115h10l-5 7z" opacity="0.49"/><path d="M251 115h11l-5 7z" opacity="0.51"/><path d="M120 140h8l-4 5z" opacity="0.40"/><path d="M144 140h9l-4 6z" opacity="0.44"/><path d="M167 139h10l-5 7z" opacity="0.47"/><path d="M191 139h11l-5 7z" opacity="0.51"/><path d="M214 139h11l-6 8z" opacity="0.54"/><path d="M238 139h12l-6 9z" opacity="0.58"/><path d="M261 138h13l-7 9z" opacity="0.61"/><path d="M84 164h7l-4 5z" opacity="0.39"/><path d="M108 164h9l-4 6z" opacity="0.44"/><path d="M131 163h10l-5 7z" opacity="0.48"/><path d="M154 163h11l-6 8z" opacity="0.53"/><path d="M178 163h12l-6 9z" opacity="0.57"/><path d="M201 162h14l-7 9z" opacity="0.62"/><path d="M225 162h15l-7 10z" opacity="0.66"/><path d="M248 162h16l-8 11z" opacity="0.71"/><path d="M96 188h8l-4 6z" opacity="0.41"/><path d="M119 187h10l-5 7z" opacity="0.47"/><path d="M142 187h11l-6 8z" opacity="0.53"/><path d="M166 187h13l-6 9z" opacity="0.58"/><path d="M189 186h14l-7 10z" opacity="0.64"/><path d="M212 186h16l-8 11z" opacity="0.70"/><path d="M235 185h17l-9 12z" opacity="0.75"/><path d="M259 185h19l-9 13z" opacity="0.81"/><path d="M84 212h9l-4 6z" opacity="0.44"/><path d="M107 211h10l-5 7z" opacity="0.50"/><path d="M130 211h12l-6 9z" opacity="0.57"/><path d="M153 210h14l-7 10z" opacity="0.64"/><path d="M176 210h16l-8 11z" opacity="0.71"/><path d="M199 209h18l-9 12z" opacity="0.77"/><path d="M222 209h19l-10 14z" opacity="0.84"/><path d="M245 208h21l-11 15z" opacity="0.91"/></svg><img class="fm-pt-ball" src="img/fcm/ball-net.webp?v=2" alt=""><b>Играть</b></button>
+          <button class="fm-club fm-car2" data-fm-car><b>Карьера</b><span><em class="fm-club-e">${esc(carLabel())}</em></span></button>
+          <button class="fm-playt" data-fm-tab="modes"><svg class="fm-pt-tri" viewBox="0 0 440 220" preserveAspectRatio="none" aria-hidden="true"><path d="M132 116h7l-4 5z" opacity="0.39"/><path d="M156 116h8l-4 6z" opacity="0.42"/><path d="M180 116h9l-4 6z" opacity="0.44"/><path d="M203 115h9l-5 7z" opacity="0.46"/><path d="M227 115h10l-5 7z" opacity="0.49"/><path d="M251 115h11l-5 7z" opacity="0.51"/><path d="M120 140h8l-4 5z" opacity="0.40"/><path d="M144 140h9l-4 6z" opacity="0.44"/><path d="M167 139h10l-5 7z" opacity="0.47"/><path d="M191 139h11l-5 7z" opacity="0.51"/><path d="M214 139h11l-6 8z" opacity="0.54"/><path d="M238 139h12l-6 9z" opacity="0.58"/><path d="M261 138h13l-7 9z" opacity="0.61"/><path d="M84 164h7l-4 5z" opacity="0.39"/><path d="M108 164h9l-4 6z" opacity="0.44"/><path d="M131 163h10l-5 7z" opacity="0.48"/><path d="M154 163h11l-6 8z" opacity="0.53"/><path d="M178 163h12l-6 9z" opacity="0.57"/><path d="M201 162h14l-7 9z" opacity="0.62"/><path d="M225 162h15l-7 10z" opacity="0.66"/><path d="M248 162h16l-8 11z" opacity="0.71"/><path d="M96 188h8l-4 6z" opacity="0.41"/><path d="M119 187h10l-5 7z" opacity="0.47"/><path d="M142 187h11l-6 8z" opacity="0.53"/><path d="M166 187h13l-6 9z" opacity="0.58"/><path d="M189 186h14l-7 10z" opacity="0.64"/><path d="M212 186h16l-8 11z" opacity="0.70"/><path d="M235 185h17l-9 12z" opacity="0.75"/><path d="M259 185h19l-9 13z" opacity="0.81"/><path d="M84 212h9l-4 6z" opacity="0.44"/><path d="M107 211h10l-5 7z" opacity="0.50"/><path d="M130 211h12l-6 9z" opacity="0.57"/><path d="M153 210h14l-7 10z" opacity="0.64"/><path d="M176 210h16l-8 11z" opacity="0.71"/><path d="M199 209h18l-9 12z" opacity="0.77"/><path d="M222 209h19l-10 14z" opacity="0.84"/><path d="M245 208h21l-11 15z" opacity="0.91"/></svg><img class="fm-pt-ball" src="img/fcm/ball-net.webp?v=2" alt=""><b>Мини-игры</b></button>
         </div>
       </div>
     </div>`;
@@ -724,8 +754,9 @@ const FCM = (() => {
   function render() {
     if (!root || !on()) return;
     if (tab === 'store' && sub.store === 'market') { sub.store = 'top'; tab = 'market'; }
+    if (tab === 'play' && typeof Division !== 'undefined' && Division.S().last && !Division.S().last.seen) tab = 'div'; // после матча дивизиона — сразу итог
     park();
-    const body = HOST[tab] ? `<div class="fm-host fm-host-${tab}"></div>` : { play, team, events, quests, store, coll, modes, market: () => Market.render() }[tab]();
+    const body = HOST[tab] ? `<div class="fm-host fm-host-${tab}"></div>` : { play, team, events, quests, store, coll, modes, div: divView, market: () => Market.render() }[tab]();
     const entering = tab === 'team' && root.dataset.view !== 'team';
     root.dataset.view = tab;
     const oldTrk = root.querySelector('.ps2-track'), keepX = oldTrk && root.dataset.view === tab ? oldTrk.scrollLeft : null;
@@ -805,6 +836,9 @@ const FCM = (() => {
       const nd = e.target.closest('[data-fm-node]'); if (nd) { Sound.play('tap'); return nodeSheet(+nd.dataset.fmNode); }
       const pk = e.target.closest('[data-fm-pk]'); if (pk) { Sound.play('tap'); return packSheet(pk.dataset.fmPk); }
       const m = e.target.closest('[data-fm-mode]'); if (m) { Sound.play('tap'); return startMode(m.dataset.fmMode); }
+      if (e.target.closest('[data-dv-play]')) { Sound.play('tap'); return Division.play(); }
+      if (e.target.closest('[data-dv-week]')) { Division.claimWeek(); return setTimeout(render, 60); }
+      if (e.target.closest('[data-dv-team]')) { Sound.play('tap'); return Football.open(); }
       const tr = e.target.closest('[data-fm-train]'); if (tr) { Sound.play('tap'); return App.openFootball('fk', tr.dataset.fmTrain); }
       const ps = e.target.closest('[data-fm-ps]'); if (ps) { const [line, i] = ps.dataset.fmPs.split(':'); Rewards.claimPass(+i, line); return setTimeout(render, 50); }
       if (e.target.closest('[data-fm-psbuy]')) { Sound.play('tap'); return Rewards.buyPass(); }

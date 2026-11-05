@@ -1,0 +1,62 @@
+/* Дивизионы (js/division.js, экран — divView в js/fcm.js), 5.11 */
+/* эмблема дивизиона: шестигранный щит из металла с фаской, свечение и блик, лёгкий поворот в 3D */
+.dvb { --m1: #ffe9a8; --m2: #d99a17; --m3: #6b4300; --ink: #2a1a00; --gl: #ffd23c; position: relative; display: inline-grid; place-items: center; width: 64px; aspect-ratio: .88;
+  transform-style: preserve-3d; animation: dvbSway 5s ease-in-out infinite; filter: drop-shadow(0 10px 10px rgba(0,0,0,.55)); }
+.dvb.big { width: 104px; }
+.dvb.t-bronze { --m1: #ffd2a8; --m2: #c0743c; --m3: #4f240a; --ink: #2e1405; --gl: #e9a06a; }
+.dvb.t-silver { --m1: #ffffff; --m2: #a9b5c6; --m3: #3f4a5a; --ink: #18202b; --gl: #dfe7f2; }
+.dvb.t-elite { --m1: #3d5124; --m2: #10180a; --m3: #000; --ink: #c6ff3d; --gl: #c6ff3d; }
+.dvb-glow { position: absolute; inset: -30%; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in srgb, var(--gl) 55%, transparent), transparent); animation: dvbGlow 2.6s ease-in-out infinite; }
+.dvb-sh { position: absolute; inset: 0; clip-path: polygon(50% 0, 100% 18%, 100% 66%, 50% 100%, 0 66%, 0 18%);
+  background: linear-gradient(160deg, var(--m1), var(--m2) 45%, var(--m3)); }
+.dvb-in { position: absolute; inset: 8%; display: grid; place-items: center; align-content: center; clip-path: polygon(50% 0, 100% 18%, 100% 66%, 50% 100%, 0 66%, 0 18%);
+  background: radial-gradient(circle at 35% 25%, var(--m1) 0 12%, var(--m2) 50%, var(--m3) 100%); color: var(--ink);
+  box-shadow: inset 0 4px 4px rgba(255,255,255,.5), inset 0 -6px 8px rgba(0,0,0,.45); }
+.dvb.t-elite .dvb-in { box-shadow: inset 0 0 0 2px rgba(198,255,61,.5), inset 0 -6px 8px rgba(0,0,0,.6); }
+.dvb-in small { font: 800 .62em/1 "Inter Tight", sans-serif; letter-spacing: .1em; text-transform: uppercase; opacity: .8; font-size: 8px; }
+.dvb.big .dvb-in small { font-size: 10px; }
+.dvb-in b { font: italic 900 30px/.95 "Barlow Condensed", "Rubik", sans-serif; text-shadow: 0 1px 0 rgba(255,255,255,.35); }
+.dvb.big .dvb-in b { font-size: 50px; }
+.dvb.t-elite .dvb-in b { text-shadow: 0 0 12px rgba(198,255,61,.8); }
+.dvb-shine { position: absolute; inset: 0; clip-path: polygon(50% 0, 100% 18%, 100% 66%, 50% 100%, 0 66%, 0 18%); overflow: hidden; pointer-events: none; }
+.dvb-shine::after { content: ''; position: absolute; top: -20%; bottom: -20%; width: 35%; left: -60%; background: linear-gradient(100deg, transparent, rgba(255,255,255,.6), transparent); transform: skewX(-18deg); animation: ov3Shine 3.2s ease-in-out infinite; }
+@keyframes dvbSway { 0%, 100% { transform: perspective(300px) rotateY(-16deg) rotateX(4deg); } 50% { transform: perspective(300px) rotateY(16deg) rotateX(-3deg) translateY(-4px); } }
+@keyframes dvbGlow { 50% { opacity: .55; transform: scale(.92); } }
+@keyframes ov3Shine { 0%, 55% { left: -60%; } 85%, 100% { left: 130%; } }
+
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  /* баннер на главной */
+  .fm-sl.dvh { background: radial-gradient(60% 90% at 22% 50%, rgba(255,210,60,.28), transparent 70%), linear-gradient(120deg, #13203c, #0a1224 60%, #1b1406) !important; }
+  .fm-sl.dvh { display: grid !important; grid-template-columns: 38% minmax(0, 1fr) !important; align-items: center; }
+  .fm-sl.dvh .dvh-art { position: relative; display: grid; place-items: center; z-index: 1; }
+  .fm-sl.dvh .fm-sl-t { position: relative !important; inset: auto !important; left: auto !important; right: auto !important; top: auto !important; bottom: auto !important; transform: none !important; width: auto !important; max-width: none !important; padding: 0 14px 0 0 !important; z-index: 1; }
+  .fm-sl.dvh .fm-sl-t b { font-size: clamp(22px, 4.4vh, 30px) !important; white-space: nowrap; }
+  .fm-car2 em.fm-club-e { display: block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11px; }
+  /* экран дивизионов */
+  .dv { display: grid; grid-template-columns: minmax(180px, .8fr) minmax(0, 1.6fr); gap: 14px; height: 100%; min-height: 0; }
+  .dv-l { display: grid; justify-items: center; align-content: center; gap: 8px; padding: 12px; border-radius: 14px; text-align: center;
+    background: radial-gradient(70% 60% at 50% 32%, rgba(255,210,60,.2), transparent 70%), rgba(8,16,32,.82); box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .dv-n { font: 900 22px/1 "Inter Tight", sans-serif; text-transform: uppercase; }
+  .dv-bar { width: 100%; } .dv-l small { font: 600 11px/1.2 "Inter Tight", sans-serif; color: #9fb2cc; } .dv-rec { color: #cfdcef !important; }
+  .dv-r { display: grid; align-content: start; gap: 8px; min-width: 0; }
+  .dv-res { display: grid; gap: 2px; padding: 8px 12px; border-radius: 12px; animation: dvRes .5s cubic-bezier(.2,1.4,.4,1); }
+  .dv-res.win { background: linear-gradient(90deg, rgba(198,255,61,.25), rgba(198,255,61,.05)); box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.5); }
+  .dv-res.draw { background: rgba(255,255,255,.08); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.2); }
+  .dv-res.loss { background: linear-gradient(90deg, rgba(255,90,90,.22), rgba(255,90,90,.04)); box-shadow: inset 0 0 0 1.5px rgba(255,90,90,.45); }
+  .dv-res b { font: 900 18px/1 "Inter Tight", sans-serif; text-transform: uppercase; } .dv-res span { font: 600 12px/1.2 "Inter Tight", sans-serif; color: #cfdcef; } .dv-res u { text-decoration: none; color: #c6ff3d; font-weight: 900; }
+  .dv-res .fm-ic, .dv-res svg { width: 12px; height: 12px; vertical-align: -1px; color: #ffd23c; }
+  .dv-lad { display: flex; align-items: center; padding: 8px 10px; border-radius: 12px; background: rgba(8,16,32,.82); box-shadow: inset 0 0 0 1px var(--fm-edge); overflow-x: auto; scrollbar-width: none; }
+  .dvl { flex: none; display: grid; place-items: center; width: 30px; height: 34px; clip-path: polygon(50% 0, 100% 18%, 100% 66%, 50% 100%, 0 66%, 0 18%); background: #1d2a44; color: #6f819c; font: italic 900 15px "Barlow Condensed", sans-serif; }
+  .dvl.done { background: linear-gradient(160deg, #6e7d93, #2f3a4c); color: #e5ecf6; }
+  .dvl.on { width: 38px; height: 44px; font-size: 19px; color: #2a1a00; background: linear-gradient(160deg, #ffe9a8, #d99a17 50%, #6b4300); filter: drop-shadow(0 0 8px rgba(255,210,60,.7)); }
+  .dvl.on.t-elite { color: #c6ff3d; background: linear-gradient(160deg, #3d5124, #10180a); filter: drop-shadow(0 0 8px rgba(198,255,61,.7)); }
+  .dvl-ln { flex: 1; min-width: 6px; height: 3px; background: rgba(255,255,255,.12); }
+  .dv-wk { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 12px; background: linear-gradient(90deg, rgba(63,217,74,.16), rgba(8,16,32,.82)); box-shadow: inset 0 0 0 1px rgba(63,217,74,.35); }
+  .dv-wk span { display: grid; gap: 3px; } .dv-wk small { font: 700 10px "Inter Tight", sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #9fb2cc; }
+  .dv-wk b { display: flex; align-items: center; gap: 5px; font: 800 14px "Inter Tight", sans-serif; } .dv-wk .coin { width: 15px; height: 15px; }
+  .dv-ang { height: 24px; aspect-ratio: 1; width: auto; object-fit: cover; object-position: 50% 76%; filter: hue-rotate(120deg) saturate(1.25); }
+  .dv-go { display: grid; grid-template-columns: auto 1fr; gap: 8px; } .dv-go .fm-btn { min-height: 44px; }
+  .dv-play { font-size: 17px !important; animation: fx-ready 2.2s ease-in-out infinite; }
+}
+@keyframes dvRes { from { transform: translateY(-12px) scale(.96); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .dvb, .dvb-glow, .dvb-shine::after { animation: none !important; } }

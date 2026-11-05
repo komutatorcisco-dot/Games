@@ -244,25 +244,25 @@ const Rewards = (() => {
 
   // ---------- сыграли партию ----------
   // win — победа, game — ключ игры ('ng:wordle', 'act:dly'…). Возвращает подпись для экрана итога.
-  function onEnd(win, game = '') {
+  // 5.11: трофеи — только из дивизионов (js/division.js передаёт tro); мини-игры дают мяч-дропы, очки пропуска, задания
+  function onEnd(win, game = '', tro = 0) {
     const s = S();
     quest('end', game);
     const g = s.games; if (g.week !== weekKey()) { g.week = weekKey(); g.ids = []; }
     if (game && !g.ids.includes(game)) { g.ids.push(game); quest('game'); }
     const q = questSync(); if (game && !q.dg.includes(game)) { q.dg.push(game); quest('dgame'); }
     addPassXp(win ? 20 : 5);
-    const x2 = 1;
-    if (!win) { addTrophies(PLAY_TROPHIES * x2); Store.save(); refresh(); safe('board', () => Board.submit()); return ''; }
+    if (tro > 0) addTrophies(tro);
+    if (!win) { Store.save(); refresh(); safe('board', () => Board.submit()); return tro > 0 ? `<div class="rw-earn"><span>${Ui.get('trophy')} +${tro}</span></div>` : ''; }
     quest('win', game);
-    addTrophies(WIN_TROPHIES * x2);
     if (game) { const gw = Store.d.gw || (Store.d.gw = {}); gw[game] = (gw[game] || 0) + 1; } // победы по играм — для таблицы
     safe('board', () => Board.submit());
     if (s.drops.day !== dayKey()) s.drops = { day: dayKey(), n: 0 };
-    let note = `<span>${Ui.get('trophy')} +${WIN_TROPHIES * x2}${x2 > 1 ? ' · выходные ×2' : ''}</span>`;
+    let note = tro > 0 ? `<span>${Ui.get('trophy')} +${tro}</span>` : '';
     const dmax = DROPS_PER_DAY + (passSync().premium ? 1 : 0);
     if (Release.feature('cards') && s.drops.n < dmax) { s.drops.n++; s.pending++; note += `<span class="rw-new"><i class="rw-pk"></i>+1 мяч-дроп · ${s.drops.n}/${dmax} сегодня</span>`; }
     Store.save(); refresh();
-    return `<div class="rw-earn">${note}</div>`;
+    return note ? `<div class="rw-earn">${note}</div>` : '';
   }
   // открыть накопленные паки по одному
   // ---------- мяч-дроп (5.11) вместо пака за победу: одна награда, редкость растёт тапами — чем редче, тем лучше ----------
@@ -392,7 +392,7 @@ const Rewards = (() => {
         <span class="rs-seg"><i style="width:${fill}%"></i></span><span class="rs-t">${x.t}</span></button>`;
     }).join('');
     return `<div class="rw-sec"><div class="rw-row"><b>Дорога трофеев</b><small>${Ui.get('trophy')} ${s.trophies}${next ? ` → ${next[0]}` : ' · пройдена!'}</small></div>
-      <div class="rs-strip">${steps}</div><p class="rw-sub">Победа +${WIN_TROPHIES} ${Ui.get('trophy')}, матч +${PLAY_TROPHIES}</p></div>`;
+      <div class="rs-strip">${steps}</div><p class="rw-sub">${Ui.get('trophy')} Трофеи — за матчи дивизионов</p></div>`;
   }
   // ---------- дорога трофеев: вертикальный путь как в Brawl Stars ----------
   const PACK_CARDS = [3, 5, 8, 15, 30];
@@ -414,7 +414,7 @@ const Rewards = (() => {
     const nextName = next ? (next.u ? next.u[1] : roadTitle(next.r)[0]) : '';
     const hero = `<div class="rd-hero"><span class="rd-cup">${Ui.get('trophy')}</span><b class="rd-n">${t}</b>
       <div class="rd-hn">${next ? `<small>До «${esc(nextName)}» — ещё <b>${next.t - t}</b></small><span class="rd-bar"><i style="width:${pct}%"></i></span>` : '<small><b>Дорога пройдена!</b></small>'}</div>
-      <div class="rd-how"><span>Победа <b>+${WIN_TROPHIES}</b></span><span>Матч <b>+${PLAY_TROPHIES}</b></span></div></div>`;
+      <div class="rd-how"><span>Трофеи — за матчи <b>дивизионов</b></span></div></div>`;
     let hereDone = false, side = 0;
     const here = () => `<div class="rd-here"><span class="rd-me">${esc((Store.d.user || {}).emoji || '⚽')}</span><b>Ты здесь</b></div>`;
     const rows = items.map((x) => {

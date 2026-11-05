@@ -415,7 +415,7 @@ const App = (() => {
     // футбол засчитывается как остальные игры: трофеи, пропуск, задания и карьера (раньше матч и «Моменты» не считались)
     if (e.data.jg === 'football-result' && typeof Rewards !== 'undefined' && !(typeof Onboard !== 'undefined' && Onboard.active)) safe('football result', () => {
       const d = e.data;
-      if (d.mode === 'match' && Array.isArray(d.score)) Rewards.onEnd(d.score[0] > d.score[1], 'football:match');
+      if (d.mode === 'match' && Array.isArray(d.score)) { if (!(typeof Division !== 'undefined' && Division.result(d.score))) Rewards.onEnd(d.score[0] > d.score[1], 'football:match'); } // матч дивизиона — трофеи и очки дивизиона
       else if (d.mode === 'moments') Rewards.onEnd((d.goals || 0) >= (d.need || 1), 'football:moments');
     });
     if (e.data.jg === 'football-exit' && Screens.current === 'football') { home(); if (typeof Onboard !== 'undefined') Onboard.back(); }

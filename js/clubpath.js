@@ -150,7 +150,7 @@ const ClubPath = (() => {
   }
   // ---------- подключение к событиям игры ----------
   function hook() {
-    if (typeof Rewards !== 'undefined') { const end0 = Rewards.onEnd; Rewards.onEnd = (win, game = '') => { const r = end0(win, game); try { bump('end', game); if (win) bump('win', game); } catch (e) { /* карьера не мешает игре */ } return r; }; }
+    if (typeof Rewards !== 'undefined') { const end0 = Rewards.onEnd; Rewards.onEnd = (win, game = '', tro = 0) => { const r = end0(win, game, tro); try { bump('end', game); if (win) bump('win', game); } catch (e) { /* карьера не мешает игре */ } return r; }; }
     if (typeof PackOpen !== 'undefined' && PackOpen.reveal) { const rv = PackOpen.reveal; PackOpen.reveal = (res, cb, opts) => { if (opts && opts.pack !== undefined) bump('pack'); return rv(res, cb, opts); }; }
     if (typeof Cards !== 'undefined' && Cards.use) { const u = Cards.use; Cards.use = (keys) => { const ok = u(keys); if (ok && keys.length > 1) bump('sbc'); return ok; }; }
   }
