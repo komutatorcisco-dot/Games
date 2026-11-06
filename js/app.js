@@ -411,6 +411,7 @@ const App = (() => {
     xdraft: () => XDraft.open(),
     sbc: () => SBC.open(),
     squad: () => Squad.open(),
+    news: () => News.watch(),
     'rw-packs': () => Rewards.openPending(),
     'rw-buy': () => Rewards.buyPass(),
     // позвать друга: ссылка с твоим id — кто откроет игры по ней, попадёт к тебе в «Друзья» в таблице
@@ -515,6 +516,7 @@ const App = (() => {
       ['TTT', () => TTT.bind()], ['Compare', () => Compare.bind()], ['Auction', () => Auction.bind()], ['Nation', () => Nation.bind()], ['Pick', () => Pick.bind()],
       ['Daily', () => Daily.bind()], ['Shop', () => Shop.bind()], ['Board', () => Board.bind()], ['Rewards', () => Rewards.bind()], ['XDraft', () => { XDraft.bind(); XMatch.bind(); }], ['SBC', () => SBC.bind()], ['Squad', () => Squad.bind()], ['Home', () => Home.bind()], ['Clubs', () => Clubs.bind()],
       ['Howto', () => Howto.addButtons()], ['Music', () => Music.arm()], ['Gate', () => Gate.start()]].forEach(([n, f]) => safe(n, f));
+    if (typeof News !== 'undefined') setTimeout(() => safe('news', () => News.maybeShow()), 2500); // новое видео канала — один раз
     document.addEventListener('pointerdown', (e) => {
       Coins.last = { x: e.clientX, y: e.clientY };
       // блик плитки из точки касания

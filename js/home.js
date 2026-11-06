@@ -58,6 +58,7 @@ const Home = (() => {
         <span class="h2-ni" title="${nx ? esc(nx.title) : ''}">${nxIco}${nx ? `<em>${Ui.get('lock')}</em>` : ''}</span>
       </button>
       ${typeof Rewards !== 'undefined' && Rewards.weekend() ? `<div class="h2-ev">${Ui.get('bolt')} Выходные: ×2 трофея за игры</div>` : ''}
+      ${typeof News !== 'undefined' ? News.bar() : ''}
       <div class="h2-arena">
         <img class="h2-bg" src="img/bg/stadium.svg?v=2" alt="" aria-hidden="true">
         <div class="h2-side l">
