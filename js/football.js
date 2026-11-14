@@ -165,7 +165,8 @@ const Football = (() => {
   function row(c, sl, pos) {
     const tail = sl ? [sl.pos, sl.x, sl.y] : [pos || '', '', ''];
     if (!c) return sl ? ['Игрок клуба', 65, ...Array(6).fill(65), ...tail, '', ''].join('|') : '';
-    return [Cards.surname ? Cards.surname(c.name) : c.name, c.r, ...stats(c), ...tail, heightOf(c), numOf(c)].join('|');
+    const up = typeof Lime !== 'undefined' ? Lime.up(c.key) : 0; // прокачка (js/lime.js) играет и в матче
+    return [Cards.surname ? Cards.surname(c.name) : c.name, Math.min(99, c.r + up), ...stats(c).map((v) => Math.min(99, v + up)), ...tail, heightOf(c), numOf(c)].join('|');
   }
   function team() {
     const s = S();
@@ -192,6 +193,6 @@ const Football = (() => {
     team().forEach((p, i) => { if (p) q['p' + i] = p; });
     return q;
   }
-  return { open, render, bind, team, params, auto: auto3 };
+  return { open, render, bind, team, params, auto: auto3, keys: () => (S().xi || []).slice() };
 })();
 document.addEventListener('DOMContentLoaded', () => Football.bind());

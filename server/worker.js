@@ -2021,8 +2021,9 @@ async function divOnline(env, user, body) {
   if (body.act !== 'find') return { ok: false, error: 'unknown action' };
   const di = Math.max(0, Math.min(9, Math.floor(Number(body.di) || 0))), sq = divClean(body.sq), ovr = Math.max(40, Math.min(99, Math.floor(Number(body.ovr) || 60)));
   const nick = clean(body.nick, 16) || 'Игрок', emo = clean(body.emo, 4) || '⚽';
+  const keys = Array.isArray(body.keys) ? body.keys.slice(0, 4).map((k) => String(k || '').slice(0, 80)) : [];
   if (sq.length >= 3) await db.prepare('INSERT INTO div_sq (uid, nick, emo, di, sq, ovr, ts) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT(uid) DO UPDATE SET nick = ?2, emo = ?3, di = ?4, sq = ?5, ovr = ?6, ts = ?7')
-    .bind(uid, nick, emo, di, JSON.stringify(sq), ovr, now).run();
+    .bind(uid, nick, emo, di, JSON.stringify({ s: sq, k: keys }), ovr, now).run();
   // свежие составы (две недели) своего дивизиона, потом соседних; среди последних 30 — случайный, не тот же, что в прошлый раз
   const since = now - 14 * 864e5, avoid = Math.floor(Number(body.avoid) || 0);
   let rows = [];
@@ -2034,8 +2035,8 @@ async function divOnline(env, user, body) {
   const pool = rows.filter((r) => r.uid !== avoid).length ? rows.filter((r) => r.uid !== avoid) : rows;
   if (!pool.length) return { ok: true, opp: null };
   const o = pool[Math.floor(Math.random() * pool.length)];
-  let osq = []; try { osq = JSON.parse(o.sq); } catch (e) { osq = []; }
-  return { ok: true, opp: { uid: o.uid, nick: o.nick, emo: o.emo, di: o.di, ovr: o.ovr, sq: osq } };
+  let osq = [], okeys = []; try { const j = JSON.parse(o.sq); if (Array.isArray(j)) osq = j; else { osq = j.s || []; okeys = j.k || []; } } catch (e) { osq = []; }
+  return { ok: true, opp: { uid: o.uid, nick: o.nick, emo: o.emo, di: o.di, ovr: o.ovr, sq: osq, keys: okeys } };
 }
 
 async function legends(env, user, body) {
