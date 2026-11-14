@@ -1,0 +1,58 @@
+/* Экран итога (resultHtml в js/core.js), 14.11: лёжа — во весь экран. Слева табло и заголовок, справа награды
+   по одной и кнопки; лучи — зелёные при победе, красные при поражении. Стоя — прежнее окно (правая колонка скрыта). */
+.ng-res .rs-r, .ng-res .rs-rays { display: none; }
+
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on .modal:has(.ng-res) { padding: 0 !important; background: rgba(2,5,12,.9) !important; }
+  body.fcm-on #modal-card:has(.ng-res) { position: fixed; inset: 0; width: auto !important; max-width: none !important; max-height: none !important; height: 100dvh; margin: 0 !important; border-radius: 0 !important;
+    display: grid !important; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); grid-template-rows: auto auto minmax(0, 1fr) auto; column-gap: 28px; row-gap: 8px; overflow: hidden !important;
+    padding: calc(var(--fm-t, 6px) + 18px) calc(var(--fm-r, 10px) + 26px) calc(var(--fm-b, 0px) + 16px) calc(var(--fm-l, 10px) + 26px) !important;
+    background: radial-gradient(60% 90% at 28% 45%, rgba(198,255,61,.22), transparent 70%), linear-gradient(160deg, #0b1424, #04070d) !important; box-shadow: none !important; }
+  body.fcm-on #modal-card:has(.ng-res.lose) { background: radial-gradient(60% 90% at 28% 45%, rgba(255,80,90,.2), transparent 70%), linear-gradient(160deg, #160b12, #04070d) !important; }
+  body.fcm-on #modal-card .ng-res { display: contents; }
+  /* лучи за табло */
+  body.fcm-on #modal-card .rs-rays { display: block; position: absolute; left: 30%; top: 46%; width: min(120vh, 760px); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none; z-index: 0;
+    background: repeating-conic-gradient(rgba(198,255,61,.16) 0 7deg, transparent 7deg 20deg); -webkit-mask: radial-gradient(closest-side, #000 20%, transparent); mask: radial-gradient(closest-side, #000 20%, transparent); animation: rsSpin 26s linear infinite; }
+  body.fcm-on #modal-card .ng-res.lose .rs-rays { background: repeating-conic-gradient(rgba(255,90,100,.12) 0 7deg, transparent 7deg 20deg); }
+  /* слева: табло, заголовок, статистика (старый блок .sb без наград — они справа) */
+  body.fcm-on #modal-card .sb { grid-column: 1; grid-row: 1 / 5; align-self: center; justify-self: center; position: relative; z-index: 1; width: min(100%, 440px); margin: 0 !important; padding: 18px 20px !important;
+    border-radius: 18px !important; background: linear-gradient(160deg, rgba(20,34,60,.92), rgba(6,10,20,.95)) !important; box-shadow: inset 0 0 0 2px rgba(198,255,61,.45), 0 20px 50px rgba(0,0,0,.55), 0 0 40px rgba(198,255,61,.18) !important;
+    animation: rsIn .55s cubic-bezier(.2,1.3,.4,1) both; }
+  body.fcm-on #modal-card .ng-res.lose .sb { box-shadow: inset 0 0 0 2px rgba(255,90,100,.45), 0 20px 50px rgba(0,0,0,.55), 0 0 40px rgba(255,90,100,.14) !important; }
+  body.fcm-on #modal-card .sb .reward, body.fcm-on #modal-card .sb .rw-earn { display: none !important; }
+  body.fcm-on #modal-card .sb-led { font-size: clamp(40px, 13vh, 72px) !important; }
+  body.fcm-on #modal-card .sb-led .word { font-size: clamp(40px, 13vh, 70px) !important; letter-spacing: .02em; text-shadow: 0 0 26px rgba(198,255,61,.6); }
+  body.fcm-on #modal-card .ng-res.lose .sb-led .word { text-shadow: 0 0 26px rgba(255,90,100,.5); }
+  body.fcm-on #modal-card .ng-res > h2, body.fcm-on #modal-card .ng-res > .res-text { grid-column: 2; position: relative; z-index: 1; }
+  body.fcm-on #modal:has(.ng-res) #modal-card { animation: none !important; transform: none !important; }
+  /* заголовок и подпись — справа сверху */
+  body.fcm-on #modal-card .ng-res > h2 { grid-row: 1; align-self: end; margin: 0; text-align: left; font: 900 clamp(22px, 6.5vh, 34px)/1.05 "Inter Tight", sans-serif; text-transform: uppercase; animation: rsRow .45s .15s both; }
+  body.fcm-on #modal-card .ng-res > .res-text { grid-row: 2; margin: 0; text-align: left; font: 600 14px/1.3 "Inter Tight", sans-serif; color: #cfdcef; animation: rsRow .45s .25s both; }
+  /* справа: награды по одной */
+  body.fcm-on #modal-card .rs-r { display: grid; grid-column: 2; grid-row: 3; align-content: center; gap: 8px; position: relative; z-index: 1; min-height: 0; }
+  body.fcm-on #modal-card .rs-r > small { font: 800 11px "Inter Tight", sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #9fb2cc; }
+  body.fcm-on #modal-card .rs-rw { display: grid; gap: 7px; }
+  body.fcm-on #modal-card .rs-rw .rw-earn { display: contents; }
+  body.fcm-on #modal-card .rs-rw :is(.rs-i, .rw-earn span) { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: linear-gradient(90deg, rgba(255,255,255,.1), rgba(255,255,255,.03));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); font: 700 14px "Inter Tight", sans-serif; color: #fff; opacity: 0; animation: rsRow .45s cubic-bezier(.2,1.3,.4,1) forwards; }
+  body.fcm-on #modal-card .rs-rw > :nth-child(1), body.fcm-on #modal-card .rs-rw .rw-earn span:nth-child(1) { animation-delay: .35s; }
+  body.fcm-on #modal-card .rs-rw > :nth-child(2), body.fcm-on #modal-card .rs-rw .rw-earn span:nth-child(2) { animation-delay: .55s; }
+  body.fcm-on #modal-card .rs-rw > :nth-child(3), body.fcm-on #modal-card .rs-rw .rw-earn span:nth-child(3) { animation-delay: .75s; }
+  body.fcm-on #modal-card .rs-rw > :nth-child(4) { animation-delay: .95s; }
+  body.fcm-on #modal-card .rs-i b { font: 900 20px/1 "Inter Tight", sans-serif; } body.fcm-on #modal-card .rs-i em { font-style: normal; color: #cfdcef; }
+  body.fcm-on #modal-card .rs-i .coin { width: 24px; height: 24px; }
+  body.fcm-on #modal-card .rs-i.c { box-shadow: inset 0 0 0 1px rgba(255,210,60,.4); } body.fcm-on #modal-card .rs-i.c b { color: #ffd23c; }
+  body.fcm-on #modal-card .rs-i.x b { color: #7fd8ff; }
+  body.fcm-on #modal-card .rs-star { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #e6f8ff, #2f8cff); color: #fff; font-style: normal; font-size: 13px; }
+  body.fcm-on #modal-card .rs-rw .rw-earn .rw-new { background: linear-gradient(90deg, rgba(198,255,61,.3), rgba(198,255,61,.06)) !important; box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.55) !important; color: #fff !important; }
+  body.fcm-on #modal-card .rs-rw .rw-earn svg { width: 22px; height: 22px; color: #ffd23c; }
+  /* кнопки — справа внизу */
+  body.fcm-on #modal-card:has(.ng-res) > .btns { grid-column: 2; grid-row: 4; display: grid !important; grid-template-columns: 1fr; gap: 8px; margin: 0 !important; position: relative; z-index: 1; animation: rsRow .4s 1s both; }
+  body.fcm-on #modal-card:has(.ng-res) > .btns .btn { min-height: 46px; font-size: 16px; }
+  /* карточка игрока и прочие вставки (extra) — в левой колонке под табло, если есть */
+  body.fcm-on #modal-card .ng-res > .player-card, body.fcm-on #modal-card .ng-res > .scoreboard, body.fcm-on #modal-card .ng-res > .quote { display: none; }
+}
+@keyframes rsSpin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@keyframes rsIn { from { transform: scale(.7) rotate(-3deg); opacity: 0; } }
+@keyframes rsRow { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { body.fcm-on #modal-card .rs-rays { animation: none; } }

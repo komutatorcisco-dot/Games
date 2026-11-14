@@ -99,6 +99,7 @@ const FX = (() => {
     fitQ = 0; const B = safe(), W = B.r - B.l - 8, H = B.b - B.t - 8; if (W < 50 || H < 50) return;
     document.querySelectorAll(FIT).forEach((el) => {
       if (!el.isConnected || el.closest('[hidden]')) return;
+      if (el.id === 'modal-card' && el.querySelector('.ng-res') && document.body.classList.contains('fcm-on')) { el.style.zoom = ''; return; } // итог игры лёжа — сам во весь экран (css/result.css)
       el.style.zoom = '';
       const w = Math.max(el.scrollWidth, el.offsetWidth), h = Math.max(el.scrollHeight, el.offsetHeight); if (!w || !h) return;
       const k = Math.max(0.62, Math.min(1, W / w, H / h));

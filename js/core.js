@@ -538,6 +538,7 @@ function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '
   const rw = local ? '<div class="rw-earn"><span>Игра на одном телефоне — без трофеев</span></div>'
     : safe('rewards', () => Rewards.onEnd(win, typeof Track !== 'undefined' ? Track.game() : '')) || '';
   if (typeof Track !== 'undefined') Track.end(win); // статистика: партию доиграли
+  if (win && typeof FX !== 'undefined' && document.body.classList.contains('fcm-on')) setTimeout(() => { const el = document.querySelector('#modal-card .sb-led'); if (el) { const r = el.getBoundingClientRect(); FX.burst(r.left + r.width / 2, r.top + r.height / 2, 22, true); } }, 450);
   // итог любой игры — табло стадиона: счёт «верно : ошибки», число (серия, очки) или просто исход
   const led = score ? `<b>${score[0]}</b><i>:</i><b class="${labels ? '' : 'bad'}">${score[1]}</b>`
     : big !== '' ? `<b class="ng-res-big">${big}</b>` : `<b class="word">${win ? 'ПОБЕДА' : 'НЕ ВЫШЛО'}</b>`;
@@ -547,7 +548,8 @@ function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '
       ${record ? '<span class="res-record">Новый рекорд</span>' : ''}
       ${stats.length ? `<div class="ng-res-stats">${stats.map(([k, v]) => `<span><b>${v}</b><small>${k}</small></span>`).join('')}</div>` : ''}
       ${reward ? `<span class="reward"><span class="coin"></span>+${reward}</span>` : ''}${rw}</div>
-    <h2>${title}</h2>${text ? `<p class="res-text">${text}</p>` : ''}${extra}</div>`;
+    <h2>${title}</h2>${text ? `<p class="res-text">${text}</p>` : ''}${extra}
+    <i class="rs-rays"></i><div class="rs-r"><small>Награды</small><div class="rs-rw">${reward ? `<span class="rs-i c"><i class="coin"></i><b>+${reward}</b><em>монет</em></span>` : ''}${rw}${local ? '' : `<span class="rs-i x"><i class="rs-star">★</i><b>+${win ? 20 : 5}</b><em>очков пропуска</em></span>`}</div></div></div>`;
 }
 
 // Профиль игрока: опыт, звания, победы по играм.
