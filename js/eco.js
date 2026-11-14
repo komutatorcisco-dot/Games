@@ -178,13 +178,13 @@ const Market = (() => {
     };
     draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
     const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); };
-    const done = async (r, ok, bad) => { if (r && r.ok) { toast(ok); haptic('ok'); Sound.play('coin'); close(); await Eco.sync(); load(); } else { toast(bad || 'Не получилось — лот изменился, обновляю'); haptic('bad'); close(); load(); } };
+    const done = async (r, ok, bad) => { if (r && r.ok) { if (ok) toast(ok); haptic('ok'); Sound.play('coin'); close(); await Eco.sync(); load(); } else { toast(bad || 'Не получилось — лот изменился, обновляю'); haptic('bad'); close(); load(); } };
     el.addEventListener('click', async (e) => {
       if (e.target === el || e.target.closest('.fm-sh-x')) return close();
       const st = e.target.closest('[data-mk-step]');
       if (st) { const d = +st.dataset.mkStep, min = Price.nextBid(x.bid, x.start); amt = d > 0 ? Math.min(x.bin - Price.step(x.bin), amt + Price.step(amt)) : Math.max(min, amt - Price.step(amt - 1)); return draw(); }
       if (e.target.closest('[data-mk-bid]')) { if (Store.d.coins < amt) return toast('Не хватает монет'); const r = await Eco.post('m_bid', { lot: x.id, amount: amt, op: Eco.opid() }); return done(r, `Ставка ${F(amt)} принята — монеты в резерве`, 'Ставку перебили или лот закрылся'); }
-      if (e.target.closest('[data-mk-buy]')) { if (Store.d.coins < x.bin) return toast('Не хватает монет'); const r = await Eco.post('m_buy', { lot: x.id, op: Eco.opid() }); return done(r, `${c.name} в твоём клубе!`, 'Лот уже купили'); }
+      if (e.target.closest('[data-mk-buy]')) { if (Store.d.coins < x.bin) return toast('Не хватает монет'); const r = await Eco.post('m_buy', { lot: x.id, op: Eco.opid() }); if (r && r.ok && typeof Notify !== 'undefined') { setTimeout(() => Notify.card(x.key), 300); return done(r, '', 'Лот уже купили'); } return done(r, `${c.name} в твоём клубе!`, 'Лот уже купили'); }
       if (e.target.closest('[data-mk-cancel]')) { const r = await Eco.post('m_cancel', { lot: x.id, op: Eco.opid() }); return done(r, 'Снято — карточка вернулась в клуб'); }
       if (e.target.closest('[data-mk-fav]')) { const on = !(S.mine && S.mine.favs.some((f) => f.id === x.id)); await Eco.post('m_fav', { lot: x.id, on }); const r = await Eco.post('m_mine', {}); if (r && r.ok) S.mine = r; draw(); }
     });

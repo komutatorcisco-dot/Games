@@ -93,7 +93,7 @@ const Rewards = (() => {
     return { ico: Ui.get('gift'), txt: '', art: Ui.get('gift'), name: '' };
   }
   function giveReward(r, title) {
-    if (r.lime && typeof Lime !== 'undefined') { Lime.add(r.lime, /ДОРОГА/.test(title || '') ? 'road' : 'pass'); toast(`+${r.lime} лаймовых очков прокачки`); }
+    if (r.lime && typeof Lime !== 'undefined') { Lime.add(r.lime, /ДОРОГА/.test(title || '') ? 'road' : 'pass'); (typeof Notify !== 'undefined' ? Notify.lime(r.lime) : toast(`+${r.lime} лаймовых очков прокачки`)); }
     if (r.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(r.coins); }
     if (r.lives) { Store.d.shop.lives += r.lives; Store.save(); toast(`+${r.lives} ${plural(r.lives, 'жизнь', 'жизни', 'жизней')}`); }
     if (r.pack !== undefined) openDrop({ title, minLevel: r.pack });
@@ -129,7 +129,7 @@ const Rewards = (() => {
     const p = passSync(), before = passLevel();
     p.xp += n; Store.save();
     const after = passLevel();
-    if (after > before) setTimeout(() => toast(`Пропуск: уровень ${after}! Забери награду во вкладке «Награды»`), 1400);
+    if (after > before) setTimeout(() => (typeof Notify !== 'undefined' ? Notify.pass(after, PASS_LEVELS) : toast(`Пропуск: уровень ${after}! Забери награду во вкладке «Награды»`)), 1400);
   }
   // подробности награды пропуска (будущей или уже полученной) — только просмотр
   let psFresh = true; // открыли «Награды» заново — дорожка пропуска встаёт на текущий уровень
@@ -231,7 +231,7 @@ const Rewards = (() => {
     let changed = false;
     [...q.list, ...q.wlist, ...(q.slist || [])].forEach((x) => {
       const def = qdef(x.id); if (!def || x.done) return;
-      if (hit(def)) { x.p = Math.min(def.n, x.p + 1); changed = true; if (x.p >= def.n) { x.done = true; setTimeout(() => toast(`Задание выполнено: ${def.t} ✓`), 1200); } }
+      if (hit(def)) { x.p = Math.min(def.n, x.p + 1); changed = true; if (x.p >= def.n) { x.done = true; setTimeout(() => (typeof Notify !== 'undefined' ? Notify.quest(def.t, def.n) : toast(`Задание выполнено: ${def.t} ✓`)), 1200); } }
     });
     if (changed) Store.save();
   }
@@ -304,7 +304,7 @@ const Rewards = (() => {
 
   // ---------- злой мяч (5.11): чёрно-красный, минимум эпический, внутри лаймовые очки или золотая карточка ----------
   // откуда: онлайн-победы (не больше 2 в день), недельные задания, пройденная глава «Карьеры»
-  function angry(n = 1) { const s = S(); s.angry = (s.angry || 0) + n; Store.save(); refresh(); setTimeout(() => toast('Злой мяч! Открой его на главной'), 900); }
+  function angry(n = 1) { const s = S(); s.angry = (s.angry || 0) + n; Store.save(); refresh(); setTimeout(() => (typeof Notify !== 'undefined' ? Notify.angry(n) : toast('Злой мяч! Открой его на главной')), 900); }
   function angryWin() { const s = S(), d = Day.key(); if (!s.ad || s.ad.day !== d) s.ad = { day: d, n: 0 }; if (s.ad.n >= 2) return; s.ad.n++; angry(1); }
   // награда злого мяча по его редкости (0 — редкий … 4 — легендарный): в основном лаймовые очки и карточки
   const ANGRY_W = [{ lime: 70, coins: 30 }, { lime: 60, card: 25, coins: 15 }, { lime: 55, card: 35, pack: 10 }, { lime: 50, card: 35, pack: 15 }, { lime: 45, card: 35, pack: 20 }];

@@ -15,7 +15,7 @@ const Music = (() => {
   ];
   const ARP = [0, 2, 1, 3, 2, 1, 3, 2]; // рисунок перебора на такт (8 восьмых)
 
-  let ctx = null, master = null, filter = null, noise = null;
+  let ctx = null, master = null, filter = null, noise = null, analyser = null, shown = false;
   let playing = false, timer = null, step = 0, nextTime = 0;
 
   function setup() {
@@ -26,7 +26,8 @@ const Music = (() => {
     filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.value = 2200;
-    master.connect(filter).connect(ctx.destination);
+    analyser = ctx.createAnalyser(); analyser.fftSize = 512; analyser.smoothingTimeConstant = 0.78; // для эквалайзера плашки «сейчас играет»
+    master.connect(filter).connect(analyser).connect(ctx.destination);
     // белый шум для хай-хэта и «винилового» шороха
     noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const d = noise.getChannelData(0);
@@ -113,6 +114,7 @@ const Music = (() => {
       master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
       master.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 2);
       timer = setInterval(tick, 60);
+      if (!shown && typeof Notify !== 'undefined') { shown = true; setTimeout(() => Notify.music(), 900); }
     } catch (e) { playing = false; }
   }
 
@@ -144,6 +146,7 @@ const Music = (() => {
 
   return {
     arm,
+    analyser: () => analyser,
     toggle() {
       Store.d.music = !Store.d.music;
       Store.save();

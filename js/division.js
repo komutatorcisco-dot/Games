@@ -51,6 +51,7 @@ const Division = (() => {
     const i1 = idx(); s.best = Math.max(s.best, i1); week(); s.wbest = Math.max(s.wbest, i1);
     const t = tro(res, i0);
     s.last = { res, score, dp: s.pts - p0, tro: t, up: i1 > i0, i: i1, at: Date.now() };
+    if (i1 > i0 && typeof Notify !== 'undefined') setTimeout(() => Notify.division(name(i1)), 1500);
     Store.save();
     if (typeof Rewards !== 'undefined') safe('rewards', () => Rewards.onEnd(res === 'win', 'div:match', t));
     return true;

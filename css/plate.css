@@ -31,7 +31,7 @@
 /* картинка справа: вырезанная, стоит на нижнем крае, может чуть выходить за верх */
 .pl-img { position: absolute; right: calc(var(--ph) * .14); bottom: 0; height: calc(var(--ph) * .82); width: auto; max-width: calc(var(--ph) * 1.1); object-fit: contain; object-position: bottom; pointer-events: none;
   filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); }
-.pl-img.ball { aspect-ratio: 1; height: calc(var(--ph) * .9); bottom: calc(var(--ph) * .05); object-fit: cover; object-position: 50% 76%; border-radius: 50%; }
+.pl-img.pl-ball { aspect-ratio: 1; height: calc(var(--ph) * .9); bottom: calc(var(--ph) * .05); object-fit: cover; object-position: 50% 76%; border-radius: 50%; }
 
 /* шрифты: inter (500/800), montserrat (600/900), sport (Inter 600 / Oswald — узкий, с кириллицей; Impact — запасной) */
 .pl-f-inter .pl-t small { font-family: "Inter", system-ui, sans-serif; font-weight: 500; }

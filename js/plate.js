@@ -48,7 +48,7 @@ const Plate = (() => {
         <span class="pl-t"><b>${esc(o.title)}</b><small>${esc(o.artist || o.caption || '')}</small></span><canvas class="pl-eq" aria-hidden="true"></canvas>`;
     } else {
       const ball = o.image && /\/packs\//.test(o.image);
-      el.innerHTML = `<span class="pl-t"><small>${esc(o.caption || '')}${o.counter ? ` <em>${esc(o.counter)}</em>` : ''}</small><b>${esc(o.title)}</b></span>${o.image ? `<img class="pl-img ${ball ? 'ball' : ''}" src="${esc(o.image)}" alt="">` : ''}`;
+      el.innerHTML = `<span class="pl-t"><small>${esc(o.caption || '')}${o.counter ? ` <em>${esc(o.counter)}</em>` : ''}</small><b>${esc(o.title)}</b></span>${o.image ? `<img class="pl-img ${ball ? 'pl-ball' : ''}" src="${esc(o.image)}" alt="">` : ''}`;
       if (!o.image) el.classList.add('noimg');
     }
     return el;

@@ -538,6 +538,7 @@ function resultHtml({ act = '', ico = '', c1 = '', c2 = '', win = false, big = '
   const rw = local ? '<div class="rw-earn"><span>Игра на одном телефоне — без трофеев</span></div>'
     : safe('rewards', () => Rewards.onEnd(win, typeof Track !== 'undefined' ? Track.game() : '')) || '';
   if (typeof Track !== 'undefined') Track.end(win); // статистика: партию доиграли
+  if (record && typeof Notify !== 'undefined') setTimeout(() => Notify.record(score ? `${score[0]} : ${score[1]}` : big !== '' ? big : title), 900);
   if (win && typeof FX !== 'undefined' && document.body.classList.contains('fcm-on')) setTimeout(() => { const el = document.querySelector('#modal-card .sb-led'); if (el) { const r = el.getBoundingClientRect(); FX.burst(r.left + r.width / 2, r.top + r.height / 2, 22, true); } }, 450);
   // итог любой игры — табло стадиона: счёт «верно : ошибки», число (серия, очки) или просто исход
   const led = score ? `<b>${score[0]}</b><i>:</i><b class="${labels ? '' : 'bad'}">${score[1]}</b>`
@@ -565,7 +566,7 @@ const Profile = {
     S.xp += xp;
     Store.save();
     const after = this.rank().name;
-    if (after !== before) setTimeout(() => toast(`Новое звание: ${after}!`), 900);
+    if (after !== before) setTimeout(() => (typeof Notify !== 'undefined' ? Notify.rank(after) : toast(`Новое звание: ${after}!`)), 900);
   },
   wins: (game) => Store.d.stats.wins[game] || 0,
   rank() {
