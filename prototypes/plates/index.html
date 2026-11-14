@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Плашки — демо</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;800&family=Montserrat:wght@600;800;900&family=Oswald:wght@700&display=swap&subset=cyrillic">
+<link rel="stylesheet" href="../../css/plate.css?v=20261114-pl1">
+<style>
+  :root { --bg: #17212b; --ink: #fff; --muted: #8c9aa8; --chip: rgba(255,255,255,.08); }
+  :root[data-theme="light"] { --bg: #ffffff; --ink: #0f1419; --muted: #6b7680; --chip: rgba(0,0,0,.06); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 500 14px/1.4 "Inter", system-ui, sans-serif; }
+  body { padding: max(14px, env(safe-area-inset-top)) 16px max(18px, env(safe-area-inset-bottom)); }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+  h1 { margin: 0; font-size: 18px; }
+  .seg { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--chip); }
+  .seg button { border: 0; padding: 7px 12px; border-radius: 8px; background: none; color: var(--ink); font: 700 13px "Inter", sans-serif; }
+  .seg button.on { background: #2aabee; color: #fff; }
+  /* фон из игры — чтобы было видно размытие под стеклом */
+  .stage { position: relative; border-radius: 16px; overflow: hidden; padding: 18px 14px 22px; display: grid; gap: 16px; justify-items: start;
+    background: url(../../img/brand/app-cover-dark.png) center / cover; }
+  :root[data-theme="light"] .stage { background-image: url(../../img/brand/app-cover-light.png); }
+  .stage .pl { cursor: default; }
+  .lbl { font: 700 11px "Inter", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.7); margin-bottom: -10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 6px; }
+  .row button { border: 0; padding: 10px 14px; border-radius: 10px; background: var(--chip); color: var(--ink); font: 700 13px "Inter", sans-serif; }
+  p.note { color: var(--muted); font-size: 12px; margin: 6px 0 0; }
+</style>
+</head>
+<body>
+<header><h1>Плашки «матовое стекло»</h1><div class="seg"><button data-th="dark" class="on">Тёмная</button><button data-th="light">Светлая</button></div></header>
+<div class="stage" id="stage"></div>
+<div class="row">
+  <button data-go="info">Показать info</button><button data-go="light">Показать light</button><button data-go="track">Сейчас играет</button><button data-go="audio">Трек со звуком</button><button data-go="many">Три подряд</button>
+</div>
+<p class="note">Плашки выезжают сбоку за 250 мс, держатся ~2,6 с, уезжают за 200 мс; несколько встают друг под другом. Нажатие закрывает раньше.</p>
+<script src="../../js/plate.js?v=20261114-pl1"></script>
+<script>
+'use strict';
+const IMG = '../../img/';
+const FACE = IMG + 'players/231747.webp', BALL = IMG + 'packs/pk3-160.webp', ANGRY = IMG + 'packs/angry-160.webp', COVER = IMG + 'fcm/mode-three.webp';
+const DEMO = [
+  ['info · синий · inter', { caption: 'Игрок дня', title: 'Мбаппе', image: FACE, tint: 'blue' }],
+  ['info · фиолетовый · счётчик', { caption: 'Пропуск', counter: '7/30', title: 'Новый уровень', image: BALL, tint: 'purple' }],
+  ['info · красный · montserrat', { caption: 'Получен предмет', title: 'Злой мяч', image: ANGRY, tint: 'red', fonts: 'montserrat' }],
+  ['info · зелёный · sport', { caption: 'Дивизион', counter: '7', title: 'Новый рекорд', tint: 'green', fonts: 'sport' }],
+  ['light · синий', { variant: 'light', caption: 'Задание', counter: '3/3', title: 'Выполнено', image: BALL, tint: 'blue' }],
+  ['track · зелёный эквалайзер', { variant: 'track', title: 'Джексоны Lo-Fi', artist: 'Старики Джексоны', cover: COVER }],
+];
+const stage = document.getElementById('stage');
+DEMO.forEach(([l, o]) => { const t = document.createElement('div'); t.className = 'lbl'; t.textContent = l; stage.appendChild(t); stage.appendChild(Plate.render(o)); });
+document.querySelectorAll('[data-th]').forEach((b) => b.onclick = () => { document.documentElement.dataset.theme = b.dataset.th; document.querySelectorAll('[data-th]').forEach((x) => x.classList.toggle('on', x === b)); });
+let ac = null, an = null;
+function audio() { // своя «музыка» через Web Audio, эквалайзер — от AnalyserNode
+  if (an) return an;
+  ac = new (window.AudioContext || window.webkitAudioContext)(); an = ac.createAnalyser(); an.fftSize = 512; an.smoothingTimeConstant = .75;
+  const g = ac.createGain(); g.gain.value = .12; g.connect(an); an.connect(ac.destination);
+  [55, 110, 165, 220, 330, 440].forEach((f, i) => { const o = ac.createOscillator(); o.type = i % 2 ? 'sawtooth' : 'triangle'; o.frequency.value = f; const lg = ac.createGain(); lg.gain.value = 0;
+    const lfo = ac.createOscillator(); lfo.frequency.value = .6 + i * .45; const lfg = ac.createGain(); lfg.gain.value = .18; lfo.connect(lfg); lfg.connect(lg.gain); o.connect(lg); lg.connect(g); o.start(); lfo.start(); });
+  return an;
+}
+document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => {
+  const k = b.dataset.go;
+  if (k === 'info') showPlate(DEMO[0][1]);
+  if (k === 'light') showPlate(DEMO[4][1]);
+  if (k === 'track') showPlate({ ...DEMO[5][1], duration: 4000 });
+  if (k === 'audio') showPlate({ ...DEMO[5][1], analyser: audio(), duration: 6000 });
+  if (k === 'many') { showPlate(DEMO[1][1]); setTimeout(() => showPlate(DEMO[2][1]), 300); setTimeout(() => showPlate({ ...DEMO[3][1], side: 'left' }), 600); }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+/* Плашки «матовое стекло» (js/plate.js), 14.11. Размеры — от высоты плашки --ph: подпись 19 %, заголовок 27 %,
+   картинка 82 %, скругление 20 %. Анимируются только transform и opacity. */
+.pl-stack { position: fixed; z-index: 9900; display: flex; flex-direction: column; gap: 10px; pointer-events: none;
+  top: calc(max(env(safe-area-inset-top, 0px), var(--pl-tg-t, 0px)) + 10px); }
+.pl-stack.left { left: calc(max(env(safe-area-inset-left, 0px), var(--pl-tg-l, 0px)) + 12px); align-items: flex-start; }
+.pl-stack.right { right: calc(max(env(safe-area-inset-right, 0px), var(--pl-tg-r, 0px)) + 12px); align-items: flex-end; }
+
+.pl { --ph: 64px; --pl-tint: 40,70,170; --pl-acc: #28E66E; position: relative; display: flex; align-items: center; box-sizing: border-box;
+  height: var(--ph); min-width: 220px; max-width: min(380px, calc(100vw - 32px)); padding: 0 calc(var(--ph) * 1.05) 0 calc(var(--ph) * .3);
+  border: 1.5px solid rgba(255,255,255,.22); border-radius: calc(var(--ph) * .2); color: #fff; overflow: visible; pointer-events: auto; cursor: pointer;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 60%), linear-gradient(90deg, rgba(var(--pl-tint), .55) 0%, rgba(var(--pl-tint), 0) 55%), rgba(38,38,40,.52);
+  -webkit-backdrop-filter: blur(18px) saturate(140%); backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 8px 28px rgba(0,0,0,.45);
+  opacity: 0; transform: translateX(calc(-100% - 40px)); transition: transform .25s cubic-bezier(.34,1.56,.64,1), opacity .25s ease-out; will-change: transform, opacity; }
+.pl.from-r { transform: translateX(calc(100% + 40px)); }
+.pl.in { opacity: 1; transform: none; }
+.pl.out { opacity: 0; transform: translateX(calc(-100% - 40px)); transition: transform .2s ease-in, opacity .2s ease-in; }
+.pl.from-r.out { transform: translateX(calc(100% + 40px)); }
+.pl.noimg { padding-right: calc(var(--ph) * .36); }
+/* запасной фон, если стекло не поддерживается — текст остаётся читаемым */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .pl { background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 60%), linear-gradient(90deg, rgba(var(--pl-tint), .55) 0%, rgba(var(--pl-tint), 0) 55%), rgba(30,30,34,.85); }
+  .pl.pl-light { background: linear-gradient(90deg, rgba(var(--pl-tint), .45) 0%, rgba(var(--pl-tint), 0) 55%), rgba(236,236,240,.95); }
+}
+
+/* текст: две строки, слева, капсом */
+.pl-t { display: grid; gap: calc(var(--ph) * .04); min-width: 0; text-transform: uppercase; }
+.pl-t small { display: block; font-size: calc(var(--ph) * .19); line-height: 1; color: #cdcdcd; letter-spacing: .03em; white-space: nowrap; }
+.pl-t small em { font-style: normal; color: #fff; margin-left: .25em; }
+.pl-t b { display: block; font-size: calc(var(--ph) * .27); line-height: 1.05; color: #fff; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* картинка справа: вырезанная, стоит на нижнем крае, может чуть выходить за верх */
+.pl-img { position: absolute; right: calc(var(--ph) * .14); bottom: 0; height: calc(var(--ph) * .82); width: auto; max-width: calc(var(--ph) * 1.1); object-fit: contain; object-position: bottom; pointer-events: none;
+  filter: drop-shadow(0 4px 6px rgba(0,0,0,.35)); }
+.pl-img.ball { aspect-ratio: 1; height: calc(var(--ph) * .9); bottom: calc(var(--ph) * .05); object-fit: cover; object-position: 50% 76%; border-radius: 50%; }
+
+/* шрифты: inter (500/800), montserrat (600/900), sport (Inter 600 / Oswald — узкий, с кириллицей; Impact — запасной) */
+.pl-f-inter .pl-t small { font-family: "Inter", system-ui, sans-serif; font-weight: 500; }
+.pl-f-inter .pl-t b { font-family: "Inter", system-ui, sans-serif; font-weight: 800; }
+.pl-f-montserrat .pl-t small { font-family: "Montserrat", system-ui, sans-serif; font-weight: 600; }
+.pl-f-montserrat .pl-t b { font-family: "Montserrat", system-ui, sans-serif; font-weight: 900; }
+.pl-f-sport .pl-t small { font-family: "Inter", system-ui, sans-serif; font-weight: 600; }
+.pl-f-sport .pl-t b { font-family: "Oswald", Impact, "Arial Narrow", sans-serif; font-weight: 700; font-size: calc(var(--ph) * .3); letter-spacing: .03em; }
+
+/* светлое стекло */
+.pl.pl-light { color: #16161c; border-color: rgba(255,255,255,.6);
+  background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0) 60%), linear-gradient(90deg, rgba(var(--pl-tint), .45) 0%, rgba(var(--pl-tint), 0) 55%), rgba(238,238,242,.62);
+  box-shadow: 0 8px 28px rgba(0,0,0,.25); }
+.pl.pl-light .pl-t small { color: #5f5f66; } .pl.pl-light .pl-t small em, .pl.pl-light .pl-t b { color: #16161c; }
+
+/* «сейчас играет»: обложка слева, название и исполнитель, живой эквалайзер по нижнему краю */
+.pl.pl-track { --ph: 78px; min-width: 260px; padding: 0 calc(var(--ph) * .3) 0 calc(var(--ph) * .13); gap: calc(var(--ph) * .18); overflow: hidden;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 60%), linear-gradient(90deg, rgba(var(--pl-tint), .32) 0%, rgba(var(--pl-tint), 0) 70%), rgba(22,24,24,.58); }
+.pl-cover { flex: none; position: relative; z-index: 1; width: calc(var(--ph) * .74); height: calc(var(--ph) * .74); border-radius: 8%; object-fit: cover; background: #222; box-shadow: 0 3px 10px rgba(0,0,0,.45); align-self: flex-start; margin-top: calc(var(--ph) * .08); }
+.pl-track .pl-t { position: relative; z-index: 1; align-self: flex-start; margin-top: calc(var(--ph) * .13); }
+.pl-track .pl-t b { font-family: "Montserrat", system-ui, sans-serif; font-weight: 800; font-size: calc(var(--ph) * .25); order: 1; }
+.pl-track .pl-t small { font-family: "Montserrat", system-ui, sans-serif; font-weight: 600; font-size: calc(var(--ph) * .16); color: #e1e1e1; order: 2; }
+.pl-eq { position: absolute; left: calc(var(--ph) * .05); right: calc(var(--ph) * .05); bottom: 3px; height: 34%; width: calc(100% - var(--ph) * .1); filter: drop-shadow(0 0 8px var(--pl-acc)); pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) { .pl, .pl.out { transition: opacity .15s !important; transform: none !important; } }
+.pl.static { opacity: 1; transform: none; transition: none; }
