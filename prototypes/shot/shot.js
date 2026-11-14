@@ -38,6 +38,9 @@ const TEAM = () => MODE === 'duo' || MATCH_ON; // есть партнёр: па�
 // состав из хаба (?p0…p(N−2) — полевые, последний — вратарь): «имя|рейтинг|шесть характеристик»; нет — «Игрок клуба» 65
 const NSIDE = MATCH_ON ? Math.max(2, Math.min(11, Number(Q.get('n')) || 3)) : 3; // игроков в команде (с вратарём): 3 — матч 3 на 3, 11 — пробный 11 на 11
 const LINEUP = Array.from({ length: NSIDE }, (_, i) => i).map((i) => { const v = Q.get('p' + i); if (!v) return null; const a = v.split('|'); return { name: a[0].slice(0, 16), r: +a[1] || 65, st: a.slice(2, 8).map((x) => +x || 65), pos: a[8] || '', fx: a[9] !== undefined && a[9] !== '' ? +a[9] : null, fy: a[10] !== undefined && a[10] !== '' ? +a[10] : null, h: +a[11] || 0, num: +a[12] || 0 }; });
+// соперник из дивизиона (14.11): состав живого игрока ?q0…q(N−1) (вратарь последний), ?oname — его команда на табло
+const OPP = Array.from({ length: NSIDE }, (_, i) => i).map((i) => { const v = Q.get('q' + i); if (!v) return null; const a = v.split('|'); return { name: a[0].slice(0, 16), r: +a[1] || 65, st: a.slice(2, 8).map((x) => +x || 65), pos: a[8] || '' }; });
+const ONAME = (Q.get('oname') || '').slice(0, 18);
 // место в схеме из «Моего состава» (x %, y % на схеме хаба: y = 93 — свои ворота, 16 — чужие) → [x м, глубина]
 const hxyOf = (c) => (c && c.fx !== null && c.fy !== null && NSIDE > 3 ? [((c.fx - 50) / 50) * MATCH.HW * 0.8, (100 - c.fy) / 100] : null);
 const k01 = (v) => Math.max(0, Math.min(1, ((v || 65) - 60) / 35)); // характеристика 60…95 → 0…1
@@ -3709,10 +3712,10 @@ function resetMatch() {
   const GUEST_H = [178, 184, 187, 175, 182, 189, 180, 176, 186, 183]; // рост гостей (своих карточек у них нет)
   const ours = ourW.map((pl, i) => { const id = i === 0 ? 'mate' : 't' + (i + 1); mk(pl, myKit || KIT_US, id); card(pl, LINEUP[i + 1], 1, '', myKit || KIT_US, numFor(LINEUP[i + 1], [7, 11, 8, 6, 10, 3, 2, 4, 5][i % 9])); const b = bot(pl, id, i); b.hxy = hxyOf(LINEUP[i + 1]); return b; });
   ourW.forEach((pl, i) => skinTone(pl, i + 1)); // (меня — исходный тон)
-  const opp = oppW.map((pl, i) => { const id = 'o' + (i + 1); mk(pl, KIT_THEM, id); skinTone(pl, i + 3); card(pl, { name: 'Гость', st: [76, 74, 73, 73, 70, 72], h: GUEST_H[i % GUEST_H.length] }, DIFF.spd, '', KIT_THEM, [9, 7, 11, 8, 6, 10, 3, 2, 4, 5][i % 10]); return bot(pl, id, i); });
+  const opp = oppW.map((pl, i) => { const id = 'o' + (i + 1); mk(pl, KIT_THEM, id); skinTone(pl, i + 3); card(pl, OPP[i] ? { ...OPP[i], h: GUEST_H[i % GUEST_H.length] } : { name: 'Гость', st: [76, 74, 73, 73, 70, 72], h: GUEST_H[i % GUEST_H.length] }, DIFF.spd, '', KIT_THEM, [9, 7, 11, 8, 6, 10, 3, 2, 4, 5][i % 10]); return bot(pl, id, i); });
   recolor(gk2, KIT_GK2); gk2.holder.visible = true; gk2.nick = LINEUP[N - 1] ? LINEUP[N - 1].name : 'Игрок клуба';
   setHeight(gk2, heightOf(LINEUP[N - 1], 'GK')); setHeight(GK[0].pl, 191);
-  backPrint(gk2, LINEUP[N - 1] ? LINEUP[N - 1].name : '', (LINEUP[N - 1] && LINEUP[N - 1].num) || 1, KIT_GK2); backPrint(GK[0].pl, '', 1, GK[0].pl.kit || { shirt: '#e8d33a' }); // вратари: свой — по карточке, у гостей — 191 см
+  backPrint(gk2, LINEUP[N - 1] ? LINEUP[N - 1].name : '', (LINEUP[N - 1] && LINEUP[N - 1].num) || 1, KIT_GK2); backPrint(GK[0].pl, OPP[N - 1] ? OPP[N - 1].name : '', 1, GK[0].pl.kit || { shirt: '#e8d33a' }); if (OPP[N - 1]) { GK[0].pl.nick = OPP[N - 1].name; GK[0].kc = Object.assign({}, DIFF.gk, gkFromCard(OPP[N - 1])); } // вратари: свой — по карточке, у гостей — 191 см
   for (let k = 2 * N - 2; k < wall.length - 1; k++) wall[k].holder.visible = false;
   // 11 на 11: игроков вне кадра не рисуем (границы — с запасом), тени — только у тех, кто рядом с мячом (lightTick)
   if (N > 3) for (const pl of [shooter, ...ourW, ...oppW]) pl.model.traverse((o) => { if (!o.isSkinnedMesh) return; o.frustumCulled = true; if (!o.boundingSphere) o.computeBoundingSphere(); o.boundingSphere.radius = Math.max(o.boundingSphere.radius, 1.2) * 1.6; });
@@ -3721,7 +3724,7 @@ function resetMatch() {
     mate: ours[0], allies: ours.slice(1), opp, meAI: { tkCd: 0, slowT: 0, tk: null, hxy: hxyOf(LINEUP[0]) } };
   run.mate.P.yaw = Math.PI;
   $('#end').classList.remove('on'); defShown = null;
-  $('#who').textContent = 'Джексоны'; $('#dots').textContent = 'Гости';
+  $('#who').textContent = 'Джексоны'; $('#dots').textContent = ONAME || 'Гости';
   state = 'play'; celebrate = -1; if (MOM) momReset(); else kickoff(0, true); matchHud(true); matchButtons();
   $('#hint').textContent = 'Джойстик слева. «Удар»: держи — сила, оттяни вбок — подкрутка, вверх — переброс. «Пас» — тому, кто в сторону джойстика, зажми и потяни вверх — верхом. «На ход» — в разрез, вверх — верхом за спину защитникам. Мяч у соперника: «Отбор» — коротко, «Прессинг» — держи, «Подкат» — скольжение к мячу (до 5 м). Пас назад к своим воротам — вратарю (он примет ногой). Мяч у нашего вратаря — одна кнопка «Отдать пас»: джойстик — кому, вверх — далеко. Навес в штрафную — удар головой сам.';
   let seen = false; try { seen = localStorage.getItem('shot.match.hint1') === '1'; localStorage.setItem('shot.match.hint1', '1'); } catch (e) { /* без памяти */ }

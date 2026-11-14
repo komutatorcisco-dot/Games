@@ -275,6 +275,8 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS friends (a INTEGER NOT NULL, b INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (a, b))'),
     // трофеи и победы по играм (для таблиц), кубок драфта недели
     db.prepare('CREATE TABLE IF NOT EXISTS ustats (id INTEGER PRIMARY KEY, trophies INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL DEFAULT 0)'),
+    db.prepare('CREATE TABLE IF NOT EXISTS div_sq (uid INTEGER PRIMARY KEY, nick TEXT, emo TEXT, di INTEGER NOT NULL, sq TEXT NOT NULL, ovr INTEGER NOT NULL, ts INTEGER NOT NULL)'), // составы дивизионов (14.11)
+    db.prepare('CREATE INDEX IF NOT EXISTS div_sq_di ON div_sq (di, ts DESC)'),
     db.prepare('CREATE INDEX IF NOT EXISTS ustats_tro ON ustats (trophies DESC)'),
     db.prepare('CREATE INDEX IF NOT EXISTS ustats_top ON ustats (trophies DESC, updated ASC)'), // топ-50 без сортировки всей таблицы
     db.prepare('CREATE TABLE IF NOT EXISTS gwins (id INTEGER NOT NULL, game TEXT NOT NULL, wins INTEGER NOT NULL, PRIMARY KEY (id, game))'),
@@ -1160,7 +1162,7 @@ const WIPE_TABLES = [
   ['purchases', 'id'], ['cmembers', 'id'], ['crole', 'id'], ['creq', 'uid'], ['cgift', 'uid'], ['croom', 'uid'], ['friends', 'a'], ['friends', 'b'],
   ['refs', 'invitee'], ['ref_miles', 'id'], ['mm', 'id'], ['mmg', 'id'], ['presence', 'id'], ['draft_tours', 'uid'], ['legend_marks', 'uid'], ['legend_claims', 'uid'],
   ['social_profiles', 'uid'], ['social_shown', 'uid'], ['seen', 'id'],
-  ['eco_wallet', 'uid'], ['eco_cards', 'uid'], ['eco_ops', 'uid'], ['eco_daily', 'uid'], ['eco_once', 'uid'], ['mk_fav', 'uid'], ['mk_bids', 'uid'], ['eco_lime', 'uid'], ['eco_up', 'uid'],
+  ['eco_wallet', 'uid'], ['eco_cards', 'uid'], ['eco_ops', 'uid'], ['eco_daily', 'uid'], ['eco_once', 'uid'], ['mk_fav', 'uid'], ['mk_bids', 'uid'], ['eco_lime', 'uid'], ['eco_up', 'uid'], ['div_sq', 'uid'],
 ];
 async function ecoWipe(db, uid) {
   await socialSchema(db).catch(() => {});
@@ -2009,6 +2011,33 @@ async function flStatus(db, uid, start) {
   const done = tasks.matches >= FL.matches && tasks.wins >= FL.wins && tasks.italians === 1;
   return { card: FL.card, need: { matches: FL.matches, wins: FL.wins, italians: FL.italians }, tasks, done, claimed: !!got };
 }
+// ---------- дивизионы (14.11): соперник — состав живого игрока своего или соседнего дивизиона ----------
+// Каждый, кто играет матч дивизиона, оставляет свой состав (3 игрока: «имя|рейтинг|6 характеристик|позиция»).
+// Соперник находится сразу: его командой в матче управляет компьютер (как в FC Mobile). Никого нет — игра даст бота.
+const divClean = (sq) => (Array.isArray(sq) ? sq.slice(0, 4).map((x) => String(x || '').replace(/[<>\u0000-\u001f]/g, '').slice(0, 90)).filter((x) => /^[^|]{1,30}\|\d{2}(\|\d{1,2}){6}/.test(x)) : []);
+async function divOnline(env, user, body) {
+  const db = env.DB, uid = user.id, now = Date.now();
+  await schema(db);
+  if (body.act !== 'find') return { ok: false, error: 'unknown action' };
+  const di = Math.max(0, Math.min(9, Math.floor(Number(body.di) || 0))), sq = divClean(body.sq), ovr = Math.max(40, Math.min(99, Math.floor(Number(body.ovr) || 60)));
+  const nick = clean(body.nick, 16) || 'Игрок', emo = clean(body.emo, 4) || '⚽';
+  if (sq.length >= 3) await db.prepare('INSERT INTO div_sq (uid, nick, emo, di, sq, ovr, ts) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) ON CONFLICT(uid) DO UPDATE SET nick = ?2, emo = ?3, di = ?4, sq = ?5, ovr = ?6, ts = ?7')
+    .bind(uid, nick, emo, di, JSON.stringify(sq), ovr, now).run();
+  // свежие составы (две недели) своего дивизиона, потом соседних; среди последних 30 — случайный, не тот же, что в прошлый раз
+  const since = now - 14 * 864e5, avoid = Math.floor(Number(body.avoid) || 0);
+  let rows = [];
+  for (const d of [di, di - 1, di + 1]) {
+    if (d < 0 || d > 9) continue;
+    rows = rows.concat((await db.prepare('SELECT uid, nick, emo, di, sq, ovr FROM div_sq WHERE di = ? AND ts > ? AND uid != ? ORDER BY ts DESC LIMIT 30').bind(d, since, uid).all()).results || []);
+    if (rows.filter((r) => r.uid !== avoid).length >= 3) break;
+  }
+  const pool = rows.filter((r) => r.uid !== avoid).length ? rows.filter((r) => r.uid !== avoid) : rows;
+  if (!pool.length) return { ok: true, opp: null };
+  const o = pool[Math.floor(Math.random() * pool.length)];
+  let osq = []; try { osq = JSON.parse(o.sq); } catch (e) { osq = []; }
+  return { ok: true, opp: { uid: o.uid, nick: o.nick, emo: o.emo, di: o.di, ovr: o.ovr, sq: osq } };
+}
+
 async function legends(env, user, body) {
   // Испытание открыто всем (запуск 13.10.2026). FL_ENABLED: не задана или «1» — всем; «0»/«off» — выключено (кроме FL_TESTERS);
   // «admins» — только админам игры. FL_TESTERS — список Telegram ID через запятую, им открыто всегда.
@@ -2254,7 +2283,7 @@ async function route(request, env) {
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     return json(await eco(env, user, body));
   }
-  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room', '/social', '/ref'].includes(url.pathname) && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room', '/social', '/ref', '/div'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
@@ -2270,6 +2299,7 @@ async function route(request, env) {
     if (url.pathname === '/presence') return json(await onlinePresence(env, user, body));
     if (url.pathname === '/tour') return json(await draftTour(env, user, body));
     if (url.pathname === '/legend') return json(await legends(env, user, body));
+    if (url.pathname === '/div') return json(await divOnline(env, user, body));
     if (url.pathname === '/room') return json(await relay(env, user, body));
     if (url.pathname === '/social') return json(await social(env, user, body));
     if (url.pathname === '/save') return json(await saveData(env, user, body));
