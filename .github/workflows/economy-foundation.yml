@@ -1,0 +1,20 @@
+name: Economy foundation
+on:
+  pull_request:
+  push:
+    branches: ['codex/economy-shadow-foundation']
+permissions:
+  contents: read
+jobs:
+  offline-migration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: node tests/economy-migration.test.js
+      - run: python tests/economy-backup_test.py

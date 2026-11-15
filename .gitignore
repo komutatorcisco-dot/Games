@@ -1,0 +1,4 @@
+# Private player snapshots, exports and local D1 state must never enter Git.
+/private-economy/
+/.wrangler/
+**/__pycache__/
