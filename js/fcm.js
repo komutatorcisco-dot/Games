@@ -127,28 +127,43 @@ const FCM = (() => {
         <p class="mk-note">Победа: +${D.PTS.win} очков и +${D.tro('win', i)} трофеев · ничья +${D.PTS.draw} · поражение ${D.PTS.loss}. Ниже начала дивизиона не опустишься. Трофеи дают только матчи дивизионов.</p>
       </div></div>`;
   }
+  // ---- главная (15.11): дивизион поверх 3D-стадиона с большой кнопкой «Играть», под ним стеклянные чипы
+  // (пропуск, задания, путь трофеев), справа — мячи/паки, «Карьера», «Мини-игры», слева — круглые кнопки ----
   function play() {
-    const jg = Cards.get('JG:nicolas-jackson'), inf = Squad.info ? Squad.info() : { r: 0 };
+    const jg = Cards.get('JG:nicolas-jackson');
     const day = typeof Wheel !== 'undefined' && Wheel.ready();
-    const tile = (attr, ic, t, dot, cls = '') => `<button class="fm-lt ${cls}" ${attr}>${dot ? '<em class="fm-rd"></em>' : ''}<i>${ic}</i><b>${t}</b></button>`;
-    const slide = (x, i) => `<button class="fm-sl ${x.k} ${i === slideI ? 'on' : ''}" data-i="${i}" ${x.go}>
-        <span class="fm-sl-art">${x.k === 'jg' ? (jg ? `<span class="fm-sl-card">${Cards.html(jg, { w: 150 })}</span>` : '') : `<img src="${x.img}" alt="">`}</span>
-        <span class="fm-sl-t"><small>${x.small}</small><b>${x.t}</b><em>${x.d}</em><i class="fm-sl-go">${x.btn}</i></span></button>`;
-    return `<div class="fm-home">
-      <div class="fm-hl ${typeof Rewards !== 'undefined' && Rewards.angryN && Rewards.angryN() ? 'n4' : ''}">
-        ${typeof Rewards !== 'undefined' && Rewards.angryN && Rewards.angryN() ? `<button class="fm-lt fm-angry" data-act="angry"><span class="fm-lt-i"><img src="img/packs/angry-160.webp?v=a1" alt=""></span><b>Злой мяч</b><em class="fm-ang-n">${Rewards.angryN()}</em></button>` : ''}
-        ${tile('data-fm-tab="market"', '<img src="img/fcm/plate-draft.webp?v=2" alt="">', 'Рынок', false, 'c1')}
-        ${typeof Wheel !== 'undefined' ? tile('data-act="wheel"', '<img src="img/packs/pk0-160.webp?v=b2" alt="">', day ? 'Пак дня' : 'Завтра', day, 'c2') : ''}
-        ${tile('data-act="dly"', '<img src="img/fcm/ic-daily.webp" alt="">', 'Игрок дня', false, 'c3')}
+    let c = {}; try { c = Rewards.claimable(); } catch (e) { c = {}; }
+    const A = typeof Rewards !== 'undefined' && Rewards.angryN ? Rewards.angryN() : 0, P = (Rewards.S && Rewards.S().pending) || 0;
+    const rb = (attr, img, t, badge = '', cls = '') => `<button class="hm-rb ${cls}" ${attr}><span class="hm-rb-i"><img src="${img}" alt=""></span><b>${t}</b>${badge}</button>`;
+    const chip = (attr, ic, t, v, hot) => `<button class="hm-chip ${hot ? 'hot' : ''}" ${attr}><i>${ic}</i><span><small>${t}</small><b>${v}</b></span>${hot ? `<em>${hot}</em>` : ''}</button>`;
+    // дивизион
+    let D = null; try { const { s: ds, i, nx, pct } = dvBar(); D = { ds, i, nx, pct }; } catch (e) { D = null; }
+    const hero = D ? `<div class="hm-hero">
+        <button class="hm-emb" data-fm-tab="div" aria-label="Дивизион">${dvBadge(D.i, true)}</button>
+        <div class="hm-ht"><small>Дивизионы · 3 на 3 · онлайн</small><b>${esc(Division.name(D.i))}</b>
+          <span class="hm-bar"><i style="width:${D.pct}%"></i></span><em>${D.nx ? `${D.ds.pts} / ${D.nx} очков` : `${D.ds.pts} очков · вершина`}${D.ds.prize ? ' · <u>награда недели ждёт</u>' : ''}</em>
+          <button class="hm-play" data-dv-play><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>Играть</button></div></div>` : homeHero(jg);
+    // карьера: глава и прогресс
+    let car = { t: 'Сюжет и задания', d: 0, n: 7 }; try { const S0 = ClubPath.S(), ch = ClubPath.CH[Math.min(S0.ch, ClubPath.CH.length) - 1]; car = { t: `Глава ${ch.id} · ${ch.t}`, d: Object.keys(S0.tok).filter((k) => k.startsWith(ch.id + ':')).length, n: ch.tasks.length }; } catch (e) { /* без карьеры */ }
+    const GM = ['career', 'ng-wordle', 'hl'].map((k) => `img/games/${k}.webp`);
+    return `<div class="hm">
+      <div class="hm-rail">
+        ${A ? rb('data-act="angry"', 'img/packs/angry-160.webp?v=a1', 'Злой мяч', `<em class="hm-n red">${A}</em>`, 'angry') : ''}
+        ${rb('data-fm-tab="market"', 'img/fcm/plate-draft.webp?v=2', 'Рынок')}
+        ${typeof Wheel !== 'undefined' ? rb('data-act="wheel"', 'img/packs/pk0-160.webp?v=b2', day ? 'Пак дня' : 'Завтра', day ? '<em class="hm-dot"></em>' : '', 'ball') : ''}
+        ${rb('data-act="dly"', 'img/fcm/ic-daily.webp', 'Игрок дня')}
       </div>
-      <div class="fm-hero2">${typeof Division !== 'undefined' ? divHero() : homeHero(jg)}</div>
-      <div class="fm-hr">
-        ${typeof Rewards !== 'undefined' && Rewards.balls && Rewards.balls() ? (() => { const A = 0, P = Rewards.S().pending || 0; /* злые мячи — своей плиткой слева */
-          return `<button class="fm-feat fm-balls ${A ? 'angry' : ''}" data-act="balls"><b>${A ? 'Злой мяч' : 'Мяч-дроп'}</b><span class="fm-bl-art">${A ? '<img class="a" src="img/packs/angry-360.webp?v=a1" alt="">' : ''}${P ? '<img src="img/packs/pk0-360.webp?v=b2" alt="">' : ''}</span><em class="fm-bl-n">${A + P}</em><i class="fm-bl-go">Открыть</i></button>`; })() : `<button class="fm-feat" data-fm-tab="store"><b>Паки</b>${PKS.map((x, i) => `<span class="fm-pf ${i === pkI ? 'on' : ''} ${x.lv.length > 1 ? 'all' : ''}" data-i="${i}">${x.lv.map((l) => `<img src="img/packs/pk${l}-360.webp?v=b2" alt="">`).join('')}<em>${x.t}</em></span>`).join('')}</button>`}
-        <div class="fm-hr2">
-          <button class="fm-club fm-car2" data-fm-car><b>Карьера</b><span><em class="fm-club-e">${esc(carLabel())}</em></span></button>
-          <button class="fm-playt" data-fm-tab="modes"><svg class="fm-pt-tri" viewBox="0 0 440 220" preserveAspectRatio="none" aria-hidden="true"><path d="M132 116h7l-4 5z" opacity="0.39"/><path d="M156 116h8l-4 6z" opacity="0.42"/><path d="M180 116h9l-4 6z" opacity="0.44"/><path d="M203 115h9l-5 7z" opacity="0.46"/><path d="M227 115h10l-5 7z" opacity="0.49"/><path d="M251 115h11l-5 7z" opacity="0.51"/><path d="M120 140h8l-4 5z" opacity="0.40"/><path d="M144 140h9l-4 6z" opacity="0.44"/><path d="M167 139h10l-5 7z" opacity="0.47"/><path d="M191 139h11l-5 7z" opacity="0.51"/><path d="M214 139h11l-6 8z" opacity="0.54"/><path d="M238 139h12l-6 9z" opacity="0.58"/><path d="M261 138h13l-7 9z" opacity="0.61"/><path d="M84 164h7l-4 5z" opacity="0.39"/><path d="M108 164h9l-4 6z" opacity="0.44"/><path d="M131 163h10l-5 7z" opacity="0.48"/><path d="M154 163h11l-6 8z" opacity="0.53"/><path d="M178 163h12l-6 9z" opacity="0.57"/><path d="M201 162h14l-7 9z" opacity="0.62"/><path d="M225 162h15l-7 10z" opacity="0.66"/><path d="M248 162h16l-8 11z" opacity="0.71"/><path d="M96 188h8l-4 6z" opacity="0.41"/><path d="M119 187h10l-5 7z" opacity="0.47"/><path d="M142 187h11l-6 8z" opacity="0.53"/><path d="M166 187h13l-6 9z" opacity="0.58"/><path d="M189 186h14l-7 10z" opacity="0.64"/><path d="M212 186h16l-8 11z" opacity="0.70"/><path d="M235 185h17l-9 12z" opacity="0.75"/><path d="M259 185h19l-9 13z" opacity="0.81"/><path d="M84 212h9l-4 6z" opacity="0.44"/><path d="M107 211h10l-5 7z" opacity="0.50"/><path d="M130 211h12l-6 9z" opacity="0.57"/><path d="M153 210h14l-7 10z" opacity="0.64"/><path d="M176 210h16l-8 11z" opacity="0.71"/><path d="M199 209h18l-9 12z" opacity="0.77"/><path d="M222 209h19l-10 14z" opacity="0.84"/><path d="M245 208h21l-11 15z" opacity="0.91"/></svg><img class="fm-pt-ball" src="img/fcm/ball-net.webp?v=2" alt=""><b>Мини-игры</b></button>
-        </div>
+      <div class="hm-c">${hero}
+        <div class="hm-chips">
+          ${chip('data-fm-go="quests:pass"', ico('star'), 'Пропуск', `Ур. ${Rewards.passLevel ? Rewards.passLevel() : 0}`, c.pass ? `+${c.pass}` : '')}
+          ${chip('data-fm-go="quests:day"', ico('quests'), 'Задания', c.qs ? `Готово: ${c.qs}` : 'В процессе', c.qs ? '!' : '')}
+          ${chip('data-fm-go="quests:road"', cup, 'Путь трофеев', `${trophies()}`, c.road ? `+${c.road}` : '')}
+        </div></div>
+      <div class="hm-r">
+        ${P ? `<button class="hm-t balls" data-act="balls"><span class="hm-t-art"><img class="pl-ball" src="img/packs/pk0-360.webp?v=b2" alt=""></span><span class="hm-t-tx"><small>Мяч-дроп</small><b>Открыть</b></span><em class="hm-n">${P}</em></button>`
+          : `<button class="hm-t packs" data-fm-tab="store"><span class="hm-t-art"><img class="pl-ball" src="img/packs/pk3-360.webp?v=b2" alt=""></span><span class="hm-t-tx"><small>Магазин</small><b>Паки</b></span></button>`}
+        <button class="hm-t car" data-fm-car><span class="hm-t-art">${jg ? Cards.html(jg, { w: 52 }) : ''}</span><span class="hm-t-tx"><small>Карьера</small><b>${esc(car.t.replace(/^Глава \d+ · /, ''))}</b><span class="hm-bar sm"><i style="width:${Math.max(4, Math.round(100 * car.d / car.n))}%"></i></span></span></button>
+        <button class="hm-t mini" data-fm-tab="modes"><span class="hm-t-art col">${GM.map((g) => `<img src="${g}" alt="">`).join('')}</span><span class="hm-t-tx"><small>48 игр</small><b>Мини-игры</b></span></button>
       </div>
     </div>`;
   }
@@ -831,6 +846,7 @@ const FCM = (() => {
       if (e.target.closest('[data-fm-sort]')) { Sound.play('tap'); CQ.sort = CQ.sort === 'r' ? 'name' : 'r'; render(); return; }
       if (e.target.closest('[data-fm-more]')) { Sound.play('tap'); CQ.n += 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } return; }
       const cc = e.target.closest('[data-fm-card]'); if (cc) { Sound.play('tap'); return cardView(cc.dataset.fmCard); }
+      const go = e.target.closest('[data-fm-go]'); if (go) { Sound.play('tap'); const [t, v] = go.dataset.fmGo.split(':'); tab = t; sub[t] = v; return render(); }
       if (e.target.closest('[data-fm-car]')) { Sound.play('tap'); tab = 'events'; sub.events = 'car'; return render(); }
       const sd = e.target.closest('[data-fm-slide]'); if (sd) { Sound.play('tap'); slideT = Date.now(); return slideTo(+sd.dataset.fmSlide); }
       const nd = e.target.closest('[data-fm-node]'); if (nd) { Sound.play('tap'); return nodeSheet(+nd.dataset.fmNode); }
