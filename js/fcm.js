@@ -49,9 +49,9 @@ const FCM = (() => {
 
   // ---------- верх ----------
   function top() {
-    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? (sub.modes !== 'hub' && SHELF.find((x) => x[0] === sub.modes) ? SHELF.find((x) => x[0] === sub.modes)[1] : 'Играть') : tab === 'div' ? 'Дивизионы' : tab === 'market' ? 'Трансферный рынок' : HOST[tab] ? HOST[tab][1] : (TABS.find((t) => t[0] === tab) || [])[1];
+    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? (sub.modes !== 'hub' && SHELF.find((x) => x[0] === sub.modes) ? 'Мини-игры' : 'Играть') : tab === 'div' ? 'Дивизионы' : tab === 'market' ? 'Рынок' : HOST[tab] ? HOST[tab][1] : (TABS.find((t) => t[0] === tab) || [])[1];
     return `<header class="fm-top">
-      ${title ? `<button class="fm-back" ${HOST[tab] ? 'data-fm-hback' : tab === 'modes' && sub.modes !== 'hub' ? 'data-fm-sub="modes:hub"' : `data-fm-tab="${tab === 'coll' ? 'team' : tab === 'market' ? 'store' : 'play'}"`} aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
+      ${title ? `<button class="fm-back" ${HOST[tab] ? 'data-fm-hback' : tab === 'modes' && sub.modes !== 'hub' ? 'data-fm-tab="play"' : `data-fm-tab="${tab === 'coll' ? 'team' : tab === 'market' ? 'store' : 'play'}"`} aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
         : `<button class="fm-me" data-act="profile"><span class="fm-ava">${esc(u.emoji || '⚽')}</span><span class="fm-who"><b>${esc(u.nick || 'Игрок')}</b></span></button>`}
       <i class="fm-sp"></i>
       ${typeof Lime !== 'undefined' ? `<span class="fm-cur fm-lime" title="Лаймовые очки прокачки">${Lime.ico()}<b class="lime-count">${Lime.n()}</b></span>` : ''}
@@ -163,7 +163,7 @@ const FCM = (() => {
         ${P ? `<button class="hm-t balls" data-act="balls"><span class="hm-t-art"><img class="pl-ball" src="img/packs/pk0-360.webp?v=b2" alt=""></span><span class="hm-t-tx"><small>Мяч-дроп</small><b>Открыть</b></span><em class="hm-n">${P}</em></button>`
           : `<button class="hm-t packs" data-fm-tab="store"><span class="hm-t-art"><img class="pl-ball" src="img/packs/pk3-360.webp?v=b2" alt=""></span><span class="hm-t-tx"><small>Магазин</small><b>Паки</b></span></button>`}
         <button class="hm-t car" data-fm-car><span class="hm-t-art">${jg ? Cards.html(jg, { w: 52 }) : ''}</span><span class="hm-t-tx"><small>Карьера</small><b>${esc(car.t.replace(/^Глава \d+ · /, ''))}</b><span class="hm-bar sm"><i style="width:${Math.max(4, Math.round(100 * car.d / car.n))}%"></i></span></span></button>
-        <button class="hm-t mini" data-fm-tab="modes"><span class="hm-t-art col">${GM.map((g) => `<img src="${g}" alt="">`).join('')}</span><span class="hm-t-tx"><small>48 игр</small><b>Мини-игры</b></span></button>
+        <button class="hm-t mini" data-fm-go="modes:guess"><span class="hm-t-art col">${GM.map((g) => `<img src="${g}" alt="">`).join('')}</span><span class="hm-t-tx"><small>48 игр</small><b>Мини-игры</b></span></button>
       </div>
     </div>`;
   }
@@ -224,8 +224,9 @@ const FCM = (() => {
   function modes() {
     if (sub.modes === 'fb') sub.modes = 'hub';
     if (sub.modes !== 'hub' && SHELF.some((x) => x[0] === sub.modes)) {
-      return `<div class="fm-games">${shelfGames(sub.modes).map((g) => { const im = gImg(g.key);
-        return `<button class="fm-gm" ${gAttr(g)}>${im ? `<img src="${im}" alt="" loading="lazy">` : `<i class="fm-gm-i">${ico('play')}</i>`}<b>${esc(g.title)}</b><small>${esc(g.sub || '')}</small></button>`; }).join('') || '<p class="fm-none">Скоро</p>'}</div>`;
+      const L = SHELF.filter((x) => x[2]).map((x) => [x[0], x[1], `${shelfGames(x[0]).length} игр`]); /* 21.11: разделы мини-игр слева, как в заданиях и магазине */
+      return `<div class="fm-split">${rail(L, 'modes')}<div class="fm-body"><div class="fm-games">${shelfGames(sub.modes).map((g) => { const im = gImg(g.key);
+        return `<button class="fm-gm" ${gAttr(g)}>${im ? `<img src="${im}" alt="" loading="lazy">` : `<i class="fm-gm-i">${ico('play')}</i>`}<b>${esc(g.title)}</b><small>${esc(g.sub || '')}</small></button>`; }).join('') || '<p class="fm-none">Скоро</p>'}</div></div></div>`;
     }
     sub.modes = 'hub';
     return `<div class="fm-playhub">${playHero()}<div class="fm-plates">${PLATES.map(plate).join('')}</div></div>`;
@@ -611,17 +612,26 @@ const FCM = (() => {
   function profileSheet() {
     const u = Store.d.user || {}, own = Object.keys((Store.d.cards && Store.d.cards.own) || {}).length;
     const el = document.createElement('div'); el.className = 'fm-sheet fm-prof';
-    const row = (act, t, v) => `<button class="fm-pf-row" data-act="${act}"><span>${t}</span><b>${v}</b></button>`;
+    /* 21.11: профиль в новом стиле — два переключателя плитками, ниже пункты со значками */
+    const SV = { music: '<path d="M9 18V6l11-2v12" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="2.8"/><circle cx="17.5" cy="16" r="2.8"/>',
+      sound: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+      coll: '<rect x="3" y="5" width="11" height="15" rx="2"/><path d="M16 4.5l4.2 1.4-3.6 13.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>',
+      board: '<rect x="3" y="12" width="4.5" height="8" rx="1"/><rect x="9.75" y="6" width="4.5" height="14" rx="1"/><rect x="16.5" y="9" width="4.5" height="11" rx="1"/>',
+      report: '<path d="M12 3a6 6 0 0 1 6 6v4.5l1.8 3.5H4.2L6 13.5V9a6 6 0 0 1 6-6z"/><path d="M9.5 19.5a2.5 2.5 0 0 0 5 0" fill="none" stroke="currentColor" stroke-width="2"/>',
+      admin: '<path d="M12 2.5l8 3v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10v-6z"/>',
+      wipe: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' };
+    const sv = (k) => `<i class="fm-pf-i"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${SV[k]}</svg></i>`;
+    const tg = (act, t, on) => `<button class="fm-pf-tg ${on ? 'on' : ''}" data-act="${act}">${sv(act)}<span>${t}<small>${on ? 'Включено' : 'Выключено'}</small></span><em class="fm-sw"><i></i></em></button>`;
+    const row = (attr, k, t) => `<button class="fm-pf-row" ${attr}>${sv(k)}<span>${t}</span><b>›</b></button>`;
     const draw = () => { el.innerHTML = `<div class="fm-prf">
         <div class="fm-pf-me"><span class="fm-ava big">${esc(u.emoji || '⚽')}</span><span><b>${esc(u.nick || 'Игрок')}</b><small>${cup}${trophies()} трофеев · карточек ${own}</small></span></div>
+        <div class="fm-pf-tgs">${tg('music', 'Музыка', Store.d.music !== false)}${tg('sound', 'Звуки', !!Store.d.sound)}</div>
         <div class="fm-pf-list">
-          ${row('music', 'Фоновая музыка', Store.d.music === false ? 'Выкл' : 'Вкл')}
-          ${row('sound', 'Звуки', Store.d.sound ? 'Вкл' : 'Выкл')}
-          <button class="fm-pf-row" data-fmp="coll"><span>Коллекция</span><b>›</b></button>
-          ${row('board', 'Таблица канала', '›')}
-          ${row('report', 'Нашёл ошибку', '›')}
-          ${Store.d.admin ? '<button class="fm-pf-row adm" data-fmp="admin"><span>Админка</span><b>›</b></button>' : Store.d.ecoNoAdmin && typeof Eco !== 'undefined' && Eco.on() ? '<button class="fm-pf-row adm" data-fmp="claim"><span>Стать админом (тест)</span><b>›</b></button>' : ''}
-          ${typeof CONFIG !== 'undefined' && CONFIG.stage ? '<button class="fm-pf-row danger" data-act="wipe"><span>Начать заново (только превью)</span><b>↺</b></button>' : ''}
+          ${row('data-fmp="coll"', 'coll', 'Коллекция')}
+          ${row('data-act="board"', 'board', 'Таблица канала')}
+          ${row('data-act="report"', 'report', 'Нашёл ошибку')}
+          ${Store.d.admin ? row('data-fmp="admin"', 'admin', 'Админка').replace('fm-pf-row', 'fm-pf-row adm') : Store.d.ecoNoAdmin && typeof Eco !== 'undefined' && Eco.on() ? row('data-fmp="claim"', 'admin', 'Стать админом (тест)').replace('fm-pf-row', 'fm-pf-row adm') : ''}
+          ${typeof CONFIG !== 'undefined' && CONFIG.stage ? row('data-act="wipe"', 'wipe', 'Начать заново (только превью)').replace('fm-pf-row', 'fm-pf-row danger') : ''}
         </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`; };
     draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
     const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); };

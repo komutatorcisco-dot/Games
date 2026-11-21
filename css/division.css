@@ -87,3 +87,10 @@
 @keyframes dvsR { from { transform: translateX(60px); opacity: 0; } }
 @keyframes dvsVs { from { transform: scale(2.4); opacity: 0; } }
 @keyframes lmPop { from { transform: scale(1.8); } }
+/* 21.11: надпись «Дивизион» не залезает под цифру; правила — на стеклянной подложке, а не прямо на газоне */
+.dvb-in small { position: relative; z-index: 1; margin-bottom: .3em; }
+.dvb.big .dvb-in small { margin-bottom: 4px; }
+.dv .mk-note { padding: 8px 12px; border-radius: 12px; background: rgba(10,16,28,.72); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); color: #cfdcef; }
+/* шрифт в новом виде — Inter Tight, у него цифры выше строки: даём строке запас, чтобы «10» не наезжала на подпись */
+.dvb-in b { line-height: 1.12; }
+.dvb-in small { color: var(--ink) !important; opacity: .75; }

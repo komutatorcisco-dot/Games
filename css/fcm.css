@@ -905,16 +905,25 @@
 
 /* профиль и настройки нового вида */
 @media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
-  .fm-prf { position: relative; display: grid; gap: 10px; width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 14px 16px; border-radius: 14px;
-    background: linear-gradient(160deg, #141b10, #06080c); box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.35), 0 20px 50px rgba(0,0,0,.6); color: #fff; font-family: "Inter Tight", sans-serif;
+  .fm-prf { position: relative; display: grid; gap: 10px; width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 24px); overflow: auto; padding: 14px 16px; border-radius: 18px;
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,0) 40%), linear-gradient(160deg, #13203a, #070b14); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.12), 0 20px 50px rgba(0,0,0,.6); color: #fff; font-family: "Inter Tight", sans-serif;
     transform: translateY(14px) scale(.97); transition: transform .3s cubic-bezier(.2,.9,.3,1.2); }
   .fm-prof.in .fm-prf { transform: none; }
   .fm-pf-me { display: flex; align-items: center; gap: 12px; padding-right: 40px; } .fm-ava.big { width: 52px; height: 52px; font-size: 28px; }
   .fm-pf-me b { display: block; font: 900 22px/1 "Inter Tight", sans-serif; text-transform: uppercase; } .fm-pf-me small { display: flex; align-items: center; gap: 4px; margin-top: 4px; font: 600 12px "Inter Tight", sans-serif; color: #9fb2cc; }
   .fm-pf-me small svg { width: 13px; height: 13px; color: #ffd23c; }
   .fm-pf-list { display: grid; gap: 4px; }
-  .fm-pf-row { display: flex !important; justify-content: space-between; align-items: center; padding: 10px 12px !important; border-radius: 8px; background: rgba(255,255,255,.06) !important; font: 700 14px "Inter Tight", sans-serif !important; color: #fff !important; text-align: left !important; }
-  .fm-pf-row b { color: var(--fm-lime); } .fm-pf-row.danger { background: rgba(255,80,80,.12) !important; } .fm-pf-row.danger b { color: #ff8a8a; }
+  .fm-pf-row { display: flex !important; align-items: center; gap: 10px; padding: 7px 12px 7px 7px !important; border: 0 !important; border-radius: 12px; background: rgba(255,255,255,.06) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); font: 700 14px "Inter Tight", sans-serif !important; color: #fff !important; text-align: left !important; }
+  .fm-pf-row span { flex: 1; } .fm-pf-row b { color: #9fb2cc; font-size: 18px; } .fm-pf-row:active { transform: scale(.98); }
+  .fm-pf-i { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 9px; background: rgba(255,255,255,.08); color: #ffd23c; } .fm-pf-i svg { width: 17px; height: 17px; }
+  .fm-pf-row.adm .fm-pf-i { color: #c6ff3d; } .fm-pf-row.danger { background: rgba(255,80,80,.12) !important; } .fm-pf-row.danger .fm-pf-i, .fm-pf-row.danger b { color: #ff8a8a; }
+  .fm-pf-tgs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .fm-pf-tg { display: flex !important; align-items: center; gap: 9px; padding: 9px 10px 9px 8px !important; border: 0 !important; border-radius: 14px; background: rgba(255,255,255,.05) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); color: #fff !important; text-align: left !important; }
+  .fm-pf-tg span { flex: 1; display: grid; gap: 2px; font: 800 14px/1 "Inter Tight", sans-serif; } .fm-pf-tg small { font: 600 11px "Inter Tight", sans-serif; color: #9fb2cc; }
+  .fm-pf-tg.on { background: linear-gradient(90deg, rgba(198,255,61,.16), rgba(198,255,61,.04)) !important; box-shadow: inset 0 0 0 1px rgba(198,255,61,.35); } .fm-pf-tg.on .fm-pf-i { color: #c6ff3d; } .fm-pf-tg.on small { color: #c6ff3d; }
+  .fm-sw { position: relative; flex: none; width: 38px; height: 22px; border-radius: 11px; background: rgba(255,255,255,.18); transition: background .2s; }
+  .fm-sw i { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,.4); transition: transform .2s; }
+  .fm-pf-tg.on .fm-sw { background: #8fe61e; } .fm-pf-tg.on .fm-sw i { transform: translateX(16px); }
 }
 /* пропуск и путь трофеев в новом виде (вкладка «Задания») */
 @media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
