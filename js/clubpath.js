@@ -122,22 +122,29 @@ const ClubPath = (() => {
     const steps = c.steps.map(([t, r], j) => { const st = s.st[sel + ':' + j] ? 'got' : tk >= t ? 'ready' : 'lock', l = Rewards.rewardLabel(r);
       const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b3" alt="">` : r.coins ? '<i class="coin big"></i>' : l.ico;
       return `<button class="cr-st ${st}" style="left:${(t / max) * 100}%" ${st === 'ready' ? `data-cr-st="${j}"` : ''}><span>${art}</span><b>${esc(l.txt || l.name)}</b><em>${t}</em></button>`; }).join('');
-    const tasks = c.tasks.map((t, i) => { const p = prog(sel, i), n = need(t), dn = p >= n, bl = t.boss && !bossOpen(sel), lk = !open(sel);
-      return `<div class="cr-t ${dn ? 'done' : ''} ${t.boss ? 'boss' : ''} ${bl || lk ? 'lock' : ''}">
-        <i class="cr-ic">${ico(t.ic)}</i><span class="cr-tt"><b>${esc(t.t)}</b><span class="fm-bar"><i style="width:${Math.round(100 * p / n)}%"></i></span><small>${t.ovr ? `ОБЩ ${ovrNow()} / ${t.ovr}` : `${p}/${n}`}</small></span>
-        <em class="cr-tok">+${t.tok}</em>
-        ${dn ? '<span class="cr-ok">✓</span>' : bl ? `<span class="cr-lk">${lock} после 4 заданий</span>` : lk ? '' : `<button class="fm-btn sm" data-cr-go="${i}">Играть ›</button>`}</div>`; }).join('');
-    return `<div class="cr">
+    // 21.11: проще — справа одно «следующее задание» крупно с большой кнопкой, под ним остальные задания короткими строками
+    // (тап по строке — тоже «Играть»); слева глава, жетоны с дорожкой наград и главная награда
+    const st = c.tasks.map((t, i) => { const p = prog(sel, i), n = need(t); return { t, i, p, n, dn: p >= n, bl: t.boss && !bossOpen(sel) }; });
+    const nx = open(sel) ? st.find((x) => !x.dn && !x.bl) : null, nDone = st.filter((x) => x.dn).length;
+    const big = nx ? `<div class="cr-next ${nx.t.boss ? 'boss' : ''}"><small>${nx.t.boss ? 'Финал главы' : 'Следующее задание'}</small>
+        <div class="cr-nx-r"><i class="cr-ic big">${ico(nx.t.ic)}</i><span class="cr-tt"><b>${esc(nx.t.t)}</b><span class="fm-bar"><i style="width:${Math.round(100 * nx.p / nx.n)}%"></i></span>
+          <small>${nx.t.ovr ? `ОБЩ ${ovrNow()} / ${nx.t.ovr}` : `${nx.p}/${nx.n}`} · <u>+${nx.t.tok} жетонов</u></small></span></div>
+        <button class="fm-btn gold cr-play" data-cr-go="${nx.i}">Играть</button></div>`
+      : open(sel) ? `<div class="cr-next all"><small>Все задания главы</small><b>Выполнены ✓</b>${all && !got ? '<button class="fm-btn gold cr-play" data-cr-done>Забрать главную награду</button>' : ''}</div>`
+      : `<div class="cr-next all"><small>Глава закрыта</small><b>${lock} Откроется после главы ${sel - 1}</b></div>`;
+    const rows = open(sel) ? st.filter((x) => x !== nx).map((x) => `<button class="cr-row ${x.dn ? 'done' : ''} ${x.bl ? 'lock' : ''}" ${!x.dn && !x.bl ? `data-cr-go="${x.i}"` : ''}>
+        <i class="cr-ic">${x.dn ? '✓' : ico(x.t.ic)}</i><b>${esc(x.t.t)}</b><em>${x.dn ? '' : x.bl ? lock : x.t.ovr ? `${ovrNow()}/${x.t.ovr}` : `${x.p}/${x.n}`}</em></button>`).join('') : '';
+    return `<div class="cr cr2">
       <div class="cr-chs">${chips}</div>
       <div class="cr-main">
         <aside class="cr-l" style="--cc:${c.col}">
-          <small>Карьера · глава ${c.id}</small><b>${esc(c.t)}</b><p>${esc(c.d)}</p>
-          <div class="cr-tk"><i class="cr-tok-ic"></i><b>${tk}</b><small>жетонов главы</small></div>
+          <small>Карьера · глава ${c.id}</small><b>${esc(c.t)}</b>
+          <div class="cr-tk"><i class="cr-tok-ic"></i><b>${tk}</b><small>жетонов · ${nDone}/${c.tasks.length} заданий</small></div>
           <div class="cr-road"><i class="cr-fill" style="width:${Math.min(100, (tk / max) * 100)}%"></i>${steps}</div>
           <div class="cr-prize ${got ? 'got' : all ? 'ready' : ''}"><small>Главная награда</small><b>${esc(c.prize.name)}</b>
-            ${got ? '<em>Получено ✓</em>' : all ? '<button class="fm-btn gold sm" data-cr-done>Забрать</button>' : `<em>${c.tasks.filter((t, i) => isDone(sel, i)).length}/${c.tasks.length} заданий</em>`}</div>
+            ${got ? '<em>Получено ✓</em>' : all ? '<button class="fm-btn gold sm" data-cr-done>Забрать</button>' : `<em>за все ${c.tasks.length} заданий</em>`}</div>
         </aside>
-        <div class="cr-ts">${open(sel) ? tasks : `<p class="fm-none">${lock} Глава откроется после главы ${sel - 1}</p>`}</div>
+        <div class="cr-r2">${big}<div class="cr-rows">${rows}</div></div>
       </div></div>`;
   }
   // клики внутри вида; go(t) — куда вести «Играть»
