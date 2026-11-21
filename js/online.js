@@ -98,7 +98,7 @@ const Online = (() => {
       box.innerHTML = `<div class="on-wrap on-lobby">
         <div class="on-head"><div class="on-ico">${Ui.get('bolt')}</div><h3>${esc(o.title)}</h3><p>${esc(o.lead || 'Играй против живого соперника в реальном времени.')}</p>
           <span class="on-live"><i></i>В сети: <b data-presence-total>${Number.isFinite(tot) ? tot : '—'}</b>${Number.isFinite(n) ? ` · в этом режиме: <b>${n}</b>` : ''}</span></div>
-        <button class="on-card gold" data-on="rnd"><span class="on-ci">${Ui.get('users')}</span><span><b>Случайный соперник</b><small>Найдём игрока онлайн за пару секунд</small></span><em>›</em></button>
+        <button class="on-card gold" data-on="rnd"><span class="on-ci">${Ui.get('users')}</span><span><b>Случайный соперник</b><small>Найдём живого игрока, а если никого нет — сыграешь с ботом</small></span><em>›</em></button>
         <div class="on-card on-friend"><span class="on-ci">${Ui.get('send')}</span><span><b>С другом</b><small>Создай комнату и отправь код или войди по коду друга</small></span>
           <div class="on-frow"><button class="btn" data-on="host">Создать комнату</button></div>
           <div class="on-join"><input id="on-code" maxlength="5" placeholder="КОД" autocomplete="off" autocapitalize="characters" inputmode="text"><button class="btn" data-on="join">Войти</button></div></div>
@@ -143,11 +143,15 @@ const Online = (() => {
         if (cur !== c || !c.mm || c.conn) return;
         if (r.ok && r.role === 'join') { c.mm = false; toast(`Соперник найден: ${String(r.nick || 'Игрок').slice(0, 16)}`); return join(r.code); }
         const h = $('.on-wait h3', box); if (h) h.textContent = r.ok && r.waiting > 1 ? `Ищем соперника… ищут: ${r.waiting}` : 'Ищем соперника…';
-        if (Date.now() - t0 > 120000) {
+        if (Date.now() - t0 > 12000) { // 21.11: не две минуты, а 12 секунд — дальше сразу бот, если он есть у режима
           mmStop(); killPeer();
-          box.innerHTML = `<div class="on-wrap"><div class="on-ico">${Ui.get('users')}</div><h3>Пока никого нет онлайн</h3><p>Позови друга — отправь ему код комнаты.</p>
-            <button class="btn gold" data-on="rnd">Искать ещё</button>${o.bot ? '<button class="btn" data-on="bot">Сыграть с ботом</button>' : ''}<button class="btn" data-on="host">${Ui.get('send')} Позвать друга</button><button class="btn ghost" data-on="menu">Назад</button></div>`;
-          acts = { rnd: random, host, menu, bot: () => { stop(); o.bot && o.bot(); } }; return;
+          box.innerHTML = `<div class="on-wrap on-nobody"><div class="on-ico">${Ui.get('users')}</div><h3>Сейчас никого нет онлайн</h3>
+            ${o.bot ? '<p>Сыграем с ботом — начнётся через <b class="on-cd">3</b></p><button class="btn gold" data-on="bot">Играть с ботом</button>' : '<p>Позови друга — отправь ему код комнаты.</p>'}
+            <button class="btn" data-on="rnd">Искать ещё</button><button class="btn" data-on="host">${Ui.get('send')} Позвать друга</button><button class="btn ghost" data-on="menu">Назад</button></div>`;
+          let n = 3; const go = () => { clearInterval(c.clock); stop(); o.bot && o.bot(); };
+          acts = { rnd: () => { clearInterval(c.clock); random(); }, host: () => { clearInterval(c.clock); host(); }, menu: () => { clearInterval(c.clock); menu(); }, bot: go };
+          if (o.bot) { clearInterval(c.clock); c.clock = setInterval(() => { n--; const el = cur === c && $('.on-cd', box); if (!el) return clearInterval(c.clock); el.textContent = n; if (n <= 0) go(); }, 1000); }
+          return;
         }
         T(poll, 3000);
       };

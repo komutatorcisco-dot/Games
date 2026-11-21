@@ -1265,3 +1265,10 @@
   .fm-pi-btn { grid-template-columns: 40px minmax(0, 1fr) 40px !important; }
   .fm-pi-btn .fm-btn { white-space: nowrap; overflow: hidden; }
 }
+/* «никого нет онлайн» (21.11): кнопки по две в ряд — лёжа влезают целиком */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .on-nobody { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; align-content: center; justify-items: stretch; max-width: 620px; margin: 0 auto; height: auto !important; }
+  .on-nobody > :not(.btn) { grid-column: 1 / -1; justify-self: center; text-align: center; margin: 0; }
+  .on-nobody .btn { width: 100% !important; height: auto !important; min-height: 42px; margin: 0 !important; flex: none !important; }
+  .on-nobody .btn.gold { grid-column: 1 / -1; }
+}

@@ -436,10 +436,12 @@ const Duel = (() => {
           if (!alive || !mmOn || conn) return;
           if (r.ok && r.role === 'join') { mmOn = false; toast(`Соперник найден: ${String(r.nick || 'Игрок').slice(0, 16)}`); return join(r.code); }
           const w = $('.du-wait h3', b); if (w) w.textContent = r.ok && r.waiting > 1 ? `Ищем соперника… онлайн ищут: ${r.waiting}` : 'Ищем соперника…';
-          if (Date.now() - t0 > 120000) { mmStop(); stopPeer(); b.innerHTML = `<div class="du-intro"><div class="du-big-emo">${Ui.get('users')}</div><h3>Пока никого нет онлайн</h3>
-            <p>Позови друга в комнату или брось вызов по ссылке — он сыграет, когда сможет.</p>
-            <button class="btn gold" data-du="rnd">Искать ещё</button><button class="btn" data-du="solo">Сыграть сейчас — вызов по ссылке</button><button class="btn" data-du="live">${Ui.get('bolt')} Комната для друга</button><button class="btn ghost" data-du="menu">Назад</button></div>`;
-            acts = { rnd: random, solo: () => solo(newSeed(), null), live: liveMenu, menu }; return; }
+          if (Date.now() - t0 > 12000) { mmStop(); stopPeer(); // 21.11: 12 секунд, а не две минуты — дальше сразу «Сыграть сейчас»
+            b.innerHTML = `<div class="du-intro on-nobody"><div class="du-big-emo">${Ui.get('users')}</div><h3>Сейчас никого нет онлайн</h3>
+            <p>Сыграй сейчас — получишь ссылку-вызов, соперник ответит на те же вопросы, когда сможет. Начнём через <b class="on-cd">3</b></p>
+            <button class="btn gold" data-du="solo">Сыграть сейчас</button><button class="btn" data-du="rnd">Искать ещё</button><button class="btn ghost" data-du="menu">Назад</button></div>`;
+            let n = 3; const tick = setInterval(() => { n--; const el = $('.on-cd', b); if (!el || !alive) return clearInterval(tick); el.textContent = n; if (n <= 0) { clearInterval(tick); solo(newSeed(), null); } }, 1000);
+            acts = { rnd: () => { clearInterval(tick); random(); }, solo: () => { clearInterval(tick); solo(newSeed(), null); }, live: () => { clearInterval(tick); liveMenu(); }, menu: () => { clearInterval(tick); menu(); } }; return; }
           T(poll, 3000);
         };
         peer.on('open', poll);

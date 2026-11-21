@@ -83,6 +83,7 @@ const XMatch = (() => {
       game: 'xdraft', title: 'Онлайн-матч', join: code, host: !!hostCb, onCode: hostCb, lead: 'Твой состав против состава живого соперника. Тактику меняете оба прямо по ходу матча.',
       hello: () => ({ form: my.form(), sys: my.sys(), xi: my.xi().map((p) => p && JSON.parse(JSON.stringify(p))) }),
       back: () => my.back(),
+      bot: () => { C = my; start('normal'); }, // никого онлайн — матч против бота тем же составом
       onReady: (L) => { C = my; startOnline(L); },
     });
   }
