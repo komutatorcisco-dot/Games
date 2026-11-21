@@ -100,7 +100,7 @@ const FCM = (() => {
   // ---- дивизионы (5.11, js/division.js) ----
   const carLabel = () => { try { const S0 = ClubPath.S(), c = ClubPath.CH[Math.min(S0.ch, ClubPath.CH.length) - 1]; return `Глава ${c.id} · ${c.t}`; } catch (e) { return 'Сюжет и задания'; } };
   // значок дивизиона (21.11) — 3D-рендер из tools/art/divs.html: щит из металла ступени, номер, звёзды, лавры, корона
-  const dvImg = (i, big) => `img/div/d${Math.max(0, Math.min(9, i))}-${big ? 384 : 192}.webp?v=2`;
+  const dvImg = (i, big) => `img/div/d${Math.max(0, Math.min(9, i))}-${big ? 384 : 192}.webp?v=3`;
   const dvBadge = (i, big) => `<span class="dvb2 ${big ? 'big' : ''}"><i class="dvb2-glow t-${Division.tier(i)}"></i><img src="${dvImg(i, big)}" alt="${esc(Division.name(i))}"></span>`;
   const dvBar = () => { const D = Division, s = D.week(), i = D.idx(), nx = D.START[i + 1]; return { s, i, nx, pct: nx ? Math.max(3, Math.round(100 * (s.pts - D.START[i]) / (nx - D.START[i]))) : 100 }; };
   function divHero() {
@@ -151,8 +151,13 @@ const FCM = (() => {
       : day ? { a: 'data-act="wheel"', img: 'img/packs/pk1-360.webp?v=b3', s: 'Бесплатно', t: 'Пак дня', n: '!', c: 'balls' }
       : { a: 'data-fm-tab="store"', img: 'img/packs/pk3-360.webp?v=b3', s: 'Магазин', t: 'Паки', n: 0, c: 'packs' };
     const GM = ['career', 'ng-wordle', 'hl'].map((k) => `img/games/${k}.webp`);
+    // звезда команды: лучший по рейтингу из состава (пусто — Джексон), крупная карточка покачивается; тап — карточка крупно
+    const RT = (c) => (typeof Lime !== 'undefined' ? Lime.r(c) : c.r);
+    let star = null; try { star = Squad.S().xi.map((k) => k && Cards.get(k)).filter(Boolean).sort((a, b) => RT(b) - RT(a))[0] || null; } catch (e) { star = null; }
+    star = star || jg;
+    const starH = star ? `<button class="hm-star" data-fm-card="${esc(star.key)}" aria-label="Звезда команды"><i class="hm-star-rays"></i><span class="hm-star-c">${Cards.html(star, { w: 132 })}</span><small>Звезда команды</small></button>` : '';
     return `<div class="hm hm2">
-      <div class="hm-c">${hero}</div>
+      <div class="hm-c">${hero}</div>${starH}
       <div class="hm-r">
         <button class="hm-t ${T.c}" ${T.a}><span class="hm-t-art"><img class="pl-ball" src="${T.img}" alt=""></span><span class="hm-t-tx"><small>${T.s}</small><b>${T.t}</b></span>${T.n ? `<em class="hm-n">${T.n}</em>` : ''}</button>
         <button class="hm-t mini" data-fm-go="modes:guess"><span class="hm-t-art col">${GM.map((g) => `<img src="${g}" alt="">`).join('')}</span><span class="hm-t-tx"><small>48 игр</small><b>Мини-игры</b></span></button>

@@ -8,10 +8,10 @@
 const L = (h) => new THREE.Color(h).convertSRGBToLinear();
 // металл, эмаль, свет номера, ореол
 const TIERS = {
-  bronze: { metal: '#c9824a', hi: '#ffd2a8', enamel: '#3a1608', lit: '#ff8a40', ink: ['#fff1e2', '#e7a06a'], halo: '#e9a06a' },
-  silver: { metal: '#c9d3e2', hi: '#ffffff', enamel: '#14223f', lit: '#6f9fff', ink: ['#ffffff', '#a9b9d2'], halo: '#bcd2ff' },
-  gold: { metal: '#f0b52a', hi: '#fff0b0', enamel: '#0f1a3e', lit: '#4f7dff', ink: ['#fff7d0', '#ffc533'], halo: '#ffd23c' },
-  elite: { metal: '#2a3420', hi: '#c6ff3d', enamel: '#0a1006', lit: '#8fe61e', ink: ['#f4ffd0', '#c6ff3d'], halo: '#c6ff3d', trim: '#c6ff3d' },
+  bronze: { metal: '#c9824a', hi: '#ffd2a8', enamel: '#4a1204', lit: '#ff6a1a', ink: ['#fff1e2', '#e7a06a'], halo: '#e9a06a' },
+  silver: { metal: '#c9d3e2', hi: '#ffffff', enamel: '#0b1f5c', lit: '#3d8bff', ink: ['#ffffff', '#a9b9d2'], halo: '#bcd2ff' },
+  gold: { metal: '#f0b52a', hi: '#fff0b0', enamel: '#3a0a2e', lit: '#d4246e', ink: ['#fff7d0', '#ffc533'], halo: '#ffd23c' },
+  elite: { metal: '#2a3420', hi: '#c6ff3d', enamel: '#061206', lit: '#5fd21a', ink: ['#f4ffd0', '#c6ff3d'], halo: '#c6ff3d', trim: '#c6ff3d' },
 };
 const tierOf = (i) => (i >= 9 ? 'elite' : i >= 6 ? 'gold' : i >= 3 ? 'silver' : 'bronze');
 let R = null;
@@ -50,11 +50,14 @@ window.renderDiv = async (i, w, h) => {
   const tn = tierOf(i), T = TIERS[tn], s = rig(w, h, T), G = new THREE.Group(); s.add(G);
   // обод и эмаль
   const rim = ext(shield(1), 0.22, 0.1, metal(T.metal, tn === 'elite' ? { roughness: 0.35 } : {})); G.add(rim);
-  const em = tex(512, 512, (g) => { const q = g.createRadialGradient(256, 230, 10, 256, 256, 330); q.addColorStop(0, T.lit || '#ffffff'); q.addColorStop(1, '#000000'); g.fillStyle = T.enamel; g.fillRect(0, 0, 512, 512);
-    g.globalAlpha = 0.2; g.fillStyle = q; g.fillRect(0, 0, 512, 512); g.globalAlpha = 0.05; g.fillStyle = '#ffffff';
-    for (let k = 0; k < 24; k++) { const a = k * Math.PI / 12; g.beginPath(); g.moveTo(256, 230); g.arc(256, 230, 520, a, a + Math.PI / 24); g.closePath(); g.fill(); } });
+  // эмаль: насыщенный цвет, свет в центре, тёмные края (виньетка), едва заметные лучи
+  const em = tex(512, 512, (g) => { g.fillStyle = T.enamel; g.fillRect(0, 0, 512, 512);
+    const c = g.createRadialGradient(256, 236, 0, 256, 236, 250); c.addColorStop(0, T.lit + 'aa'); c.addColorStop(0.55, T.lit + '33'); c.addColorStop(1, T.lit + '00'); g.fillStyle = c; g.fillRect(0, 0, 512, 512);
+    g.globalAlpha = 0.07; g.fillStyle = '#ffffff';
+    for (let k = 0; k < 24; k++) { const a = k * Math.PI / 12; g.beginPath(); g.moveTo(256, 236); g.arc(256, 236, 520, a, a + Math.PI / 24); g.closePath(); g.fill(); }
+    g.globalAlpha = 1; const v = g.createRadialGradient(256, 256, 140, 256, 256, 340); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.7)'); g.fillStyle = v; g.fillRect(0, 0, 512, 512); });
   em.repeat.set(0.31, 0.31); em.offset.set(0.5, 0.5);
-  const inner = ext(shield(0.8), 0.06, 0.04, new THREE.MeshStandardMaterial({ color: 0xffffff, map: em, metalness: 0.25, roughness: 0.4 })); inner.position.set(0, 0.0, 0.17); G.add(inner);
+  const inner = ext(shield(0.8), 0.06, 0.04, new THREE.MeshStandardMaterial({ color: 0xffffff, map: em, emissive: 0xffffff, emissiveMap: em, emissiveIntensity: 0.55, metalness: 0, roughness: 0.18, envMapIntensity: 0.5 })); inner.position.set(0, 0.0, 0.17); G.add(inner);
   if (T.trim) { const tr = ext(shield(0.86), 0.02, 0.02, new THREE.MeshBasicMaterial({ color: L(T.trim) })); tr.position.z = 0.15; G.add(tr); }
   // номер: металлический градиент с тенью, на плоскости над эмалью
   const num = i >= 9 ? '★' : String(10 - i);
