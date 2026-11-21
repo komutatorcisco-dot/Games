@@ -94,3 +94,16 @@
 /* шрифт в новом виде — Inter Tight, у него цифры выше строки: даём строке запас, чтобы «10» не наезжала на подпись */
 .dvb-in b { line-height: 1.12; }
 .dvb-in small { color: var(--ink) !important; opacity: .75; }
+/* 21.11: новый значок — 3D-картинка img/div/d{i}-*.webp (tools/art/divs.html); слегка покачивается и светится цветом ступени */
+.dvb2 { position: relative; display: inline-block; width: 64px; aspect-ratio: 5 / 6; animation: dvb2Float 4.5s ease-in-out infinite; }
+.dvb2.big { width: 124px; }
+.dvb2 img { position: relative; display: block; width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 10px 12px rgba(0,0,0,.55)); }
+.dvb2-glow { position: absolute; inset: -6% -10%; border-radius: 50%; background: radial-gradient(closest-side, var(--g, rgba(233,160,106,.55)), transparent); animation: dvbGlow 2.6s ease-in-out infinite; pointer-events: none; }
+.dvb2-glow.t-silver { --g: rgba(188,210,255,.5); } .dvb2-glow.t-gold { --g: rgba(255,210,60,.6); } .dvb2-glow.t-elite { --g: rgba(198,255,61,.6); }
+@keyframes dvb2Float { 0%, 100% { transform: translateY(0) rotate(-1.5deg); } 50% { transform: translateY(-5px) rotate(1.5deg); } }
+@media (prefers-reduced-motion: reduce) { .dvb2, .dvb2-glow { animation: none !important; } }
+/* лестница дивизионов — маленькие значки */
+.dv-lad .dvl { width: 34px; height: 41px; clip-path: none; background: none !important; filter: grayscale(.85) brightness(.55); }
+.dv-lad .dvl img { width: 100%; height: 100%; object-fit: contain; }
+.dv-lad .dvl.done { filter: none; opacity: .75; }
+.dv-lad .dvl.on { width: 46px; height: 55px; filter: drop-shadow(0 0 10px rgba(255,210,60,.65)); }

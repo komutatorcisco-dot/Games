@@ -63,7 +63,7 @@ const FCM = (() => {
   // меню снизу: Команда · События · [Главная] · Задания · Магазин — главная по центру, как кнопка «домой»
   function nav() {
     const L = [['team', 'Команда'], ['events', 'События'], ['play', 'Главная'], ['quests', 'Задания'], ['store', 'Магазин']];
-    return `<nav class="fm-nav">${L.map(([id, t]) => `<button class="fm-tab ${id === tab ? 'on' : ''} ${id === 'store' ? 'shop' : ''} ${id === 'play' ? 'home' : ''}" data-fm-tab="${id}">${ico(id === 'play' ? 'home' : id, 'fm-ti')}<b>${t}</b>${(id === 'quests' && questsReady()) || (id === 'events' && typeof ClubPath !== 'undefined' && ClubPath.ready()) ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
+    return `<nav class="fm-nav">${L.map(([id, t]) => `<button class="fm-tab ${id === tab ? 'on' : ''} ${id === 'store' ? 'shop' : ''} ${id === 'play' ? 'home' : ''}" data-fm-tab="${id}">${ico(id === 'play' ? 'home' : id, 'fm-ti')}<b>${t}</b>${(id === 'quests' && (questsReady() || claimAny())) || (id === 'events' && typeof ClubPath !== 'undefined' && ClubPath.ready()) || (id === 'store' && typeof Wheel !== 'undefined' && Wheel.ready()) ? '<em class="fm-dot"></em>' : ''}</button>`).join('')}</nav>`;
   }
 
   // ---------- Играть (главная) ----------
@@ -99,7 +99,9 @@ const FCM = (() => {
   }
   // ---- дивизионы (5.11, js/division.js) ----
   const carLabel = () => { try { const S0 = ClubPath.S(), c = ClubPath.CH[Math.min(S0.ch, ClubPath.CH.length) - 1]; return `Глава ${c.id} · ${c.t}`; } catch (e) { return 'Сюжет и задания'; } };
-  const dvBadge = (i, big) => `<span class="dvb t-${Division.tier(i)} ${big ? 'big' : ''}"><i class="dvb-glow"></i><span class="dvb-sh"><span class="dvb-in"><small>${i >= 9 ? 'Элита' : 'Дивизион'}</small><b>${i >= 9 ? '★' : Division.num(i)}</b></span></span><i class="dvb-shine"></i></span>`;
+  // значок дивизиона (21.11) — 3D-рендер из tools/art/divs.html: щит из металла ступени, номер, звёзды, лавры, корона
+  const dvImg = (i, big) => `img/div/d${Math.max(0, Math.min(9, i))}-${big ? 384 : 192}.webp?v=2`;
+  const dvBadge = (i, big) => `<span class="dvb2 ${big ? 'big' : ''}"><i class="dvb2-glow t-${Division.tier(i)}"></i><img src="${dvImg(i, big)}" alt="${esc(Division.name(i))}"></span>`;
   const dvBar = () => { const D = Division, s = D.week(), i = D.idx(), nx = D.START[i + 1]; return { s, i, nx, pct: nx ? Math.max(3, Math.round(100 * (s.pts - D.START[i]) / (nx - D.START[i]))) : 100 }; };
   function divHero() {
     const { s, i, nx, pct } = dvBar();
@@ -113,7 +115,7 @@ const FCM = (() => {
     const D = Division, { s, i, nx, pct } = dvBar(), L = s.last && !s.last.seen ? s.last : null;
     if (L) { s.last.seen = true; Store.save(); if (L.up) setTimeout(() => { if (typeof confetti === 'function') confetti(); Sound.play('whistle'); }, 400); }
     const K = typeof Eco !== 'undefined' && Eco.on() ? Eco.K() : 1, [a, lime, cn] = D.WEEK[s.wbest];
-    const lad = D.START.map((_, k) => `<span class="dvl t-${D.tier(k)} ${k === i ? 'on' : ''} ${k < i ? 'done' : ''}"><b>${k >= 9 ? '★' : D.num(k)}</b></span>`).join('<i class="dvl-ln"></i>');
+    const lad = D.START.map((_, k) => `<span class="dvl ${k === i ? 'on' : ''} ${k < i ? 'done' : ''}"><img src="${dvImg(k)}" alt="${esc(D.name(k))}" loading="lazy"></span>`).join('<i class="dvl-ln"></i>');
     return `<div class="dv">
       <div class="dv-l">${dvBadge(i, true)}<b class="dv-n">${esc(D.name(i))}</b>
         <span class="fm-bar dv-bar"><i style="width:${pct}%"></i></span><small>${nx ? `${s.pts} / ${nx} очков до ${esc(D.name(i + 1))}` : `${s.pts} очков · вершина`}</small>
@@ -122,47 +124,37 @@ const FCM = (() => {
         ${L ? `<div class="dv-res ${L.res}"><b>${L.res === 'win' ? 'Победа' : L.res === 'draw' ? 'Ничья' : 'Поражение'} ${L.score[0]}:${L.score[1]}</b><span>${L.dp >= 0 ? '+' : ''}${L.dp} очков дивизиона${L.tro ? ` · +${L.tro} ${cup}` : ''}${L.up ? ' · <u>Новый дивизион!</u>' : ''}</span></div>` : ''}
         <div class="dv-lad">${lad}</div>
         <div class="dv-wk">${s.prize ? `<span><small>Неделя закончилась</small><b>Награда за ${esc(D.name(s.prize.i))}</b></span><button class="fm-btn gold" data-dv-week>Забрать</button>`
-          : `<span><small>Награда недели за ${esc(D.name(s.wbest))}</small><b><img class="dv-ang" src="img/packs/angry-160.webp?v=a1" alt="">×${a} · ${Lime.ico()} ${lime} · ${coin} ${Math.round(cn * K)}</b></span>`}</div>
+          : `<span><small>Награда недели за ${esc(D.name(s.wbest))}</small><b><img class="dv-ang" src="img/packs/angry-160.webp?v=a2" alt="">×${a} · ${Lime.ico()} ${lime} · ${coin} ${Math.round(cn * K)}</b></span>`}</div>
         <div class="dv-go"><button class="fm-btn" data-dv-team>Состав</button><button class="fm-btn gold dv-play" data-dv-play>Играть матч 3 на 3</button></div>
         <p class="mk-note">Победа: +${D.PTS.win} очков и +${D.tro('win', i)} трофеев · ничья +${D.PTS.draw} · поражение ${D.PTS.loss}. Ниже начала дивизиона не опустишься. Трофеи дают только матчи дивизионов.</p>
       </div></div>`;
   }
-  // ---- главная (15.11): дивизион поверх 3D-стадиона с большой кнопкой «Играть», под ним стеклянные чипы
-  // (пропуск, задания, путь трофеев), справа — мячи/паки, «Карьера», «Мини-игры», слева — круглые кнопки ----
+  // ---- главная (21.11, проще): слева крупный 3D-значок дивизиона, название, полоса очков и одна большая «Играть»;
+  // справа две плитки: «что открыть сейчас» (злой мяч → мяч-дроп → пак дня → паки) и «Мини-игры».
+  // Рынок, пак дня — в «Магазине», игрок дня и карьера — в «Событиях», пропуск и путь трофеев — в «Заданиях»
+  // (на вкладках внизу точка, когда там есть что забрать) ----
   function play() {
     const jg = Cards.get('JG:nicolas-jackson');
     const day = typeof Wheel !== 'undefined' && Wheel.ready();
-    let c = {}; try { c = Rewards.claimable(); } catch (e) { c = {}; }
     const A = typeof Rewards !== 'undefined' && Rewards.angryN ? Rewards.angryN() : 0, P = (Rewards.S && Rewards.S().pending) || 0;
-    const rb = (attr, img, t, badge = '', cls = '') => `<button class="hm-rb ${cls}" ${attr}><span class="hm-rb-i"><img src="${img}" alt=""></span><b>${t}</b>${badge}</button>`;
-    const chip = (attr, ic, t, v, hot) => `<button class="hm-chip ${hot ? 'hot' : ''}" ${attr}><i>${ic}</i><span><small>${t}</small><b>${v}</b></span>${hot ? `<em>${hot}</em>` : ''}</button>`;
-    // дивизион
-    let D = null; try { const { s: ds, i, nx, pct } = dvBar(); D = { ds, i, nx, pct }; } catch (e) { D = null; }
+    let D = null; try { D = dvBar(); } catch (e) { D = null; }
     const hero = D ? `<div class="hm-hero">
         <button class="hm-emb" data-fm-tab="div" aria-label="Дивизион">${dvBadge(D.i, true)}</button>
-        <div class="hm-ht"><small>Дивизионы · 3 на 3 · онлайн</small><b>${esc(Division.name(D.i))}</b>
-          <span class="hm-bar"><i style="width:${D.pct}%"></i></span><em>${D.nx ? `${D.ds.pts} / ${D.nx} очков` : `${D.ds.pts} очков · вершина`}${D.ds.prize ? ' · <u>награда недели ждёт</u>' : ''}</em>
+        <div class="hm-ht"><small>Дивизионы · матч 3 на 3</small><b>${esc(Division.name(D.i))}</b>
+          <span class="hm-bar"><i style="width:${D.pct}%"></i></span>
+          <em>${D.nx ? `${D.s.pts} / ${D.nx} очков до следующего` : `${D.s.pts} очков · вершина`}</em>
+          ${D.s.prize ? '<button class="hm-prize" data-fm-tab="div">Награда недели ждёт ›</button>' : ''}
           <button class="hm-play" data-dv-play><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>Играть</button></div></div>` : homeHero(jg);
-    // карьера: глава и прогресс
-    let car = { t: 'Сюжет и задания', d: 0, n: 7 }; try { const S0 = ClubPath.S(), ch = ClubPath.CH[Math.min(S0.ch, ClubPath.CH.length) - 1]; car = { t: `Глава ${ch.id} · ${ch.t}`, d: Object.keys(S0.tok).filter((k) => k.startsWith(ch.id + ':')).length, n: ch.tasks.length }; } catch (e) { /* без карьеры */ }
+    // одна плитка «открыть сейчас»: самое ценное из того, что ждёт
+    const T = A ? { a: 'data-act="angry"', img: 'img/packs/angry-360.webp?v=a2', s: 'Злой мяч', t: 'Открыть', n: A, c: 'angry' }
+      : P ? { a: 'data-act="balls"', img: 'img/packs/pk0-360.webp?v=b3', s: 'Мяч-дроп', t: 'Открыть', n: P, c: 'balls' }
+      : day ? { a: 'data-act="wheel"', img: 'img/packs/pk1-360.webp?v=b3', s: 'Бесплатно', t: 'Пак дня', n: '!', c: 'balls' }
+      : { a: 'data-fm-tab="store"', img: 'img/packs/pk3-360.webp?v=b3', s: 'Магазин', t: 'Паки', n: 0, c: 'packs' };
     const GM = ['career', 'ng-wordle', 'hl'].map((k) => `img/games/${k}.webp`);
-    return `<div class="hm">
-      <div class="hm-rail">
-        ${A ? rb('data-act="angry"', 'img/packs/angry-160.webp?v=a1', 'Злой мяч', `<em class="hm-n red">${A}</em>`, 'angry') : ''}
-        ${rb('data-fm-tab="market"', 'img/fcm/plate-draft.webp?v=2', 'Рынок')}
-        ${typeof Wheel !== 'undefined' ? rb('data-act="wheel"', 'img/packs/pk0-160.webp?v=b2', day ? 'Пак дня' : 'Завтра', day ? '<em class="hm-dot"></em>' : '', 'ball') : ''}
-        ${rb('data-act="dly"', 'img/fcm/ic-daily.webp', 'Игрок дня')}
-      </div>
-      <div class="hm-c">${hero}
-        <div class="hm-chips">
-          ${chip('data-fm-go="quests:pass"', ico('star'), 'Пропуск', `Ур. ${Rewards.passLevel ? Rewards.passLevel() : 0}`, c.pass ? `+${c.pass}` : '')}
-          ${chip('data-fm-go="quests:day"', ico('quests'), 'Задания', c.qs ? `Готово: ${c.qs}` : 'В процессе', c.qs ? '!' : '')}
-          ${chip('data-fm-go="quests:road"', cup, 'Путь трофеев', `${trophies()}`, c.road ? `+${c.road}` : '')}
-        </div></div>
+    return `<div class="hm hm2">
+      <div class="hm-c">${hero}</div>
       <div class="hm-r">
-        ${P ? `<button class="hm-t balls" data-act="balls"><span class="hm-t-art"><img class="pl-ball" src="img/packs/pk0-360.webp?v=b2" alt=""></span><span class="hm-t-tx"><small>Мяч-дроп</small><b>Открыть</b></span><em class="hm-n">${P}</em></button>`
-          : `<button class="hm-t packs" data-fm-tab="store"><span class="hm-t-art"><img class="pl-ball" src="img/packs/pk3-360.webp?v=b2" alt=""></span><span class="hm-t-tx"><small>Магазин</small><b>Паки</b></span></button>`}
-        <button class="hm-t car" data-fm-car><span class="hm-t-art">${jg ? Cards.html(jg, { w: 52 }) : ''}</span><span class="hm-t-tx"><small>Карьера</small><b>${esc(car.t.replace(/^Глава \d+ · /, ''))}</b><span class="hm-bar sm"><i style="width:${Math.max(4, Math.round(100 * car.d / car.n))}%"></i></span></span></button>
+        <button class="hm-t ${T.c}" ${T.a}><span class="hm-t-art"><img class="pl-ball" src="${T.img}" alt=""></span><span class="hm-t-tx"><small>${T.s}</small><b>${T.t}</b></span>${T.n ? `<em class="hm-n">${T.n}</em>` : ''}</button>
         <button class="hm-t mini" data-fm-go="modes:guess"><span class="hm-t-art col">${GM.map((g) => `<img src="${g}" alt="">`).join('')}</span><span class="hm-t-tx"><small>48 игр</small><b>Мини-игры</b></span></button>
       </div>
     </div>`;
@@ -473,6 +465,7 @@ const FCM = (() => {
 
   // ---------- Задания ----------
   const GO = (ev) => { const p = ev.split(':'); if (p[1] === 'act') return `data-act="${p[2]}"`; if (p[1] === 'ng') return `data-ng="${p[2]}"`; if (p[1] === 'squad') return 'data-act="squad"'; if (ev === 'pack') return 'data-fm-tab="store"'; return 'data-fm-tab="play"'; };
+  function claimAny() { try { const c = Rewards.claimable(); return !!(c.pass || c.road); } catch (e) { return false; } }
   function questsReady() { try { const q = Rewards.questSync(); return [...q.list, ...q.wlist, ...(q.slist || [])].some((x) => x.done && !x.got); } catch (e) { return false; } }
   // «Задания» как в FC Mobile (29.10): сверху — сколько выполнено и когда обновятся, полоса пропуска со следующей наградой,
   // задания — плитками со значком по типу; готовые к получению — первыми, полученные — в конце. Награды прежние.
@@ -487,14 +480,14 @@ const FCM = (() => {
   // ---- пропуск сезона в новом виде: две линии наград (премиум сверху, бесплатно снизу), уровни, «Забрать» ----
   function rwCell(r, st, attr) {
     const l = Rewards.rewardLabel(r);
-    const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b2" alt="">` : r.coins ? '<i class="coin big"></i>' : l.ico;
+    const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b3" alt="">` : r.coins ? '<i class="coin big"></i>' : l.ico;
     return `<button class="fm-ps-c ${st}" ${attr}><span class="fm-ps-a">${art}</span><b>${esc(l.txt || l.name)}</b>${st === 'got' ? '<i>✓</i>' : st === 'ready' ? '<em>Забрать</em>' : st === 'buy' ? '<em class="pr">Премиум</em>' : ''}</button>`;
   }
   // ---- пропуск (5.11): сверху премиум-линия, снизу бесплатная, посередине уровни на линии прогресса; дорожка встаёт на текущий уровень ----
   function psCell(r, st, attr, prem, cw = 42) {
     const l = Rewards.rewardLabel(r);
     const pc = r.key && Cards.get(r.key);
-    const art = pc ? `<span class="ps2-card">${Cards.html(pc, { w: cw })}</span>` : r.pack !== undefined ? `<img class="ps2-pk" src="img/packs/pk${r.pack}-160.webp?v=b2" alt="">` : r.coins ? '<i class="coin big"></i>' : r.lime ? '<i class="lime big"></i>' : `<span class="ps2-ic">${l.ico}</span>`;
+    const art = pc ? `<span class="ps2-card">${Cards.html(pc, { w: cw })}</span>` : r.pack !== undefined ? `<img class="ps2-pk" src="img/packs/pk${r.pack}-160.webp?v=b3" alt="">` : r.coins ? '<i class="coin big"></i>' : r.lime ? '<i class="lime big"></i>' : `<span class="ps2-ic">${l.ico}</span>`;
     const name = r.lime ? `${r.lime}` : pc ? l.txt : r.pack !== undefined ? l.txt : r.coins ? `${r.coins}` : (l.name || l.txt);
     const tag = st === 'got' ? '<i class="ps2-ok">✓</i>' : st === 'ready' ? '<em>Забрать</em>' : /buy/.test(st) ? `<i class="ps2-lock">${ico('lock')}</i>` : '';
     return `<button class="ps2-c ${st} ${prem ? 'pr' : ''} ${pc ? 'sp' : ''}" ${attr}><span class="ps2-a">${art}</span><b>${esc(name)}</b>${tag}</button>`;
@@ -585,7 +578,7 @@ const FCM = (() => {
   }
   const price = (x) => `${x.coins ? `<span class="fm-pr c">${coin}${x.coins}</span>` : ''}${x.stars ? `<span class="fm-pr s">${StarShop.free() ? 0 : x.stars} ⭐</span>` : ''}`;
   const pkCard = (x, big) => `<button class="fm-pk lv${x.level} ${big ? 'big' : ''}" data-fm-pk="${x.id}">
-      <i class="fm-pk-glow"></i><img class="fm-pk-img" src="img/packs/pk${x.level}-360.webp?v=b2" alt="" loading="lazy" draggable="false">
+      <i class="fm-pk-glow"></i><img class="fm-pk-img" src="img/packs/pk${x.level}-360.webp?v=b3" alt="" loading="lazy" draggable="false">
       <span class="fm-pk-t"><b>${esc(x.name)}</b><span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span></span>
       <span class="fm-pk-p">${price(x)}</span></button>`;
   function store() {
@@ -596,10 +589,10 @@ const FCM = (() => {
     if (sub.store === 'top') {
       const jack = list.find((x) => x.id === 'jack'), rest = list.filter((x) => ['basic', 'gold', 'legend'].includes(x.id));
       body = `<div class="fm-st-top">
-        ${jack ? `<button class="fm-st-hero" data-fm-pk="jack"><i class="fm-st-rays"></i><img src="img/packs/pk4-360.webp?v=b2" alt="" draggable="false">
+        ${jack ? `<button class="fm-st-hero" data-fm-pk="jack"><i class="fm-st-rays"></i><img src="img/packs/pk4-360.webp?v=b3" alt="" draggable="false">
           <span><small>Лучший пак</small><b>${esc(jack.name)}</b><em>${esc(jack.sub)}</em><span class="fm-pk-p">${price(jack)}</span></span></button>` : ''}
         <div class="fm-st-col">
-          <button class="fm-daypk ${day ? 'hot' : ''}" data-act="wheel"><img src="img/packs/pk0-160.webp?v=b2" alt=""><span><b>Пак дня</b><small>${day ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${day ? 'Забрать' : 'Завтра'}</em></button>
+          <button class="fm-daypk ${day ? 'hot' : ''}" data-act="wheel"><img src="img/packs/pk0-160.webp?v=b3" alt=""><span><b>Пак дня</b><small>${day ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${day ? 'Забрать' : 'Завтра'}</em></button>
           <div class="fm-st-mini">${rest.map((x) => pkCard(x)).join('')}</div>
         </div></div>`;
     } else if (sub.store === 'packs') body = `<div class="fm-pks">${list.map((x) => pkCard(x)).join('')}</div>`;
@@ -678,7 +671,7 @@ const FCM = (() => {
     const P0 = Cards.PACKS[x.level], P = { ...P0, w: effW(P0.w) }, tot = P.w.reduce((a, w) => a + w[1], 0);
     const el = document.createElement('div'); el.className = `fm-sheet lv${x.level}`;
     el.innerHTML = `<div class="fm-sh-card">
-        <div class="fm-sh-art"><i class="fm-st-rays"></i><img src="img/packs/pk${x.level}-360.webp?v=b2" alt="" draggable="false"></div>
+        <div class="fm-sh-art"><i class="fm-st-rays"></i><img src="img/packs/pk${x.level}-360.webp?v=b3" alt="" draggable="false"></div>
         <div class="fm-sh-info">
           <small>Пак</small><b>${esc(x.name)}</b>
           <span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span>

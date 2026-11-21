@@ -22,7 +22,7 @@ const PackOpen = (() => {
   // рисунок пака по редкости (img/packs/pk*.webp); объём нарисован на самой картинке
   const PIMG = ['pk-silver', 'pk-blue', 'pk-purple', 'pk-gold', 'pk-black'];
   // паки-мячи (4.11): 3D-рендер, tools/art/packforms.html (renderBall), node tools/art/render.js balls
-  const pimg = (lv, sz) => `img/packs/pk${lv}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp?v=b2`;
+  const pimg = (lv, sz) => `img/packs/pk${lv}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp?v=b3`;
   const art = (lv, sz = '', cap = false) => `<span class="fpk p${lv} ${sz} pimg"><span class="fpk-b">
       <i class="fpk-f" style="-webkit-mask-image:url(${pimg(lv, sz)});mask-image:url(${pimg(lv, sz)})"><img class="fpk-img" src="${pimg(lv, sz)}" alt="" decoding="async" draggable="false"><i class="fpk-sh"></i><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;
@@ -240,7 +240,7 @@ const PackOpen = (() => {
     const [art, big, sub, col] = p.coins ? [`<span class="pz-coins">${'<i class="coin"></i>'.repeat(5)}</span>`, `+${F(p.coins * K)}`, 'монет', '#ffd23c']
       : p.lime ? ['<i class="lime pz-lime"></i>', `+${F(p.lime)}`, 'лаймовых очков прокачки', '#c6ff3d']
       : p.xp ? ['<span class="pz-xp">★</span>', `+${p.xp}`, 'очков пропуска', '#7fd8ff']
-      : [`<img class="pz-pk" src="img/packs/pk${p.pack}-360.webp?v=b2" alt="">`, LV[p.pack].name, 'откроется следом', LV[p.pack].css];
+      : [`<img class="pz-pk" src="img/packs/pk${p.pack}-360.webp?v=b3" alt="">`, LV[p.pack].name, 'откроется следом', LV[p.pack].css];
     setCol(el, col);
     $('.po-k', el).textContent = 'Мяч-дроп'; const nm = $('.po-name', el); nm.textContent = sub.toUpperCase(); nm.classList.remove('long'); slam(nm);
     stage.innerHTML = `<div class="po-prize"><i class="pz-rays"></i><span class="pz-art">${art}</span><b class="pz-n">${esc(big)}</b><small>${esc(sub)}</small></div>`;
@@ -280,7 +280,7 @@ const PackOpen = (() => {
     stage.innerHTML = `<div class="po-pack" data-lv="${level}">${art(level, 'xxl')}</div>`;
     const hint = $('.po-hint', el); hint.textContent = single ? 'Жми на мяч — редкость может вырасти' : 'Жми на пак — редкость может вырасти';
     const packEl = $('.po-pack', stage);
-    const AIMG = 'img/packs/angry-360.webp?v=a1';
+    const AIMG = 'img/packs/angry-360.webp?v=a2';
     if (angry) { el.classList.add('angry'); const im = $('.fpk-img', packEl); im.src = AIMG; im.parentNode.style.webkitMaskImage = im.parentNode.style.maskImage = `url(${AIMG})`; }
     anim(packEl, [{ transform: 'translateY(50vh) rotateX(40deg) scale(.6)', opacity: 0 }, { transform: 'none', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,1,.3,1)' });
     $('.po-x', el).onclick = () => { if (!started) close(el); };
@@ -335,7 +335,7 @@ const PackOpen = (() => {
     el.dataset.phase = 'pack';
     const stage = $('.po-stage', el);
     stage.innerHTML = `<div class="po-pack" data-lv="0">${art(0, 'xxl')}</div>`;
-    const packEl = $('.po-pack', stage), im = $('.fpk-img', packEl), AIMG = 'img/packs/angry-360.webp?v=a1';
+    const packEl = $('.po-pack', stage), im = $('.fpk-img', packEl), AIMG = 'img/packs/angry-360.webp?v=a2';
     im.src = AIMG; im.parentNode.style.webkitMaskImage = im.parentNode.style.maskImage = `url(${AIMG})`;
     $('.po-k', el).textContent = title; el.classList.add('meter');
     $('.po-steps', el).innerHTML = AR.map((a, i) => `<i style="--c:${a.c}" class="${i <= 0 ? 'on' : ''}"></i>`).join('');

@@ -14,11 +14,11 @@ const Notify = (() => {
   const face = (key) => { try { const c = Cards.get(key); if (!c) return ''; const src = c.faceUrl || (c.face && typeof faceSrc === 'function' ? faceSrc(c.face) : ''); return src || ''; } catch (e) { return ''; } };
   return {
     LIME,
-    pass: (lv, max) => P({ caption: 'Пропуск', counter: `${lv}/${max}`, title: 'Новый уровень', image: 'img/packs/pk2-160.webp?v=b2', tint: 'purple' }, `Пропуск: уровень ${lv}!`),
+    pass: (lv, max) => P({ caption: 'Пропуск', counter: `${lv}/${max}`, title: 'Новый уровень', image: 'img/packs/pk2-160.webp?v=b3', tint: 'purple' }, `Пропуск: уровень ${lv}!`),
     quest: (t, n) => P({ caption: 'Задание выполнено', counter: n > 1 ? `${n}/${n}` : '', title: t, tint: 'green' }, `Задание выполнено: ${t} ✓`),
     division: (name) => P({ caption: 'Повышение', title: name, tint: 'gold', fonts: 'sport', duration: 3200 }, `Новый дивизион: ${name}!`),
     record: (v) => P({ caption: 'Новый рекорд', title: String(v), tint: 'green', fonts: 'sport' }, `Новый рекорд: ${v}`),
-    angry: (n = 1) => P({ caption: 'Получен предмет', counter: n > 1 ? `×${n}` : '', title: 'Злой мяч', image: 'img/packs/angry-160.webp?v=a1', tint: 'red' }, 'Злой мяч! Открой его на главной'),
+    angry: (n = 1) => P({ caption: 'Получен предмет', counter: n > 1 ? `×${n}` : '', title: 'Злой мяч', image: 'img/packs/angry-160.webp?v=a2', tint: 'red' }, 'Злой мяч! Открой его на главной'),
     lime: (n) => P({ caption: 'Лаймовые очки', title: `+${n}`, image: LIME, tint: 'lime' }, `+${n} лаймовых очков прокачки`),
     rank: (name) => P({ caption: 'Новое звание', title: name, tint: 'blue' }, `Новое звание: ${name}!`),
     opp: (o) => P({ caption: 'Соперник найден', counter: o.ovr ? `ОБЩ ${o.ovr}` : '', title: o.nick, image: o.face || '', tint: 'red' }, `Соперник: ${o.nick}`),

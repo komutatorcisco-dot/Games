@@ -25,6 +25,16 @@ for h in (360, 160):
       console.log('pack', lv, 'ok');
     }
   }
+  if (what === 'divs') { // значки дивизионов (21.11): img/div/d{0..9}-{384,192}.webp, кадр 5:6 без обрезки (все одного размера)
+    await p.goto('http://localhost:8765/tools/art/divs.html'); await p.waitForTimeout(1500);
+    const tmp = path.join(ROOT, 'tools/art/.tmp'); fs.mkdirSync(tmp, { recursive: true }); fs.mkdirSync(path.join(ROOT, 'img/div'), { recursive: true });
+    for (let i = 0; i < 10; i++) {
+      const url = await p.evaluate((i) => window.renderDiv(i, 800, 960), i);
+      const png = path.join(tmp, `d${i}.png`); fs.writeFileSync(png, Buffer.from(url.split(',')[1], 'base64'));
+      execFileSync('python3', ['-I', '-c', "import sys\nfrom PIL import Image\nim=Image.open(sys.argv[1]).convert('RGBA')\nfor h in (384,192): im.resize((h*5//6,h), Image.LANCZOS).save(sys.argv[2]+f'-{h}.webp', quality=88, method=6)", png, path.join(ROOT, `img/div/d${i}`)]);
+      console.log('div', i, 'ok');
+    }
+  }
   if (what === 'balls') { // мяч-пак (4.11): те же файлы img/packs/pk*, кадр 223×360 без обрезки
     await p.goto('http://localhost:8765/tools/art/packforms.html'); await p.waitForTimeout(1500);
     const tmp = path.join(ROOT, 'tools/art/.tmp'); fs.mkdirSync(tmp, { recursive: true });
