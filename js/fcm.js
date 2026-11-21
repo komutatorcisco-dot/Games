@@ -530,16 +530,19 @@ const FCM = (() => {
     const lists = { day: q.list, week: q.wlist, season: q.slist || [] };
     const n = (l) => l.filter((x) => x.done && !x.got).length;
     let c = {}; try { c = Rewards.claimable(); } catch (e) { /* ок */ }
-    const L = [['day', 'Ежедневные', n(lists.day) ? `Забрать: ${n(lists.day)}` : ''], ['week', 'Недельные', n(lists.week) ? `Забрать: ${n(lists.week)}` : ''], ['season', 'Сезон', n(lists.season) ? `Забрать: ${n(lists.season)}` : ''],
-      ['pass', 'Пропуск', c.pass ? `Забрать: ${c.pass}` : ''], ['road', 'Путь трофеев', c.road ? `Забрать: ${c.road}` : '']];
+    // 21.11: в разделах слева — «N наград» вместо непонятного «Забрать: N»
+    const rw = (k) => (k ? `${k} ${k % 10 === 1 && k % 100 !== 11 ? 'награда' : [2, 3, 4].includes(k % 10) && ![12, 13, 14].includes(k % 100) ? 'награды' : 'наград'}` : '');
+    const L = [['day', 'Ежедневные', rw(n(lists.day))], ['week', 'Недельные', rw(n(lists.week))], ['season', 'Сезон', rw(n(lists.season))],
+      ['pass', 'Пропуск', rw(c.pass)], ['road', 'Путь трофеев', rw(c.road)]];
     if (sub.quests === 'pass') return `<div class="fm-split">${rail(L, 'quests')}<div class="fm-body">${passView()}</div></div>`;
     if (sub.quests === 'road') return `<div class="fm-split">${rail(L, 'quests')}<div class="fm-body">${roadView()}</div></div>`;
     const list = lists[sub.quests], rank = (x) => (x.done && !x.got ? 0 : x.got ? 2 : 1);
     const done = list.filter((x) => x.done).length;
+    const gq = (ev) => { const p = String(ev || '').split(':'); return p.length > 2 ? gImg(`${p[1]}:${p[2]}`) : ''; }; // значок — картинка самой игры
     const tiles = list.slice().sort((a, b) => rank(a) - rank(b)).map((x) => { const d = Rewards.qdef(x.id); if (!d) return '';
       const [ic, k] = QT[Rewards.questArt(d)] || QT.qlist, pc = Math.round(100 * Math.min(1, x.p / d.n));
       return `<div class="fm-q ${x.got ? 'got' : x.done ? 'done' : ''}">
-        <span class="fm-q-ic k-${k}">${ico(ic)}</span>
+        ${gq(d.ev) ? `<span class="fm-q-ic img"><img src="${gq(d.ev)}" alt="" loading="lazy"></span>` : `<span class="fm-q-ic k-${k}">${ico(ic)}</span>`}
         <span class="fm-q-t"><b>${esc(d.t)}</b><span class="fm-bar"><i style="width:${pc}%"></i></span></span>
         <span class="fm-q-f"><small>${x.p}/${d.n}</small><em class="fm-q-rw">${ico('star')}+${d.xp}</em>
         ${x.got ? '<span class="fm-q-ok">Получено ✓</span>' : x.done ? `<button class="fm-btn gold sm" data-fm-claim="${x.id}">Забрать</button>` : `<button class="fm-btn sm" ${GO(d.ev)}>Играть ›</button>`}</span></div>`; }).join('');
@@ -548,8 +551,8 @@ const FCM = (() => {
       const p = Rewards.passSync(), lv = Rewards.passLevel(), max = Rewards.PASS_LEVELS, step = Rewards.PASS_STEP;
       const nx = Rewards.PASS[Math.min(lv, max - 1)], lb = nx ? Rewards.rewardLabel(nx[0]) : null, xp = lv >= max ? step : p.xp - lv * step;
       pass = `<button class="fm-qpass" data-fm-sub="quests:pass"><span class="fm-qp-lv"><small>Ур.</small><b>${lv}</b></span>
-        <span class="fm-qp-t"><b>Пропуск сезона</b><span class="fm-bar"><i style="width:${Math.round(100 * xp / step)}%"></i></span><small>${xp}/${step} очков до уровня ${Math.min(max, lv + 1)}</small></span>
-        ${lb ? `<span class="fm-qp-nx"><small>Дальше</small><span class="fm-qp-art">${lb.ico}</span><b>${esc(lb.txt || lb.name)}</b></span>` : ''}<i class="fm-qp-go">›</i></button>`;
+        <span class="fm-qp-t"><b>Пропуск сезона</b><span class="fm-bar"><i style="width:${Math.round(100 * xp / step)}%"></i></span><small>${lv >= max ? (c.pass ? 'Пропуск пройден — забери награды' : 'Пропуск пройден') : `${xp}/${step} очков до уровня ${lv + 1}`}</small></span>
+        ${lb && lv < max ? `<span class="fm-qp-nx"><small>Дальше</small><span class="fm-qp-art">${lb.ico}</span><b>${esc(lb.txt || lb.name)}</b></span>` : ''}<i class="fm-qp-go">›</i></button>`;
     } catch (e) {}
     const T = { day: 'Ежедневные задания', week: 'Недельные задания', season: 'Задания сезона' }[sub.quests];
     return `<div class="fm-split">${rail(L, 'quests')}<div class="fm-body fm-qbody">
@@ -576,7 +579,7 @@ const FCM = (() => {
     P.sure.forEach((r) => { r = effRar(r); sure[r] = (sure[r] || 0) + (x.count || 1); });
     return [`${n} ${plural(n, 'карта', 'карты', 'карт')}`, ...Object.entries(sure).reverse().map(([r, k]) => `${k} × ${RRU[r] || r}`)];
   }
-  const price = (x) => `${x.coins ? `<span class="fm-pr c">${coin}${x.coins}</span>` : ''}${x.stars ? `<span class="fm-pr s">${StarShop.free() ? 0 : x.stars} ⭐</span>` : ''}`;
+  const price = (x) => `${x.coins ? `<span class="fm-pr c">${coin}${x.coins}</span>` : ''}${x.stars ? `<span class="fm-pr s">${StarShop.free() ? 'Бесплатно' : x.stars} ⭐</span>` : ''}`;
   const pkCard = (x, big) => `<button class="fm-pk lv${x.level} ${big ? 'big' : ''}" data-fm-pk="${x.id}">
       <i class="fm-pk-glow"></i><img class="fm-pk-img" src="img/packs/pk${x.level}-360.webp?v=b3" alt="" loading="lazy" draggable="false">
       <span class="fm-pk-t"><b>${esc(x.name)}</b><span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span></span>
@@ -678,7 +681,7 @@ const FCM = (() => {
           <p class="fm-sh-h">Шанс в каждом случайном слоте</p>
           <div class="fm-odds">${P.w.map(([r, n]) => `<span class="${r}"><small>${esc(Cards.RAR[r].n)}</small><i><u style="width:${Math.max(2, (n / tot) * 100)}%"></u></i><b>${n}%</b></span>`).join('')}</div>
           <p class="fm-sh-n">${Eco.on() ? 'Повторы остаются в клубе — их можно продать на рынке или быстро продать.' : 'Повторы дают монеты.'} ИПК-карты из паков не выпадают.</p>
-          <div class="fm-sh-buy">${x.coins ? `<button class="fm-btn gold" data-fm-buyc="${x.id}">${coin}${x.coins}</button>` : ''}${x.stars ? `<button class="fm-btn star" data-fm-buys="${x.id}">${StarShop.free() ? 0 : x.stars} ⭐</button>` : ''}</div>
+          <div class="fm-sh-buy">${x.coins ? `<button class="fm-btn gold" data-fm-buyc="${x.id}">${coin}${x.coins}</button>` : ''}${x.stars ? `<button class="fm-btn star" data-fm-buys="${x.id}">${StarShop.free() ? 'Бесплатно' : x.stars} ⭐</button>` : ''}</div>
         </div>
         <button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
     document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));

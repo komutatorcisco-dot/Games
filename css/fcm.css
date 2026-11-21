@@ -1281,3 +1281,31 @@
   .on-nobody .btn { width: 100% !important; height: auto !important; min-height: 42px; margin: 0 !important; flex: none !important; }
   .on-nobody .btn.gold { grid-column: 1 / -1; }
 }
+/* 21.11: магазин — паки справа строками (мяч · название · цена), всё видно без прокрутки; название лучшего пака переносится */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-st-top { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); min-height: 0; align-items: stretch; }
+  .fm-st-hero { grid-template-columns: 42% minmax(0, 1fr); align-content: center; }
+  .fm-st-hero > span { min-width: 0; }
+  .fm-st-hero b { font-size: clamp(18px, 5.4vh, 28px) !important; line-height: 1.02 !important; }
+  .fm-st-hero img { width: 100%; height: auto !important; max-height: 30vh; }
+  .fm-st-col { grid-template-rows: auto auto; align-content: start; gap: 8px; }
+  .fm-st-mini { grid-template-columns: 1fr; gap: 6px; }
+  .fm-st-mini .fm-pk { grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: auto; justify-items: start; align-items: center; gap: 10px; padding: 6px 10px 6px 6px !important; text-align: left !important; min-height: 0; }
+  .fm-st-mini .fm-pk-glow { display: none; }
+  .fm-st-mini .fm-pk-img { height: clamp(38px, 12vh, 52px) !important; animation: none; }
+  .fm-st-mini .fm-pk-t { justify-items: start; gap: 3px; } .fm-st-mini .fm-pk-t b { font-size: 15px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .fm-st-mini .fm-chips { justify-content: flex-start; flex-wrap: nowrap; } .fm-st-mini .fm-chips em:nth-child(n+2) { display: none; }
+  .fm-st-mini .fm-pk-p { flex-direction: column; flex-wrap: nowrap !important; align-items: stretch; gap: 3px; } .fm-st-mini .fm-pr { justify-content: center; }
+}
+/* 21.11: задания — значок = картинка игры, по ней сразу видно, куда идти */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-q-ic.img { background: none !important; box-shadow: none !important; overflow: visible; }
+  .fm-q-ic.img img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 4px 8px rgba(0,0,0,.45)); }
+  .fm-rail small { color: #c6ff3d; }
+}
+/* 21.11: «Ежедневные» в событиях — крупные картинки игр, плитки не пустые */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-grid .fm-gc { align-content: center; gap: 8px; }
+  .fm-grid .fm-gc img, .fm-grid .fm-gc .fm-gi { width: clamp(64px, 24vh, 112px); height: clamp(64px, 24vh, 112px); filter: drop-shadow(0 6px 10px rgba(0,0,0,.45)); }
+  .fm-grid .fm-gc b { font-size: 16px; }
+}
