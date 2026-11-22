@@ -183,9 +183,9 @@ const FCM = (() => {
           <button class="hm-play" data-dv-play><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="currentColor"/></svg>Играть</button></div></div>` : homeHero(jg);
     // одна плитка «открыть сейчас»: самое ценное из того, что ждёт
     const T = A ? { a: 'data-act="angry"', img: 'img/packs/angry-360.webp?v=a2', s: 'Злой мяч', t: 'Открыть', n: A, c: 'angry' }
-      : P ? { a: 'data-act="balls"', img: 'img/packs/pk0-360.webp?v=b3', s: 'Мяч-дроп', t: 'Открыть', n: P, c: 'balls' }
-      : day ? { a: 'data-act="wheel"', img: 'img/packs/pk1-360.webp?v=b3', s: 'Бесплатно', t: 'Пак дня', n: '!', c: 'balls' }
-      : { a: 'data-fm-tab="store"', img: 'img/packs/pk3-360.webp?v=b3', s: 'Магазин', t: 'Паки', n: 0, c: 'packs' };
+      : P ? { a: 'data-act="balls"', img: 'img/packs/pk0-360.webp?v=b4', s: 'Мяч-дроп', t: 'Открыть', n: P, c: 'balls' }
+      : day ? { a: 'data-act="wheel"', img: 'img/packs/pk1-360.webp?v=b4', s: 'Бесплатно', t: 'Пак дня', n: '!', c: 'balls' }
+      : { a: 'data-fm-tab="store"', img: 'img/packs/pk3-360.webp?v=b4', s: 'Магазин', t: 'Паки', n: 0, c: 'packs' };
     const GM = ['career', 'ng-wordle', 'hl'].map((k) => `img/games/${k}.webp`);
     // лига канала: место недели (последнее известное) и «награда ждёт»
     if (typeof League !== 'undefined') League.load(false, () => { if (tab === 'play') render(); });
@@ -525,14 +525,14 @@ const FCM = (() => {
   // ---- пропуск сезона в новом виде: две линии наград (премиум сверху, бесплатно снизу), уровни, «Забрать» ----
   function rwCell(r, st, attr) {
     const l = Rewards.rewardLabel(r);
-    const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b3" alt="">` : r.coins ? '<i class="coin big"></i>' : l.ico;
+    const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b4" alt="">` : r.coins ? '<i class="coin big"></i>' : l.ico;
     return `<button class="fm-ps-c ${st}" ${attr}><span class="fm-ps-a">${art}</span><b>${esc(l.txt || l.name)}</b>${st === 'got' ? '<i>✓</i>' : st === 'ready' ? '<em>Забрать</em>' : st === 'buy' ? '<em class="pr">Премиум</em>' : ''}</button>`;
   }
   // ---- пропуск (5.11): сверху премиум-линия, снизу бесплатная, посередине уровни на линии прогресса; дорожка встаёт на текущий уровень ----
   function psCell(r, st, attr, prem, cw = 42) {
     const l = Rewards.rewardLabel(r);
     const pc = r.key && Cards.get(r.key);
-    const art = pc ? `<span class="ps2-card">${Cards.html(pc, { w: cw })}</span>` : r.pack !== undefined ? `<img class="ps2-pk" src="img/packs/pk${r.pack}-160.webp?v=b3" alt="">` : r.coins ? '<i class="coin big"></i>' : r.lime ? '<i class="lime big"></i>' : `<span class="ps2-ic">${l.ico}</span>`;
+    const art = pc ? `<span class="ps2-card">${Cards.html(pc, { w: cw })}</span>` : r.pack !== undefined ? `<img class="ps2-pk" src="img/packs/pk${r.pack}-160.webp?v=b4" alt="">` : r.coins ? '<i class="coin big"></i>' : r.lime ? '<i class="lime big"></i>' : `<span class="ps2-ic">${l.ico}</span>`;
     const name = r.lime ? `${r.lime}` : pc ? l.txt : r.pack !== undefined ? l.txt : r.coins ? `${r.coins}` : (l.name || l.txt);
     const tag = st === 'got' ? '<i class="ps2-ok">✓</i>' : st === 'ready' ? '<em>Забрать</em>' : /buy/.test(st) ? `<i class="ps2-lock">${ico('lock')}</i>` : '';
     return `<button class="ps2-c ${st} ${prem ? 'pr' : ''} ${pc ? 'sp' : ''}" ${attr}><span class="ps2-a">${art}</span><b>${esc(name)}</b>${tag}</button>`;
@@ -626,7 +626,7 @@ const FCM = (() => {
   }
   const price = (x) => `${x.coins ? `<span class="fm-pr c">${coin}${x.coins}</span>` : ''}${x.stars ? `<span class="fm-pr s">${StarShop.free() ? 'Бесплатно' : x.stars} ⭐</span>` : ''}`;
   const pkCard = (x, big) => `<button class="fm-pk lv${x.level} ${big ? 'big' : ''}" data-fm-pk="${x.id}">
-      <i class="fm-pk-glow"></i><img class="fm-pk-img" src="img/packs/pk${x.level}-360.webp?v=b3" alt="" loading="lazy" draggable="false">
+      <i class="fm-pk-glow"></i><img class="fm-pk-img" src="img/packs/pk${x.level}-360.webp?v=b4" alt="" loading="lazy" draggable="false">
       <span class="fm-pk-t"><b>${esc(x.name)}</b><span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span></span>
       <span class="fm-pk-p">${price(x)}</span></button>`;
   function store() {
@@ -637,10 +637,10 @@ const FCM = (() => {
     if (sub.store === 'top') {
       const jack = list.find((x) => x.id === 'jack'), rest = list.filter((x) => ['basic', 'gold', 'legend'].includes(x.id));
       body = `<div class="fm-st-top">
-        ${jack ? `<button class="fm-st-hero" data-fm-pk="jack"><i class="fm-st-rays"></i><img src="img/packs/pk4-360.webp?v=b3" alt="" draggable="false">
+        ${jack ? `<button class="fm-st-hero" data-fm-pk="jack"><i class="fm-st-rays"></i><img src="img/packs/pk4-360.webp?v=b4" alt="" draggable="false">
           <span><small>Лучший пак</small><b>${esc(jack.name)}</b><em>${esc(jack.sub)}</em><span class="fm-pk-p">${price(jack)}</span></span></button>` : ''}
         <div class="fm-st-col">
-          <button class="fm-daypk ${day ? 'hot' : ''}" data-act="wheel"><img src="img/packs/pk0-160.webp?v=b3" alt=""><span><b>Пак дня</b><small>${day ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${day ? 'Забрать' : 'Завтра'}</em></button>
+          <button class="fm-daypk ${day ? 'hot' : ''}" data-act="wheel"><img src="img/packs/pk0-160.webp?v=b4" alt=""><span><b>Пак дня</b><small>${day ? 'Бесплатно — забери сейчас' : 'Новый пак завтра'}</small></span><em>${day ? 'Забрать' : 'Завтра'}</em></button>
           <div class="fm-st-mini">${rest.map((x) => pkCard(x)).join('')}</div>
         </div></div>`;
     } else if (sub.store === 'packs') body = `<div class="fm-pks">${list.map((x) => pkCard(x)).join('')}</div>`;
@@ -719,7 +719,7 @@ const FCM = (() => {
     const P0 = Cards.PACKS[x.level], P = { ...P0, w: effW(P0.w) }, tot = P.w.reduce((a, w) => a + w[1], 0);
     const el = document.createElement('div'); el.className = `fm-sheet lv${x.level}`;
     el.innerHTML = `<div class="fm-sh-card">
-        <div class="fm-sh-art"><i class="fm-st-rays"></i><img src="img/packs/pk${x.level}-360.webp?v=b3" alt="" draggable="false"></div>
+        <div class="fm-sh-art"><i class="fm-st-rays"></i><img src="img/packs/pk${x.level}-360.webp?v=b4" alt="" draggable="false"></div>
         <div class="fm-sh-info">
           <small>Пак</small><b>${esc(x.name)}</b>
           <span class="fm-chips">${chips(x).map((c) => `<em>${esc(c)}</em>`).join('')}</span>

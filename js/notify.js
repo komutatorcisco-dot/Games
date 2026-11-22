@@ -14,7 +14,7 @@ const Notify = (() => {
   const face = (key) => { try { const c = Cards.get(key); if (!c) return ''; const src = c.faceUrl || (c.face && typeof faceSrc === 'function' ? faceSrc(c.face) : ''); return src || ''; } catch (e) { return ''; } };
   return {
     LIME,
-    pass: (lv, max) => P({ caption: 'Пропуск', counter: `${lv}/${max}`, title: 'Новый уровень', image: 'img/packs/pk2-160.webp?v=b3', tint: 'purple' }, `Пропуск: уровень ${lv}!`),
+    pass: (lv, max) => P({ caption: 'Пропуск', counter: `${lv}/${max}`, title: 'Новый уровень', image: 'img/packs/pk2-160.webp?v=b4', tint: 'purple' }, `Пропуск: уровень ${lv}!`),
     quest: (t, n) => P({ caption: 'Задание выполнено', counter: n > 1 ? `${n}/${n}` : '', title: t, tint: 'green' }, `Задание выполнено: ${t} ✓`),
     division: (name) => P({ caption: 'Повышение', title: name, tint: 'gold', fonts: 'sport', duration: 3200 }, `Новый дивизион: ${name}!`),
     record: (v) => P({ caption: 'Новый рекорд', title: String(v), tint: 'green', fonts: 'sport' }, `Новый рекорд: ${v}`),

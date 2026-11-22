@@ -22,7 +22,7 @@ const PackOpen = (() => {
   // рисунок пака по редкости (img/packs/pk*.webp); объём нарисован на самой картинке
   const PIMG = ['pk-silver', 'pk-blue', 'pk-purple', 'pk-gold', 'pk-black'];
   // паки-мячи (4.11): 3D-рендер, tools/art/packforms.html (renderBall), node tools/art/render.js balls
-  const pimg = (lv, sz) => `img/packs/pk${lv}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp?v=b3`;
+  const pimg = (lv, sz) => `img/packs/pk${lv}-${sz === 'xxl' || sz === 'xl' ? 360 : 160}.webp?v=b4`;
   const art = (lv, sz = '', cap = false) => `<span class="fpk p${lv} ${sz} pimg"><span class="fpk-b">
       <i class="fpk-f" style="-webkit-mask-image:url(${pimg(lv, sz)});mask-image:url(${pimg(lv, sz)})"><img class="fpk-img" src="${pimg(lv, sz)}" alt="" decoding="async" draggable="false"><i class="fpk-sh"></i><em>${LV[lv].short}</em>${cap ? '<i class="po-cap"></i>' : ''}</i>
       <i class="fpk-s"></i><i class="fpk-k"></i></span></span>`;
@@ -240,7 +240,7 @@ const PackOpen = (() => {
     const [art, big, sub, col] = p.coins ? [`<span class="pz-coins">${'<i class="coin"></i>'.repeat(5)}</span>`, `+${F(p.coins * K)}`, 'монет', '#ffd23c']
       : p.lime ? ['<i class="lime pz-lime"></i>', `+${F(p.lime)}`, 'лаймовых очков прокачки', '#c6ff3d']
       : p.xp ? ['<span class="pz-xp">★</span>', `+${p.xp}`, 'очков пропуска', '#7fd8ff']
-      : [`<img class="pz-pk" src="img/packs/pk${p.pack}-360.webp?v=b3" alt="">`, LV[p.pack].name, 'откроется следом', LV[p.pack].css];
+      : [`<img class="pz-pk" src="img/packs/pk${p.pack}-360.webp?v=b4" alt="">`, LV[p.pack].name, 'откроется следом', LV[p.pack].css];
     setCol(el, col);
     $('.po-k', el).textContent = 'Мяч-дроп'; const nm = $('.po-name', el); nm.textContent = sub.toUpperCase(); nm.classList.remove('long'); slam(nm);
     stage.innerHTML = `<div class="po-prize"><i class="pz-rays"></i><span class="pz-art">${art}</span><b class="pz-n">${esc(big)}</b><small>${esc(sub)}</small></div>`;

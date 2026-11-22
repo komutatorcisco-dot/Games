@@ -63,3 +63,16 @@
   body.fcm-on :is(.hm-n, .fm-dot) { box-shadow: 0 0 0 2px #0a1222, 0 2px 0 2px rgba(0,0,0,.4) !important; }
 }
 @media (prefers-reduced-motion: reduce) { body.fcm-on :is(.fm-btn, .hm-play) { transition: none !important; } }
+/* 22.11: мячи-паки — свечение цвета редкости за мячом и цветная полоса в строке пака (неподвижно, без нагрузки) */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on .fm-pk.lv0 { --pc: #7fe0a0; }
+  body.fcm-on :is(.fm-pk-img, .fm-st-hero img, .fm-daypk img) { filter: drop-shadow(0 0 12px color-mix(in srgb, var(--pc, #7fe0a0) 75%, transparent)) drop-shadow(0 6px 8px rgba(0,0,0,.5)) !important; }
+  body.fcm-on .fm-st-mini .fm-pk { background: linear-gradient(90deg, color-mix(in srgb, var(--pc) 38%, transparent), transparent 55%), linear-gradient(180deg, rgba(30,48,88,.94), rgba(12,20,40,.94)) !important;
+    box-shadow: inset 3px 0 0 var(--pc), inset 0 1.5px 0 rgba(255,255,255,.12), 0 0 0 1.5px rgba(0,0,0,.35) !important; }
+  body.fcm-on .fm-st-mini .fm-pk-img { height: clamp(44px, 14vh, 60px) !important; }
+  body.fcm-on .fm-st-mini .fm-pk-t b { color: color-mix(in srgb, var(--pc) 35%, #fff); }
+  body.fcm-on .hm-t-art .pl-ball { filter: drop-shadow(0 0 14px rgba(255,255,255,.35)) drop-shadow(0 6px 8px rgba(0,0,0,.5)); }
+}
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on .fm-st-mini .fm-pk-p:has(.fm-pr + .fm-pr) { flex-direction: column !important; gap: 3px; }
+}

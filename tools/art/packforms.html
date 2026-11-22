@@ -101,7 +101,7 @@ const BALL_LV = [ // [основа, лоскуты, свет, трещин, ме
   { base: '#f4f6f8', pent: '#14171f', col: '#7fe0a0', cracks: 1 },
   { base: '#eaf6ff', pent: '#1546b0', col: '#56d4ff', cracks: 2 },
   { base: '#1a0f33', pent: '#7a45f0', col: '#c59bff', cracks: 3, dark: true },
-  { base: '#ffe7a0', pent: '#a56c00', col: '#ffd24a', cracks: 4, metal: true },
+  { base: '#ffcf3a', pent: '#7a4300', col: '#ffe066', cracks: 4, metal: true },
   { base: '#07080a', pent: '#c6ff3d', col: '#c6ff3d', cracks: 5, dark: true, metal: true },
 ];
 window.renderBall = async (lv, w, h) => { const L0 = BALL_LV[lv], s = rig(w, h, L0.col);
@@ -109,6 +109,10 @@ window.renderBall = async (lv, w, h) => { const L0 = BALL_LV[lv], s = rig(w, h, 
   const geo = new THREE.SphereGeometry(1, 128, 96);
   const ball = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: ballTex(L0, new THREE.Euler(0.4, 0.7, 0.15)), emissiveMap: crackTex(L0, L0.cracks + 1), emissive: new THREE.Color(0xffffff), emissiveIntensity: 1.6, ...met }));
   ball.rotation.set(0.12, -0.25, 0); ball.castShadow = true; s.add(ball);
+  // 22.11: «дороже» — лак (clearcoat) и цветной контровой свет по редкости
+  ball.material = new THREE.MeshPhysicalMaterial({ map: ball.material.map, emissiveMap: ball.material.emissiveMap, emissive: new THREE.Color(0xffffff), emissiveIntensity: 1.6, clearcoat: 1, clearcoatRoughness: 0.12, ...met });
+  [[-2.2, 1.6, -2.2], [2.4, -0.6, -2]].forEach(([x, y, z]) => { const rl = new THREE.PointLight(L(L0.col), 4 + lv, 8); rl.position.set(x, y, z); s.add(rl); });
+  s.children.forEach((o) => { if (o.material && o.material.type === 'ShadowMaterial') o.visible = false; }); // без тени на полу: край кадра её обрезал
   s.children.forEach((o) => { if (o.isMesh && o.geometry.type === 'PlaneGeometry' && o.material.map) o.scale.setScalar(0.45); }); // ореол не до краёв кадра
   // искры вокруг
   let sd = 3 + lv; const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
