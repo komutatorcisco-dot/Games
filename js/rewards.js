@@ -42,11 +42,13 @@ const Rewards = (() => {
     const R = PackOpen.LV[lv];
     const coins = R.prize[0] + Math.round((Math.random() * (R.prize[1] - R.prize[0])) / 5) * 5;
     // главное в паке — карточки футболистов; монеты идут довеском
-    return { coins, cards: Cards.packCards(lv) };
+    const L = typeof ECON !== 'undefined' && ECON.lime.pack ? ECON.lime.pack[Math.max(0, Math.min(4, lv))] : null; // 22.11: из каждого пака — лаймовые очки
+    return { coins, cards: Cards.packCards(lv), lime: L ? L[0] + Math.floor(Math.random() * (L[1] - L[0] + 1)) : 0 };
   }
   // записать содержимое пака: монеты, карточки (повторы — монетами); вернуть, что выпало
   function commit(c) {
     if (c.coins) { Coins.last = { x: innerWidth / 2, y: innerHeight / 2 }; Coins.add(c.coins); }
+    if (c.lime && typeof Lime !== 'undefined') Promise.resolve(Lime.add(c.lime, 'pack')).then((got) => { if (got && typeof Notify !== 'undefined') setTimeout(() => Notify.lime(got), 1500); });
     const res = Cards.add(c.cards || []);
     const dup = res.reduce((s, x) => s + x.coins, 0);
     if (dup) Coins.add(dup);

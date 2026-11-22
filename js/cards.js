@@ -180,7 +180,8 @@ const Cards = (() => {
     const upN = !base && typeof Lime !== 'undefined' ? Lime.up(c.key) : 0, rr = upN ? Lime.r(c) : c.r;
     const cr = c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : ''), lg = LEAGUE_ICO[c.lg], st0s = statsOf(c), st = st0s && upN ? st0s.map((v) => Math.min(99, v + upN)) : st0s, gk = c.pos === 'ВРТ';
     const face = c.faceUrl || c.face ? `<img class="cc-face" src="${esc(c.faceUrl || img(c.face))}" alt="" loading="lazy">` : '<span class="cc-sil"></span>';
-    return `<div class="cc v2 ${c.rar} ${fr} ${cls}${sm}" style="${st0}" data-card="${esc(c.key)}"><div class="cc-in">${bg}<div class="cc-fw">${face}</div>${fg}
+    const upC = upN ? ` up u${upN >= 10 ? 3 : upN >= 5 ? 2 : 1}` : ''; // 22.11: прокачанная — свой вид: +1…4 лаймовая, +5…9 «эволюция», +10 и выше — чёрно-лаймовая
+    return `<div class="cc v2 ${c.rar} ${fr}${upC} ${cls}${sm}" style="${st0}" data-card="${esc(c.key)}"><div class="cc-in">${bg}<div class="cc-fw">${face}</div>${fg}${upN ? `<i class="cc-evo" style="-webkit-mask-image:url(img/cards2/back-${fr}.webp);mask-image:url(img/cards2/back-${fr}.webp)"></i>` : ''}
       <div class="cc-r"><b>${rr}</b><i>${esc(c.pos)}</i></div>${upN ? `<div class="cc-up">+${upN}</div>` : ''}${fr === 'spec' ? `<div class="cc-tag">${esc((c.series || 'Jackson Games').toUpperCase())}</div>` : ''}
       <div class="cc-n"><b>${esc(surname(c.name))}</b></div>
       ${st ? `<div class="cc-st">${st.map((v, i) => `<span>${(gk ? STN_GK : STN)[i]}<b>${v}</b></span>`).join('')}</div>` : ''}

@@ -111,3 +111,19 @@
   .fm-angry .fm-lt-i img { height: 30px; aspect-ratio: 1; width: auto; object-fit: cover; object-position: 50% 76%; filter: hue-rotate(120deg) saturate(1.25); animation: fpkBall 2s ease-in-out infinite; }
   .fm-ang-n { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; display: grid; place-items: center; padding: 0 4px; border-radius: 9px; background: #3fd94a; color: #04140a; font: 900 11px "Inter Tight", sans-serif; font-style: normal; box-shadow: 0 0 8px rgba(63,217,74,.7); }
 }
+/* 22.11: прокачанная карточка — свой вид. u1 (+1…+4): рамка перекрашена в лаймовый металл; u2 (+5…+9) «Эволюция»: ещё и соты
+   светятся лаймом, по рамке — переливы; u3 (+10 и выше): чёрный металл с лаймовой каймой и сиянием. Всё неподвижно (без нагрузки). */
+.cc.v2.up .cc-bk, .cc.v2.up .cc-fr { filter: sepia(1) hue-rotate(40deg) saturate(3.2) brightness(1.02); }
+.cc.v2.up .cc-in { filter: drop-shadow(0 0 .5em rgba(198,255,61,.55)); }
+.cc.v2.up .cc-r b, .cc.v2.up .cc-r i, .cc.v2.up .cc-n b, .cc.v2.up .cc-st { color: #0d2000 !important; }
+.cc-evo { position: absolute; inset: 0; pointer-events: none; z-index: 1; -webkit-mask-size: 100% 100%; mask-size: 100% 100%; } /* по контуру карточки (маска — фон рамки) */
+.cc.v2.u2 .cc-bk { filter: sepia(1) hue-rotate(45deg) saturate(4) brightness(1.1) contrast(1.15); }
+.cc.v2.u2 .cc-evo { background: linear-gradient(125deg, transparent 30%, rgba(255,255,255,.35) 42%, rgba(198,255,61,.25) 46%, transparent 56%),
+  radial-gradient(70% 45% at 50% 30%, rgba(198,255,61,.35), transparent 70%); mix-blend-mode: screen; }
+.cc.v2.u3 .cc-bk, .cc.v2.u3 .cc-fr { filter: grayscale(1) brightness(.32) contrast(1.4); }
+.cc.v2.u3 .cc-evo { background: radial-gradient(80% 50% at 50% 28%, rgba(198,255,61,.45), transparent 70%), linear-gradient(125deg, transparent 32%, rgba(198,255,61,.4) 44%, transparent 56%);
+  mix-blend-mode: screen; }
+.cc.v2.u3 .cc-fr { filter: grayscale(1) brightness(.32) contrast(1.4) drop-shadow(0 0 .15em #c6ff3d) drop-shadow(0 0 .15em #c6ff3d); }
+.cc.v2.u3 .cc-r b, .cc.v2.u3 .cc-r i, .cc.v2.u3 .cc-n b, .cc.v2.u3 .cc-st, .cc.v2.u3 .cc-st b { color: #d8ff6a !important; text-shadow: 0 0 .4em rgba(198,255,61,.6); }
+.cc.v2.u3 .cc-in { filter: drop-shadow(0 0 .8em rgba(198,255,61,.8)); }
+.cc.v2.up .cc-up { z-index: 4; }

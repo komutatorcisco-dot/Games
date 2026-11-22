@@ -372,7 +372,13 @@ const PackOpen = (() => {
     const el = layer('cards');
     $('.po-x', el).hidden = true;
     if (typeof opts.pack === 'number') await packIntro(el, Math.max(0, Math.min(4, opts.pack)), opts.name);
-    showCards(el, res, { onDone, take: res.length > 1 ? 'В коллекцию' : 'Отлично' });
+    // 22.11: из каждого пака — ещё и лаймовые очки прокачки (ECON.lime.pack по уровню), плашка после карточек
+    let done = onDone;
+    if (typeof opts.pack === 'number' && typeof Lime !== 'undefined' && ECON.lime.pack) {
+      const [a, b] = ECON.lime.pack[Math.max(0, Math.min(4, opts.pack))], v = a + Math.floor(Math.random() * (b - a + 1));
+      done = (...x) => { Promise.resolve(Lime.add(v, 'pack')).then((got) => { if (got && typeof Notify !== 'undefined') Notify.lime(got); }); if (onDone) onDone(...x); };
+    }
+    showCards(el, res, { onDone: done, take: res.length > 1 ? 'В коллекцию' : 'Отлично' });
   }
 
   return { LV, art, drop, reveal, rollLevel, angry, AR };
