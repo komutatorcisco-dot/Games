@@ -1,0 +1,24 @@
+/* 22.11 (по просьбе пользователя): без мелких пояснительных подписей — только главное: названия, числа, кнопки.
+   Скрываются вторые строки-пояснения («3 карты», «до 90: прокачай игроков», описания игр и паков, «очков до уровня…»). */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on :is(
+    .ov3-t em, .fm-club > small,                                  /* Команда: «до 90: прокачай игроков» */
+    .fm-st-hero em, .fm-st-hero small, .fm-daypk small, .fm-pk .fm-chips, .fm-st-mini .fm-chips, /* Магазин */
+    .fm-gm small, .fm-gc small, .fm-pl-t small,                   /* мини-игры, ежедневные, плашки режимов */
+    .hm-ht > small, .hm-ht > em, .hm-star > small,                /* главная */
+    .fm-qh-t small, .fm-qh-tm small, .fm-qp-t small, .fm-qp-nx small, .ps2-t small, /* задания и пропуск */
+    .fm-rail button small:not(.hot),                               /* «12 игр» в разделах слева (награды — точкой на вкладке) */
+    .cr-l > small, .cr-tk small, .cr-st b, .cr-prize > small, .cr-next > small, /* карьера */
+    .lg-h small, .lg-tm small, .lg-me > small, .lg-nb small, .lg-prize small, .lg-last small, /* лига */
+    .dv-l small:not(.dv-rec), .dv .mk-note, .dv-wk small,         /* дивизион */
+    .fm-pf-tg small, .fm-cv-own, .fm-pf-me small,                 /* профиль, окно карточки */
+    .hm-t.lg .hm-t-tx small, .hm-t.mini .hm-t-tx small, .cr-prize > em  /* «Неделя · награды», «48 игр», «за все 7 заданий» */
+  ) { display: none !important; }
+  /* после удаления подписей — крупнее и ровнее то, что осталось */
+  body.fcm-on .fm-gm { grid-template-rows: auto; padding: 10px !important; }
+  body.fcm-on .fm-gm b { align-self: center; font-size: 14px !important; overflow-wrap: anywhere; hyphens: auto; }
+  body.fcm-on .fm-daypk b { font-size: 20px !important; }
+  body.fcm-on .fm-st-mini .fm-pk-t b { font-size: 17px !important; }
+  body.fcm-on .fm-qh-tm b { font-size: 17px; }
+  body.fcm-on .fm-gc { align-content: center; }
+}

@@ -506,7 +506,7 @@ const FCM = (() => {
       if (go.train) App.openFootball('fk', go.train); else if (go.mode) startMode(go.mode); else if (go.act) setTimeout(() => { const b = document.createElement('button'); b.dataset.act = go.act; b.hidden = true; document.body.appendChild(b); b.click(); b.remove(); }, 0);
     });
   }
-  const rail = (L, key) => `<div class="fm-rail">${L.map(([id, t, d]) => `<button class="${sub[key] === id ? 'on' : ''}" data-fm-sub="${key}:${id}"><b>${t}</b>${d !== undefined ? `<small>${d}</small>` : ''}</button>`).join('')}</div>`;
+  const rail = (L, key) => `<div class="fm-rail">${L.map(([id, t, d]) => `<button class="${sub[key] === id ? 'on' : ''}" data-fm-sub="${key}:${id}"><b>${t}</b>${d !== undefined ? `<small class="${/наград/.test(d) ? 'hot' : ''}">${d}</small>` : ''}</button>`).join('')}</div>`; // hot — «есть награды»: видна и без мелких подписей
 
   // ---------- Задания ----------
   const GO = (ev) => { const p = ev.split(':'); if (p[1] === 'act') return `data-act="${p[2]}"`; if (p[1] === 'ng') return `data-ng="${p[2]}"`; if (p[1] === 'squad') return 'data-act="squad"'; if (ev === 'pack') return 'data-fm-tab="store"'; return 'data-fm-tab="play"'; };
