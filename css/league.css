@@ -1,0 +1,66 @@
+/* Лига канала (22.11, leagueView в js/fcm.js): слева твоё место крупно и соседи, справа награды за места и таблица недели */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .lg { display: grid; grid-template-columns: minmax(220px, .8fr) minmax(0, 1.6fr); gap: 12px; height: 100%; min-height: 0; }
+  .lg-empty { grid-column: 1 / -1; padding: 18px; border-radius: 14px; background: rgba(8,16,32,.86); text-align: center; font: 700 14px "Inter Tight", sans-serif; color: #cfdcef; }
+  .lg-l { display: grid; align-content: start; gap: 8px; min-height: 0; overflow: auto; }
+  .lg-me { position: relative; overflow: hidden; display: grid; justify-items: center; gap: 6px; padding: 14px 12px; border-radius: 18px; text-align: center;
+    background: radial-gradient(90% 70% at 50% 0%, rgba(255,210,60,.35), transparent 70%), linear-gradient(180deg, #16244a, #080e1e); box-shadow: inset 0 0 0 1.5px rgba(255,210,60,.45), 0 12px 26px -12px rgba(0,0,0,.8); }
+  .lg-me > small { font: 800 11px "Inter Tight", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #ffd23c; }
+  .lg-pl { font: 900 clamp(40px, 15vh, 62px)/1 "Inter Tight", sans-serif; text-shadow: 0 4px 0 rgba(0,0,0,.35), 0 0 24px rgba(255,210,60,.45); }
+  .lg-me > em { font: 800 14px "Inter Tight", sans-serif; font-style: normal; color: #fff; display: flex; align-items: center; gap: 4px; } .lg-me > em svg { width: 15px; height: 15px; color: #ffd23c; }
+  .lg-me.none > em { font: 600 12px/1.3 "Inter Tight", sans-serif; color: #b9c6da; }
+  .lg-nb { display: grid; gap: 1px; width: 100%; padding: 7px 10px; border-radius: 12px; background: rgba(255,255,255,.06); text-align: left; }
+  .lg-nb small { font: 700 10px "Inter Tight", sans-serif; text-transform: uppercase; letter-spacing: .08em; color: #9fb2cc; }
+  .lg-nb b { display: flex; align-items: center; gap: 4px; font: 900 16px "Inter Tight", sans-serif; color: #c6ff3d; } .lg-nb b svg { width: 14px; height: 14px; color: #ffd23c; }
+  .lg-nb span { font: 600 12px "Inter Tight", sans-serif; color: #dfe7f2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lg-nb.up { box-shadow: inset 0 0 0 1px rgba(198,255,61,.35); } .lg-nb.top b { color: #ffd23c; }
+  .lg-go { width: 100%; height: 42px; font-size: 16px !important; margin-top: 2px; }
+  .lg-prize { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px;
+    background: linear-gradient(90deg, rgba(198,255,61,.25), rgba(198,255,61,.05)), rgba(8,16,32,.9); box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.6), 0 0 18px rgba(198,255,61,.25); animation: fxTile 2s ease-in-out infinite; }
+  .lg-prize span { display: grid; gap: 2px; min-width: 0; } .lg-prize small { font: 800 10px "Inter Tight", sans-serif; text-transform: uppercase; letter-spacing: .1em; color: #c6ff3d; }
+  .lg-prize b { font: 900 15px "Inter Tight", sans-serif; display: flex; align-items: center; gap: 4px; } .lg-prize b svg { width: 14px; height: 14px; color: #ffd23c; } .lg-prize em { font: 600 11px/1.25 "Inter Tight", sans-serif; font-style: normal; color: #dfe7f2; }
+  .lg-c { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 8px; min-height: 0; }
+  .lg-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 12px; border-radius: 12px; background: rgba(8,16,32,.86); box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .lg-h > span:first-child { display: grid; gap: 2px; } .lg-h b { font: 900 18px "Inter Tight", sans-serif; text-transform: uppercase; } .lg-h small { font: 600 11px "Inter Tight", sans-serif; color: #9fb2cc; }
+  .lg-tm { display: flex; align-items: center; gap: 6px; } .lg-tm svg { width: 20px; height: 20px; color: #9fb2cc; } .lg-tm span { display: grid; } .lg-tm b { font-size: 15px; text-transform: none; }
+  .lg-pzs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .lg .lg-empty + .lg-pzs { grid-column: 1 / -1; }
+  .lg-pz { display: grid; justify-items: center; align-content: start; gap: 3px; padding: 6px 4px; border-radius: 10px; background: rgba(8,16,32,.86); box-shadow: inset 0 0 0 1px var(--fm-edge); text-align: center; }
+  .lg-pz b { font: 900 16px/1 "Inter Tight", sans-serif; } .lg-pz small { font: 600 9.5px/1.25 "Inter Tight", sans-serif; color: #cfdcef; }
+  .lg-pz.p1 { background: linear-gradient(180deg, rgba(255,210,60,.3), rgba(8,16,32,.9)); box-shadow: inset 0 0 0 1.5px rgba(255,210,60,.6); }
+  .lg-pz.p2 { background: linear-gradient(180deg, rgba(200,215,235,.25), rgba(8,16,32,.9)); box-shadow: inset 0 0 0 1.5px rgba(200,215,235,.5); }
+  .lg-pz.p3 { background: linear-gradient(180deg, rgba(220,140,80,.28), rgba(8,16,32,.9)); box-shadow: inset 0 0 0 1.5px rgba(220,140,80,.55); }
+  .lg-rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: min-content; gap: 4px 8px; overflow: auto; min-height: 0; }
+  .lg-r { display: grid; grid-template-columns: 30px 22px minmax(0, 1fr) auto; align-items: center; gap: 6px; padding: 6px 10px 6px 6px; border-radius: 10px; background: rgba(8,16,32,.82); box-shadow: inset 0 0 0 1px var(--fm-edge); }
+  .lg-r b { font: 900 14px "Inter Tight", sans-serif; text-align: center; color: #9fb2cc; } .lg-r span { font-size: 16px; text-align: center; }
+  .lg-r i { font: 700 13px "Inter Tight", sans-serif; font-style: normal; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .lg-r em { font: 900 14px "Inter Tight", sans-serif; font-style: normal; color: #ffd23c; }
+  .lg-r.p1, .lg-r.p2, .lg-r.p3 { background: linear-gradient(90deg, rgba(255,210,60,.18), rgba(8,16,32,.85)); } .lg-r.p1 b, .lg-r.p2 b, .lg-r.p3 b { font-size: 17px; }
+  .lg-r.me { background: linear-gradient(90deg, rgba(198,255,61,.25), rgba(8,16,32,.85)); box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.7); }
+  .lg-last { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 6px 10px; border-radius: 10px; background: rgba(8,16,32,.7); font: 700 12px "Inter Tight", sans-serif; }
+  .lg-last small { font: 800 10px "Inter Tight", sans-serif; text-transform: uppercase; letter-spacing: .08em; color: #9fb2cc; } .lg-last .fm-btn { margin-left: auto; }
+  .lg-pt { font: 900 16px "Inter Tight", sans-serif; padding-right: 40px; }
+  .lg-ta { width: 100%; min-height: 160px; padding: 10px; border: 0; border-radius: 10px; background: rgba(255,255,255,.06); color: #fff; font: 500 13px/1.4 "Inter Tight", sans-serif; resize: none; }
+  /* плитка на главной */
+  .hm2 .hm-r:has(.hm-t.lg) { grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .hm-t.lg { --tc: 255,190,40; }
+  .hm-lg-pl { display: grid; place-items: center; width: clamp(48px, 16vh, 64px); aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff3b0, #ffc533 45%, #9a5a00); color: #2a1500; box-shadow: 0 4px 12px rgba(0,0,0,.45), 0 0 16px rgba(255,200,60,.5); }
+  .hm-lg-pl small { font: 800 8px/1 "Inter Tight", sans-serif; text-transform: uppercase; margin-top: 4px; } .hm-lg-pl b { font: 900 clamp(18px, 6vh, 24px)/1 "Inter Tight", sans-serif; margin-top: -6px; }
+}
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .hm2 .hm-r:has(.hm-t.lg) .hm-t { grid-template-columns: 36% minmax(0, 1fr); }
+  .hm2 .hm-r:has(.hm-t.lg) .hm-t-art .pl-ball { height: clamp(44px, 16vh, 76px); }
+  .hm2 .hm-r:has(.hm-t.lg) .hm-t-tx b { font-size: clamp(14px, 2vw, 20px); }
+  .hm2 .hm-r:has(.hm-t.lg) .hm-t-art.col img { width: clamp(24px, 3.6vw, 38px); height: clamp(24px, 3.6vw, 38px); }
+}
+/* низкий экран (телефон лёжа с панелью Telegram): всё плотнее, чтобы таблица была видна */
+@media (orientation: landscape) and (max-height: 460px) {
+  .lg { gap: 8px; grid-template-columns: minmax(200px, .75fr) minmax(0, 1.7fr); }
+  .lg-me { gap: 3px; padding: 8px 10px; } .lg-pl { font-size: 38px; } .lg-me > em { font-size: 12px; }
+  .lg-nb { padding: 4px 8px; } .lg-nb b { font-size: 14px; } .lg-nb span { font-size: 11px; }
+  .lg-go { height: 34px; font-size: 14px !important; }
+  .lg-prize { padding: 6px 8px; } .lg-prize b { font-size: 13px; } .lg-prize em { font-size: 10px; }
+  .lg-c { gap: 5px; } .lg-h { padding: 5px 10px; } .lg-h b { font-size: 15px; }
+  .lg-pz { padding: 4px 3px; gap: 1px; } .lg-pz b { font-size: 13px; } .lg-pz small { font-size: 8.5px; }
+  .lg-r { padding: 4px 8px 4px 4px; } .lg-r i, .lg-r em { font-size: 12px; }
+  .lg-last { padding: 4px 8px; font-size: 11px; flex-wrap: nowrap; overflow: hidden; } .lg-last .fm-btn { padding: 4px 8px !important; font-size: 11px !important; height: auto; }
+}

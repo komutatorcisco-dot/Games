@@ -49,7 +49,7 @@ const FCM = (() => {
 
   // ---------- верх ----------
   function top() {
-    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? (sub.modes !== 'hub' && SHELF.find((x) => x[0] === sub.modes) ? 'Мини-игры' : 'Играть') : tab === 'div' ? 'Дивизионы' : tab === 'market' ? 'Рынок' : HOST[tab] ? HOST[tab][1] : (TABS.find((t) => t[0] === tab) || [])[1];
+    const u = Store.d.user || {}, title = tab === 'play' ? '' : tab === 'coll' ? 'Коллекция' : tab === 'modes' ? (sub.modes !== 'hub' && SHELF.find((x) => x[0] === sub.modes) ? 'Мини-игры' : 'Играть') : tab === 'league' ? 'Лига канала' : tab === 'div' ? 'Дивизионы' : tab === 'market' ? 'Рынок' : HOST[tab] ? HOST[tab][1] : (TABS.find((t) => t[0] === tab) || [])[1];
     return `<header class="fm-top">
       ${title ? `<button class="fm-back" ${HOST[tab] ? 'data-fm-hback' : tab === 'modes' && sub.modes !== 'hub' ? 'data-fm-tab="play"' : `data-fm-tab="${tab === 'coll' ? 'team' : tab === 'market' ? 'store' : 'play'}"`} aria-label="Назад">‹</button><b class="fm-title">${title}</b>`
         : `<button class="fm-me" data-act="profile"><span class="fm-ava">${esc(u.emoji || '⚽')}</span><span class="fm-who"><b>${esc(u.nick || 'Игрок')}</b></span></button>`}
@@ -111,6 +111,42 @@ const FCM = (() => {
           <span class="fm-hb"><span class="fm-bar"><i style="width:${pct}%"></i></span><u>${nx ? `${s.pts}/${nx}` : s.pts}</u></span>
           <i class="fm-sl-go">${s.prize ? 'Забрать награду недели' : 'Играть матч'}</i></span></button>`;
   }
+  // ---- лига канала (22.11): твоё место крупно, сосед сверху (сколько до него) и снизу, награды за места, таблица недели ----
+  function leagueView() {
+    const D = typeof League !== 'undefined' ? League.data : null;
+    if (typeof League !== 'undefined') League.load(false, () => { if (tab === 'league') render(); });
+    const M = ['🥇', '🥈', '🥉'], F = (v) => Number(v || 0).toLocaleString('ru-RU');
+    const prizes = ECON.league.places.map(([a, b, z]) => `<span class="lg-pz ${a <= 3 ? 'p' + a : ''}"><b>${a === b ? (M[a - 1] || a) : `${a}–${b}`}</b><small>${League.prizeText(z).replace(/ · /g, '<br>')}</small></span>`).join('');
+    if (!D) return `<div class="lg"><div class="lg-empty">${typeof League !== 'undefined' && League.ready() ? 'Загружаем таблицу…' : 'Лига работает в Telegram: открой игру через бота @JacksonGamesbot'}</div><div class="lg-pzs">${prizes}</div></div>`;
+    const me = D.me, nx = D.above, bl = D.below;
+    const meBox = me ? `<div class="lg-me"><small>Твоё место</small><b class="lg-pl">${me.place <= 3 ? M[me.place - 1] : ''}${me.place}</b><em>${F(me.score)} ${cup} за неделю</em>
+        ${nx ? `<div class="lg-nb up"><small>До ${me.place - 1}-го места</small><b>+${F(nx.score - me.score + 1)} ${cup}</b><span>${esc(nx.emoji || '⚽')} ${esc(nx.nick)} · ${F(nx.score)}</span></div>` : '<div class="lg-nb up top"><b>Ты первый! Держись</b></div>'}
+        ${bl ? `<div class="lg-nb dn"><small>За тобой</small><span>${esc(bl.emoji || '⚽')} ${esc(bl.nick)} · ${F(bl.score)}</span></div>` : ''}
+        <button class="fm-btn gold lg-go" data-dv-play>Играть матч</button></div>`
+      : `<div class="lg-me none"><small>Ты ещё не в лиге</small><b class="lg-pl">—</b><em>Выиграй матч в дивизионах — трофеи за неделю поставят тебя в таблицу</em><button class="fm-btn gold lg-go" data-dv-play>Играть матч</button></div>`;
+    const prize = D.prize ? `<div class="lg-prize"><span><small>Прошлая неделя</small><b>${D.prize.place}-е место · ${F(D.prize.score)} ${cup}</b><em>${League.prizeText(League.prizeFor(D.prize.place) || {})}</em></span><button class="fm-btn gold" data-lg-claim>Забрать</button></div>` : '';
+    const rows = D.rows.length ? D.rows.map((x, i) => `<div class="lg-r ${x.me ? 'me' : ''} ${i < 3 ? 'p' + (i + 1) : ''}"><b>${i < 3 ? M[i] : i + 1}</b><span>${esc(x.emoji || '⚽')}</span><i>${esc(x.nick)}</i><em>${F(x.score)}</em></div>`).join('')
+      : '<p class="fm-none">На этой неделе ещё никто не набрал трофеев — стань первым!</p>';
+    const last = D.last && D.last.rows.length ? `<div class="lg-last"><small>Победители прошлой недели</small>${D.last.rows.slice(0, 3).map((x) => `<span>${M[x.place - 1]} ${esc(x.nick)}</span>`).join('')}${Store.d.admin ? '<button class="fm-btn sm" data-lg-post>Текст для канала</button>' : ''}</div>` : '';
+    return `<div class="lg">
+      <div class="lg-l">${prize}${meBox}</div>
+      <div class="lg-c">
+        <div class="lg-h"><span><b>Неделя</b><small>Трофеи за матчи в дивизионах · ${D.total} ${plural(D.total, 'игрок', 'игрока', 'игроков')}</small></span><span class="lg-tm">${ico('timer')}<span><small>Итоги через</small><b>${left(D.weekEnd - Date.now())}</b></span></span></div>
+        <div class="lg-pzs">${prizes}</div>
+        <div class="lg-rows">${rows}</div>${last}
+      </div></div>`;
+  }
+  function leaguePost() {
+    const t = League.postText(); if (!t) return toast('Итогов прошлой недели пока нет');
+    const el = document.createElement('div'); el.className = 'fm-sheet fm-prof';
+    el.innerHTML = `<div class="fm-prf"><b class="lg-pt">Итоги недели — текст для канала</b><textarea class="lg-ta" readonly>${esc(t)}</textarea><button class="fm-btn gold" data-lg-copy>Скопировать</button><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
+    document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
+    const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); };
+    el.addEventListener('click', (e) => {
+      if (e.target === el || e.target.closest('.fm-sh-x')) return close();
+      if (e.target.closest('[data-lg-copy]')) { const ta = el.querySelector('textarea'); ta.select(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Скопировано — вставь в канал'), () => { document.execCommand('copy'); toast('Скопировано'); }); }
+    });
+  }
   function divView() {
     const D = Division, { s, i, nx, pct } = dvBar(), L = s.last && !s.last.seen ? s.last : null;
     if (L) { s.last.seen = true; Store.save(); if (L.up) setTimeout(() => { if (typeof confetti === 'function') confetti(); Sound.play('whistle'); }, 400); }
@@ -151,6 +187,9 @@ const FCM = (() => {
       : day ? { a: 'data-act="wheel"', img: 'img/packs/pk1-360.webp?v=b3', s: 'Бесплатно', t: 'Пак дня', n: '!', c: 'balls' }
       : { a: 'data-fm-tab="store"', img: 'img/packs/pk3-360.webp?v=b3', s: 'Магазин', t: 'Паки', n: 0, c: 'packs' };
     const GM = ['career', 'ng-wordle', 'hl'].map((k) => `img/games/${k}.webp`);
+    // лига канала: место недели (последнее известное) и «награда ждёт»
+    if (typeof League !== 'undefined') League.load(false, () => { if (tab === 'play') render(); });
+    const LD = typeof League !== 'undefined' ? League.data : null, lgP = LD && LD.me ? LD.me.place : 0, lgPrize = !!(LD && LD.prize);
     // звезда команды: лучший по рейтингу из состава (пусто — Джексон), крупная карточка покачивается; тап — карточка крупно
     const RT = (c) => (typeof Lime !== 'undefined' ? Lime.r(c) : c.r);
     let star = null; try { star = Squad.S().xi.map((k) => k && Cards.get(k)).filter(Boolean).sort((a, b) => RT(b) - RT(a))[0] || null; } catch (e) { star = null; }
@@ -160,6 +199,7 @@ const FCM = (() => {
       <div class="hm-c">${hero}</div>${starH}
       <div class="hm-r">
         <button class="hm-t ${T.c}" ${T.a}><span class="hm-t-art"><img class="pl-ball" src="${T.img}" alt=""></span><span class="hm-t-tx"><small>${T.s}</small><b>${T.t}</b></span>${T.n ? `<em class="hm-n">${T.n}</em>` : ''}</button>
+        <button class="hm-t lg" data-fm-tab="league"><span class="hm-t-art"><span class="hm-lg-pl">${lgP ? `<small>место</small><b>${lgP}</b>` : '<b>🏆</b>'}</span></span><span class="hm-t-tx"><small>Неделя · награды</small><b>Лига канала</b></span>${lgPrize ? '<em class="hm-n">!</em>' : ''}</button>
         <button class="hm-t mini" data-fm-go="modes:guess"><span class="hm-t-art col">${GM.map((g) => `<img src="${g}" alt="">`).join('')}</span><span class="hm-t-tx"><small>48 игр</small><b>Мини-игры</b></span></button>
       </div>
     </div>`;
@@ -782,7 +822,7 @@ const FCM = (() => {
     if (tab === 'store' && sub.store === 'market') { sub.store = 'top'; tab = 'market'; }
     if (tab === 'play' && typeof Division !== 'undefined' && Division.S().last && !Division.S().last.seen) tab = 'div'; // после матча дивизиона — сразу итог
     park();
-    const body = HOST[tab] ? `<div class="fm-host fm-host-${tab}"></div>` : { play, team, events, quests, store, coll, modes, div: divView, market: () => Market.render() }[tab]();
+    const body = HOST[tab] ? `<div class="fm-host fm-host-${tab}"></div>` : { play, team, events, quests, store, coll, modes, div: divView, league: leagueView, market: () => Market.render() }[tab]();
     const entering = tab === 'team' && root.dataset.view !== 'team';
     root.dataset.view = tab;
     const oldTrk = root.querySelector('.ps2-track'), keepX = oldTrk && root.dataset.view === tab ? oldTrk.scrollLeft : null;
@@ -857,6 +897,8 @@ const FCM = (() => {
       if (e.target.closest('[data-fm-sort]')) { Sound.play('tap'); CQ.sort = CQ.sort === 'r' ? 'name' : 'r'; render(); return; }
       if (e.target.closest('[data-fm-more]')) { Sound.play('tap'); CQ.n += 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } return; }
       const cc = e.target.closest('[data-fm-card]'); if (cc) { Sound.play('tap'); return cardView(cc.dataset.fmCard); }
+      if (e.target.closest('[data-lg-claim]')) { Sound.play('tap'); return League.claim(() => { if (tab === 'league') render(); }); }
+      if (e.target.closest('[data-lg-post]')) { Sound.play('tap'); return leaguePost(); }
       const go = e.target.closest('[data-fm-go]'); if (go) { Sound.play('tap'); const [t, v] = go.dataset.fmGo.split(':'); tab = t; sub[t] = v; return render(); }
       if (e.target.closest('[data-fm-car]')) { Sound.play('tap'); tab = 'events'; sub.events = 'car'; return render(); }
       const sd = e.target.closest('[data-fm-slide]'); if (sd) { Sound.play('tap'); slideT = Date.now(); return slideTo(+sd.dataset.fmSlide); }

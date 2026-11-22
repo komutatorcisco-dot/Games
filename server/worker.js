@@ -277,6 +277,10 @@ async function schema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS ustats (id INTEGER PRIMARY KEY, trophies INTEGER NOT NULL DEFAULT 0, updated INTEGER NOT NULL DEFAULT 0)'),
     db.prepare('CREATE TABLE IF NOT EXISTS div_sq (uid INTEGER PRIMARY KEY, nick TEXT, emo TEXT, di INTEGER NOT NULL, sq TEXT NOT NULL, ovr INTEGER NOT NULL, ts INTEGER NOT NULL)'), // составы дивизионов (14.11)
     db.prepare('CREATE INDEX IF NOT EXISTS div_sq_di ON div_sq (di, ts DESC)'),
+    // лига канала (22.11): трофеи за неделю (tro − start на начало недели) и награды за места прошлых недель
+    db.prepare('CREATE TABLE IF NOT EXISTS wtro (week TEXT NOT NULL, id INTEGER NOT NULL, start INTEGER NOT NULL, tro INTEGER NOT NULL, ts INTEGER NOT NULL, PRIMARY KEY (week, id))'),
+    db.prepare('CREATE TABLE IF NOT EXISTS lprize (week TEXT NOT NULL, id INTEGER NOT NULL, place INTEGER NOT NULL, score INTEGER NOT NULL, got INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (week, id))'),
+    db.prepare('CREATE INDEX IF NOT EXISTS lprize_id ON lprize (id, got)'),
     db.prepare('CREATE INDEX IF NOT EXISTS ustats_tro ON ustats (trophies DESC)'),
     db.prepare('CREATE INDEX IF NOT EXISTS ustats_top ON ustats (trophies DESC, updated ASC)'), // топ-50 без сортировки всей таблицы
     db.prepare('CREATE TABLE IF NOT EXISTS gwins (id INTEGER NOT NULL, game TEXT NOT NULL, wins INTEGER NOT NULL, PRIMARY KEY (id, game))'),
@@ -384,7 +388,11 @@ async function saveScore(env, user, body) {
   if (tro) {
     const ot = await db.prepare('SELECT trophies FROM ustats WHERE id = ?').bind(id).first();
     const t = Math.min(15000, ot ? Math.max(ot.trophies, Math.min(tro, ot.trophies + 3000)) : Math.min(tro, 5000));
-    if (!ot || ot.trophies !== t) ops.push(db.prepare('INSERT INTO ustats (id, trophies, updated) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET trophies = ?2, updated = ?3 WHERE trophies != ?2').bind(id, t, now));
+    if (!ot || ot.trophies !== t) {
+      ops.push(db.prepare('INSERT INTO ustats (id, trophies, updated) VALUES (?1, ?2, ?3) ON CONFLICT(id) DO UPDATE SET trophies = ?2, updated = ?3 WHERE trophies != ?2').bind(id, t, now));
+      // лига недели: строка появляется при первом изменении трофеев за неделю, start — сколько было до него
+      ops.push(db.prepare('INSERT INTO wtro (week, id, start, tro, ts) VALUES (?1, ?2, ?3, ?4, ?5) ON CONFLICT(week, id) DO UPDATE SET tro = ?4, ts = ?5 WHERE tro != ?4').bind(wk, id, ot ? ot.trophies : 0, t, now));
+    }
   }
   // победы по играм: { 'ng:wordle': 12, … }
   if (body.gw && typeof body.gw === 'object') {
@@ -578,9 +586,14 @@ const ECON = {
   jp: { start: 0 },
   // ---- лаймовые очки прокачки (5.11): прокачка карточки +1 к рейтингу, каждый уровень дороже на 28%, до 99, без другого потолка ----
   // цена шага r → r+1: очки = 10 · 1,28^(r−60) (не меньше 10), монеты = очки × 5. 71→80 ≈ 4 400 очков, 80→89 ≈ 41 000.
-  lime: { cap: 400, capSrc: { drop: 400, angry: 1500, road: 2500, pass: 1500 }, base: 10, k: 1.28, from: 60, coinK: 5, max: 99,
+  lime: { cap: 400, capSrc: { drop: 400, angry: 1500, road: 2500, pass: 1500, league: 1000 }, base: 10, k: 1.28, from: 60, coinK: 5, max: 99,
     drop: [[10, 25], [20, 45], [35, 70], [60, 110], [100, 180]], // мяч-дроп по редкости: [от, до] очков
     angry: [[60, 100], [100, 160], [160, 260], [260, 400], [400, 650]] }, // злой мяч (своя лестница): редкий … легендарный
+  // ---- лига канала (22.11): неделя — трофеи, заработанные за неделю в дивизионах; за места — награда (по слову пользователя).
+  // cap — больше этого за неделю не засчитывается (защита от правки трофеев); places: [с места, по место, награда]
+  league: { cap: 4000, top: 25, places: [
+    [1, 1, { angry: 3, lime: 600, coins: 15000 }], [2, 2, { angry: 2, lime: 400, coins: 10000 }], [3, 3, { angry: 2, lime: 300, coins: 7000 }],
+    [4, 10, { angry: 1, lime: 150, coins: 3000 }], [11, 25, { lime: 80, coins: 1500 }]] },
   // ---- боты рынка (только проверочный сервер, выключаются в настройках) ----
   bots: { on: true, n: 12, budgetDay: 600000, maxShare: 0.08, buyBelow: 0.9, bidUpTo: 0.85, listMax: 140, tickSec: 60, actions: 6, durH: [1, 3, 6, 12] },
 };
@@ -1162,7 +1175,7 @@ const WIPE_TABLES = [
   ['purchases', 'id'], ['cmembers', 'id'], ['crole', 'id'], ['creq', 'uid'], ['cgift', 'uid'], ['croom', 'uid'], ['friends', 'a'], ['friends', 'b'],
   ['refs', 'invitee'], ['ref_miles', 'id'], ['mm', 'id'], ['mmg', 'id'], ['presence', 'id'], ['draft_tours', 'uid'], ['legend_marks', 'uid'], ['legend_claims', 'uid'],
   ['social_profiles', 'uid'], ['social_shown', 'uid'], ['seen', 'id'],
-  ['eco_wallet', 'uid'], ['eco_cards', 'uid'], ['eco_ops', 'uid'], ['eco_daily', 'uid'], ['eco_once', 'uid'], ['mk_fav', 'uid'], ['mk_bids', 'uid'], ['eco_lime', 'uid'], ['eco_up', 'uid'], ['div_sq', 'uid'],
+  ['eco_wallet', 'uid'], ['eco_cards', 'uid'], ['eco_ops', 'uid'], ['eco_daily', 'uid'], ['eco_once', 'uid'], ['mk_fav', 'uid'], ['mk_bids', 'uid'], ['eco_lime', 'uid'], ['eco_up', 'uid'], ['wtro', 'id'], ['lprize', 'id'], ['div_sq', 'uid'],
 ];
 async function ecoWipe(db, uid) {
   await socialSchema(db).catch(() => {});
@@ -2015,6 +2028,49 @@ async function flStatus(db, uid, start) {
 // Каждый, кто играет матч дивизиона, оставляет свой состав (3 игрока: «имя|рейтинг|6 характеристик|позиция»).
 // Соперник находится сразу: его командой в матче управляет компьютер (как в FC Mobile). Никого нет — игра даст бота.
 const divClean = (sq) => (Array.isArray(sq) ? sq.slice(0, 4).map((x) => String(x || '').replace(/[<>\u0000-\u001f]/g, '').slice(0, 90)).filter((x) => /^[^|]{1,30}\|\d{2}(\|\d{1,2}){6}/.test(x)) : []);
+// ---- лига канала (22.11): неделя по трофеям из дивизионов; итоги прошлой недели подводятся сами при первом запросе,
+// 1–25 места получают награду (ECON.league) — игрок забирает её в игре (act: 'claim'), один раз
+const prevWeek = (t) => weekKey(Date.parse(weekKey(t) + 'T12:00:00Z') - 3 * 864e5);
+const lgScore = () => `MIN(tro - start, ${Math.floor(ECON.league.cap)})`;
+async function leagueClose(db, wk) {
+  if (await getSetting(db, 'league:done:' + wk)) return;
+  const rows = (await db.prepare(`SELECT id, ${lgScore()} AS s FROM wtro WHERE week = ? AND tro > start ORDER BY s DESC, ts ASC LIMIT ${Math.floor(ECON.league.top)}`).bind(wk).all()).results;
+  const ops = rows.map((r, i) => db.prepare('INSERT OR IGNORE INTO lprize (week, id, place, score) VALUES (?, ?, ?, ?)').bind(wk, r.id, i + 1, r.s));
+  ops.push(db.prepare("INSERT INTO settings (k, v) VALUES (?1, '1') ON CONFLICT(k) DO NOTHING").bind('league:done:' + wk));
+  await db.batch(ops);
+}
+async function league(env, user, body) {
+  const db = env.DB, now = Date.now(), id = user.id, wk = weekKey(now), pw = prevWeek(now);
+  await schema(db);
+  await leagueClose(db, pw);
+  if (body.act === 'claim') { // награда за место прошлой недели (или раньше), один раз
+    const p = await db.prepare('SELECT week, place, score FROM lprize WHERE id = ? AND got = 0 ORDER BY week DESC LIMIT 1').bind(id).first();
+    if (!p) return { ok: false, error: 'Награды нет' };
+    const u = await db.prepare('UPDATE lprize SET got = 1 WHERE week = ? AND id = ? AND got = 0').bind(p.week, id).run();
+    if (!u.meta || !u.meta.changes) return { ok: false, error: 'Уже получено' };
+    return { ok: true, prize: p };
+  }
+  const c = await boardCache(db, 'league:' + wk, async () => {
+    const all = (await db.prepare(`SELECT id, ${lgScore()} AS s, ts FROM wtro WHERE week = ? AND tro > start ORDER BY s DESC, ts ASC LIMIT 20000`).bind(wk).all()).results;
+    const ids = all.slice(0, TOP).map((r) => r.id);
+    const users = ids.length ? (await db.prepare(`SELECT id, nick, emoji FROM users WHERE id IN (${ids.map(() => '?').join(',')})`).bind(...ids).all()).results : [];
+    const by = new Map(users.map((u) => [u.id, u]));
+    return { rows: all.slice(0, TOP).map((r) => ({ id: r.id, nick: (by.get(r.id) || {}).nick || 'Игрок', emoji: (by.get(r.id) || {}).emoji || '⚽', score: r.s })), scores: all.map((r) => r.s) };
+  });
+  const mine = await db.prepare(`SELECT ${lgScore()} AS s FROM wtro WHERE week = ? AND id = ? AND tro > start`).bind(wk, id).first();
+  let me = null, above = null, below = null;
+  if (mine && mine.s > 0) {
+    let lo = 0, hi = c.scores.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (c.scores[mid] > mine.s) lo = mid + 1; else hi = mid; }
+    me = { place: lo + 1, score: mine.s };
+    const nb = async (cmp, ord) => db.prepare(`SELECT u.nick, u.emoji, ${lgScore()} AS score FROM wtro w JOIN users u ON u.id = w.id WHERE w.week = ? AND w.id != ? AND ${lgScore()} ${cmp} ? ORDER BY score ${ord}, w.ts ASC LIMIT 1`).bind(wk, id, mine.s).first();
+    above = await nb('>=', 'ASC'); below = await nb('<=', 'DESC');
+  }
+  const prize = await db.prepare('SELECT week, place, score FROM lprize WHERE id = ? AND got = 0 ORDER BY week DESC LIMIT 1').bind(id).first();
+  const last = (await db.prepare('SELECT l.place, l.score, u.nick, u.emoji FROM lprize l JOIN users u ON u.id = l.id WHERE l.week = ? ORDER BY l.place LIMIT 10').bind(pw).all()).results;
+  return { ok: true, week: wk, weekEnd: weekEnd(now), total: c.scores.length, me, above, below, prize: prize || null, last: { week: pw, rows: last },
+    rows: c.rows.map((r) => ({ nick: r.nick, emoji: r.emoji, score: r.score, me: r.id === id })) };
+}
+
 async function divOnline(env, user, body) {
   const db = env.DB, uid = user.id, now = Date.now();
   await schema(db);
@@ -2284,7 +2340,7 @@ async function route(request, env) {
     if (!user) return json({ ok: false, error: 'unauthorized' }, 401);
     return json(await eco(env, user, body));
   }
-  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room', '/social', '/ref', '/div'].includes(url.pathname) && request.method === 'POST') {
+  if (['/score', '/top', '/hello', '/event', '/report', '/admin/stats', '/club', '/mm', '/presence', '/tour', '/save', '/load', '/legend', '/room', '/social', '/ref', '/div', '/league'].includes(url.pathname) && request.method === 'POST') {
     if (!env.DB) return json({ ok: false, error: 'no database' }, 500);
     let body;
     try { body = await request.json(); } catch (e) { return json({ ok: false, error: 'bad json' }, 400); }
@@ -2301,6 +2357,7 @@ async function route(request, env) {
     if (url.pathname === '/tour') return json(await draftTour(env, user, body));
     if (url.pathname === '/legend') return json(await legends(env, user, body));
     if (url.pathname === '/div') return json(await divOnline(env, user, body));
+    if (url.pathname === '/league') return json(await league(env, user, body));
     if (url.pathname === '/room') return json(await relay(env, user, body));
     if (url.pathname === '/social') return json(await social(env, user, body));
     if (url.pathname === '/save') return json(await saveData(env, user, body));
