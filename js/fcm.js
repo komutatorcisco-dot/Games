@@ -650,6 +650,39 @@ const FCM = (() => {
   }
   // окно пака: пак крупно, что внутри, шансы, кнопки цены
   // профиль и настройки в новом виде (вместо старого экрана «Профиль»): ник, трофеи, коллекция, звук, история, «Начать заново»
+  // ---- темы оформления (22.11, css/themes.css): body[data-th]; выбор хранится в Store.d.ui.th, ?th=имя — для проверки ----
+  const THEMES = [
+    ['', 'Ночь', 'тёмно-синий и лайм', ['#1e3058', '#9fe62a', '#2a5fc4']],
+    ['fc', 'FC', 'строго, бирюза', ['#10264a', '#3ff5dd', '#23406e']],
+    ['brawl', 'Бравл', 'ярко, чёрные обводки', ['#4a3bb5', '#ffd21a', '#2a8cf0']],
+    ['ucl', 'Лига чемпионов', 'ночь и серебро', ['#0a1e5a', '#ffffff', '#a0c8ff']],
+    ['epl', 'АПЛ', 'фиолетовый и неон', ['#46004f', '#04f5ff', '#e90052']],
+    ['royal', 'Королевский', 'синий и золото', ['#1f4aa8', '#ffc02a', '#4f8cff']],
+    ['neon', 'Неон', 'чёрный и розовый', ['#08060f', '#ff2d95', '#00f0ff']],
+    ['retro', 'Ретро', 'бордовый и крем', ['#5c1e22', '#f5c46a', '#a3373b']],
+  ];
+  function applyTheme() {
+    let t = ''; try { t = new URLSearchParams(location.search).get('th') || (Store.d.ui && Store.d.ui.th) || ''; } catch (e) { t = ''; }
+    if (!THEMES.some((x) => x[0] === t)) t = '';
+    if (t) document.body.dataset.th = t; else delete document.body.dataset.th;
+  }
+  function themeSheet() {
+    const el = document.createElement('div'); el.className = 'fm-sheet fm-prof';
+    const cur = document.body.dataset.th || '';
+    const draw = () => { const c = document.body.dataset.th || ''; el.innerHTML = `<div class="fm-prf th-pick"><b class="lg-pt">Оформление</b>
+      <div class="th-grid">${THEMES.map(([id, n, d, col]) => `<button class="th-o ${id === c ? 'on' : ''}" data-th-set="${id}"><span class="th-sw">${col.map((x) => `<i style="background:${x}"></i>`).join('')}</span><b>${n}</b><small>${d}</small></button>`).join('')}</div>
+      <button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`; };
+    draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
+    const close = () => { el.classList.remove('in'); setTimeout(() => el.remove(), 250); };
+    el.addEventListener('click', (e) => {
+      if (e.target === el || e.target.closest('.fm-sh-x')) return close();
+      const b = e.target.closest('[data-th-set]'); if (!b) return;
+      Sound.play('tap'); const u = Store.d.ui || (Store.d.ui = {}); u.th = b.dataset.thSet; Store.save();
+      try { const q = new URLSearchParams(location.search); if (q.has('th')) { q.delete('th'); history.replaceState(null, '', location.pathname + (q.toString() ? '?' + q : '') + location.hash); } } catch (err) { /* ок */ }
+      applyTheme(); draw(); render();
+    });
+    return cur;
+  }
   function profileSheet() {
     const u = Store.d.user || {}, own = Object.keys((Store.d.cards && Store.d.cards.own) || {}).length;
     const el = document.createElement('div'); el.className = 'fm-sheet fm-prof';
@@ -660,6 +693,7 @@ const FCM = (() => {
       board: '<rect x="3" y="12" width="4.5" height="8" rx="1"/><rect x="9.75" y="6" width="4.5" height="14" rx="1"/><rect x="16.5" y="9" width="4.5" height="11" rx="1"/>',
       report: '<path d="M12 3a6 6 0 0 1 6 6v4.5l1.8 3.5H4.2L6 13.5V9a6 6 0 0 1 6-6z"/><path d="M9.5 19.5a2.5 2.5 0 0 0 5 0" fill="none" stroke="currentColor" stroke-width="2"/>',
       admin: '<path d="M12 2.5l8 3v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10v-6z"/>',
+      theme: '<circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="9" r="1.6" fill="#0a1222"/><circle cx="13" cy="7.5" r="1.6" fill="#0a1222"/><circle cx="16.5" cy="11" r="1.6" fill="#0a1222"/><circle cx="10" cy="15" r="2.2" fill="#0a1222"/>',
       wipe: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>' };
     const sv = (k) => `<i class="fm-pf-i"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">${SV[k]}</svg></i>`;
     const tg = (act, t, on) => `<button class="fm-pf-tg ${on ? 'on' : ''}" data-act="${act}">${sv(act)}<span>${t}<small>${on ? 'Включено' : 'Выключено'}</small></span><em class="fm-sw"><i></i></em></button>`;
@@ -668,6 +702,7 @@ const FCM = (() => {
         <div class="fm-pf-me"><span class="fm-ava big">${esc(u.emoji || '⚽')}</span><span><b>${esc(u.nick || 'Игрок')}</b><small>${cup}${trophies()} трофеев · карточек ${own}</small></span></div>
         <div class="fm-pf-tgs">${tg('music', 'Музыка', Store.d.music !== false)}${tg('sound', 'Звуки', !!Store.d.sound)}</div>
         <div class="fm-pf-list">
+          ${row('data-fmp="theme"', 'theme', 'Оформление')}
           ${row('data-fmp="coll"', 'coll', 'Коллекция')}
           ${row('data-act="board"', 'board', 'Таблица канала')}
           ${row('data-act="report"', 'report', 'Нашёл ошибку')}
@@ -680,6 +715,7 @@ const FCM = (() => {
       if (e.target === el || e.target.closest('.fm-sh-x')) return close();
       const p = e.target.closest('[data-fmp]'); if (p) { close(); if (p.dataset.fmp === 'coll') { tab = 'coll'; render(); }
         else if (p.dataset.fmp === 'admin') adminSheet();
+        else if (p.dataset.fmp === 'theme') themeSheet();
         else if (p.dataset.fmp === 'claim') Eco.post('a_claim', {}).then((r) => { if (r && r.ok) { Store.d.admin = true; Store.d.ecoNoAdmin = false; Store.save(); toast('Ты админ проверочного сервера'); adminSheet(); } else toast('Админ уже есть'); });
         return; }
       const a = e.target.closest('[data-act]'); if (a && /^(music|sound)$/.test(a.dataset.act)) setTimeout(draw, 50);
@@ -851,6 +887,7 @@ const FCM = (() => {
     document.body.classList.toggle('fm-tgbar', ca > 0); // внутренние экраны тоже ставят шапку в ряд кнопок Telegram
   }
   function init() {
+    applyTheme();
     root = document.createElement('div'); root.id = 'fcm'; root.className = 'fcm';
     insets();
     try { if (TG && TG.onEvent) ['safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged'].forEach((ev) => TG.onEvent(ev, insets)); } catch (e) { /* старый Telegram */ }
@@ -928,5 +965,5 @@ const FCM = (() => {
     new MutationObserver(() => { if (document.body.dataset.scr === 'hub') render(); }).observe(document.body, { attributes: true, attributeFilter: ['data-scr'] });
   }
   document.addEventListener('DOMContentLoaded', () => setTimeout(() => { try { init(); } catch (e) { console.error('FCM', e); } }, 0));
-  return { render, insets, refresh: () => render(), open: (t) => { tab = t; render(); }, get tab() { return tab; } };
+  return { applyTheme, THEMES, render, insets, refresh: () => render(), open: (t) => { tab = t; render(); }, get tab() { return tab; } };
 })();

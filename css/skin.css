@@ -1,65 +1,96 @@
-/* Единый стиль нового вида (22.11) — один слой поверх всех экранов, по принципам FC Mobile и Brawl Stars:
-   кнопка сразу видна как кнопка (объём, толстый нижний край, нажатие «вдавливает»), белые надписи с тёмной обводкой
-   на цветных кнопках, заголовки с обводкой и тенью, панели одного вида (тёмно-синие, светлая кромка сверху, тёмный контур).
-   Подключается последним; правила только для лёжа — вертикальный вид не меняется. */
+/* Единый стиль нового вида (22.11) — один слой поверх всех экранов. Все цвета, шрифты, скругления и вид кнопок —
+   переменные --th-*: по умолчанию «Ночь» (тёмно-синий, лаймовая главная кнопка), остальные темы — в css/themes.css
+   (body[data-th]), выбираются в профиле → «Оформление». Подключается после всех стилей; только для лёжа. */
 @media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fcm-on {
+    /* главная кнопка (Играть, Забрать, Прокачать) */
+    --th-p: linear-gradient(180deg, #d6ff6b 0%, #9fe62a 45%, #7cc916 100%); --th-p-edge: #5a9e08; --th-p-drop: #2f5a04; --th-p-ink: #2b5a00; --th-p-text: #fff;
+    /* обычная кнопка */
+    --th-s: linear-gradient(180deg, #3f7de0 0%, #2a5fc4 55%, #2152ad 100%); --th-s-edge: #173f8c; --th-s-drop: #0c2350; --th-s-ink: rgba(0,0,0,.55); --th-s-text: #fff;
+    --th-btn-r: 12px; --th-btn-border: 0 0 0 0 transparent; --th-btn-depth: 1;
+    /* панели */
+    --th-panel: linear-gradient(180deg, rgba(30,48,88,.94), rgba(12,20,40,.94));
+    --th-line: rgba(120,160,230,.18); --th-panel-r: 14px; --th-outline: rgba(0,0,0,.35);
+    /* акцент (выбранное, полосы, «готово») — тройка RGB */
+    --th-acc: 198,255,61; --th-acc-ink: #0a1a00;
+    /* заголовки */
+    --th-tfont: "Inter Tight", sans-serif; --th-tw: 900; --th-tcase: uppercase; --th-tls: .01em;
+    --th-tshadow: 0 3px 0 rgba(0,0,0,.45), 1px 1px 0 rgba(0,0,0,.5), -1px 1px 0 rgba(0,0,0,.5), 1px -1px 0 rgba(0,0,0,.4), -1px -1px 0 rgba(0,0,0,.4);
+    /* нижнее меню, верхние счётчики, плитки главной, оттенок поверх 3D-стадиона */
+    --th-nav: linear-gradient(180deg, rgba(14,24,42,.94), rgba(5,9,18,.98)); --th-chip: linear-gradient(180deg, rgba(20,32,52,.9), rgba(8,14,26,.9));
+    --th-tile: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,0) 60%), rgba(10,16,28,.62);
+    --th-tint: transparent;
     --sk-out: 0 2px 0 rgba(0,0,0,.55), 1px 1px 0 rgba(0,0,0,.55), -1px 1px 0 rgba(0,0,0,.55), 1px -1px 0 rgba(0,0,0,.45), -1px -1px 0 rgba(0,0,0,.45);
-    --sk-panel: linear-gradient(180deg, rgba(30,48,88,.94), rgba(12,20,40,.94));
-    --sk-edge: inset 0 1.5px 0 rgba(255,255,255,.14), inset 0 0 0 1px rgba(120,160,230,.18), 0 0 0 1.5px rgba(0,0,0,.35), 0 8px 18px -8px rgba(0,0,0,.7);
+    --sk-panel: var(--th-panel);
+    --sk-edge: inset 0 1.5px 0 rgba(255,255,255,.14), inset 0 0 0 1px var(--th-line), 0 0 0 1.5px var(--th-outline), 0 8px 18px -8px rgba(0,0,0,.7);
   }
-  /* ---- кнопки: объёмные, с нижним краем ---- */
-  body.fcm-on :is(.fm-btn, .hm-play, .hm-prize) { border: 0 !important; border-radius: 12px !important; transition: transform .08s, box-shadow .08s, filter .15s; }
-  body.fcm-on .fm-btn { color: #fff !important; text-shadow: var(--sk-out);
-    background: linear-gradient(180deg, #3f7de0 0%, #2a5fc4 55%, #2152ad 100%) !important;
-    box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -4px 0 #173f8c, 0 3px 0 #0c2350, 0 6px 12px rgba(0,0,0,.35) !important; }
-  body.fcm-on .fm-btn.gold, body.fcm-on .hm-play { color: #fff !important; text-shadow: 0 2px 0 #2b5a00, 1px 1px 0 #2b5a00, -1px 1px 0 #2b5a00, 1px -1px 0 #2b5a00, -1px -1px 0 #2b5a00 !important;
-    background: linear-gradient(180deg, #d6ff6b 0%, #9fe62a 45%, #7cc916 100%) !important;
-    box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -5px 0 #5a9e08, 0 4px 0 #2f5a04, 0 8px 16px rgba(120,220,30,.35) !important; }
+  /* оттенок темы поверх 3D-стадиона (неподвижный слой — ничего не стоит) */
+  body.fcm-on .fcm-bg canvas { filter: var(--th-bgf, none); } /* обработка 3D-стадиона под тему (видеокарта, один проход) */
+  body.fcm-on .fcm-bg::after { content: ''; position: absolute; inset: 0; background: var(--th-tint); pointer-events: none; }
+  /* ---- кнопки ---- */
+  body.fcm-on :is(.fm-btn, .hm-play, .hm-prize) { border: 0 !important; border-radius: var(--th-btn-r) !important; transition: transform .08s, box-shadow .08s, filter .15s; }
+  body.fcm-on .fm-btn { color: var(--th-s-text) !important; font-weight: 900 !important; font-family: var(--th-tfont) !important;
+    text-shadow: 0 2px 0 var(--th-s-ink), 1px 1px 0 var(--th-s-ink), -1px 1px 0 var(--th-s-ink), 1px -1px 0 var(--th-s-ink), -1px -1px 0 var(--th-s-ink) !important;
+    background: var(--th-s) !important;
+    box-shadow: var(--th-btn-border), inset 0 2px 0 rgba(255,255,255,.3), inset 0 calc(-4px * var(--th-btn-depth)) 0 var(--th-s-edge), 0 calc(3px * var(--th-btn-depth)) 0 var(--th-s-drop), 0 6px 12px rgba(0,0,0,.3) !important; }
+  body.fcm-on :is(.fm-btn.gold, .fm-btn.limeb, .hm-play) { color: var(--th-p-text) !important; font-family: var(--th-tfont) !important;
+    text-shadow: 0 2px 0 var(--th-p-ink), 1px 1px 0 var(--th-p-ink), -1px 1px 0 var(--th-p-ink), 1px -1px 0 var(--th-p-ink), -1px -1px 0 var(--th-p-ink) !important;
+    background: var(--th-p) !important;
+    box-shadow: var(--th-btn-border), inset 0 2px 0 rgba(255,255,255,.55), inset 0 calc(-5px * var(--th-btn-depth)) 0 var(--th-p-edge), 0 calc(4px * var(--th-btn-depth)) 0 var(--th-p-drop), 0 8px 16px rgba(0,0,0,.3) !important; }
   body.fcm-on .fm-btn.star { color: #fff !important; text-shadow: 0 2px 0 #7a4a00, 1px 1px 0 #7a4a00, -1px 1px 0 #7a4a00, 1px -1px 0 #7a4a00, -1px -1px 0 #7a4a00 !important;
-    background: linear-gradient(180deg, #ffe88a, #ffc22e 50%, #f0a400) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -4px 0 #c07e00, 0 3px 0 #6b4500, 0 6px 12px rgba(0,0,0,.35) !important; }
-  body.fcm-on :is(.fm-btn, .hm-play):active { transform: translateY(3px) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -2px 0 rgba(0,0,0,.25), 0 1px 0 rgba(0,0,0,.6) !important; filter: brightness(.95); }
-  body.fcm-on .hm-play { animation: none !important; border-radius: 18px !important; font-weight: 900 !important; letter-spacing: .03em; }
-  body.fcm-on .fm-btn { font-weight: 900 !important; }
-  body.fcm-on .hm-play svg { filter: drop-shadow(0 2px 0 #2b5a00); }
-  /* «Прокачать» — главная кнопка окна карточки: лаймовая, как «Играть» */
-  body.fcm-on .fm-btn.limeb { color: #fff !important; text-shadow: 0 2px 0 #2b5a00, 1px 1px 0 #2b5a00, -1px 1px 0 #2b5a00, 1px -1px 0 #2b5a00, -1px -1px 0 #2b5a00 !important;
-    background: linear-gradient(180deg, #d6ff6b 0%, #9fe62a 45%, #7cc916 100%) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -5px 0 #5a9e08, 0 4px 0 #2f5a04 !important; }
+    background: linear-gradient(180deg, #ffe88a, #ffc22e 50%, #f0a400) !important; box-shadow: var(--th-btn-border), inset 0 2px 0 rgba(255,255,255,.6), inset 0 -4px 0 #c07e00, 0 3px 0 #6b4500, 0 6px 12px rgba(0,0,0,.35) !important; }
+  body.fcm-on :is(.fm-btn, .hm-play):active { transform: translateY(calc(3px * var(--th-btn-depth))) !important; filter: brightness(.92); }
+  body.fcm-on .hm-play { animation: none !important; border-radius: calc(var(--th-btn-r) * 1.4) !important; font-weight: 900 !important; letter-spacing: .03em; }
+  body.fcm-on .hm-play svg { filter: drop-shadow(0 2px 0 var(--th-p-ink)); }
   body.fcm-on .fm-cv-n { display: grid; place-items: center; font: 800 14px "Inter Tight", sans-serif; color: #9fb2cc; }
   /* старая главная спрятана под новым видом — её анимации не крутим впустую */
   body.fcm-on #app :is(.fc-ev, .fc-play)::after, body.fcm-on #app .screen.enter, body.fcm-on #app .screen.enter * { animation: none !important; }
   body.fcm-on #hub::after { display: none !important; } /* прожекторы старой главной — огромный слой во весь экран под новым видом */
   /* вращающиеся лучи — отдельным слоем видеокарты (не перерисовываются каждый кадр) */
   body.fcm-on :is(.fm-st-rays, .fm-pk-glow, .hm-star-rays) { will-change: transform; }
-  /* цена на паках — те же объёмные «таблетки» */
-  body.fcm-on .fm-pr { border-radius: 9px; color: #fff !important; text-shadow: var(--sk-out); box-shadow: inset 0 1.5px 0 rgba(255,255,255,.5), inset 0 -3px 0 rgba(0,0,0,.2), 0 2px 0 rgba(0,0,0,.45); }
-  body.fcm-on .fm-pr.c { background: linear-gradient(180deg, #cfff5e, #8fe61e) !important; }
+  /* цена на паках — объёмные «таблетки» */
+  body.fcm-on .fm-pr { border-radius: calc(var(--th-btn-r) * .75); color: #fff !important; text-shadow: var(--sk-out); box-shadow: var(--th-btn-border), inset 0 1.5px 0 rgba(255,255,255,.5), inset 0 -3px 0 rgba(0,0,0,.2), 0 2px 0 rgba(0,0,0,.45); }
+  body.fcm-on .fm-pr.c { background: var(--th-p) !important; }
   body.fcm-on .fm-pr.s { background: linear-gradient(180deg, #ffe17a, #f5b623) !important; }
-  /* ---- заголовки: крупно, с обводкой ---- */
-  body.fcm-on :is(.fm-title, .hm-ht > b, .lg-h b, .lg-pl, .cr-l > b, .fm-qh-t > b, .fm-st-hero b, .hm-t-tx b, .dv-n, .fm-ev-t b) { text-shadow: 0 3px 0 rgba(0,0,0,.45), 1px 1px 0 rgba(0,0,0,.5), -1px 1px 0 rgba(0,0,0,.5), 1px -1px 0 rgba(0,0,0,.4), -1px -1px 0 rgba(0,0,0,.4); letter-spacing: .01em; }
-  body.fcm-on .fm-title { font-size: 26px !important; font-weight: 900 !important; }
+  /* ---- заголовки ---- */
+  body.fcm-on :is(.fm-title, .hm-ht > b, .lg-h b, .lg-pl, .cr-l > b, .fm-qh-t > b, .fm-st-hero b, .hm-t-tx b, .dv-n, .fm-ev-t b, .fm-pk-t b, .cr-next .cr-tt b, .hm-play, .fm-tab b) {
+    font-family: var(--th-tfont) !important; font-weight: var(--th-tw) !important; text-transform: var(--th-tcase) !important; letter-spacing: var(--th-tls); }
+  body.fcm-on :is(.fm-title, .hm-ht > b, .lg-h b, .lg-pl, .cr-l > b, .fm-qh-t > b, .fm-st-hero b, .hm-t-tx b, .dv-n, .fm-ev-t b) { text-shadow: var(--th-tshadow); }
+  body.fcm-on .fm-title { font-size: 26px !important; }
   /* ---- панели одного вида ---- */
-  body.fcm-on :is(.fm-q, .fm-qh, .fm-qpass, .lg-h, .lg-pz, .lg-r, .lg-last, .cr-l, .cr-row, .fm-gm, .fm-gc, .fm-rail button, .dv-l, .dv-wk, .dv-lad, .fm-daypk, .fm-pf-row, .fm-pf-tg, .cr-ch, .fm-evtabs button, .lg-nb) {
-    border-radius: 14px; box-shadow: var(--sk-edge) !important; }
-  body.fcm-on :is(.fm-q, .fm-qh, .lg-h, .lg-pz, .lg-r, .lg-last, .cr-l, .cr-row, .fm-gm, .fm-gc, .fm-rail button, .dv-l, .dv-wk, .dv-lad, .fm-pf-row, .cr-ch, .fm-evtabs button) { background: var(--sk-panel) !important; }
-  /* выбранный раздел слева и вкладки сверху — яркая подсветка, как выбранная вкладка в играх */
-  body.fcm-on :is(.fm-rail button.on, .fm-evtabs button.on, .cr-ch.on) { background: linear-gradient(180deg, #d6ff6b, #8fe61e) !important; color: #0a1a00 !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -3px 0 #5a9e08, 0 2px 0 #2f5a04 !important; }
-  body.fcm-on :is(.fm-rail button.on, .fm-evtabs button.on, .cr-ch.on) :is(b, small) { color: #0a1a00 !important; text-shadow: none !important; }
-  /* важные плашки (готово, награда) — сохраняют свой цвет поверх общей панели */
-  body.fcm-on .fm-q.done { background: linear-gradient(120deg, rgba(198,255,61,.28), rgba(198,255,61,.06)), var(--sk-panel) !important; box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.65), 0 0 16px rgba(198,255,61,.2) !important; }
-  body.fcm-on .lg-r.me { background: linear-gradient(90deg, rgba(198,255,61,.32), rgba(12,20,40,.94)) !important; box-shadow: inset 0 0 0 2px rgba(198,255,61,.75) !important; }
-  body.fcm-on :is(.lg-r.p1, .lg-r.p2, .lg-r.p3) { background: linear-gradient(90deg, rgba(255,210,60,.26), rgba(12,20,40,.94)) !important; }
+  body.fcm-on :is(.fm-q, .fm-qh, .fm-qpass, .lg-h, .lg-pz, .lg-r, .lg-last, .cr-l, .cr-row, .cr-next, .lg-me, .lg-prize, .fm-gm, .fm-gc, .fm-rail button, .dv-l, .dv-wk, .dv-lad, .fm-daypk, .fm-pf-row, .fm-pf-tg, .cr-ch, .fm-evtabs button, .lg-nb, .fm-pk, .fm-st-hero, .fm-prf, .fm-cv) {
+    border-radius: var(--th-panel-r) !important; box-shadow: var(--sk-edge) !important; }
+  body.fcm-on :is(.fm-q, .fm-qh, .lg-h, .lg-pz, .lg-r, .lg-last, .cr-l, .cr-row, .fm-gm, .fm-gc, .fm-rail button, .dv-l, .dv-wk, .dv-lad, .fm-pf-row, .cr-ch, .fm-evtabs button) { background: var(--th-panel) !important; }
+  /* выбранный раздел слева и вкладки сверху — цвет главной кнопки */
+  body.fcm-on :is(.fm-rail button.on, .fm-evtabs button.on, .cr-ch.on) { background: var(--th-p) !important; color: var(--th-acc-ink) !important; box-shadow: var(--th-btn-border), inset 0 2px 0 rgba(255,255,255,.55), inset 0 -3px 0 var(--th-p-edge), 0 2px 0 var(--th-p-drop) !important; }
+  body.fcm-on :is(.fm-rail button.on, .fm-evtabs button.on, .cr-ch.on) :is(b, small) { color: var(--th-acc-ink) !important; text-shadow: none !important; }
+  body.fcm-on .fm-rail small { color: rgb(var(--th-acc)); }
+  /* полосы прогресса — цвет акцента */
+  body.fcm-on :is(.hm-bar i, .fm-bar i, .cr-fill) { background: linear-gradient(90deg, rgba(var(--th-acc), .75), rgb(var(--th-acc))) !important; box-shadow: 0 0 10px rgba(var(--th-acc), .5) !important; }
+  /* важные плашки (готово, награда, ты в таблице) — цвет акцента */
+  body.fcm-on .fm-q.done { background: linear-gradient(120deg, rgba(var(--th-acc), .28), rgba(var(--th-acc), .06)), var(--th-panel) !important; box-shadow: inset 0 0 0 1.5px rgba(var(--th-acc), .65), 0 0 16px rgba(var(--th-acc), .2) !important; }
+  body.fcm-on .lg-r.me { background: linear-gradient(90deg, rgba(var(--th-acc), .32), rgba(12,20,40,.9)) !important; box-shadow: inset 0 0 0 2px rgba(var(--th-acc), .75) !important; }
+  body.fcm-on :is(.lg-r.p1, .lg-r.p2, .lg-r.p3) { background: linear-gradient(90deg, rgba(255,210,60,.26), rgba(12,20,40,.9)) !important; }
   body.fcm-on .lg-pz.p1 { background: linear-gradient(180deg, rgba(255,210,60,.4), rgba(12,20,40,.94)) !important; }
   body.fcm-on .lg-pz.p2 { background: linear-gradient(180deg, rgba(200,215,235,.32), rgba(12,20,40,.94)) !important; }
   body.fcm-on .lg-pz.p3 { background: linear-gradient(180deg, rgba(220,140,80,.38), rgba(12,20,40,.94)) !important; }
-  body.fcm-on .cr-row.done { background: linear-gradient(90deg, rgba(198,255,61,.2), rgba(12,20,40,.94)) !important; }
-  /* плитки главной — та же кромка */
-  body.fcm-on .hm-t { box-shadow: inset 0 1.5px 0 rgba(255,255,255,.18), inset 0 0 0 1.5px rgba(255,255,255,.14), 0 0 0 1.5px rgba(0,0,0,.35), 0 10px 20px -8px rgba(0,0,0,.7) !important; }
+  body.fcm-on .cr-row.done { background: linear-gradient(90deg, rgba(var(--th-acc), .2), rgba(12,20,40,.9)) !important; }
+  /* плитки главной */
+  body.fcm-on .hm-t { background: var(--th-tile) !important; border-radius: calc(var(--th-panel-r) * 1.3) !important;
+    box-shadow: inset 0 1.5px 0 rgba(255,255,255,.18), inset 0 0 0 1.5px var(--th-line), 0 0 0 1.5px var(--th-outline), 0 10px 20px -8px rgba(0,0,0,.7) !important; }
   body.fcm-on .hm-t:active { transform: translateY(2px) scale(.99); }
-  /* нижнее меню: выбранная вкладка — светлая «подложка» */
-  body.fcm-on .fm-tab.on { background: linear-gradient(180deg, rgba(198,255,61,.22), rgba(198,255,61,.04)) !important; }
+  /* магазин и пак дня — тоже в цветах темы */
+  body.fcm-on :is(.fm-st-hero, .fm-daypk, .fm-pk, .fm-qpass) { --pc: rgb(var(--th-acc)); }
+  body.fcm-on .fm-daypk { background: var(--th-tile) !important; }
+  body.fcm-on .fm-st-mini .fm-pk { background: var(--th-panel) !important; }
+  body.fcm-on .fm-st-hero { background: radial-gradient(70% 70% at 30% 50%, rgba(var(--th-acc), .3), transparent 70%), var(--th-panel) !important; }
+  /* верх и низ */
+  body.fcm-on .fm-nav { background: var(--th-nav) !important; }
+  body.fcm-on .fm-cur { background: var(--th-chip) !important; }
+  body.fcm-on .fm-tab.on { background: linear-gradient(180deg, rgba(var(--th-acc), .22), rgba(var(--th-acc), .04)) !important; box-shadow: inset 0 -3px 0 rgb(var(--th-acc)) !important; }
   body.fcm-on .fm-tab.on b { text-shadow: var(--sk-out); }
-  /* счётчики-бейджи — круглые, с обводкой */
+  /* счётчики-бейджи */
   body.fcm-on :is(.hm-n, .fm-dot) { box-shadow: 0 0 0 2px #0a1222, 0 2px 0 2px rgba(0,0,0,.4) !important; }
+  body.fcm-on .hm-n { background: rgb(var(--th-acc)) !important; color: var(--th-acc-ink) !important; }
 }
 @media (prefers-reduced-motion: reduce) { body.fcm-on :is(.fm-btn, .hm-play) { transition: none !important; } }
