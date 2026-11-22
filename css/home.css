@@ -51,7 +51,7 @@
   .hm-t::before { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(var(--tc, 40,70,170), .5), rgba(var(--tc, 40,70,170), 0) 60%); pointer-events: none; }
   .hm-t.balls, .hm-t.packs { --tc: 150,230,40; } .hm-t.car { --tc: 210,160,30; } .hm-t.mini { --tc: 120,50,190; }
   .hm-t-art { position: relative; display: grid; place-items: center; height: 100%; min-height: 0; }
-  .hm-t-art .pl-ball { height: clamp(48px, 20vh, 70px); max-height: 100%; aspect-ratio: 1; width: auto; object-fit: cover; object-position: 50% 76%; border-radius: 50%; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); animation: fpkBall 3s ease-in-out infinite; }
+  .hm-t-art .pl-ball { height: clamp(48px, 20vh, 70px); max-height: 100%; aspect-ratio: 1; width: auto; object-fit: cover; object-position: 50% 76%; border-radius: 50%; filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); animation: fpkBall 3s ease-in-out infinite; will-change: transform; }
   .hm-t-art .cc { transform: rotate(-6deg); filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
   .hm-t-art.col { display: flex; align-items: center; justify-content: center; } .hm-t-art.col img { width: 34px; height: 34px; border-radius: 9px; object-fit: cover; margin-left: -10px; box-shadow: 0 3px 8px rgba(0,0,0,.5); border: 1.5px solid rgba(255,255,255,.3); }
   .hm-t-art.col img:nth-child(1) { transform: rotate(-10deg); margin-left: 0; } .hm-t-art.col img:nth-child(2) { transform: translateY(-6px); z-index: 1; } .hm-t-art.col img:nth-child(3) { transform: rotate(10deg); }
@@ -95,8 +95,9 @@
   .hm.hm2 { grid-template-columns: minmax(0, 1fr) auto minmax(200px, 28%); }
   .hm-star { position: relative; align-self: center; display: grid; justify-items: center; gap: 8px; padding: 0 !important; border: 0; background: none !important; perspective: 700px; }
   .hm-star-rays { position: absolute; left: 50%; top: 44%; width: 300px; aspect-ratio: 1; transform: translate(-50%, -50%); pointer-events: none;
-    background: repeating-conic-gradient(from 0deg, rgba(255,214,90,.22) 0 7deg, transparent 7deg 22deg); -webkit-mask: radial-gradient(closest-side, #000 25%, transparent); mask: radial-gradient(closest-side, #000 25%, transparent); animation: fm-spin 26s linear infinite; }
-  .hm-star-c { position: relative; transform-style: preserve-3d; animation: hmStar 5s ease-in-out infinite; filter: drop-shadow(0 14px 18px rgba(0,0,0,.55)) drop-shadow(0 0 18px rgba(255,210,60,.35)); }
+    background: repeating-conic-gradient(from 0deg, rgba(255,214,90,.22) 0 7deg, transparent 7deg 22deg); -webkit-mask: radial-gradient(closest-side, #000 25%, transparent); mask: radial-gradient(closest-side, #000 25%, transparent); } /* 22.11: лучи стоят — вращение с маской тормозило */
+  .hm-star-c { position: relative; animation: hmStar 5s ease-in-out infinite; will-change: transform; } /* тень — у самой карточки (box-shadow), без фильтра: он перерисовывался каждый кадр */
+  .hm-star-c .cc { box-shadow: 0 14px 22px -6px rgba(0,0,0,.6), 0 0 22px rgba(255,210,60,.25); border-radius: 12px; }
   .hm-star small { position: relative; padding: 4px 10px; border-radius: 9px; background: rgba(10,16,28,.7); box-shadow: inset 0 0 0 1px rgba(255,210,60,.4); font: 800 10px "Inter Tight", sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #ffd23c; }
   .hm-star:active .hm-star-c { transform: scale(.96); }
 }

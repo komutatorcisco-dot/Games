@@ -797,7 +797,7 @@ const FCM = (() => {
           <div class="fm-pi-st">${N.map((n, k) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[k]))}%" class="${st[k] >= 85 ? 'hi' : st[k] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[k]}</b></span>`).join('')}</div>
           <p class="fm-cv-own">${has ? `В клубе: ×${Cards.spare ? Cards.spare(c.key) : 1}` : 'Ещё нет в клубе — может выпасть из пака'}</p>
           ${has ? `<div class="fm-cv-act">${typeof Lime !== 'undefined' ? '<button class="fm-btn limeb" data-cv-up>Прокачать</button>' : ''}${Eco.on() && !(typeof Lime !== 'undefined' && Lime.up(c.key)) ? '<button class="fm-btn" data-cv-sell>Продать</button>' : ''}</div>` : ''}
-          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button><button class="fm-btn" data-cv-more>Подробнее</button><button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
+          <div class="fm-pi-btn"><button class="fm-btn" data-cv="-1" aria-label="Предыдущая">‹</button><span class="fm-cv-n">${i + 1} / ${L.length}</span><button class="fm-btn" data-cv="1" aria-label="Следующая">›</button></div>
         </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
       if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el); };
     draw(); document.body.appendChild(el); requestAnimationFrame(() => el.classList.add('in'));
@@ -811,7 +811,6 @@ const FCM = (() => {
       const st = e.target.closest('[data-cv]'); if (st) { Sound.play('tap'); i = (i + +st.dataset.cv + L.length) % L.length; return draw(); }
       if (e.target.closest('[data-cv-up]')) { Sound.play('tap'); const k = (L[i] || {}).key; close(); return Lime.open(k); }
       if (e.target.closest('[data-cv-sell]')) { Sound.play('tap'); const k = (L[i] || {}).key; close(); return Market.sellSheet(k); }
-      if (e.target.closest('[data-cv-more]')) { Sound.play('tap'); const k = (L[i] || {}).key; close(); if (k && Cards.details) Cards.details(k); }
     });
   }
 
@@ -832,7 +831,10 @@ const FCM = (() => {
     if (typeof Coins !== 'undefined') Coins.render();
     lastPlace = '';
     // вход в «Команду» (5.11): камера сразу на поле (без наезда), карточки — сразу, с коротким появлением
-    if (entering) { const tm = root.querySelector('.fm-team'); if (tm) { tm.querySelectorAll('.fm-slot3').forEach((el, k) => el.style.setProperty('--k', k)); tm.classList.add('fx-pop'); setTimeout(() => tm.classList.remove('fx-pop'), 700); } }
+    // 22.11: карточки ждут, пока сцена отрисуется (первые кадры после входа телефон занят 3D), и только потом выпрыгивают по очереди —
+    // иначе анимация пролетала за время этих кадров и состав просто «появлялся»
+    if (entering) { const tm = root.querySelector('.fm-team'); if (tm) { tm.querySelectorAll('.fm-slot3').forEach((el, k) => el.style.setProperty('--k', k)); tm.classList.add('fx-wait');
+      requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { tm.classList.remove('fx-wait'); tm.classList.add('fx-pop'); setTimeout(() => tm.classList.remove('fx-pop'), 1100); }, 60))); } }
     if (bg3) { bg3.view(tab === 'market' ? 'store' : tab, entering); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
     if (tab === 'market') Market.load();
     if (!render.pre && typeof Squad !== 'undefined' && Cards.preload) { render.pre = 1; const go = () => { try { Cards.preload(Squad.S().xi); } catch (e) { /* нет состава */ } }; if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 2500 }); else setTimeout(go, 1500); }

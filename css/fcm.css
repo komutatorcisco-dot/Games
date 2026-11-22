@@ -219,12 +219,8 @@
   body.fm3d .fcm[data-view="quests"]::after { background: linear-gradient(120deg, rgba(4,30,40,.82), rgba(6,14,30,.55) 60%, rgba(25,211,176,.12)); }
   body.fm3d .fcm[data-view="store"]::after { background: linear-gradient(115deg, rgba(4,12,26,.85) 30%, rgba(8,60,70,.45) 70%, rgba(25,211,176,.18)); }
   body.fm3d .fcm[data-view="play"]::after { background: radial-gradient(60% 70% at 50% 110%, rgba(198,255,61,.08), transparent 70%); }
-  /* световые полосы по диагонали медленно проходят по экрану */
+  /* 22.11: диагональные световые полосы во весь экран убраны — огромный полупрозрачный слой поверх 3D-стадиона тормозил телефоны */
   .fcm .fm-main { position: relative; }
-  .fcm::after, .fm-streak { will-change: auto; }
-  body.fm3d .fcm[data-view]:not([data-view="team"]) .fm-main::before { content: ''; position: fixed; inset: -20% -40%; z-index: -1; pointer-events: none;
-    background: linear-gradient(115deg, transparent 42%, rgba(120,220,255,.07) 46%, rgba(198,255,61,.06) 48%, transparent 52%); animation: fm-streak 9s ease-in-out infinite; }
-  @keyframes fm-streak { 0% { transform: translateX(-30%); } 100% { transform: translateX(30%); } }
 
   /* стекло панелей и светящиеся края */
   body.fm3d :is(.fm-mode, .fm-sq, .fm-rail button, .fm-node, .fm-gc, .fm-q, .fm-of, .fm-stats span) { background-color: rgba(8,16,32,.72) !important; }
@@ -1338,18 +1334,14 @@
 /* 21.11: «сочность» — всё, что можно забрать, светится и поблёскивает: кнопки «Забрать», пак дня, готовые задания,
    награды пропуска и пути трофеев, плитка «открыть сейчас» на главной */
 @media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
-  :is([data-fm-claim], .fm-daypk.hot em, .cr-prize.ready .fm-btn, .hm-prize, [data-dv-week]) { position: relative; overflow: hidden; animation: fxGlow 1.8s ease-in-out infinite; }
+  :is([data-fm-claim], .fm-daypk.hot em, .cr-prize.ready .fm-btn, .hm-prize, [data-dv-week]) { position: relative; overflow: hidden; } /* 22.11: без анимации тени — она перерисовывала экран каждый кадр */
   :is([data-fm-claim], .fm-daypk.hot em, .cr-prize.ready .fm-btn, .hm-prize, [data-dv-week])::after { content: ''; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%;
-    background: linear-gradient(100deg, transparent, rgba(255,255,255,.75), transparent); transform: skewX(-20deg); animation: fxSweep 2.6s ease-in-out infinite; pointer-events: none; }
+    background: linear-gradient(100deg, transparent, rgba(255,255,255,.75), transparent); transform: translateX(0) skewX(-20deg); animation: fxSweep 2.6s ease-in-out infinite; pointer-events: none; will-change: transform; }
   .fm-daypk.hot { box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.6), 0 0 18px rgba(198,255,61,.25) !important; }
-  .fm-daypk.hot img { animation: fm-float 2.4s ease-in-out infinite; }
-  .fm-q.done { animation: fxTile 2s ease-in-out infinite; }
-  .hm2 .hm-t.balls, .hm2 .hm-t.angry { animation: fxTile 2s ease-in-out infinite; }
-  .hm-n { animation: fxPop 1.6s ease-in-out infinite; }
+  .fm-daypk.hot img { animation: fm-float 2.4s ease-in-out infinite; will-change: transform; }
+  .hm-n { animation: fxPop 1.6s ease-in-out infinite; will-change: transform; }
   .fm-rail small:not(:empty) { text-shadow: 0 0 8px rgba(198,255,61,.6); }
 }
-@keyframes fxGlow { 0%, 100% { box-shadow: 0 0 0 0 rgba(198,255,61,0), 0 4px 10px rgba(0,0,0,.3); } 50% { box-shadow: 0 0 16px 2px rgba(198,255,61,.55), 0 4px 10px rgba(0,0,0,.3); } }
-@keyframes fxSweep { 0%, 55% { left: -60%; } 100% { left: 130%; } }
-@keyframes fxTile { 0%, 100% { filter: brightness(1); } 50% { filter: brightness(1.15); } }
+@keyframes fxSweep { 0%, 55% { transform: translateX(0) skewX(-20deg); } 100% { transform: translateX(480%) skewX(-20deg); } }
 @keyframes fxPop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
 @media (prefers-reduced-motion: reduce) { :is([data-fm-claim], .fm-daypk.hot em, .fm-q.done, .hm-t, .hm-n, .hm-prize)::after, :is([data-fm-claim], .fm-daypk.hot em, .fm-q.done, .hm-t, .hm-n, .hm-prize) { animation: none !important; } }

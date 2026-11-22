@@ -16,7 +16,7 @@
   .lg-nb.up { box-shadow: inset 0 0 0 1px rgba(198,255,61,.35); } .lg-nb.top b { color: #ffd23c; }
   .lg-go { width: 100%; height: 42px; font-size: 16px !important; margin-top: 2px; }
   .lg-prize { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 14px;
-    background: linear-gradient(90deg, rgba(198,255,61,.25), rgba(198,255,61,.05)), rgba(8,16,32,.9); box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.6), 0 0 18px rgba(198,255,61,.25); animation: fxTile 2s ease-in-out infinite; }
+    background: linear-gradient(90deg, rgba(198,255,61,.25), rgba(198,255,61,.05)), rgba(8,16,32,.9); box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.6), 0 0 18px rgba(198,255,61,.25); }
   .lg-prize span { display: grid; gap: 2px; min-width: 0; } .lg-prize small { font: 800 10px "Inter Tight", sans-serif; text-transform: uppercase; letter-spacing: .1em; color: #c6ff3d; }
   .lg-prize b { font: 900 15px "Inter Tight", sans-serif; display: flex; align-items: center; gap: 4px; } .lg-prize b svg { width: 14px; height: 14px; color: #ffd23c; } .lg-prize em { font: 600 11px/1.25 "Inter Tight", sans-serif; font-style: normal; color: #dfe7f2; }
   .lg-c { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 8px; min-height: 0; }

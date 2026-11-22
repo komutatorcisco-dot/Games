@@ -22,6 +22,15 @@
   body.fcm-on .hm-play { animation: none !important; border-radius: 18px !important; font-weight: 900 !important; letter-spacing: .03em; }
   body.fcm-on .fm-btn { font-weight: 900 !important; }
   body.fcm-on .hm-play svg { filter: drop-shadow(0 2px 0 #2b5a00); }
+  /* «Прокачать» — главная кнопка окна карточки: лаймовая, как «Играть» */
+  body.fcm-on .fm-btn.limeb { color: #fff !important; text-shadow: 0 2px 0 #2b5a00, 1px 1px 0 #2b5a00, -1px 1px 0 #2b5a00, 1px -1px 0 #2b5a00, -1px -1px 0 #2b5a00 !important;
+    background: linear-gradient(180deg, #d6ff6b 0%, #9fe62a 45%, #7cc916 100%) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -5px 0 #5a9e08, 0 4px 0 #2f5a04 !important; }
+  body.fcm-on .fm-cv-n { display: grid; place-items: center; font: 800 14px "Inter Tight", sans-serif; color: #9fb2cc; }
+  /* старая главная спрятана под новым видом — её анимации не крутим впустую */
+  body.fcm-on #app :is(.fc-ev, .fc-play)::after, body.fcm-on #app .screen.enter, body.fcm-on #app .screen.enter * { animation: none !important; }
+  body.fcm-on #hub::after { display: none !important; } /* прожекторы старой главной — огромный слой во весь экран под новым видом */
+  /* вращающиеся лучи — отдельным слоем видеокарты (не перерисовываются каждый кадр) */
+  body.fcm-on :is(.fm-st-rays, .fm-pk-glow, .hm-star-rays) { will-change: transform; }
   /* цена на паках — те же объёмные «таблетки» */
   body.fcm-on .fm-pr { border-radius: 9px; color: #fff !important; text-shadow: var(--sk-out); box-shadow: inset 0 1.5px 0 rgba(255,255,255,.5), inset 0 -3px 0 rgba(0,0,0,.2), 0 2px 0 rgba(0,0,0,.45); }
   body.fcm-on .fm-pr.c { background: linear-gradient(180deg, #cfff5e, #8fe61e) !important; }
