@@ -1,0 +1,56 @@
+/* Единый стиль нового вида (22.11) — один слой поверх всех экранов, по принципам FC Mobile и Brawl Stars:
+   кнопка сразу видна как кнопка (объём, толстый нижний край, нажатие «вдавливает»), белые надписи с тёмной обводкой
+   на цветных кнопках, заголовки с обводкой и тенью, панели одного вида (тёмно-синие, светлая кромка сверху, тёмный контур).
+   Подключается последним; правила только для лёжа — вертикальный вид не меняется. */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on {
+    --sk-out: 0 2px 0 rgba(0,0,0,.55), 1px 1px 0 rgba(0,0,0,.55), -1px 1px 0 rgba(0,0,0,.55), 1px -1px 0 rgba(0,0,0,.45), -1px -1px 0 rgba(0,0,0,.45);
+    --sk-panel: linear-gradient(180deg, rgba(30,48,88,.94), rgba(12,20,40,.94));
+    --sk-edge: inset 0 1.5px 0 rgba(255,255,255,.14), inset 0 0 0 1px rgba(120,160,230,.18), 0 0 0 1.5px rgba(0,0,0,.35), 0 8px 18px -8px rgba(0,0,0,.7);
+  }
+  /* ---- кнопки: объёмные, с нижним краем ---- */
+  body.fcm-on :is(.fm-btn, .hm-play, .hm-prize) { border: 0 !important; border-radius: 12px !important; transition: transform .08s, box-shadow .08s, filter .15s; }
+  body.fcm-on .fm-btn { color: #fff !important; text-shadow: var(--sk-out);
+    background: linear-gradient(180deg, #3f7de0 0%, #2a5fc4 55%, #2152ad 100%) !important;
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -4px 0 #173f8c, 0 3px 0 #0c2350, 0 6px 12px rgba(0,0,0,.35) !important; }
+  body.fcm-on .fm-btn.gold, body.fcm-on .hm-play { color: #fff !important; text-shadow: 0 2px 0 #2b5a00, 1px 1px 0 #2b5a00, -1px 1px 0 #2b5a00, 1px -1px 0 #2b5a00, -1px -1px 0 #2b5a00 !important;
+    background: linear-gradient(180deg, #d6ff6b 0%, #9fe62a 45%, #7cc916 100%) !important;
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -5px 0 #5a9e08, 0 4px 0 #2f5a04, 0 8px 16px rgba(120,220,30,.35) !important; }
+  body.fcm-on .fm-btn.star { color: #fff !important; text-shadow: 0 2px 0 #7a4a00, 1px 1px 0 #7a4a00, -1px 1px 0 #7a4a00, 1px -1px 0 #7a4a00, -1px -1px 0 #7a4a00 !important;
+    background: linear-gradient(180deg, #ffe88a, #ffc22e 50%, #f0a400) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -4px 0 #c07e00, 0 3px 0 #6b4500, 0 6px 12px rgba(0,0,0,.35) !important; }
+  body.fcm-on :is(.fm-btn, .hm-play):active { transform: translateY(3px) !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -2px 0 rgba(0,0,0,.25), 0 1px 0 rgba(0,0,0,.6) !important; filter: brightness(.95); }
+  body.fcm-on .hm-play { animation: none !important; border-radius: 18px !important; font-weight: 900 !important; letter-spacing: .03em; }
+  body.fcm-on .fm-btn { font-weight: 900 !important; }
+  body.fcm-on .hm-play svg { filter: drop-shadow(0 2px 0 #2b5a00); }
+  /* цена на паках — те же объёмные «таблетки» */
+  body.fcm-on .fm-pr { border-radius: 9px; color: #fff !important; text-shadow: var(--sk-out); box-shadow: inset 0 1.5px 0 rgba(255,255,255,.5), inset 0 -3px 0 rgba(0,0,0,.2), 0 2px 0 rgba(0,0,0,.45); }
+  body.fcm-on .fm-pr.c { background: linear-gradient(180deg, #cfff5e, #8fe61e) !important; }
+  body.fcm-on .fm-pr.s { background: linear-gradient(180deg, #ffe17a, #f5b623) !important; }
+  /* ---- заголовки: крупно, с обводкой ---- */
+  body.fcm-on :is(.fm-title, .hm-ht > b, .lg-h b, .lg-pl, .cr-l > b, .fm-qh-t > b, .fm-st-hero b, .hm-t-tx b, .dv-n, .fm-ev-t b) { text-shadow: 0 3px 0 rgba(0,0,0,.45), 1px 1px 0 rgba(0,0,0,.5), -1px 1px 0 rgba(0,0,0,.5), 1px -1px 0 rgba(0,0,0,.4), -1px -1px 0 rgba(0,0,0,.4); letter-spacing: .01em; }
+  body.fcm-on .fm-title { font-size: 26px !important; font-weight: 900 !important; }
+  /* ---- панели одного вида ---- */
+  body.fcm-on :is(.fm-q, .fm-qh, .fm-qpass, .lg-h, .lg-pz, .lg-r, .lg-last, .cr-l, .cr-row, .fm-gm, .fm-gc, .fm-rail button, .dv-l, .dv-wk, .dv-lad, .fm-daypk, .fm-pf-row, .fm-pf-tg, .cr-ch, .fm-evtabs button, .lg-nb) {
+    border-radius: 14px; box-shadow: var(--sk-edge) !important; }
+  body.fcm-on :is(.fm-q, .fm-qh, .lg-h, .lg-pz, .lg-r, .lg-last, .cr-l, .cr-row, .fm-gm, .fm-gc, .fm-rail button, .dv-l, .dv-wk, .dv-lad, .fm-pf-row, .cr-ch, .fm-evtabs button) { background: var(--sk-panel) !important; }
+  /* выбранный раздел слева и вкладки сверху — яркая подсветка, как выбранная вкладка в играх */
+  body.fcm-on :is(.fm-rail button.on, .fm-evtabs button.on, .cr-ch.on) { background: linear-gradient(180deg, #d6ff6b, #8fe61e) !important; color: #0a1a00 !important; box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -3px 0 #5a9e08, 0 2px 0 #2f5a04 !important; }
+  body.fcm-on :is(.fm-rail button.on, .fm-evtabs button.on, .cr-ch.on) :is(b, small) { color: #0a1a00 !important; text-shadow: none !important; }
+  /* важные плашки (готово, награда) — сохраняют свой цвет поверх общей панели */
+  body.fcm-on .fm-q.done { background: linear-gradient(120deg, rgba(198,255,61,.28), rgba(198,255,61,.06)), var(--sk-panel) !important; box-shadow: inset 0 0 0 1.5px rgba(198,255,61,.65), 0 0 16px rgba(198,255,61,.2) !important; }
+  body.fcm-on .lg-r.me { background: linear-gradient(90deg, rgba(198,255,61,.32), rgba(12,20,40,.94)) !important; box-shadow: inset 0 0 0 2px rgba(198,255,61,.75) !important; }
+  body.fcm-on :is(.lg-r.p1, .lg-r.p2, .lg-r.p3) { background: linear-gradient(90deg, rgba(255,210,60,.26), rgba(12,20,40,.94)) !important; }
+  body.fcm-on .lg-pz.p1 { background: linear-gradient(180deg, rgba(255,210,60,.4), rgba(12,20,40,.94)) !important; }
+  body.fcm-on .lg-pz.p2 { background: linear-gradient(180deg, rgba(200,215,235,.32), rgba(12,20,40,.94)) !important; }
+  body.fcm-on .lg-pz.p3 { background: linear-gradient(180deg, rgba(220,140,80,.38), rgba(12,20,40,.94)) !important; }
+  body.fcm-on .cr-row.done { background: linear-gradient(90deg, rgba(198,255,61,.2), rgba(12,20,40,.94)) !important; }
+  /* плитки главной — та же кромка */
+  body.fcm-on .hm-t { box-shadow: inset 0 1.5px 0 rgba(255,255,255,.18), inset 0 0 0 1.5px rgba(255,255,255,.14), 0 0 0 1.5px rgba(0,0,0,.35), 0 10px 20px -8px rgba(0,0,0,.7) !important; }
+  body.fcm-on .hm-t:active { transform: translateY(2px) scale(.99); }
+  /* нижнее меню: выбранная вкладка — светлая «подложка» */
+  body.fcm-on .fm-tab.on { background: linear-gradient(180deg, rgba(198,255,61,.22), rgba(198,255,61,.04)) !important; }
+  body.fcm-on .fm-tab.on b { text-shadow: var(--sk-out); }
+  /* счётчики-бейджи — круглые, с обводкой */
+  body.fcm-on :is(.hm-n, .fm-dot) { box-shadow: 0 0 0 2px #0a1222, 0 2px 0 2px rgba(0,0,0,.4) !important; }
+}
+@media (prefers-reduced-motion: reduce) { body.fcm-on :is(.fm-btn, .hm-play) { transition: none !important; } }
