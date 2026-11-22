@@ -114,6 +114,7 @@ const ClubPath = (() => {
 
   // ---------- вид (новое меню, вкладка «События» → «Карьера») ----------
   let sel = 0;
+  let crPick = null; // выбранный кружок-задание (по умолчанию — текущее)
   function view(ico, cup, lock) {
     settle(true);
     const s = S(); if (!sel) sel = Math.min(s.ch, CH.length);
@@ -122,34 +123,39 @@ const ClubPath = (() => {
     const steps = c.steps.map(([t, r], j) => { const st = s.st[sel + ':' + j] ? 'got' : tk >= t ? 'ready' : 'lock', l = Rewards.rewardLabel(r);
       const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b5" alt="">` : r.coins ? '<i class="coin big"></i>' : l.ico;
       return `<button class="cr-st ${st}" style="left:${(t / max) * 100}%" ${st === 'ready' ? `data-cr-st="${j}"` : ''}><span>${art}</span><b>${esc(l.txt || l.name)}</b><em>${t}</em></button>`; }).join('');
-    // 21.11: проще — справа одно «следующее задание» крупно с большой кнопкой, под ним остальные задания короткими строками
-    // (тап по строке — тоже «Играть»); слева глава, жетоны с дорожкой наград и главная награда
+    // 22.11: «путь главы» — слева номер главы, название и главная награда крупно (мячом), под ней 3 награды за жетоны;
+    // справа дорожка из кружков-заданий (выполнено ✓, текущее — крупное и светится, финал — кубок), под ней одно текущее задание и «Играть»
     const st = c.tasks.map((t, i) => { const p = prog(sel, i), n = need(t); return { t, i, p, n, dn: p >= n, bl: t.boss && !bossOpen(sel) }; });
-    const nx = open(sel) ? st.find((x) => !x.dn && !x.bl) : null, nDone = st.filter((x) => x.dn).length;
-    const big = nx ? `<div class="cr-next ${nx.t.boss ? 'boss' : ''}"><small>${nx.t.boss ? 'Финал главы' : 'Следующее задание'}</small>
-        <div class="cr-nx-r"><i class="cr-ic big">${ico(nx.t.ic)}</i><span class="cr-tt"><b>${esc(nx.t.t)}</b><span class="fm-bar"><i style="width:${Math.round(100 * nx.p / nx.n)}%"></i></span>
-          <small>${nx.t.ovr ? `ОБЩ ${ovrNow()} / ${nx.t.ovr}` : `${nx.p}/${nx.n}`} · <u>+${nx.t.tok} жетонов</u></small></span></div>
-        <button class="fm-btn gold cr-play" data-cr-go="${nx.i}">Играть</button></div>`
-      : open(sel) ? `<div class="cr-next all"><small>Все задания главы</small><b>Выполнены ✓</b>${all && !got ? '<button class="fm-btn gold cr-play" data-cr-done>Забрать главную награду</button>' : ''}</div>`
-      : `<div class="cr-next all"><small>Глава закрыта</small><b>${lock} Откроется после главы ${sel - 1}</b></div>`;
-    const rows = open(sel) ? st.filter((x) => x !== nx).map((x) => `<button class="cr-row ${x.dn ? 'done' : ''} ${x.bl ? 'lock' : ''}" ${!x.dn && !x.bl ? `data-cr-go="${x.i}"` : ''}>
-        <i class="cr-ic">${x.dn ? '✓' : ico(x.t.ic)}</i><b>${esc(x.t.t)}</b><em>${x.dn ? '' : x.bl ? lock : x.t.ovr ? `${ovrNow()}/${x.t.ovr}` : `${x.p}/${x.n}`}</em></button>`).join('') : '';
-    return `<div class="cr cr2">
+    if (!sel || sel > CH.length) sel = 1;
+    const opn = open(sel), nx = opn ? st.find((x) => !x.dn && !x.bl) : null, nDone = st.filter((x) => x.dn).length;
+    const pick = typeof crPick === 'number' && st[crPick] ? st[crPick] : nx;
+    const node = (x) => `<button class="cr3-n ${x.dn ? 'done' : ''} ${x.bl || !opn ? 'lock' : ''} ${x === nx ? 'cur' : ''} ${x === pick ? 'sel' : ''} ${x.t.boss ? 'boss' : ''}" data-cr-pick="${x.i}">
+        <i>${x.dn ? '✓' : x.bl || !opn ? lock : x.t.boss ? cup : ico(x.t.ic)}</i></button>`;
+    const road = `<div class="cr3-road"><i class="cr3-line"><u style="width:${Math.round(100 * nDone / Math.max(1, st.length - 1))}%"></u></i>${st.map(node).join('')}</div>`;
+    const card = !opn ? `<div class="cr3-task"><b>${lock} Глава ${sel} закрыта</b><span>Пройди главу ${sel - 1}</span></div>`
+      : all ? `<div class="cr3-task"><b>Глава пройдена!</b>${got ? '<span>Награда получена ✓</span>' : '<button class="fm-btn gold cr3-go" data-cr-done>Забрать награду</button>'}</div>`
+      : pick ? `<div class="cr3-task"><b>${esc(pick.t.t)}</b><span class="fm-bar"><i style="width:${Math.round(100 * Math.min(1, pick.p / pick.n))}%"></i></span>
+          <em>${pick.t.ovr ? `${ovrNow()} / ${pick.t.ovr}` : `${pick.p} / ${pick.n}`}</em>
+          ${pick.dn ? '<span class="cr3-ok">Выполнено ✓</span>' : pick.bl ? `<span class="cr3-ok">${lock} Сначала 4 задания</span>` : `<button class="fm-btn gold cr3-go" data-cr-go="${pick.i}">Играть</button>`}</div>` : '';
+    const prizeArt = c.prize.pack !== undefined ? `<img src="img/packs/pk${c.prize.pack}-360.webp?v=b5" alt="">` : '<i class="coin big"></i>';
+    const mini = c.steps.map(([t, r], j) => { const ss = s.st[sel + ':' + j] ? 'got' : tk >= t ? 'ready' : 'lock';
+      const art = r.pack !== undefined ? `<img src="img/packs/pk${r.pack}-160.webp?v=b5" alt="">` : r.coins ? '<i class="coin big"></i>' : Rewards.rewardLabel(r).ico;
+      return `<button class="cr3-s ${ss}" ${ss === 'ready' ? `data-cr-st="${j}"` : ''}><span>${art}</span><b>${ss === 'got' ? '✓' : t}</b></button>`; }).join('');
+    return `<div class="cr cr3">
       <div class="cr-chs">${chips}</div>
-      <div class="cr-main">
-        <aside class="cr-l" style="--cc:${c.col}">
-          <small>Карьера · глава ${c.id}</small><b>${esc(c.t)}</b>
-          <div class="cr-tk"><i class="cr-tok-ic"></i><b>${tk}</b><small>жетонов · ${nDone}/${c.tasks.length} заданий</small></div>
-          <div class="cr-road"><i class="cr-fill" style="width:${Math.min(100, (tk / max) * 100)}%"></i>${steps}</div>
-          <div class="cr-prize ${got ? 'got' : all ? 'ready' : ''}"><small>Главная награда</small><b>${esc(c.prize.name)}</b>
-            ${got ? '<em>Получено ✓</em>' : all ? '<button class="fm-btn gold sm" data-cr-done>Забрать</button>' : `<em>за все ${c.tasks.length} заданий</em>`}</div>
+      <div class="cr3-main">
+        <aside class="cr3-l" style="--cc:${c.col}">
+          <span class="cr3-ch"><small>Глава</small><b>${c.id}</b></span><b class="cr3-t">${esc(c.t)}</b>
+          <div class="cr3-prize ${got ? 'got' : all ? 'ready' : ''}">${prizeArt}</div>
+          <div class="cr3-tk"><i class="cr-tok-ic"></i><b>${tk}</b>${mini}</div>
         </aside>
-        <div class="cr-r2">${big}<div class="cr-rows">${rows}</div></div>
+        <div class="cr3-r" style="--cc:${c.col}">${road}${card}</div>
       </div></div>`;
   }
   // клики внутри вида; go(t) — куда вести «Играть»
   function click(e, go, rerender) {
-    const ch = e.target.closest('[data-cr-ch]'); if (ch) { sel = +ch.dataset.crCh; Sound.play('tap'); rerender(); return true; }
+    const pk = e.target.closest('[data-cr-pick]'); if (pk) { crPick = +pk.dataset.crPick; Sound.play('tap'); rerender(); return true; }
+    const ch = e.target.closest('[data-cr-ch]'); if (ch) { sel = +ch.dataset.crCh; crPick = null; Sound.play('tap'); rerender(); return true; }
     const st = e.target.closest('[data-cr-st]'); if (st) { if (claimStep(sel, +st.dataset.crSt)) setTimeout(rerender, 80); return true; }
     if (e.target.closest('[data-cr-done]')) { if (claimChapter(sel)) { if (typeof confetti === 'function') confetti(); setTimeout(rerender, 80); } return true; }
     const g = e.target.closest('[data-cr-go]'); if (g) { Sound.play('tap'); go(CH[sel - 1].tasks[+g.dataset.crGo].go); return true; }

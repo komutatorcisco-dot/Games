@@ -226,6 +226,11 @@ const FCM = (() => {
     if (id === 'quiz') all.forEach((g) => { if (!used.has(g.key) && !g.key.startsWith('pz:')) list.push(g); }); // новые игры без полки — в викторины
     return list;
   }
+  // 22.11: все мини-игры по порядку открываются за трофеи — первые 6 сразу, дальше каждая следующая +150 трофеев
+  function allGames() { const seen = new Set(), out = []; ['guess', 'quiz', 'cards', 'pz', 'duo'].forEach((id) => shelfGames(id).forEach((g) => { if (!seen.has(g.key)) { seen.add(g.key); out.push(g); } })); return out; }
+  const gNeed = (i) => (i < 6 ? 0 : (i - 5) * 150);
+  function gameTile(g, i, cls) { const need = gNeed(i), lk = trophies() < need, im = gImg(g.key);
+    return `<button class="${cls} ${lk ? 'locked' : ''}" ${lk ? `data-fm-lock="${need}"` : gAttr(g)}>${im ? `<img src="${im}" alt="" loading="lazy">` : `<i class="fm-gm-i">${ico('play')}</i>`}<b>${esc(g.title)}</b>${lk ? `<em class="gm-lk">${lock}<span>${need}</span></em>` : ''}</button>`; }
   const gAttr = (g) => Object.entries(g.data || {}).map(([k, v]) => `data-${k.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase())}="${esc(v)}"`).join(' ');
   // «Играть» как в FC Mobile (3.11): слева крупно — испытание «Джексона» (карьера), справа лента больших плашек режимов;
   // плашка футбола запускает режим, плашка разделов (Угадай, Викторины…) открывает его игры. Назад — снова сюда.
@@ -262,8 +267,8 @@ const FCM = (() => {
     if (sub.modes === 'fb') sub.modes = 'hub';
     if (sub.modes !== 'hub' && SHELF.some((x) => x[0] === sub.modes)) {
       const L = SHELF.filter((x) => x[2]).map((x) => [x[0], x[1], `${shelfGames(x[0]).length} игр`]); /* 21.11: разделы мини-игр слева, как в заданиях и магазине */
-      return `<div class="fm-split">${rail(L, 'modes')}<div class="fm-body"><div class="fm-games">${shelfGames(sub.modes).map((g) => { const im = gImg(g.key);
-        return `<button class="fm-gm" ${gAttr(g)}>${im ? `<img src="${im}" alt="" loading="lazy">` : `<i class="fm-gm-i">${ico('play')}</i>`}<b>${esc(g.title)}</b><small>${esc(g.sub || '')}</small></button>`; }).join('') || '<p class="fm-none">Скоро</p>'}</div></div></div>`;
+      const AG = allGames().map((g) => g.key);
+      return `<div class="fm-split">${rail(L, 'modes')}<div class="fm-body"><div class="fm-games">${shelfGames(sub.modes).map((g) => gameTile(g, AG.indexOf(g.key), 'fm-gm')).join('') || '<p class="fm-none">Скоро</p>'}</div></div></div>`;
     }
     sub.modes = 'hub';
     return `<div class="fm-playhub">${playHero()}<div class="fm-plates">${PLATES.map(plate).join('')}</div></div>`;
@@ -477,7 +482,7 @@ const FCM = (() => {
     } else if (sub.events === 'train') {
       body = `<div class="fm-trs">${TRAIN.map((x) => `<button class="fm-trn" ${goAttr(x.go)} style="--tc:${x.c}"><img src="${x.img}" alt="" loading="lazy"><span class="fm-trn-t"><b>${x.t}</b><small>${x.d}</small></span><em>${x.lv}</em><i class="fm-trn-go">Играть</i></button>`).join('')}</div>`;
     } else {
-      body = `<div class="fm-grid">${DAILY.map((g) => `<button class="fm-gc" ${g.act ? `data-act="${g.act}"` : `data-ng="${g.ng}"`}>${g.img ? `<img src="${g.img}" alt="" loading="lazy">` : ico(g.art, 'fm-gi')}<b>${g.t}</b><small>${g.d}</small></button>`).join('')}</div>`;
+      body = `<div class="fm-grid fm-all">${allGames().map((g, i) => gameTile(g, i, 'fm-gc')).join('')}</div>`; // 22.11: все игры, открываются за трофеи
     }
     return `<div class="fm-evw">${tabs}${body}</div>`;
   }
@@ -533,9 +538,9 @@ const FCM = (() => {
     const l = Rewards.rewardLabel(r);
     const pc = r.key && Cards.get(r.key);
     const art = pc ? `<span class="ps2-card">${Cards.html(pc, { w: cw })}</span>` : r.pack !== undefined ? `<img class="ps2-pk" src="img/packs/pk${r.pack}-160.webp?v=b5" alt="">` : r.coins ? '<i class="coin big"></i>' : r.lime ? '<i class="lime big"></i>' : `<span class="ps2-ic">${l.ico}</span>`;
-    const name = r.lime ? `${r.lime}` : pc ? l.txt : r.pack !== undefined ? l.txt : r.coins ? `${r.coins}` : (l.name || l.txt);
+    const name = r.lime ? `${r.lime}` : pc ? '' : r.pack !== undefined ? '' : r.coins ? `${r.coins}` : (l.name || l.txt); // 22.11: у паков и карточек без подписи — цвет мяча говорит сам
     const tag = st === 'got' ? '<i class="ps2-ok">✓</i>' : st === 'ready' ? '<em>Забрать</em>' : /buy/.test(st) ? `<i class="ps2-lock">${ico('lock')}</i>` : '';
-    return `<button class="ps2-c ${st} ${prem ? 'pr' : ''} ${pc ? 'sp' : ''}" ${attr}><span class="ps2-a">${art}</span><b>${esc(name)}</b>${tag}</button>`;
+    return `<button class="ps2-c ${st} ${prem ? 'pr' : ''} ${pc ? 'sp' : ''}" ${attr}><span class="ps2-a">${art}</span>${name ? `<b>${esc(name)}</b>` : ''}${tag}</button>`;
   }
   function passView() {
     const p = Rewards.passSync(), L = Rewards.passLevel(), max = Rewards.PASS_LEVELS, step = Rewards.PASS_STEP, xp = L >= max ? step : p.xp - L * step;
@@ -901,6 +906,7 @@ const FCM = (() => {
       const cc = e.target.closest('[data-fm-card]'); if (cc) { Sound.play('tap'); return cardView(cc.dataset.fmCard); }
       if (e.target.closest('[data-lg-claim]')) { Sound.play('tap'); return League.claim(() => { if (tab === 'league') render(); }); }
       if (e.target.closest('[data-lg-post]')) { Sound.play('tap'); return leaguePost(); }
+      const lkb = e.target.closest('[data-fm-lock]'); if (lkb) { Sound.play('tap'); return toast(`Откроется на ${lkb.dataset.fmLock} трофеях — играй матчи в дивизионах`); }
       const go = e.target.closest('[data-fm-go]'); if (go) { Sound.play('tap'); const [t, v] = go.dataset.fmGo.split(':'); tab = t; sub[t] = v; return render(); }
       if (e.target.closest('[data-fm-car]')) { Sound.play('tap'); tab = 'events'; sub.events = 'car'; return render(); }
       const sd = e.target.closest('[data-fm-slide]'); if (sd) { Sound.play('tap'); slideT = Date.now(); return slideTo(+sd.dataset.fmSlide); }
