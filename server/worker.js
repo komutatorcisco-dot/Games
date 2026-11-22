@@ -561,15 +561,16 @@ const ECON = {
     steps: [[1000, 50], [10000, 100], [50000, 250], [100000, 500], [1e15, 1000]],
   },
   // ---- паки: состав и шансы (как раньше), новые цены — расчёт в docs/economy.md ----
+  // 22.11 (по слову пользователя): top — гарантированная карта для состава не ниже этого рейтинга; бронзы меньше, золота больше
   packs: [
-    { id: 'basic', lv: 0, name: 'Обычный пак', price: 2500, n: 3, sure: [], w: [['bronze', 62], ['silver', 30], ['gold', 7.5], ['legend', 0.5]] },
-    { id: 'rare', lv: 1, name: 'Сверхредкий пак', price: 6000, n: 5, sure: ['gold'], w: [['bronze', 40], ['silver', 44], ['gold', 15], ['legend', 1]] },
-    { id: 'epic', lv: 2, name: 'Эпический пак', price: 11000, n: 8, sure: ['gold', 'gold'], w: [['bronze', 28], ['silver', 44], ['gold', 26], ['legend', 2]] },
-    { id: 'legend', lv: 3, name: 'Легендарный пак', price: 22000, n: 15, sure: ['legend', 'gold', 'gold', 'gold'], w: [['bronze', 20], ['silver', 40], ['gold', 37], ['legend', 3]] },
-    { id: 'jack', lv: 4, name: 'Пак «ДЖЕКСОН!!»', price: 48000, n: 30, sure: ['jack', 'legend', 'legend', 'gold', 'gold', 'gold', 'gold', 'gold', 'gold'], w: [['silver', 40], ['gold', 52], ['legend', 8]] },
+    { id: 'basic', lv: 0, name: 'Обычный пак', price: 2500, n: 3, top: 0, sure: [], w: [['bronze', 35], ['silver', 45], ['gold', 19], ['legend', 1]] },
+    { id: 'rare', lv: 1, name: 'Сверхредкий пак', price: 6000, n: 5, top: 80, sure: ['gold'], w: [['bronze', 20], ['silver', 45], ['gold', 33], ['legend', 2]] },
+    { id: 'epic', lv: 2, name: 'Эпический пак', price: 11000, n: 8, top: 82, sure: ['gold', 'gold'], w: [['bronze', 10], ['silver', 40], ['gold', 46], ['legend', 4]] },
+    { id: 'legend', lv: 3, name: 'Легендарный пак', price: 22000, n: 15, top: 84, sure: ['legend', 'gold', 'gold', 'gold'], w: [['silver', 35], ['gold', 59], ['legend', 6]] },
+    { id: 'jack', lv: 4, name: 'Пак «ДЖЕКСОН!!»', price: 48000, n: 30, top: 86, sure: ['jack', 'legend', 'legend', 'gold', 'gold', 'gold', 'gold', 'gold'], w: [['silver', 30], ['gold', 60], ['legend', 10]] },
   ],
   // вероятность «чем выше OVR, тем реже» внутри редкости (как было в js/cards.js)
-  decay: { bronze: 1, silver: 0.8, gold: 0.75, legend: 0.82, jack: 1 },
+  decay: { bronze: 1, silver: 0.8, gold: 0.86, legend: 0.82, jack: 1 },
   // ---- заработок: награды игр умножаются на k; в день полностью платятся первые full, следующие half — вполовину, дальше 10% ----
   earn: {
     k: 10,                     // все прежние награды ×10 (прежняя шкала 20–100 монет за игру → 200–1000)
@@ -681,7 +682,8 @@ async function ecoCat(db) {
   return ecoCatMem;
 }
 // одна карточка редкости rar (как в игре: высокий OVR реже; легенды и «Джексон» в сезоне 1 не выпадают → золото)
-function ecoDraw(cat, rar, rnd = Math.random) {
+function ecoDraw(cat, rar, rnd = Math.random, minR = 0) {
+  if (minR) { const L = (cat.drop.gold || []).filter((c) => c.r >= minR); if (L.length) cat = { ...cat, drop: { ...cat.drop, gold: L } }; } // гарантированная карта для состава
   let r = rar;
   if (!cat.drop[r] && (r === 'legend' || r === 'jack')) r = 'gold';
   for (const up of ['silver', 'gold']) if (!cat.drop[r] && ['bronze', 'silver'].includes(r)) r = up;
@@ -694,7 +696,7 @@ function ecoDraw(cat, rar, rnd = Math.random) {
 }
 function ecoRoll(cat, P) {
   const roll = () => { const tw = P.w.reduce((s, [, v]) => s + v, 0); let x = Math.random() * tw; for (const [k, v] of P.w) { x -= v; if (x <= 0) return k; } return P.w[0][0]; };
-  const out = P.sure.map((r) => ecoDraw(cat, r));
+  const out = (P.top ? [ecoDraw(cat, 'gold', Math.random, P.top)] : []).concat(P.sure.map((r) => ecoDraw(cat, r)));
   while (out.length < P.n) out.push(ecoDraw(cat, roll()));
   return out.filter(Boolean);
 }

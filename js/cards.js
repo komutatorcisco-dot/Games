@@ -112,8 +112,8 @@ const Cards = (() => {
     for (let i = 0; i < list.length; i++) { x -= w[i]; if (x <= 0) return list[i]; }
     return list[list.length - 1];
   }
-  function draw(rar) {
-    const ok = (c) => !c.sbcOnly && !c.retired;
+  function draw(rar, minR = 0) {
+    const ok = (c) => !c.sbcOnly && !c.retired && c.r >= minR; // minR — гарантированная карта для состава (ECON.packs[].top)
     let pool = all().filter((c) => c.rar === rar && ok(c)), r = rar;
     if (!pool.length && (rar === 'legend' || rar === 'jack')) { r = 'gold'; pool = all().filter((c) => c.rar === r && ok(c)); } // в слоте легенды и «Джексона» пака теперь золото
     for (const up of ['silver', 'gold']) if (!pool.length && ['bronze', 'silver'].includes(r) && up !== r) { r = up; pool = all().filter((c) => c.rar === r && ok(c)); } // бронзы пока нет (база от 70) — выше
@@ -126,7 +126,7 @@ const Cards = (() => {
   function roll(w) { let x = Math.random() * w.reduce((s, [, v]) => s + v, 0); for (const [k, v] of w) { x -= v; if (x <= 0) return k; } return w[0][0]; }
   // по уровню пака: сколько карточек, что гарантировано и шансы остальных
   // состав и шансы паков — js/economy.js (ECON.packs), одна настройка с сервером
-  const PACKS = typeof ECON !== 'undefined' ? ECON.packs.map((p) => ({ n: p.n, sure: p.sure, w: p.w })) : [
+  const PACKS = typeof ECON !== 'undefined' ? ECON.packs.map((p) => ({ n: p.n, top: p.top || 0, sure: p.sure, w: p.w })) : [
     { n: 3, sure: [], w: [['bronze', 62], ['silver', 30], ['gold', 7.5], ['legend', 0.5]] },
     { n: 5, sure: ['gold'], w: [['bronze', 40], ['silver', 44], ['gold', 15], ['legend', 1]] },
     { n: 8, sure: ['gold', 'gold'], w: [['bronze', 28], ['silver', 44], ['gold', 26], ['legend', 2]] },
@@ -135,7 +135,7 @@ const Cards = (() => {
   ]; // запасной состав — для тестов без js/economy.js
   function packCards(lv) {
     const P = PACKS[Math.max(0, Math.min(4, lv))];
-    const out = P.sure.map((r) => draw(r).key);
+    const out = (P.top ? [draw('gold', P.top)] : []).filter(Boolean).map((c) => c.key).concat(P.sure.map((r) => draw(r).key));
     while (out.length < P.n) out.push(draw(roll(P.w)).key);
     return out;
   }
