@@ -1114,7 +1114,7 @@
     background: rgba(8,16,32,.82) !important; box-shadow: inset 0 0 0 1px var(--fm-edge); }
   .fm-gm img, .fm-gm-i { grid-row: 1 / 3; width: 46px; height: 46px; border-radius: 10px; object-fit: cover; display: grid; place-items: center; background: rgba(255,255,255,.06); }
   .fm-gm b { align-self: end; font: 800 13px/1.1 "Inter Tight", sans-serif; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-  .fm-gm small { -webkit-line-clamp: 1 !important; }
+  .fm-gm small { -webkit-line-clamp: 2 !important; } /* 22.11: описание игры в две строки — в одну обрезалось на полуслове */
   .fm-gm small { align-self: start; font: 500 11px/1.2 "Inter Tight", sans-serif; color: #9fb2cc; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .fm-gm:active { transform: scale(.96); }
 }
@@ -1345,3 +1345,12 @@
 @keyframes fxSweep { 0%, 55% { transform: translateX(0) skewX(-20deg); } 100% { transform: translateX(480%) skewX(-20deg); } }
 @keyframes fxPop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
 @media (prefers-reduced-motion: reduce) { :is([data-fm-claim], .fm-daypk.hot em, .fm-q.done, .hm-t, .hm-n, .hm-prize)::after, :is([data-fm-claim], .fm-daypk.hot em, .fm-q.done, .hm-t, .hm-n, .hm-prize) { animation: none !important; } }
+/* 22.11: низкий экран — кнопки «Команды» и легендарный пак в магазине не обрезаются снизу */
+@media (orientation: landscape) and (max-height: 400px) {
+  .fm-team.is3d .fm-tside { gap: 4px; padding: 8px; overflow: auto; }
+  .fm-team.is3d .fm-btn { min-height: 30px; font-size: 13px !important; }
+  .fm-team.is3d .fm-tside .ov3, .fm-team.is3d .fm-tside [class*="ovr"] { transform: scale(.9); transform-origin: left top; }
+  .fm-st-mini { gap: 4px; } .fm-st-mini .fm-pk { padding: 4px 8px 4px 4px !important; } .fm-st-mini .fm-pk-img { height: 36px !important; }
+  .fm-st-mini .fm-pk-p { flex-direction: row !important; } .fm-st-mini .fm-pr { height: 22px; }
+  .fm-st-col { gap: 5px; } .fm-daypk { padding: 5px 10px !important; } .fm-daypk img { height: 38px !important; }
+}
