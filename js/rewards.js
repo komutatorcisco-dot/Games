@@ -274,7 +274,7 @@ const Rewards = (() => {
     { coins: 20, lime: 40, card: 25, pack: 15 }, { coins: 15, lime: 40, card: 25, pack: 20 },
   ];
   const DROP_COINS = [[25, 50], [60, 100], [120, 200], [250, 400], [500, 800]], DROP_XP = [40, 60, 90, 120, 160];
-  const DROP_CARD = ['silver', 'gold', 'gold', 'gold', 'gold'], DROP_PACK = [0, 0, 0, 1, 2];
+  const DROP_CARD = ['gold', 'gold', 'gold', 'gold', 'gold'], DROP_MIN = [75, 78, 80, 82, 85], DROP_PACK = [0, 0, 0, 1, 2]; // 22.11: серебра из мяча больше нет
   const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
   function ballPrize(lv) {
     const W = DROP_W[lv] || DROP_W[0]; let x = Math.random() * Object.values(W).reduce((a, b) => a + b, 0), kind = 'coins';
@@ -284,7 +284,7 @@ const Rewards = (() => {
     if (kind === 'lime') { const L = ECON.lime.drop[lv]; return { lime: rnd(L[0], L[1]) }; }
     if (kind === 'xp') return { xp: DROP_XP[lv] };
     if (kind === 'pack') return { pack: DROP_PACK[lv] };
-    const c = Cards.draw(DROP_CARD[lv]); return c ? { key: c.key } : { coins: DROP_COINS[lv][1] };
+    const c = Cards.draw(DROP_CARD[lv], DROP_MIN[lv]); return c ? { key: c.key } : { coins: DROP_COINS[lv][1] };
   }
   function openPending() {
     const s = S(); if (!s.pending) return;

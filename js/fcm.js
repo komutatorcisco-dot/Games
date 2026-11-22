@@ -457,7 +457,7 @@ const FCM = (() => {
   ];
   const goAttr = (go) => (go.act ? `data-act="${go.act}"` : go.train ? `data-fm-train="${go.train}"` : `data-fm-mode="${go.mode}"`);
   function events() {
-    const T = [['car', 'Карьера'], ['jg', 'Джексон'], ['train', 'Тренировки'], ['daily', 'Ежедневные']];
+    const T = [['car', 'Карьера'], ['jg', 'Джексон'], ['daily', 'Ежедневные']]; // 22.11: тренировки убраны по просьбе пользователя
     if (!T.some((x) => x[0] === sub.events)) sub.events = 'car';
     const tabs = `<nav class="fm-evtabs">${T.map(([id, t]) => `<button class="${sub.events === id ? 'on' : ''}" data-fm-sub="events:${id}">${t}</button>`).join('')}</nav>`;
     const jg = Cards.get('JG:nicolas-jackson');

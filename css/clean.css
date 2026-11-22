@@ -22,3 +22,13 @@
   body.fcm-on .fm-qh-tm b { font-size: 17px; }
   body.fcm-on .fm-gc { align-content: center; }
 }
+/* 22.11: края экрана — под новым видом ничего не просвечивает (в Telegram снизу и по бокам была видна старая страница) */
+html:has(body.fcm-on), body.fcm-on { background: #05070d !important; }
+body.fcm-on:is(:not([data-scr]), [data-scr="hub"]) #app { visibility: hidden; }
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  /* открытие: без кольца «жми» (стояло мимо мяча) и без плашки за названием редкости */
+  .po[data-phase="pack"] .po-pack::after { display: none !important; }
+  .po .po-name { background: none !important; box-shadow: none !important; }
+  /* выход карточки: без надписей «Новая карточка · Серебро» — карточка говорит сама за себя */
+  .po[data-phase="walk"] :is(.po-k, .po-name), .po[data-phase="cards"] :is(.po-k, .po-name) { display: none !important; }
+}
