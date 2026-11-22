@@ -1,0 +1,60 @@
+<!doctype html>
+<!-- Макет стиля А (22.11): фирменный стиль канала — чёрный и лаймовый, крупный гротеск с «размытием движения»
+     как в логотипе ДЖЕКСОНЫ, острые углы, жёсткие тени без свечений, фото игроков вырезками. Только для выбора стиля. -->
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:ital,wght@0,600;0,800;0,900;1,900&display=swap">
+<style>
+:root { --l: #c6ff3d; --k: #0a0a0a; --w: #f4f4f0; --g: #8a8a85; }
+* { box-sizing: border-box; margin: 0; }
+body { width: 100vw; height: 100vh; overflow: hidden; background: var(--k); color: var(--w); font-family: "Inter Tight", sans-serif; display: grid; grid-template-rows: 44px 1fr 52px; }
+/* верх */
+.top { display: flex; align-items: center; gap: 12px; padding: 0 16px; }
+.mark { width: 30px; height: 30px; background: var(--l); color: var(--k); display: grid; place-items: center; font: 900 15px/1 "Inter Tight"; letter-spacing: -.04em; }
+.who { font: 800 14px/1 "Inter Tight"; text-transform: uppercase; }
+.cur { margin-left: auto; display: flex; gap: 6px; }
+.cur span { display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1.5px solid #2a2a2a; font: 800 13px/1 "Inter Tight"; }
+.cur i { width: 10px; height: 10px; background: var(--l); } .cur i.c { background: #ffc533; border-radius: 50%; } .cur i.t { background: #fff; clip-path: polygon(0 0,100% 0,80% 60%,60% 60%,60% 85%,80% 85%,80% 100%,20% 100%,20% 85%,40% 85%,40% 60%,20% 60%); }
+/* центр */
+.main { display: grid; grid-template-columns: 1fr 300px; gap: 14px; padding: 6px 16px 10px; min-height: 0; }
+.hero { position: relative; overflow: hidden; background: var(--l); color: var(--k); padding: 18px 22px; display: grid; align-content: space-between; }
+.hero .k { font: 800 12px/1 "Inter Tight"; letter-spacing: .14em; text-transform: uppercase; }
+.blur { position: relative; font: 900 104px/.82 "Inter Tight"; letter-spacing: -.06em; text-transform: uppercase; white-space: nowrap; }
+.blur span { position: relative; }
+.blur span::after { content: attr(data-t); position: absolute; left: 0; top: 0; filter: blur(7px); opacity: .55; transform: translateX(26px) scaleX(1.15); transform-origin: left; }
+.hero .sub { display: flex; align-items: end; justify-content: space-between; gap: 14px; }
+.bar { width: 260px; } .bar div { height: 8px; background: rgba(0,0,0,.18); } .bar div i { display: block; height: 100%; width: 30%; background: var(--k); }
+.bar small { display: block; margin-top: 6px; font: 700 12px/1 "Inter Tight"; }
+.play { display: flex; align-items: center; gap: 12px; height: 62px; padding: 0 30px; background: var(--k); color: var(--l); border: 0; font: 900 28px/1 "Inter Tight"; letter-spacing: -.02em; text-transform: uppercase; box-shadow: 6px 6px 0 rgba(0,0,0,.25); }
+.play b { width: 0; height: 0; border-left: 16px solid var(--l); border-top: 10px solid transparent; border-bottom: 10px solid transparent; }
+.ph { position: absolute; right: -10px; bottom: -8px; height: 92%; filter: grayscale(1) contrast(1.15); mix-blend-mode: multiply; opacity: .9; }
+.num { position: absolute; right: 18px; top: 14px; font: 900 15px/1 "Inter Tight"; border: 2px solid var(--k); padding: 6px 8px; }
+/* справа */
+.side { display: grid; grid-template-rows: 1fr 1fr 1fr; gap: 10px; min-height: 0; }
+.t { position: relative; overflow: hidden; display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 0 16px; border: 1.5px solid #2a2a2a; background: #121212; }
+.t small { display: block; font: 700 11px/1 "Inter Tight"; letter-spacing: .12em; text-transform: uppercase; color: var(--g); margin-bottom: 5px; }
+.t b { font: 900 22px/1 "Inter Tight"; text-transform: uppercase; letter-spacing: -.02em; }
+.t img { height: 64px; }
+.t .pl { font: 900 46px/1 "Inter Tight"; letter-spacing: -.05em; color: var(--l); }
+.t.hot { border-color: var(--l); } .t.hot::before { content: '1'; position: absolute; top: 8px; right: 8px; width: 18px; height: 18px; background: var(--l); color: var(--k); font: 900 11px/18px "Inter Tight"; text-align: center; }
+/* низ */
+nav { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1.5px solid #222; }
+nav b { display: grid; place-items: center; font: 800 12px/1 "Inter Tight"; letter-spacing: .08em; text-transform: uppercase; color: var(--g); }
+nav b.on { color: var(--k); background: var(--l); }
+</style></head><body>
+<div class="top"><span class="mark">ДЖ</span><span class="who">jedayhagrid1</span><div class="cur"><span><i></i>13 627</span><span><i class="c"></i>59 225</span><span><i class="t"></i>3 032</span></div></div>
+<div class="main">
+  <div class="hero">
+    <span class="k">Дивизионы · матч 3 на 3</span><span class="num">НЕДЕЛЯ · 8-Е МЕСТО</span>
+    <img class="ph" src="../../img/fcm/player-kick.webp" alt="">
+    <div class="blur"><span data-t="Див. 10">Див. 10</span></div>
+    <div class="sub"><div class="bar"><div><i></i></div><small>30 / 100 очков до 9-го дивизиона</small></div></div>
+    <div><button class="play"><b></b>Играть</button></div>
+  </div>
+  <div class="side">
+    <div class="t hot"><span><small>Мяч-дроп</small><b>Открыть</b></span><img src="../../img/packs/pk0-160.webp?v=b3" alt=""></div>
+    <div class="t"><span><small>Лига канала</small><b>Твоё место</b></span><span class="pl">#8</span></div>
+    <div class="t"><span><small>48 игр</small><b>Мини-игры</b></span><img src="../../img/games/ng-wordle.webp" alt=""></div>
+  </div>
+</div>
+<nav><b>Команда</b><b>События</b><b class="on">Главная</b><b>Задания</b><b>Магазин</b></nav>
+</body></html>
