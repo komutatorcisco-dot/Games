@@ -888,7 +888,7 @@
 
 /* ---------- шрифт игры (29.10): Inter Tight — прямой жирный гротеск, как логотип канала; без наклона ---------- */
 @media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
-  body.fcm-on :is(.fcm, .fm-sheet, .po, #app > .screen, .modal-card, .toast) :is(*, *::before, *::after) { font-family: var(--th-font, "Inter Tight", "Inter", system-ui, sans-serif) !important; font-style: normal !important; } /* --th-font — шрифт темы (css/themes.css) */
+  body.fcm-on :is(.fcm, .fm-sheet, .po, #app > .screen, .modal-card, .toast) :is(*, *::before, *::after) { font-family: "Inter Tight", "Inter", system-ui, sans-serif !important; font-style: normal !important; }
   body.fcm-on :is(.fm-title, .fm-sl-t b, .fm-logo b, .fm-pk-t b, .fm-st-hero b, .fm-sh-info > b, .fm-cv-info > b, .fm-pi-h span b, .fm-puz-h, .fm-ev-t b, .fm-tr-t b, .fm-trn-t b, .fm-club > b, .fm-playt > b, .fm-cl-n b, .po-name, .topbar-title, .topbar-title > span, .ng-q) { font-weight: 900 !important; letter-spacing: -.03em !important; }
   body.fcm-on :is(.fm-sl-t small, .fm-logo small, .fm-ev-t small, .fm-sh-info > small, .fm-cv-info > small) { font-weight: 600 !important; letter-spacing: .2em !important; }
   body.fcm-on :is(.fm-tab b, .fm-btn, .btn, .fm-lt b, .fm-chips em, .fm-rail b) { font-weight: 700 !important; letter-spacing: 0 !important; }
