@@ -183,7 +183,7 @@ const Cards = (() => {
     const face = c.faceUrl || c.face ? `<img class="cc-face" src="${esc(c.faceUrl || img(c.face))}" alt="" loading="lazy">` : '<span class="cc-sil"></span>';
     const upC = upN ? ' up' : ''; // 22.11: прокачанная — своя рамка «Эволюция» (img/cards2/*-evo.webp, tools/art/evo/make.py)
     return `<div class="cc v2 ${c.rar} ${fr}${upC} ${cls}${sm}" style="${st0}" data-card="${esc(c.key)}"><div class="cc-in">${ebg}<div class="cc-fw">${face}</div>${efg}
-      <div class="cc-r"><b>${rr}</b><i>${esc(c.pos)}</i></div>${upN ? `<div class="cc-up">+${upN}</div>` : ''}${fr === 'spec' ? `<div class="cc-tag">${esc((c.series || 'Jackson Games').toUpperCase())}</div>` : ''}
+      <div class="cc-r"><b>${rr}</b><i>${esc(c.pos)}</i></div>${fr === 'spec' ? `<div class="cc-tag">${esc((c.series || 'Jackson Games').toUpperCase())}</div>` : ''}
       <div class="cc-n"><b>${esc(surname(c.name))}</b></div>
       ${st ? `<div class="cc-st">${st.map((v, i) => `<span>${(gk ? STN_GK : STN)[i]}<b>${v}</b></span>`).join('')}</div>` : ''}
       <div class="cc-ic">${c.flag ? `<span class="cc-fl">${c.flag}</span>` : ''}${lg ? `<img src="img/leagues/${lg}.webp" alt="">` : ''}${cr ? `<img src="${esc(cr)}" alt="">` : ''}</div></div></div>`;
