@@ -858,6 +858,7 @@ const FCM = (() => {
     if (tab === 'store' && sub.store === 'market') { sub.store = 'top'; tab = 'market'; }
     if (tab === 'play' && typeof Division !== 'undefined' && Division.S().last && !Division.S().last.seen) tab = 'div'; // после матча дивизиона — сразу итог
     park();
+    if (tab === 'team' && root && root.dataset.view !== 'team') { focusI = -1; swapI = -1; } // 23.11: вход в «Команду» — всегда весь состав (камера тоже на общем виде)
     const body = HOST[tab] ? `<div class="fm-host fm-host-${tab}"></div>` : { play, team, events, quests, store, coll, modes, div: divView, league: leagueView, market: () => Market.render() }[tab]();
     const entering = tab === 'team' && root.dataset.view !== 'team';
     root.dataset.view = tab;
