@@ -313,7 +313,7 @@ const FCM = (() => {
   function teamData() {
     const s = Squad.S(), F = XD.FORMATIONS[s.form], cards = s.xi.map((k) => (k && Cards.get(k) ? Cards.get(k) : null)), have = cards.filter(Boolean);
     const ovr = have.length ? Math.round(have.reduce((a, c) => a + (typeof Lime !== 'undefined' ? Lime.r(c) : c.r), 0) / have.length) : 0; // с прокачкой
-    const owned = Cards.all().filter((c) => Cards.spare && Cards.spare(c.key) > 0).length;
+    const own = (Store.d.cards && Store.d.cards.own) || {}, owned = Object.keys(own).filter((k) => (Cards.spare ? Cards.spare(k) > 0 : own[k] > 0) && Cards.get(k)).length; // только свои ключи, не вся база
     return { s, F, cards, have, ovr, owned };
   }
   // рейтинг команды (5.11): объёмный жетон — металл по уровню, кольцо прогресса до 99, блик

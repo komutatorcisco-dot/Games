@@ -76,3 +76,7 @@
 @media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   body.fcm-on .fm-st-mini .fm-pk-p:has(.fm-pr + .fm-pr) { flex-direction: column !important; gap: 3px; }
 }
+/* 23.11: блики по кнопкам и жетону рейтинга двигались через left — это пересчёт раскладки страницы каждый кадр.
+   Те же движения через transform (видеокарта, без пересчёта) */
+@keyframes fm-shine { 0%, 55% { transform: translateX(0) skewX(-20deg); } 100% { transform: translateX(530%) skewX(-20deg); } }
+@keyframes ov3Shine { 0%, 55% { transform: translateX(0) skewX(-18deg); } 85%, 100% { transform: translateX(475%) skewX(-18deg); } }

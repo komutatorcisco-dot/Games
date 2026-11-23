@@ -653,7 +653,7 @@ const Arena3D = (() => {
 
     let view = 'play', last = 0, adT = 0, tBase = 0;
     const cp = new THREE.Vector3(...VIEWS.play.p), cl = new THREE.Vector3(...VIEWS.play.l), tp = new THREE.Vector3(), tl = new THREE.Vector3();
-    let shift = 0, sy = 0;
+    let shift = 0, sy = 0, stillF = 0, lastCW = 0, lastCH = 0;
     function place(dt, t) {
       const v = VIEWS[view] || VIEWS.play, o = RM ? 0 : Math.sin(t * 0.07) * (v.orbit || 0);
       const bob = RM || v.still ? 0 : Math.sin(t * 0.11) * 0.8; // в «Команде» камера стоит (still): иначе карточки над игроками двигались каждый кадр
@@ -668,8 +668,8 @@ const Arena3D = (() => {
       camera.fov = 42; camera.far = 600; camera.updateProjectionMatrix();
     }
     const api = {
-      canvas: V.canvas, size: V.size, onFrame: null,
-      view(name, now) { if (view === 'focus' && name === 'team') return; view = VIEWS[name] ? name : 'play'; if (now) place(0, tBase); },
+      canvas: V.canvas, size: () => { stillF = 0; V.size(); }, onFrame: null, redraw: () => { stillF = 0; },
+      view(name, now) { stillF = 0; if (view === 'focus' && name === 'team') return; view = VIEWS[name] ? name : 'play'; if (now) place(0, tBase); },
       // наезд камеры на игрока: низко сбоку от его точки, игрок — левее центра, справа место под карточку
       focus(x, z, up) { VIEWS.focus = { p: [x - 20, 10, z * 0.8], l: [x + 2, 2.6, z], shift: up ? 0 : -0.2, sy: up ? -0.14 : 0.08, still: true }; view = 'focus'; }, // up — игрок выше ленты замены
       unfocus() { view = 'team'; },
@@ -686,6 +686,9 @@ const Arena3D = (() => {
       if (now - last < 32) return; // ~30 кадров: фону больше не нужно, батарея целее
       const dt = Math.min(0.1, (now - last) / 1000); last = now; const t = now / 1000; tBase = t;
       place(dt, t);
+      // 23.11: камера стоит («Команда», still) и встала на место — кадр не меняется: не перерисовываем стадион
+      // (раньше 30 полных кадров в секунду под неподвижным меню — главная причина лагов «Команды» на телефоне)
+      { const v = VIEWS[view] || VIEWS.play; if (v.still && cp.distanceTo(tp) < 0.02 && cl.distanceTo(tl) < 0.02 && !api.busy && V.canvas.width === lastCW && V.canvas.height === lastCH) { if (++stillF > 2) return; } else stillF = 0; lastCW = V.canvas.width; lastCH = V.canvas.height; } // размер холста сменился — WebGL его очистил, рисуем
       beams.forEach((b) => { const f = RM ? 1 : 0.85 + Math.sin(t * 1.3 + b.ph) * 0.15; b.cone.material.opacity = 0.045 * f; b.halo.scale.setScalar(15 + f * 3); });
       if (!RM) { const a = pg.attributes.position.array; for (let i = 0; i < N; i++) { a[i * 3 + 1] += dt * (0.4 + (i % 5) * 0.12); a[i * 3] += Math.sin(t * 0.5 + i) * dt * 0.3; if (a[i * 3 + 1] > 26) a[i * 3 + 1] = 0; } pg.attributes.position.needsUpdate = true; }
       adT += dt; if (adT > 0.08) { ads(adT * 0.5); adT = 0; } // бегущая строка — реже, текстура большая

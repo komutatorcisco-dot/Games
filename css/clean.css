@@ -148,3 +148,4 @@ body.fcm-on .mk-sh { overflow: auto; }
   body.fcm-on .mk-flt { display: flex !important; gap: 6px !important; flex-wrap: nowrap !important; align-items: center; overflow-x: auto; }
   body.fcm-on .mk-flt .mk-pos { display: none !important; } body.fcm-on .mk-flt .mk-q { width: 140px; flex: none; }
 }
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) { body.fcm-on .fm-swc em { display: none !important; } } /* «не его позиция» — карточка и так приглушена */

@@ -366,7 +366,13 @@ const Cards = (() => {
     else toast(`Клуб собран! +${prize.coins} монет`);
   }
   // сколько наград за наборы ждут
+  let rsMemo = null; // 23.11: обход всей базы (13 тыс. карточек × группы) — раз на изменение коллекции, а не на каждую перерисовку меню
   function readySets() {
+    const mk = Object.keys(S().own).length + '|' + Object.values(S().own).reduce((a, b) => a + b, 0) + '|' + claimed().length;
+    if (rsMemo && rsMemo.k === mk) return rsMemo.n;
+    const n = readySets0(); rsMemo = { k: mk, n }; return n;
+  }
+  function readySets0() {
     let n = 0;
     for (const g of GROUPS) {
       const cards = groupCards(g);
