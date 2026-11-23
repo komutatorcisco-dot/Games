@@ -104,3 +104,21 @@ body.fcm-on:is(:not([data-scr]), [data-scr="hub"]) #app { visibility: hidden; }
 @media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
   .cr3-prize { position: relative; width: 100%; } .cr3-prize img { position: absolute; left: 50%; top: 50%; height: 100% !important; max-height: 140px; transform: translate(-50%, -50%); animation: none; }
 }
+/* 22.11: 3D-иконки наград (tools/art/items.html → img/items) вместо плоских кружков: монета, лаймовое очко, кубок трофеев */
+body.fcm-on :is(.coin, .lime) { background: url(../img/items/coin-96.webp) center / contain no-repeat !important; box-shadow: none !important; border-radius: 0 !important; }
+body.fcm-on .lime { background-image: url(../img/items/lime-96.webp) !important; } body.fcm-on .lime::after { display: none !important; }
+body.fcm-on :is(.coin, .lime)::before { display: none !important; }
+body.fcm-on .fm-cur :is(.coin, .lime) { width: 22px !important; height: 22px !important; }
+body.fcm-on .fm-cur.fm-tr svg { visibility: hidden; width: 22px; height: 22px; background: url(../img/items/cup-96.webp) center / contain no-repeat; }
+body.fcm-on .fm-cur.fm-tr svg { visibility: visible; } body.fcm-on .fm-cur.fm-tr svg * { opacity: 0; }
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  /* пропуск и путь трофеев: ячейки крупнее (по высоте экрана), значки почти во всю ячейку */
+  .ps2-col { --ch: clamp(64px, calc((100dvh - var(--fm-b, 0px) - 222px) / 2), 130px) !important; }
+  .ps2-a > :is(.ps2-pk, .ps2-ic) { width: 86% !important; height: 86% !important; }
+  .ps2-a .coin.big, .ps2-a .lime.big { width: 66% !important; height: 66% !important; margin-bottom: 12%; }
+  .ps2-c b { font-size: 16px !important; bottom: 5%; }
+  .ps2-c.ready .ps2-a > * { animation: psBob 1.8s ease-in-out infinite; will-change: transform; }
+  .ps2-n { width: 30px !important; height: 30px !important; font-size: 14px !important; }
+  .ps2-h, .ps2-head { margin-bottom: 0 !important; }
+}
+@keyframes psBob { 50% { transform: translateY(-4px) scale(1.04); } }

@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- 3D-иконки наград (22.11) в стиле мячей пользователя: глянцевые, мультяшные, с мягким свечением.
+     window.renderItem(kind, size) → PNG; kind: coin | lime | cup. Рендер: node tools/art/render.js items → img/items/{kind}-{256,96}.webp -->
+<html><head><meta charset="utf-8"><style>html,body{margin:0;background:transparent}</style></head>
+<body><script src="../../vendor/three.min.js"></script><script>
+'use strict';
+const L = (h) => new THREE.Color(h).convertSRGBToLinear();
+let R = null;
+function rig(size, glowCol) {
+  if (!R) { R = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); R.outputEncoding = THREE.sRGBEncoding; R.toneMapping = THREE.NoToneMapping; document.body.appendChild(R.domElement); }
+  R.setPixelRatio(1); R.setSize(size, size); R.setClearColor(0, 0);
+  const s = new THREE.Scene();
+  s.add(new THREE.HemisphereLight(0xffffff, 0x334455, 0.9));
+  const k = new THREE.DirectionalLight(0xffffff, 1.5); k.position.set(-3, 4, 5); s.add(k);
+  const r = new THREE.DirectionalLight(L(glowCol), 1.2); r.position.set(3, -2, -2); s.add(r);
+  const env = new THREE.Scene(); env.add(new THREE.Mesh(new THREE.SphereGeometry(30, 16, 8), new THREE.MeshBasicMaterial({ color: 0x1a2236, side: THREE.BackSide })));
+  [[-6, 6, 6], [6, 2, 5]].forEach(([x, y, z]) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(8, 5), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide })); m.position.set(x, y, z); m.lookAt(0, 0, 0); env.add(m); });
+  s.environment = new THREE.PMREMGenerator(R).fromScene(env, 0.03).texture;
+  return s;
+}
+const phys = (c, o = {}) => new THREE.MeshPhysicalMaterial({ color: L(c), roughness: 0.25, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.1, ...o });
+function star(r1, r2) { const p = new THREE.Shape(); for (let i = 0; i <= 10; i++) { const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? r2 : r1; const x = Math.cos(a) * r, y = Math.sin(a) * r; i ? p.lineTo(x, y) : p.moveTo(x, y); } return p; }
+const MAKE = {
+  coin(s) { const g = new THREE.Group(); s.add(g);
+    const gold = phys('#ffb300', { metalness: 0.55, roughness: 0.25, emissive: L('#7a3d00'), emissiveIntensity: 0.25 });
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.26, 72), gold); body.rotation.x = Math.PI / 2; g.add(body);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.93, 0.08, 16, 72), phys('#ffd23a', { metalness: 0.6, roughness: 0.2 })); rim.position.z = 0.13; g.add(rim);
+    const rim2 = rim.clone(); rim2.position.z = -0.13; g.add(rim2);
+    const st = new THREE.Mesh(new THREE.ExtrudeGeometry(star(0.5, 0.22), { depth: 0.06, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.03, bevelSegments: 4 }), phys('#fff1a0', { metalness: 0.5, roughness: 0.2 })); st.position.z = 0.1; g.add(st);
+    g.rotation.set(0.15, -0.45, 0.08); return 3.4; },
+  lime(s) { const g = new THREE.Group(); s.add(g);
+    const fr = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), phys('#5fcf12', { roughness: 0.3, emissive: L('#2a6a00'), emissiveIntensity: 0.35 })); fr.scale.set(1, 0.94, 1); g.add(fr);
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), phys('#5c9a10')); dot.position.set(0, 0.93, 0); g.add(dot);
+    const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.42, 32, 16), phys('#1f9a2c', { roughness: 0.3 })); leaf.scale.set(0.55, 0.16, 1.05); leaf.position.set(0.3, 0.9, 0.2); leaf.rotation.set(-1.05, 0.35, -0.55); g.add(leaf);
+    const hl = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })); hl.scale.set(1, 0.6, 0.3); hl.position.set(-0.42, 0.45, 0.82); g.add(hl);
+    g.rotation.set(0.15, 0.3, 0); return 3.3; },
+  cup(s) { const g = new THREE.Group(); s.add(g);
+    const gold = phys('#ffb300', { metalness: 0.55, roughness: 0.22, emissive: L('#7a3d00'), emissiveIntensity: 0.25 });
+    const pts = [[0, -1.15], [0.62, -1.15], [0.62, -0.98], [0.3, -0.9], [0.16, -0.55], [0.14, -0.3], [0.5, -0.1], [0.72, 0.35], [0.8, 0.95], [0.86, 1.02], [0.8, 1.04]].map(([x, y]) => new THREE.Vector2(x, y));
+    g.add(new THREE.Mesh(new THREE.LatheGeometry(pts, 64), gold));
+    [-1, 1].forEach((sx) => { const h = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.075, 14, 32, Math.PI), gold); h.position.set(sx * 0.74, 0.55, 0); h.rotation.z = sx > 0 ? -Math.PI / 2 : Math.PI / 2; g.add(h); });
+    const st = new THREE.Mesh(new THREE.ExtrudeGeometry(star(0.24, 0.1), { depth: 0.04, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 }), phys('#fff1a0', { metalness: 0.5 })); st.position.set(0, 0.42, 0.7); st.rotation.x = -0.15; g.add(st);
+    g.position.y = -0.05; g.rotation.set(0.12, -0.25, 0); return 3.6; },
+};
+window.renderItem = (kind, size) => {
+  const col = { coin: '#ffb400', lime: '#c6ff3d', cup: '#ffb400' }[kind], s = rig(size, col);
+  const d = MAKE[kind](s);
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 100); cam.position.set(0, 0.2, d / Math.tan(15 * Math.PI / 180) / 1.6); cam.lookAt(0, 0, 0);
+  R.render(s, cam); return R.domElement.toDataURL('image/png');
+};
+</script></body></html>

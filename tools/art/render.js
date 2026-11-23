@@ -25,6 +25,16 @@ for h in (360, 160):
       console.log('pack', lv, 'ok');
     }
   }
+  if (what === 'items') { // 3D-иконки наград (22.11): img/items/{coin,lime,cup}-{256,96}.webp, обрезка по содержимому с полем
+    await p.goto('http://localhost:8765/tools/art/items.html'); await p.waitForTimeout(1200);
+    const tmp = path.join(ROOT, 'tools/art/.tmp'); fs.mkdirSync(tmp, { recursive: true }); fs.mkdirSync(path.join(ROOT, 'img/items'), { recursive: true });
+    for (const k of ['coin', 'lime', 'cup']) {
+      const url = await p.evaluate((k) => window.renderItem(k, 640), k);
+      const png = path.join(tmp, `it-${k}.png`); fs.writeFileSync(png, Buffer.from(url.split(',')[1], 'base64'));
+      execFileSync('python3', ['-I', '-c', "import sys\nfrom PIL import Image\nim=Image.open(sys.argv[1]).convert('RGBA'); b=im.getbbox(); s=max(b[2]-b[0],b[3]-b[1])+24; c=((b[0]+b[2])//2,(b[1]+b[3])//2)\nim=im.crop((c[0]-s//2,c[1]-s//2,c[0]+s//2,c[1]+s//2))\nfor n in (256,96): im.resize((n,n), Image.LANCZOS).save(sys.argv[2]+f'-{n}.webp', quality=90, method=6)", png, path.join(ROOT, `img/items/${k}`)]);
+      console.log('item', k, 'ok');
+    }
+  }
   if (what === 'divs') { // значки дивизионов (21.11): img/div/d{0..9}-{384,192}.webp, кадр 5:6 без обрезки (все одного размера)
     await p.goto('http://localhost:8765/tools/art/divs.html'); await p.waitForTimeout(1500);
     const tmp = path.join(ROOT, 'tools/art/.tmp'); fs.mkdirSync(tmp, { recursive: true }); fs.mkdirSync(path.join(ROOT, 'img/div'), { recursive: true });
