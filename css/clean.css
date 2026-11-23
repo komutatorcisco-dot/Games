@@ -122,3 +122,17 @@ body.fcm-on .fm-cur.fm-tr svg { visibility: visible; } body.fcm-on .fm-cur.fm-tr
   .ps2-h, .ps2-head { margin-bottom: 0 !important; }
 }
 @keyframes psBob { 50% { transform: translateY(-4px) scale(1.04); } }
+/* 23.11 (по скриншотам): без мелких серых подписей в окнах — пак, карточка, продажа, покупка, прокачка */
+body.fcm-on .po:is([data-phase="grid"], [data-phase="done"]) :is(.po-k, .po-name, .po-hint), body.fcm-on .po .po-sum { display: none !important; }
+body.fcm-on .cc.v2 .cc-tag { display: none !important; }            /* вертикальная «ПРОПУСК · ПРЕМИУМ» на карточке */
+body.fcm-on .fm-cv-info > small, body.fcm-on .fm-cv-info > p { display: none !important; } body.fcm-on .fm-cv-n { visibility: hidden; }
+body.fcm-on .fm-cv-info > b { font-size: clamp(24px, 8vh, 34px) !important; }
+body.fcm-on .fm-pi-btn { grid-template-columns: 44px 1fr 44px !important; }
+body.fcm-on .lm-info > small, body.fcm-on .lm-cost small, body.fcm-on .lm-next, body.fcm-on .lm-note, body.fcm-on .lm-r u { display: none !important; }
+body.fcm-on .lm-cost span { align-items: center; } body.fcm-on .lm-go { height: 54px; font-size: 22px !important; }
+body.fcm-on .mk-sh-info > small, body.fcm-on .mk-pr small, body.fcm-on .mk-last { display: none !important; }
+body.fcm-on .mk-pr span:nth-child(n+3) { display: none !important; }
+body.fcm-on .mk-sh-info > b { font-size: clamp(22px, 7vh, 30px) !important; }
+body.fcm-on .mk-get { margin: 0; font: 800 18px "Inter Tight", sans-serif; display: flex; align-items: center; gap: 6px; color: #fff; } body.fcm-on .mk-get b { color: #c6ff3d; }
+body.fcm-on .mk-row small { font-size: 15px !important; color: #fff !important; font-weight: 800; }
+body.fcm-on .mk-sh { overflow: auto; }

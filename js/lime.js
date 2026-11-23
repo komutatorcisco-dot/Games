@@ -78,7 +78,7 @@ const Lime = (() => {
         <small>Прокачка карточки</small><b>${esc(c.name)}</b>
         <div class="lm-r"><span class="lm-big">${rr}</span>${max ? '<em>максимум</em>' : `<i>→</i><span class="lm-big nx">${rr + 1}</span>`}${u ? `<u>+${u} прокачано</u>` : ''}</div>
         ${max ? '<p class="lm-note">Карточка прокачана до предела.</p>' : `<div class="lm-cost"><span class="${okP ? '' : 'no'}">${ico('big')}<b>${F(k.pts)}</b><small>у тебя ${F(n())}</small></span><span class="${okC ? '' : 'no'}"><i class="coin"></i><b>${F(k.coins)}</b><small>у тебя ${F(Store.d.coins || 0)}</small></span></div>
-        <button class="fm-btn lm-go" data-lm-up ${okP && okC ? '' : 'disabled'}>${okP && okC ? 'Прокачать +1' : okP ? 'Не хватает монет' : 'Не хватает лаймовых очков'}</button>
+        <button class="fm-btn gold lm-go" data-lm-up ${okP && okC ? '' : 'disabled'}>${okP && okC ? 'Прокачать +1' : okP ? 'Не хватает монет' : 'Не хватает лаймовых очков'}</button>
         <div class="lm-next"><small>Дальше дороже</small>${next}</div>`}
         <p class="lm-note">Каждый уровень +1 к рейтингу и характеристикам. Прокачанную карточку нельзя продать на рынке. Лаймовые очки — из мяч-дропов.</p>
       </div><button class="lm-x" aria-label="Закрыть">✕</button></div>`;

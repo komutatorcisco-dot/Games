@@ -89,12 +89,12 @@ const PackOpen = (() => {
     el.dataset.phase = 'grid';
     setCol(el, RCOL[top.c.rar]);
     const n = list.length, land = innerWidth > innerHeight; // лёжа — шире ряд, карточки по высоте экрана
-    const cols = land ? Math.min(n, n <= 6 ? Math.max(3, n) : Math.ceil(n / 2)) : n <= 3 ? 3 : n <= 8 || innerWidth < 420 ? 4 : 5;
-    const W = Math.min(land ? 900 : 480, innerWidth) - 32;
+    const cols = land ? (n <= 8 ? n : Math.ceil(n / 2)) : n <= 3 ? 3 : n <= 8 || innerWidth < 420 ? 4 : 5; // 23.11: лёжа до 8 карт — одним рядом
+    const W = Math.min(land ? 1100 : 480, innerWidth - (land ? 120 : 0)) - 32;
     let w = Math.floor((W - (cols - 1) * 8) / cols);
     // лёжа: по высоте свободного места между заголовком и кнопкой (не всего экрана) — иначе карточки обрезаются
     // сверху и снизу; 1.5 — высота карточки к ширине, +22 — метка NEW/+монеты под карточкой
-    if (land) { const free = Math.max(120, stage.clientHeight || innerHeight - 190), rows = Math.ceil(n / cols); w = Math.max(48, Math.min(w, 150, Math.floor((free - 12 - (rows - 1) * 10) / rows / 1.5) - 16)); }
+    if (land) { const free = Math.max(120, innerHeight - 120), rows = Math.ceil(n / cols); w = Math.max(56, Math.min(w, 190, Math.floor((free - (rows - 1) * 10) / rows / 1.5) - 18)); } // 23.11: место — весь экран минус кнопка внизу, карточки не уходят под неё
     const nNew = list.filter((x) => x.isNew).length;
     $('.po-k', el).textContent = `${n} ${plural(n, 'карточка', 'карточки', 'карточек')}`;
     nm.textContent = nNew ? `НОВЫХ: ${nNew}` : 'НОВЫХ НЕТ'; nm.classList.remove('long'); slam(nm);

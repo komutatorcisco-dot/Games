@@ -199,16 +199,16 @@ const Market = (() => {
     const own = Store.d.cards.own[key] || 0, free = own - ((Store.d.cards.lock || {})[key] || 0);
     const [lo, hi] = pi.range; let start = Price.up(Math.max(lo, pi.ref * 0.8)), bin = Price.round(Math.min(hi, Math.max(start + Price.step(start), pi.ref))), dur = 24;
     const el = document.createElement('div'); el.className = 'fm-sheet mk-sheet';
-    const row = (k, v) => `<div class="mk-row"><small>${k === 'start' ? 'Стартовая цена' : 'Купить сразу'}</small><button class="fm-btn" data-ms="${k}:-1">−</button><b>${coin}${F(v)}</b><button class="fm-btn" data-ms="${k}:1">+</button></div>`;
+    const row = (k, v) => `<div class="mk-row"><small>${k === 'start' ? 'Старт' : 'Цена'}</small><button class="fm-btn" data-ms="${k}:-1">−</button><b>${coin}${F(v)}</b><button class="fm-btn" data-ms="${k}:1">+</button></div>`;
     const draw = () => {
+      // 23.11: проще — имя, цена «купить сразу», срок, сколько получишь и кнопки; непередаваемую — только быстрая продажа
       el.innerHTML = `<div class="mk-sh">
         <div class="mk-sh-card">${Cards.html(c, { w: 150 })}</div>
-        <div class="mk-sh-info"><small>Продать на рынке · у тебя ×${own}${own - free ? `, из них непередаваемых ${own - free}` : ''}</small><b>${esc(c.name)}</b>
-          <div class="mk-pr"><span><small>Рыночная цена</small><b>${coin}${F(pi.ref)}</b></span><span><small>Можно от и до</small><b>${F(lo)}–${F(hi)}</b></span><span><small>Быстрая продажа</small><b>${coin}${F(pi.qs)}</b></span></div>
-          ${row('start', start)}${row('bin', bin)}
+        <div class="mk-sh-info"><b>${esc(c.name)}</b>
+          ${free > 0 ? `${row('bin', bin)}
           <div class="mk-dur">${ECON.market.durH.map((h) => `<button class="${h === dur ? 'on' : ''}" data-md="${h}">${h < 24 ? h + ' ч' : h / 24 + ' д'}</button>`).join('')}</div>
-          <p class="mk-last">Получишь при продаже за «купить сразу»: ${coin}${F(Price.net(bin))} (налог ${Math.round(ECON.market.tax * 100)}%)</p>
-          ${free > 0 ? '' : '<p class="mk-last">Карточка из награды — непередаваемая: на рынок нельзя, только быстрая продажа (как в FC)</p>'}<div class="mk-act"><button class="fm-btn gold" data-ms-go ${free > 0 ? '' : 'disabled'}>Выставить</button><button class="fm-btn" data-ms-qs>Быстрая продажа · ${F(pi.qs)}</button></div>
+          <p class="mk-get">Получишь ${coin}<b>${F(Price.net(bin))}</b></p>` : '<p class="mk-get">Карточка из награды — только быстрая продажа</p>'}
+          <div class="mk-act">${free > 0 ? '<button class="fm-btn gold" data-ms-go>Выставить</button>' : ''}<button class="fm-btn" data-ms-qs>Быстро · ${coin}${F(pi.qs)}</button></div>
         </div><button class="fm-sh-x" aria-label="Закрыть">✕</button></div>`;
       if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(el);
     };
@@ -218,7 +218,7 @@ const Market = (() => {
       if (e.target === el || e.target.closest('.fm-sh-x')) return close();
       const s = e.target.closest('[data-ms]');
       if (s) { const [k, d] = s.dataset.ms.split(':'), v = k === 'start' ? start : bin, nv = +d > 0 ? Price.round(v + Price.step(v)) : Price.up(Math.max(lo, v - Price.step(v - 1)));
-        if (k === 'start') start = Math.min(nv, bin); else bin = Math.max(start, Math.min(hi, nv)); return draw(); }
+        if (k === 'start') start = Math.min(nv, bin); else { bin = Math.max(lo, Math.min(hi, nv)); start = Math.max(lo, Math.min(start, bin)); } return draw(); }
       const m = e.target.closest('[data-md]'); if (m) { dur = +m.dataset.md; return draw(); }
       if (e.target.closest('[data-ms-go]')) {
         const r = await Eco.post('m_list', { key, start, bin, dur, op: Eco.opid() });
