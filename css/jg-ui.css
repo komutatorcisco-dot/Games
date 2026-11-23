@@ -105,3 +105,8 @@ body.fcm-on .po-wi-beat b, body.fcm-on .po .po-hint, body.fcm-on .po :is(.po-gho
 body.fcm-on .po-wi-flag { font-size: min(34vh, 170px) !important; }
 body.fcm-on .po-wi-pos { font: 900 min(30vh, 150px)/1 var(--jg-font) !important; }
 body.fcm-on .po-wi-crest { width: min(36vh, 180px) !important; height: min(36vh, 180px) !important; }
+/* 23.11: мини-игры — без строк-правил (они есть в «Как играть» и под «?»): оставлены только строки с данными задания */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on #app .screen :is(p.ng-lead:not(:has(b)), .ng-clue, .mystery-label, .rp-note, .sc-rule, .tm-hint, .pop-tip, .sc-meta) { display: none !important; }
+  body.fcm-on #app .screen .topbar-title { text-transform: uppercase !important; }
+}
