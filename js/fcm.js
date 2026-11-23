@@ -194,7 +194,7 @@ const FCM = (() => {
     const RT = (c) => (typeof Lime !== 'undefined' ? Lime.r(c) : c.r);
     let star = null; try { star = Squad.S().xi.map((k) => k && Cards.get(k)).filter(Boolean).sort((a, b) => RT(b) - RT(a))[0] || null; } catch (e) { star = null; }
     star = star || jg;
-    const starH = star ? `<button class="hm-star" data-fm-card="${esc(star.key)}" aria-label="Звезда команды"><i class="hm-star-rays"></i><span class="hm-star-c">${Cards.html(star, { w: 132 })}</span><small>Звезда команды</small></button>` : '';
+    const starH = star ? `<button class="hm-star" data-fm-card="${esc(star.key)}" aria-label="Звезда команды"><i class="hm-star-rays"></i><span class="hm-star-c">${Cards.html(star, { w: 132 })}</span><span class="hm-star-3d" data-key="${esc(star.key)}"></span><span class="hm-star-r"><b>${typeof Lime !== 'undefined' ? Lime.r(star) : star.r}</b>${esc(Cards.surname ? Cards.surname(star.name) : star.name)}</span><small>Звезда команды</small></button>` : '';
     return `<div class="hm hm2">
       <div class="hm-c">${hero}</div>${starH}
       <div class="hm-r">
@@ -841,6 +841,7 @@ const FCM = (() => {
     if (entering) { const tm = root.querySelector('.fm-team'); if (tm) { tm.querySelectorAll('.fm-slot3').forEach((el, k) => el.style.setProperty('--k', k)); tm.classList.add('fx-wait');
       requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { tm.classList.remove('fx-wait'); tm.classList.add('fx-pop'); setTimeout(() => tm.classList.remove('fx-pop'), 1100); }, 60))); } }
     if (bg3) { bg3.view(tab === 'market' ? 'store' : tab, entering); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
+    { const h3 = tab === 'play' && root.querySelector('.hm-star-3d'); if (h3 && typeof Hero3D !== 'undefined') Hero3D.mount(h3, Cards.get(h3.dataset.key)); } // 23.11: звезда команды — 3D-игрок чеканит мяч
     if (tab === 'market') Market.load();
     if (!render.pre && typeof Squad !== 'undefined' && Cards.preload) { render.pre = 1; const go = () => { try { Cards.preload(Squad.S().xi); } catch (e) { /* нет состава */ } }; if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 2500 }); else setTimeout(go, 1500); }
     if (HOST[tab]) { const n = document.getElementById(HOST[tab][0]), h = root.querySelector('.fm-host'); if (n && h) h.appendChild(n); }

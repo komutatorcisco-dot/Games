@@ -109,3 +109,13 @@
   .hm2 .hm-emb .dvb2.big { width: clamp(110px, 16vw, 180px); }
   .hm2 .hm-play { padding: 0 32px 0 24px !important; }
 }
+/* 23.11: звезда команды — 3D-игрок чеканит мяч (js/hero3d.js); пока модель не загрузилась — карточка */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .hm-star-3d { position: absolute; left: 50%; top: 46%; width: clamp(150px, 26vw, 230px); height: clamp(220px, 72vh, 330px); transform: translate(-50%, -50%); pointer-events: none; }
+  .hm-star-3d:not(.on3d), .hm-star-r { display: none; }
+  .hm-star:has(.on3d) { width: clamp(150px, 24vw, 220px); align-self: stretch; }
+  .hm-star:has(.on3d) .hm-star-c { display: none; }
+  .hm-star:has(.on3d) .hm-star-r { display: flex; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); align-items: center; gap: 6px; padding: 4px 12px 4px 4px; border-radius: 12px; white-space: nowrap;
+    background: rgba(8,14,28,.82); box-shadow: inset 0 0 0 1.5px rgba(255,210,60,.55); font: 900 14px "Inter Tight", sans-serif; text-transform: uppercase; color: #fff; }
+  .hm-star:has(.on3d) .hm-star-r b { display: grid; place-items: center; min-width: 28px; height: 24px; border-radius: 8px; background: linear-gradient(180deg, #ffe680, #e3a400); color: #3a2200; font-size: 15px; }
+}
