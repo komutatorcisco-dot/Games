@@ -112,3 +112,9 @@
 .po-crack { position: absolute; left: 50%; top: 60%; width: 92%; aspect-ratio: 1; transform: translate(-50%, -50%) translateZ(30px); z-index: 4; pointer-events: none; overflow: visible; --g: 0; }
 .po-crack path { fill: none; stroke: #fff; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 60; stroke-dashoffset: calc(60 - 60 * var(--g));
   filter: drop-shadow(0 0 2px var(--rc, #fff)) drop-shadow(0 0 5px var(--rc, #fff)); transition: stroke-dashoffset .22s ease-out; }
+/* 23.11: появление состава — одно плавное движение всей расстановки: карточки вместе проявляются и мягко опускаются на газон
+   (без пружины, поворотов и очереди), стадион чуть светлеет вместе с ними */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-team.fx-pop .fm-slot3 > * { animation: fxSquadIn .6s cubic-bezier(.22,.8,.3,1) both !important; animation-delay: 0s !important; }
+  @keyframes fxSquadIn { from { opacity: 0; transform: translateY(-18px) scale(.94); filter: brightness(1.6); } 60% { opacity: 1; } to { opacity: 1; transform: none; filter: none; } }
+}

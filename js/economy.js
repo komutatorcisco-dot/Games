@@ -39,6 +39,8 @@ const ECON = {
     { id: 'legend', lv: 3, name: 'Легендарный пак', price: 22000, n: 15, top: 84, sure: ['legend', 'gold', 'gold', 'gold'], w: [['silver', 35], ['gold', 59], ['legend', 6]] },
     { id: 'jack', lv: 4, name: 'Пак «ДЖЕКСОН!!»', price: 48000, n: 30, top: 86, sure: ['jack', 'legend', 'legend', 'gold', 'gold', 'gold', 'gold', 'gold'], w: [['silver', 30], ['gold', 60], ['legend', 10]] },
   ],
+  // 23.11 (по просьбе пользователя): дешёвый пак коллекции из галереи — в основном бронза и серебро, первые fresh карт — тех, что ещё нет
+  coll: { id: 'coll', lv: 0, name: 'Пак коллекции', price: 1200, n: 6, fresh: 4, top: 0, sure: [], w: [['bronze', 40], ['silver', 45], ['gold', 14], ['legend', 1]] },
   // вероятность «чем выше OVR, тем реже» внутри редкости (как было в js/cards.js)
   decay: { bronze: 1, silver: 0.8, gold: 0.86, legend: 0.82, jack: 1 },
   // ---- заработок: награды игр умножаются на k; в день полностью платятся первые full, следующие half — вполовину, дальше 10% ----

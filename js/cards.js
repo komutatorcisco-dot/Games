@@ -133,6 +133,16 @@ const Cards = (() => {
     { n: 15, sure: ['legend', 'gold', 'gold', 'gold'], w: [['bronze', 20], ['silver', 40], ['gold', 37], ['legend', 3]] },
     { n: 30, sure: ['jack', 'legend', 'legend', 'gold', 'gold', 'gold', 'gold', 'gold', 'gold'], w: [['silver', 40], ['gold', 52], ['legend', 8]] },
   ]; // запасной состав — для тестов без js/economy.js
+  // пак коллекции (ECON.coll): первые fresh карточек — из тех, которых ещё нет в клубе
+  function collCards() {
+    const P = ECON.coll, out = [];
+    for (let i = 0; i < P.n; i++) {
+      const r = roll(P.w);
+      if (i < P.fresh) { const L = all().filter((c) => c.rar === r && !c.sbcOnly && !c.retired && !owned(c.key) && !out.includes(c.key)); if (L.length) { out.push(L[Math.floor(Math.random() * L.length)].key); continue; } }
+      const c = draw(r); if (c) out.push(c.key);
+    }
+    return out;
+  }
   function packCards(lv) {
     const P = PACKS[Math.max(0, Math.min(4, lv))];
     const out = (P.top ? [draw('gold', P.top)] : []).filter(Boolean).map((c) => c.key).concat(P.sure.map((r) => draw(r).key));
@@ -440,5 +450,5 @@ const Cards = (() => {
   }
   // заранее загрузить фото (состав открывается сразу с лицами, 5.11)
   const preload = (keys) => (keys || []).forEach((k) => { const c = k && get(k); if (c && (c.faceUrl || c.face)) { const im = new Image(); im.decoding = 'async'; im.src = c.faceUrl || img(c.face); } });
-  return { preload, onInput, reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, stats: (c) => statsOf(c), crestOf: (c) => c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : ''), PACKS, details, spare, use, owned, surname, freshN: () => S().fresh.length, clearFresh: () => { S().fresh = []; Store.save(); }, RAR };
+  return { collCards, preload, onInput, reset: () => { ALL = null; BY = null; }, takeJump: () => { const j = jump; jump = false; return j; }, all, get, draw, packCards, add, html, reveal, album, onClick, readySets, count, total: () => all().length, stats: (c) => { const s0 = statsOf(c), u = s0 && typeof Lime !== 'undefined' ? Lime.up(c.key) : 0; return u ? s0.map((v) => Math.min(99, v + u)) : s0; } /* 23.11: с прокачкой, как на карточке */, crestOf: (c) => c.crestUrl || (CRESTS[c.club] ? 'img/clubs/' + CRESTS[c.club] : ''), PACKS, details, spare, use, owned, surname, freshN: () => S().fresh.length, clearFresh: () => { S().fresh = []; Store.save(); }, RAR };
 })();

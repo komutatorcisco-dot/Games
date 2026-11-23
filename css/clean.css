@@ -149,3 +149,17 @@ body.fcm-on .mk-sh { overflow: auto; }
   body.fcm-on .mk-flt .mk-pos { display: none !important; } body.fcm-on .mk-flt .mk-q { width: 140px; flex: none; }
 }
 @media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) { body.fcm-on .fm-swc em { display: none !important; } } /* «не его позиция» — карточка и так приглушена */
+/* 23.11: пак коллекции в галерее */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-clpk { display: grid !important; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px; width: 100%; margin: 6px 0; padding: 6px 10px 6px 6px !important; border: 0; border-radius: 14px;
+    background: linear-gradient(90deg, rgba(127,224,160,.3), rgba(12,20,40,.9) 70%) !important; box-shadow: inset 0 0 0 1.5px rgba(127,224,160,.55), 0 4px 0 rgba(0,0,0,.35); color: #fff; text-align: left !important; }
+  .fm-clpk img { width: 44px; height: 44px; object-fit: cover; object-position: 50% 76%; filter: drop-shadow(0 0 8px rgba(127,224,160,.7)); }
+  .fm-clpk b { display: block; font: 900 15px/1.1 "Inter Tight", sans-serif; text-transform: uppercase; } .fm-clpk small { display: none; }
+  .fm-clpk em { display: flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 10px; background: linear-gradient(180deg, #d6ff6b, #8fe61e); box-shadow: inset 0 -3px 0 #5a9e08; color: #0a1a00; font: 900 14px "Inter Tight", sans-serif; font-style: normal; }
+  .fm-clpk em .coin { width: 16px !important; height: 16px !important; }
+  .fm-clpk:active { transform: translateY(2px); }
+}
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-clpk { grid-template-columns: auto minmax(0, 1fr) !important; grid-template-rows: auto auto; row-gap: 4px; }
+  .fm-clpk img { grid-row: 1 / 3; } .fm-clpk b { font-size: 13px !important; white-space: nowrap; } .fm-clpk em { justify-self: start; padding: 3px 8px !important; }
+}

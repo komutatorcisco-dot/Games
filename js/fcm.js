@@ -344,7 +344,7 @@ const FCM = (() => {
   function pinfo(c, sl) {
     const gk = sl.pos === 'GK', N = gk ? ['НЫР', 'РУК', 'УДР', 'РЕА', 'СКР', 'ПОЗ'] : ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'], st = (Cards.stats ? Cards.stats(c) : c.st) || Array(6).fill(c.r);
     return `<div class="fm-pinfo">
-      <div class="fm-pi-h"><b class="fm-pi-r">${c.r}</b><span><b>${esc(c.name)}</b><small>${esc(XD.RU[sl.pos] || sl.pos)} · ${esc(c.club || c.series || '')}</small><small>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</small></span></div>
+      <div class="fm-pi-h"><b class="fm-pi-r">${typeof Lime !== 'undefined' ? Lime.r(c) : c.r}</b><span><b>${esc(c.name)}</b><small>${esc(XD.RU[sl.pos] || sl.pos)} · ${esc(c.club || c.series || '')}</small><small>${esc(c.flag || '')} ${esc(c.nat || '')}${c.lg ? ' · ' + esc(c.lg) : ''}</small></span></div>
       <div class="fm-pi-st">${N.map((n, i) => `<span><small>${n}</small><i><u style="width:${Math.max(4, Math.min(100, st[i]))}%" class="${st[i] >= 85 ? 'hi' : st[i] >= 70 ? 'mid' : 'lo'}"></u></i><b>${st[i]}</b></span>`).join('')}</div>
       <div class="fm-pi-btn"><button class="fm-btn" data-fm-step="-1" aria-label="Предыдущий">‹</button><button class="fm-btn gold" data-fm-swap>Заменить</button><button class="fm-btn" data-fm-step="1" aria-label="Следующий">›</button></div>
       <button class="fm-pi-x" data-fm-unfocus>Весь состав</button>
@@ -800,6 +800,20 @@ const FCM = (() => {
       return `<button class="fm-cc ${has ? '' : 'no'}" data-fm-card="${esc(c.key)}">${Cards.html(c, { w: 96, locked: !has })}${n > 1 ? `<i class="fm-cn">×${n}</i>` : ''}</button>`; }).join('')
       + (L.length > shown.length ? `<button class="fm-btn fm-cmore" data-fm-more>Показать ещё · ${L.length - shown.length}</button>` : '');
   }
+  // 23.11: пак коллекции — дешёвый, в основном новые для коллекции карточки (ECON.coll); превью — через сервер
+  let collBusy = false;
+  async function buyColl() {
+    if (collBusy) return; const P = ECON.coll;
+    if ((Store.d.coins || 0) < P.price) return toast('Недостаточно монет');
+    collBusy = true;
+    try {
+      let keys;
+      if (typeof Eco !== 'undefined' && Eco.on()) { const r = await Eco.pack(P.id); if (!r || !r.ok) { toast(r && r.error === 'not enough coins' ? 'Недостаточно монет' : 'Сервер не ответил — монеты не списаны'); return; } keys = r.keys || (r.cards || []).map((x) => x.key || x); }
+      else { keys = Cards.collCards(); Store.d.coins -= P.price; }
+      const res = Cards.add(keys, typeof Eco !== 'undefined' && Eco.on() ? { server: true } : undefined); Coins.render(); if (typeof Rewards !== 'undefined') Rewards.refresh();
+      PackOpen.reveal(res, () => { if (tab === 'coll') render(); }, { pack: 0, name: P.name });
+    } finally { collBusy = false; }
+  }
   function coll() {
     const A = Cards.all(), mineN = A.filter(own).length;
     const per = (f) => { const t = A.filter(f); return [t.filter(own).length, t.length]; };
@@ -809,6 +823,7 @@ const FCM = (() => {
     return `<div class="fm-coll">
       <aside class="fm-cl">
         <div class="fm-cl-n"><small>${CQ.mine ? 'Мои карточки' : 'Все карточки'}</small><b>${mineN}<em>/${A.length}</em></b></div>
+        <button class="fm-clpk" data-fm-collpk><img src="img/packs/pk0-160.webp?v=b5" alt=""><span><b>Пак коллекции</b><small>6 карт · 4 новых</small></span><em><i class="coin"></i>${(ECON.coll.price).toLocaleString('ru-RU')}</em></button>
         <div class="fm-cl-bars">${bars}</div>
         <input class="fm-cq" type="search" placeholder="Поиск: игрок или клуб" value="${esc(CQ.q)}" autocomplete="off">
         <div class="fm-chips2">${chip('rar', RARG)}</div>
@@ -872,7 +887,7 @@ const FCM = (() => {
     // 22.11: карточки ждут, пока сцена отрисуется (первые кадры после входа телефон занят 3D), и только потом выпрыгивают по очереди —
     // иначе анимация пролетала за время этих кадров и состав просто «появлялся»
     if (entering) { const tm = root.querySelector('.fm-team'); if (tm) { tm.querySelectorAll('.fm-slot3').forEach((el, k) => el.style.setProperty('--k', k)); tm.classList.add('fx-wait');
-      requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { tm.classList.remove('fx-wait'); tm.classList.add('fx-pop'); setTimeout(() => tm.classList.remove('fx-pop'), 1100); }, 60))); } }
+      requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { tm.classList.remove('fx-wait'); tm.classList.add('fx-pop'); setTimeout(() => tm.classList.remove('fx-pop'), 700); }, 60))); } }
     if (bg3) { bg3.view(tab === 'market' ? 'store' : tab, entering); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
     { const h3 = tab === 'play' && root.querySelector('.hm-star-3d'); if (h3 && typeof Hero3D !== 'undefined') Hero3D.mount(h3, Cards.get(h3.dataset.key)); } // 23.11: звезда команды — 3D-игрок чеканит мяч
     if (tab === 'market') Market.load();
@@ -940,6 +955,7 @@ const FCM = (() => {
       const cc = e.target.closest('[data-fm-card]'); if (cc) { Sound.play('tap'); return cardView(cc.dataset.fmCard); }
       if (e.target.closest('[data-lg-claim]')) { Sound.play('tap'); return League.claim(() => { if (tab === 'league') render(); }); }
       if (e.target.closest('[data-lg-post]')) { Sound.play('tap'); return leaguePost(); }
+      if (e.target.closest('[data-fm-collpk]')) { Sound.play('tap'); return buyColl(); }
       const lkb = e.target.closest('[data-fm-lock]'); if (lkb) { Sound.play('tap'); return toast(`Откроется на ${lkb.dataset.fmLock} трофеях — играй матчи в дивизионах`); }
       const go = e.target.closest('[data-fm-go]'); if (go) { Sound.play('tap'); const [t, v] = go.dataset.fmGo.split(':'); tab = t; sub[t] = v; return render(); }
       if (e.target.closest('[data-fm-car]')) { Sound.play('tap'); tab = 'events'; sub.events = 'car'; return render(); }
