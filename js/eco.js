@@ -95,8 +95,8 @@ const Eco = (() => {
 const Market = (() => {
   const S = { tab: 'search', f: { q: '', rar: '', rmin: 0, pos: '', sort: 'ends' }, lots: null, mine: null, hist: null, loading: false, err: '' };
   const coin = '<i class="coin"></i>';
-  const RAR = [['', 'Все'], ['bronze', 'Бронза'], ['silver', 'Серебро'], ['gold', 'Золото'], ['jg', 'Особые']];
-  const OVR = [[0, 'Любой'], [75, '75+'], [80, '80+'], [84, '84+'], [88, '88+']];
+  const RAR = [['', 'Все'], ['gold', 'Золото'], ['jg', 'Особые']];
+  const OVR = [[0, 'Любой'], [80, '80+'], [85, '85+']];
   const POS = ['', 'ВРТ', 'ЦЗ', 'ЛЗ', 'ПЗ', 'ЦОП', 'ЦП', 'ЦАП', 'ЛП', 'ПП', 'ЛВ', 'ПВ', 'ФРВ'];
   const left = (t) => { const s = Math.max(0, Math.floor((t - Date.now()) / 1000)); if (s <= 0) return 'Завершён'; const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60); return h >= 24 ? `${Math.floor(h / 24)} д ${h % 24} ч` : h ? `${h} ч ${m} мин` : m ? `${m} мин` : `${s} с`; };
   const F = Eco.fmt;
@@ -104,9 +104,10 @@ const Market = (() => {
     const c = Cards.get(x.key) || { key: x.key, name: x.name, r: x.r, rar: x.rar, pos: x.pos, club: x.club };
     const now = x.bid ? `<small>Ставка</small><b>${coin}${F(x.bid)}</b>` : `<small>Старт</small><b>${coin}${F(x.start)}</b>`;
     const st = x.status !== 'open' ? `<em class="mk-st ${x.won ? 'win' : ''}">${x.status === 'sold' ? (x.won ? 'Твой ✓' : x.mine ? `Продано · ${F(x.price)}` : 'Продано') : x.status === 'expired' ? 'Не продано' : 'Снято'}</em>` : `<em class="mk-t">${left(x.ends)}</em>`;
-    return `<button class="mk-lot ${x.top ? 'top' : ''} ${x.mine ? 'mine' : ''}" data-mk-lot="${x.id}">
-      <span class="mk-c">${Cards.html(c, { w: 84, base: true })}</span>
-      <span class="mk-i"><span class="mk-now">${now}</span><span class="mk-bin"><small>Сразу</small><b>${coin}${F(x.bin)}</b></span>${st}${x.top && x.status === 'open' ? '<em class="mk-lead">Ты лидер</em>' : ''}${x.bot ? '' : ''}</span></button>`;
+    // 23.11: как в FC — крупная карточка, под ней одна цена «купить сразу», время — в углу
+    return `<button class="mk-lot v2 ${x.top ? 'top' : ''} ${x.mine ? 'mine' : ''}" data-mk-lot="${x.id}">
+      <span class="mk-c">${Cards.html(c, { w: 112, base: true })}</span>${st}${x.top && x.status === 'open' ? '<em class="mk-lead">Ты лидер</em>' : ''}
+      <span class="mk-p">${coin}<b>${F(x.bin)}</b></span></button>`;
   }
   const grid = (L, empty) => (L && L.length ? `<div class="mk-grid">${L.map(tile).join('')}</div>` : `<p class="fm-none">${empty}</p>`);
   function filters() {

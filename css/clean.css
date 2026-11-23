@@ -136,3 +136,15 @@ body.fcm-on .mk-sh-info > b { font-size: clamp(22px, 7vh, 30px) !important; }
 body.fcm-on .mk-get { margin: 0; font: 800 18px "Inter Tight", sans-serif; display: flex; align-items: center; gap: 6px; color: #fff; } body.fcm-on .mk-get b { color: #c6ff3d; }
 body.fcm-on .mk-row small { font-size: 15px !important; color: #fff !important; font-weight: 800; }
 body.fcm-on .mk-sh { overflow: auto; }
+/* 23.11: рынок — сетка крупных карточек, под каждой цена; фильтры — одной строкой */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on .mk-grid { grid-template-columns: repeat(auto-fill, minmax(122px, 1fr)) !important; gap: 10px 8px !important; }
+  body.fcm-on .mk-lot.v2 { grid-template-columns: 1fr !important; grid-template-rows: auto auto !important; height: auto !important; position: relative; display: grid !important; justify-items: center; gap: 6px; padding: 6px 4px 8px !important; border: 0; border-radius: 16px; background: linear-gradient(180deg, rgba(30,48,88,.6), rgba(12,20,40,.85)) !important; box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+  body.fcm-on .mk-lot.v2:active { transform: scale(.97); }
+  body.fcm-on .mk-lot.v2 .mk-p { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; height: 30px; border-radius: 10px; background: linear-gradient(180deg, #d6ff6b, #8fe61e); box-shadow: inset 0 -3px 0 #5a9e08; color: #0a1a00; font: 900 15px "Inter Tight", sans-serif; }
+  body.fcm-on .mk-lot.v2 .mk-p .coin { width: 18px !important; height: 18px !important; }
+  body.fcm-on .mk-lot.v2 .mk-t, body.fcm-on .mk-lot.v2 .mk-st, body.fcm-on .mk-lot.v2 .mk-lead { position: absolute; top: 6px; right: 6px; z-index: 2; padding: 2px 7px; border-radius: 8px; background: rgba(0,0,0,.7); font: 800 10px "Inter Tight", sans-serif; font-style: normal; color: #fff; }
+  body.fcm-on .mk-lot.v2 .mk-lead { top: auto; bottom: 44px; right: auto; background: #c6ff3d; color: #06101c; }
+  body.fcm-on .mk-flt { display: flex !important; gap: 6px !important; flex-wrap: nowrap !important; align-items: center; overflow-x: auto; }
+  body.fcm-on .mk-flt .mk-pos { display: none !important; } body.fcm-on .mk-flt .mk-q { width: 140px; flex: none; }
+}
