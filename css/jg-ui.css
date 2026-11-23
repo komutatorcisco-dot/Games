@@ -100,3 +100,8 @@ body.fcm-on #modal .btn:focus { outline: none !important; }
   body.fcm-on #xd-pick .xp-sum { font: 800 12px var(--jg-font) !important; gap: 10px !important; min-height: 0 !important; }
   body.fcm-on #xd-pick .xp-ok { height: 46px; }
 }
+/* 23.11: выход игрока из пака — без подписей: только флаг, позиция и герб крупно; без «Нажми, чтобы…», фоновых букв и логотипа */
+body.fcm-on .po-wi-beat b, body.fcm-on .po .po-hint, body.fcm-on .po :is(.po-ghost, .po-logo, .po-streak) { display: none !important; }
+body.fcm-on .po-wi-flag { font-size: min(34vh, 170px) !important; }
+body.fcm-on .po-wi-pos { font: 900 min(30vh, 150px)/1 var(--jg-font) !important; }
+body.fcm-on .po-wi-crest { width: min(36vh, 180px) !important; height: min(36vh, 180px) !important; }
