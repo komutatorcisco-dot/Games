@@ -442,7 +442,13 @@ const FCM = (() => {
       const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2, tx = Math.min(Math.max(cx, L + (x1 - x0) * sc / 2), R - (x1 - x0) * sc / 2), ty = Math.min(Math.max(cy, T + (y1 - y0) * sc / 2), B - (y1 - y0) * sc / 2);
       P.forEach((q) => { q.x = tx + (q.x - cx) * sc; q.y = ty + (q.y - cy) * sc; q.k *= sc; });
     }
-    P.forEach((q) => { q.el.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px) translate(-50%, ${up && q.on ? -100 : -92}%) scale(${q.k.toFixed(3)})`;
+    // 23.11: выбранный игрок не летит за камерой (раньше на «›» карточка выезжала из угла экрана) — стоит на своём месте
+    // слева от окна игрока; туда он плавно переезжает один раз (transition только у него)
+    if (focusI >= 0) { const pi = root.querySelector('.fm-pinfo'), nav = root.querySelector('.fm-nav'), top = root.querySelector('.fm-top');
+      const R = pi ? pi.getBoundingClientRect().left : innerWidth * 0.55, T = top ? top.getBoundingClientRect().bottom : 40, B = nav ? nav.getBoundingClientRect().top : innerHeight;
+      P.forEach((q) => { if (!q.sel) return; q.x = R / 2; q.k = Math.min(1.7, (B - T - 40) / (64 * 1.45 + 20)); q.y = T + (B - T) / 2 + (64 * 1.45 + 20) * q.k * 0.42; }); }
+    P.forEach((q) => { q.el.classList.toggle('pin', q.sel && focusI >= 0 && !!q.el.style.transform); // нет прежнего места — встаёт сразу, без полёта из угла
+      q.el.style.transform = `translate(${q.x.toFixed(1)}px, ${q.y.toFixed(1)}px) translate(-50%, ${up && q.on ? -100 : -92}%) scale(${q.k.toFixed(3)})`;
       q.el.style.zIndex = String(Math.round(1000 - q.d)); q.el.classList.toggle('hid', !!(up && q.sel)); });
   }
 
@@ -884,7 +890,11 @@ const FCM = (() => {
     const entering = tab === 'team' && root.dataset.view !== 'team';
     root.dataset.view = tab;
     const oldTrk = root.querySelector('.ps2-track'), keepX = oldTrk && root.dataset.view === tab ? oldTrk.scrollLeft : null;
+    const pinEl = root.querySelector('.fm-slot3.pin'), pinT = pinEl && pinEl.style.transform, pinI = pinEl && pinEl.dataset.i;
+    const oldPos = {}; root.querySelectorAll('.fm-slot3').forEach((el) => { oldPos[el.dataset.i] = el.style.transform; }); // 23.11: карточки после перерисовки — с прежнего места, без прыжка в угол
     root.innerHTML = `${top()}<main class="fm-main">${body}</main>${nav()}`;
+    root.querySelectorAll('.fm-slot3').forEach((el) => { if (oldPos[el.dataset.i]) el.style.transform = oldPos[el.dataset.i]; });
+    if (tab === 'team' && focusI >= 0 && pinT && String(focusI) !== pinI) { const ne = root.querySelector(`.fm-slot3[data-i="${focusI}"]`); if (ne) { ne.style.transform = pinT; ne.classList.add('swapin'); } } // «‹ ›»: новый игрок появляется на месте прежнего
     { const trk = root.querySelector('.ps2-track'); if (trk) { // пропуск: после «Забрать» дорожка не прыгает, при входе — встаёт на текущий уровень
       if (keepX !== null) trk.scrollLeft = keepX; else { const c = trk.children[+trk.dataset.cur || 0]; if (c) trk.scrollLeft = Math.max(0, c.offsetLeft - trk.clientWidth / 2 + c.offsetWidth / 2); } } }
     if (typeof Coins !== 'undefined') Coins.render();

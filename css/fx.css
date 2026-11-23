@@ -118,3 +118,12 @@
   .fm-team.fx-pop .fm-slot3 > * { animation: fxSquadIn .6s cubic-bezier(.22,.8,.3,1) both !important; animation-delay: 0s !important; }
   @keyframes fxSquadIn { from { opacity: 0; transform: translateY(-18px) scale(.94); filter: brightness(1.6); } 60% { opacity: 1; } to { opacity: 1; transform: none; filter: none; } }
 }
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-slot3.pin { transition: transform .45s cubic-bezier(.22,.8,.3,1), opacity .35s !important; z-index: 2000 !important; }
+  /* вход в «Команду»: без ожидания трёх кадров — карточки сразу начинают плавно проявляться */
+  .fm-team.fx-wait .fm-slot3 { visibility: visible !important; opacity: 0; }
+}
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-slot3.swapin > * { animation: fxSwapIn .35s cubic-bezier(.22,.8,.3,1) both; }
+  @keyframes fxSwapIn { from { opacity: 0; transform: translateX(24px) rotateY(-30deg); } to { opacity: 1; transform: none; } }
+}
