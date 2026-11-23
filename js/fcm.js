@@ -147,22 +147,34 @@ const FCM = (() => {
       if (e.target.closest('[data-lg-copy]')) { const ta = el.querySelector('textarea'); ta.select(); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast('Скопировано — вставь в канал'), () => { document.execCommand('copy'); toast('Скопировано'); }); }
     });
   }
+  // 23.11: повышение — старый щит трескается и улетает, новый влетает с вращением и вспышкой
+  function promoFx(i) {
+    const el = document.createElement('div'); el.className = 'promo';
+    el.innerHTML = `<i class="promo-rays"></i><img class="promo-old" src="${dvImg(Math.max(0, i - 1), true)}" alt=""><img class="promo-new" src="${dvImg(i, true)}" alt=""><b>${esc(Division.name(i))}</b><small>Новый дивизион</small>`;
+    document.body.appendChild(el); Sound.play('whistle'); haptic('ok');
+    setTimeout(() => { if (typeof confetti === 'function') confetti(); Sound.play('goal'); }, 900);
+    const close = () => { el.classList.add('out'); setTimeout(() => el.remove(), 300); };
+    el.addEventListener('click', close); setTimeout(close, 3600);
+  }
   function divView() {
     const D = Division, { s, i, nx, pct } = dvBar(), L = s.last && !s.last.seen ? s.last : null;
-    if (L) { s.last.seen = true; Store.save(); if (L.up) setTimeout(() => { if (typeof confetti === 'function') confetti(); Sound.play('whistle'); }, 400); }
+    if (L) { s.last.seen = true; Store.save(); if (L.up) setTimeout(() => promoFx(L.i), 300); }
     const K = typeof Eco !== 'undefined' && Eco.on() ? Eco.K() : 1, [a, lime, cn] = D.WEEK[s.wbest];
-    const lad = D.START.map((_, k) => `<span class="dvl ${k === i ? 'on' : ''} ${k < i ? 'done' : ''}"><img src="${dvImg(k)}" alt="${esc(D.name(k))}" loading="lazy"></span>`).join('<i class="dvl-ln"></i>');
-    return `<div class="dv">
-      <div class="dv-l">${dvBadge(i, true)}<b class="dv-n">${esc(D.name(i))}</b>
-        <span class="fm-bar dv-bar"><i style="width:${pct}%"></i></span><small>${nx ? `${s.pts} / ${nx} очков до ${esc(D.name(i + 1))}` : `${s.pts} очков · вершина`}</small>
-        <small class="dv-rec">Победы ${s.w} · ничьи ${s.dr} · поражения ${s.l}</small></div>
-      <div class="dv-r">
-        ${L ? `<div class="dv-res ${L.res}"><b>${L.res === 'win' ? 'Победа' : L.res === 'draw' ? 'Ничья' : 'Поражение'} ${L.score[0]}:${L.score[1]}</b><span>${L.dp >= 0 ? '+' : ''}${L.dp} очков дивизиона${L.tro ? ` · +${L.tro} ${cup}` : ''}${L.up ? ' · <u>Новый дивизион!</u>' : ''}</span></div>` : ''}
-        <div class="dv-lad">${lad}</div>
-        <div class="dv-wk">${s.prize ? `<span><small>Неделя закончилась</small><b>Награда за ${esc(D.name(s.prize.i))}</b></span><button class="fm-btn gold" data-dv-week>Забрать</button>`
-          : `<span><small>Награда недели за ${esc(D.name(s.wbest))}</small><b><img class="dv-ang" src="img/packs/angry-160.webp?v=a2" alt="">×${a} · ${Lime.ico()} ${lime} · ${coin} ${Math.round(cn * K)}</b></span>`}</div>
-        <div class="dv-go"><button class="fm-btn" data-dv-team>Состав</button><button class="fm-btn gold dv-play" data-dv-play>Играть матч 3 на 3</button></div>
-        <p class="mk-note">Победа: +${D.PTS.win} очков и +${D.tro('win', i)} трофеев · ничья +${D.PTS.draw} · поражение ${D.PTS.loss}. Ниже начала дивизиона не опустишься. Трофеи дают только матчи дивизионов.</p>
+    // 23.11: «дорога дивизионов» — горизонтальная лента значков 10 → Элита, текущий крупно и светится (вращается),
+    // под каждым — награда недели (злые мячи); снизу — очки, награда недели и большая «Играть»
+    const road = D.START.map((st0, k) => { const w = D.WEEK[k];
+      return `<div class="dr-n ${k === i ? 'on' : ''} ${k < i ? 'done' : ''} ${k > i ? 'next' : ''}" data-k="${k}">
+        ${k === i ? `<span class="dr-b">${dvBadge(k, true)}</span>` : `<img class="dr-i" src="${dvImg(k)}" alt="" loading="lazy">`}
+        <b>${k >= 9 ? 'Элита' : D.num(k)}</b><em><img src="img/packs/angry-160.webp?v=a2" alt="">×${w[0]}</em></div>`; }).join('');
+    return `<div class="dv2">
+      ${L ? `<div class="dv-res ${L.res}"><b>${L.res === 'win' ? 'Победа' : L.res === 'draw' ? 'Ничья' : 'Поражение'} ${L.score[0]}:${L.score[1]}</b><span>${L.dp >= 0 ? '+' : ''}${L.dp} очков${L.tro ? ` · +${L.tro} ${cup}` : ''}${L.up ? ' · <u>Новый дивизион!</u>' : ''}</span></div>` : ''}
+      <div class="dr-road"><i class="dr-line"><u style="width:${Math.round(100 * i / 9)}%"></u></i>${road}</div>
+      <div class="dv2-b">
+        <div class="dv2-p"><b>${esc(D.name(i))}</b><span class="fm-bar"><i style="width:${pct}%"></i></span><em>${nx ? `${s.pts} / ${nx}` : `${s.pts}`}</em></div>
+        ${s.prize ? `<button class="dv2-w hot" data-dv-week><img src="img/packs/angry-160.webp?v=a2" alt=""><b>Забрать награду</b></button>`
+          : `<div class="dv2-w"><img src="img/packs/angry-160.webp?v=a2" alt=""><b>×${a}</b>${Lime.ico()}<b>${lime}</b>${coin}<b>${Math.round(cn * K)}</b></div>`}
+        <button class="fm-btn dv2-team" data-dv-team>Состав</button>
+        <button class="fm-btn gold dv2-go" data-dv-play>Играть</button>
       </div></div>`;
   }
   // ---- главная (21.11, проще): слева крупный 3D-значок дивизиона, название, полоса очков и одна большая «Играть»;
@@ -655,6 +667,26 @@ const FCM = (() => {
   }
   // окно пака: пак крупно, что внутри, шансы, кнопки цены
   // профиль и настройки в новом виде (вместо старого экрана «Профиль»): ник, трофеи, коллекция, звук, история, «Начать заново»
+  // 23.11: «Играть» — мяч влетает из-за края, бьёт в кнопку, экран вздрагивает, потом поиск соперника
+  let kicking = false;
+  function kickToPlay(btn) {
+    if (kicking) return; kicking = true;
+    const done = () => { kicking = false; Division.play(); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || !btn.animate) return done();
+    const r = btn.getBoundingClientRect(), b = document.createElement('img');
+    b.src = 'img/packs/pk0-160.webp?v=b5'; b.className = 'kick-ball'; document.body.appendChild(b);
+    const tx = r.left + r.width / 2 - 40, ty = r.top + r.height / 2 - 40;
+    Sound.play('kick');
+    const fly = b.animate([{ transform: `translate(${innerWidth + 40}px, ${innerHeight * 0.1}px) rotate(0) scale(.6)` }, { transform: `translate(${tx}px, ${ty}px) rotate(-540deg) scale(1.1)` }], { duration: 380, easing: 'cubic-bezier(.3,.1,.6,1)', fill: 'forwards' });
+    fly.onfinish = () => {
+      haptic('ok'); Sound.play('goal');
+      const fl = document.createElement('i'); fl.className = 'kick-flash'; fl.style.left = `${r.left + r.width / 2}px`; fl.style.top = `${r.top + r.height / 2}px`; document.body.appendChild(fl);
+      btn.animate([{ transform: 'scale(1)' }, { transform: 'scale(.88)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }], { duration: 300 });
+      if (root) root.animate([{ transform: 'translate(0,0)' }, { transform: 'translate(-6px,3px)' }, { transform: 'translate(5px,-3px)' }, { transform: 'translate(0,0)' }], { duration: 220 });
+      b.animate([{ transform: `translate(${tx}px, ${ty}px) scale(1.1)`, opacity: 1 }, { transform: `translate(${tx - 160}px, ${ty - 260}px) rotate(-900deg) scale(.4)`, opacity: 0 }], { duration: 420, easing: 'ease-out', fill: 'forwards' });
+      setTimeout(() => { b.remove(); fl.remove(); done(); }, 380);
+    };
+  }
   function profileSheet() {
     const u = Store.d.user || {}, own = Object.keys((Store.d.cards && Store.d.cards.own) || {}).length;
     const el = document.createElement('div'); el.className = 'fm-sheet fm-prof';
@@ -914,7 +946,7 @@ const FCM = (() => {
       const nd = e.target.closest('[data-fm-node]'); if (nd) { Sound.play('tap'); return nodeSheet(+nd.dataset.fmNode); }
       const pk = e.target.closest('[data-fm-pk]'); if (pk) { Sound.play('tap'); return packSheet(pk.dataset.fmPk); }
       const m = e.target.closest('[data-fm-mode]'); if (m) { Sound.play('tap'); return startMode(m.dataset.fmMode); }
-      if (e.target.closest('[data-dv-play]')) { Sound.play('tap'); return Division.play(); }
+      { const pb = e.target.closest('[data-dv-play]'); if (pb) { Sound.play('tap'); return kickToPlay(pb); } }
       if (e.target.closest('[data-dv-week]')) { Division.claimWeek(); return setTimeout(render, 60); }
       if (e.target.closest('[data-dv-team]')) { Sound.play('tap'); return Football.open(); }
       const tr = e.target.closest('[data-fm-train]'); if (tr) { Sound.play('tap'); return App.openFootball('fk', tr.dataset.fmTrain); }

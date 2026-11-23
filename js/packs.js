@@ -218,8 +218,16 @@ const PackOpen = (() => {
   // мяч-пак (4.11): тряска с разгорающимися трещинами, потом мяч разлетается на куски со вспышкой
   async function crack(el, packEl) {
     packEl.classList.add('charge'); Sound.play('kick'); haptic('tap');
-    await wait(330); haptic('tap'); await wait(330); haptic('pop'); await wait(300);
+    // 23.11: трещины по швам — светящиеся линии цвета редкости растут на каждом толчке, потом мяч разлетается
     const b = $('.fpk-b', packEl), f = $('.fpk-f', packEl), im = $('.fpk-img', packEl);
+    let cr = null;
+    if (!reduce && b) { cr = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); cr.setAttribute('viewBox', '0 0 100 100'); cr.setAttribute('class', 'po-crack');
+      let sd = Math.floor(Math.random() * 1e6); const rnd = () => ((sd = (sd * 16807) % 2147483647) / 2147483647);
+      const paths = []; for (let k = 0; k < 6; k++) { let x = 50, y = 58, a = (k / 6) * 6.283 + rnd(), d = `M${x} ${y}`; for (let j = 0; j < 4; j++) { a += (rnd() - 0.5) * 0.9; x += Math.cos(a) * (7 + rnd() * 6); y += Math.sin(a) * (7 + rnd() * 6); d += ` L${x.toFixed(1)} ${y.toFixed(1)}`; } paths.push(d); }
+      cr.innerHTML = paths.map((d, k) => `<path d="${d}" pathLength="1" style="--d:${k}"/>`).join(''); b.appendChild(cr); }
+    const grow = (n) => { if (cr) cr.style.setProperty('--g', n); };
+    grow(.35); await wait(330); haptic('tap'); grow(.7); await wait(330); haptic('pop'); grow(1); await wait(300);
+    if (cr) cr.remove();
     const box = document.createElement('i'); box.className = 'po-shards'; b.appendChild(box);
     const W = b.offsetWidth, N = reduce ? 0 : 10, a0 = Math.random() * 6.28;
     for (let i = 0; i < N; i++) {
