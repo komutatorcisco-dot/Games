@@ -1,0 +1,32 @@
+/* 23.11: «Задания» и «События» удобнее — крупные плитки заданий (значок игры, название, полоса, награда, большая кнопка),
+   без лишней полосы пропуска в списке (у пропуска своя вкладка); событие «Джексон» — в тех же синих панелях, что карьера. */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  /* ---- задания ---- */
+  body.fcm-on .fm-qbody > .fm-qpass { display: none !important; }
+  body.fcm-on .fm-qh { padding: 6px 12px !important; }
+  body.fcm-on .fm-qh .fm-pips { display: none !important; }
+  body.fcm-on .fm-qs { gap: 10px !important; }
+  body.fcm-on .fm-q { grid-template-columns: 54px minmax(0, 1fr) auto !important; grid-template-rows: auto auto !important; gap: 4px 12px !important; padding: 10px 12px !important; min-height: 74px; }
+  body.fcm-on .fm-q-ic { grid-row: 1 / 3 !important; width: 54px !important; height: 54px !important; border-radius: 14px !important; }
+  body.fcm-on .fm-q-ic .fm-ic { width: 28px !important; height: 28px !important; }
+  body.fcm-on .fm-q-t { grid-column: 2; grid-row: 1 / 3; align-self: center; gap: 7px !important; }
+  body.fcm-on .fm-q-t b { font: 900 16px/1.15 "Inter Tight", sans-serif !important; white-space: normal !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  body.fcm-on .fm-q-t .fm-bar { height: 8px; border-radius: 4px; }
+  body.fcm-on .fm-q-f { grid-column: 3; grid-row: 1 / 3; display: grid !important; justify-items: end; align-content: center; gap: 6px !important; }
+  body.fcm-on .fm-q-f > small { font: 900 13px "Inter Tight", sans-serif !important; color: #cfdcef !important; }
+  body.fcm-on .fm-q-rw { margin: 0 !important; padding: 3px 8px; border-radius: 9px; background: rgba(175,110,255,.18); font: 900 14px "Inter Tight", sans-serif !important; color: #d9c6ff !important; }
+  body.fcm-on .fm-q .fm-btn.sm { min-height: 38px !important; padding: 0 14px !important; font-size: 14px !important; }
+  body.fcm-on .fm-q.got { opacity: .4; }
+  /* ---- событие «Джексон» ---- */
+  body.fcm-on :is(.fm-puz, .fm-evprize) { background: linear-gradient(180deg, rgba(30,48,88,.94), rgba(12,20,40,.94)) !important;
+    box-shadow: inset 0 1.5px 0 rgba(255,255,255,.12), inset 0 0 0 1px rgba(120,160,230,.2), 0 0 0 1.5px rgba(0,0,0,.35) !important; border: 0 !important; border-radius: 16px !important; }
+  body.fcm-on :is(.fm-logo small, .fm-evd, .fm-evprize small, .fm-evprize i, .fm-puz-h, .fm-pz small) { display: none !important; }
+  body.fcm-on .fm-logo b { font: 900 clamp(30px, 10vh, 44px)/1 "Inter Tight", sans-serif !important; text-shadow: 0 3px 0 rgba(0,0,0,.45); }
+  body.fcm-on .fm-logo em { font: 900 12px "Inter Tight", sans-serif !important; }
+  body.fcm-on .fm-evprize b { font: 900 18px "Inter Tight", sans-serif !important; text-transform: uppercase; }
+  body.fcm-on .fm-pz b { font: 900 13px "Inter Tight", sans-serif !important; }
+  body.fcm-on .fm-pz .fm-pz-m { transform: scale(1.15); }
+  /* ---- вкладки событий и главы карьеры крупнее ---- */
+  body.fcm-on .fm-evtabs button { padding: 8px 16px !important; font: 900 14px "Inter Tight", sans-serif !important; }
+  body.fcm-on .cr-ch { padding: 6px 14px !important; } body.fcm-on .cr-ch small { font-size: 11px !important; } body.fcm-on .cr-ch b { font-size: 16px !important; }
+}
