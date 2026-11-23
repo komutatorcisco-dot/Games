@@ -11,8 +11,8 @@
 'use strict';
 
 const Plate = (() => {
-  const TINT = { blue: '40,70,170', purple: '120,50,190', red: '170,50,30', green: '40,230,110', lime: '150,230,40', gold: '210,160,30' };
-  const MAX = 3;
+  const TINT = { blue: '80,150,255', purple: '175,110,255', red: '255,80,90', green: '60,230,120', lime: '170,240,50', gold: '255,200,60' }; // 23.11: ярче — полоса и подпись на синей панели
+  const MAX = 2; // 23.11: не больше двух сразу — не закрывают кнопку «Играть»
   const reduce = () => window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   let box = { left: null, right: null }; const queue = []; let live = 0;

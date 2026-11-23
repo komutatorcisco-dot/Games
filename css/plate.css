@@ -58,3 +58,24 @@
 
 @media (prefers-reduced-motion: reduce) { .pl, .pl.out { transition: opacity .15s !important; transform: none !important; } }
 .pl.static { opacity: 1; transform: none; transition: none; }
+
+/* 23.11: плашки в стиле меню — синяя панель с кромкой и цветной полосой слева (цвет события), значок в круге слева,
+   крупный заголовок; по центру сверху (не закрывают кнопки меню слева), без размытия фона (дёшево для телефона).
+   Тап — закрыть. */
+.pl-stack.left, .pl-stack.right { left: 50% !important; right: auto !important; transform: translateX(-50%); align-items: center !important; top: calc(max(env(safe-area-inset-top, 0px), var(--pl-tg-t, 0px)) + 52px); }
+.pl:not(.pl-track) { --ph: 58px; min-width: 280px; max-width: min(460px, calc(100vw - 32px)); flex-direction: row-reverse; justify-content: flex-end; gap: 12px;
+  padding: 0 18px 0 8px !important; border: 0 !important; border-radius: 16px;
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important;
+  background: linear-gradient(90deg, rgba(var(--pl-tint), .45), rgba(var(--pl-tint), 0) 60%), linear-gradient(180deg, rgba(30,48,88,.97), rgba(12,20,40,.97)) !important;
+  box-shadow: inset 4px 0 0 rgb(var(--pl-tint)), inset 0 1.5px 0 rgba(255,255,255,.16), inset 0 0 0 1px rgba(120,160,230,.22), 0 0 0 1.5px rgba(0,0,0,.4), 0 12px 26px rgba(0,0,0,.5) !important;
+  transform: translateY(-24px) scale(.92) !important; transition: transform .32s cubic-bezier(.22,1.3,.4,1), opacity .22s !important; }
+.pl:not(.pl-track).in { transform: none !important; }
+.pl:not(.pl-track).out { opacity: 0; transform: translateY(-18px) scale(.95) !important; }
+.pl:not(.pl-track) .pl-img { position: static !important; flex: none; width: 44px !important; height: 44px !important; max-width: none; border-radius: 50%; object-fit: cover; object-position: 50% 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.25), rgba(var(--pl-tint), .45)); box-shadow: 0 0 0 2px rgba(var(--pl-tint), .9), 0 3px 8px rgba(0,0,0,.4); }
+.pl:not(.pl-track) .pl-img.pl-ball { object-position: 50% 76%; }
+.pl:not(.pl-track).noimg { padding-left: 18px !important; }
+.pl:not(.pl-track) .pl-t { text-transform: none; gap: 3px; }
+.pl:not(.pl-track) .pl-t small { font: 800 11px "Inter Tight", system-ui, sans-serif !important; letter-spacing: .12em; text-transform: uppercase; color: rgb(var(--pl-tint)) !important; }
+.pl:not(.pl-track) .pl-t small em { color: #fff !important; }
+.pl:not(.pl-track) .pl-t b { font: 900 20px/1.05 "Inter Tight", system-ui, sans-serif !important; text-transform: uppercase; color: #fff !important; text-shadow: 0 2px 0 rgba(0,0,0,.45); letter-spacing: .01em; }
