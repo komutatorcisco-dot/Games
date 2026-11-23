@@ -114,7 +114,7 @@ const Music = (() => {
       master.gain.setValueAtTime(master.gain.value, ctx.currentTime);
       master.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 2);
       timer = setInterval(tick, 60);
-      if (!shown && typeof Notify !== 'undefined') { shown = true; setTimeout(() => Notify.music(), 900); }
+      // 23.11: плашка «Джексоны Lo-Fi» убрана по просьбе пользователя (Notify.music остаётся, но не вызывается)
     } catch (e) { playing = false; }
   }
 
