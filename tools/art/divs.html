@@ -45,56 +45,55 @@ function shield(k = 1) {
 function star(r1, r2, n = 5) { const p = new THREE.Shape(); for (let i = 0; i <= n * 2; i++) { const a = Math.PI / 2 + i * Math.PI / n, r = i % 2 ? r2 : r1; const x = Math.cos(a) * r, y = Math.sin(a) * r; i ? p.lineTo(x, y) : p.moveTo(x, y); } return p; }
 const metal = (c, o = {}) => new THREE.MeshStandardMaterial({ color: L(c), metalness: 1, roughness: 0.22, envMapIntensity: 1.4, ...o });
 const ext = (shape, depth, bevel, mat) => { const g = new THREE.ExtrudeGeometry(shape, { depth, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 6, curveSegments: 48 }); g.center(); return new THREE.Mesh(g, mat); };
+// 23.11: новый значок в мультяшном стиле мячей пользователя — толстая глянцевая оправа-щит, в центре гранёный
+// самоцвет цвета ступени с крупным белым номером, крылья растут со ступенью (серебро — малые, золото и элита — большие),
+// сверху маленький мяч (у элиты — корона), снизу звёзды — место внутри ступени
+const G2 = {
+  bronze: { rim: '#d9772e', rimHi: '#ffb070', gem: '#ff6a1a', gemD: '#9a2a00', wing: 0 },
+  silver: { rim: '#b9c7dc', rimHi: '#ffffff', gem: '#2f8cff', gemD: '#0b2f8a', wing: 1 },
+  gold: { rim: '#ffb800', rimHi: '#fff0a0', gem: '#ff2e63', gemD: '#7a0024', wing: 2 },
+  elite: { rim: '#1c2414', rimHi: '#c6ff3d', gem: '#7cff1a', gemD: '#1f6a00', wing: 2, crown: true },
+};
+const gp = (c, o = {}) => new THREE.MeshPhysicalMaterial({ color: L(c), roughness: 0.22, metalness: 0.25, clearcoat: 1, clearcoatRoughness: 0.08, ...o });
+function hexShape(r, k = 1) { const p = new THREE.Shape(); for (let j = 0; j <= 6; j++) { const a = Math.PI / 2 + j * Math.PI / 3; const x = Math.cos(a) * r, y = Math.sin(a) * r * k; j ? p.lineTo(x, y) : p.moveTo(x, y); } return p; }
+function wingShape() { // одно крыло (правое): три пера
+  const p = new THREE.Shape(); p.moveTo(0, 0.35); p.bezierCurveTo(0.5, 0.75, 1.1, 0.85, 1.35, 0.7); p.bezierCurveTo(1.05, 0.55, 0.95, 0.45, 1.25, 0.3);
+  p.bezierCurveTo(0.95, 0.2, 0.85, 0.05, 1.05, -0.12); p.bezierCurveTo(0.7, -0.12, 0.45, -0.25, 0.7, -0.45); p.bezierCurveTo(0.3, -0.4, 0.05, -0.2, 0, -0.1); p.lineTo(0, 0.35); return p; }
 window.renderDiv = async (i, w, h) => {
   await document.fonts.load('800 40px IB');
-  const tn = tierOf(i), T = TIERS[tn], s = rig(w, h, T), G = new THREE.Group(); s.add(G);
-  // обод и эмаль
-  const rim = ext(shield(1), 0.22, 0.1, metal(T.metal, tn === 'elite' ? { roughness: 0.35 } : {})); G.add(rim);
-  // эмаль: насыщенный цвет, свет в центре, тёмные края (виньетка), едва заметные лучи
-  const em = tex(512, 512, (g) => { g.fillStyle = T.enamel; g.fillRect(0, 0, 512, 512);
-    const c = g.createRadialGradient(256, 236, 0, 256, 236, 250); c.addColorStop(0, T.lit + 'aa'); c.addColorStop(0.55, T.lit + '33'); c.addColorStop(1, T.lit + '00'); g.fillStyle = c; g.fillRect(0, 0, 512, 512);
-    g.globalAlpha = 0.07; g.fillStyle = '#ffffff';
-    for (let k = 0; k < 24; k++) { const a = k * Math.PI / 12; g.beginPath(); g.moveTo(256, 236); g.arc(256, 236, 520, a, a + Math.PI / 24); g.closePath(); g.fill(); }
-    g.globalAlpha = 1; const v = g.createRadialGradient(256, 256, 140, 256, 256, 340); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,.7)'); g.fillStyle = v; g.fillRect(0, 0, 512, 512); });
-  em.repeat.set(0.31, 0.31); em.offset.set(0.5, 0.5);
-  const inner = ext(shield(0.8), 0.06, 0.04, new THREE.MeshStandardMaterial({ color: 0xffffff, map: em, emissive: 0xffffff, emissiveMap: em, emissiveIntensity: 0.55, metalness: 0, roughness: 0.18, envMapIntensity: 0.5 })); inner.position.set(0, 0.0, 0.17); G.add(inner);
-  if (T.trim) { const tr = ext(shield(0.86), 0.02, 0.02, new THREE.MeshBasicMaterial({ color: L(T.trim) })); tr.position.z = 0.15; G.add(tr); }
-  // номер: металлический градиент с тенью, на плоскости над эмалью
+  const tn = tierOf(i), T = G2[tn], s = rig(w, h, TIERS[tn]), G = new THREE.Group(); s.add(G);
+  R.toneMapping = THREE.NoToneMapping;
+  // крылья (за оправой)
+  if (T.wing) { const sc = T.wing === 1 ? 0.72 : 1.05;
+    [-1, 1].forEach((sx) => { const wg = ext(wingShape(), 0.14, 0.06, gp(tn === 'elite' ? '#c6ff3d' : T.rim, tn === 'elite' ? { emissive: L('#2a6a00'), emissiveIntensity: 0.5 } : {})); wg.geometry.translate(0.68, 0.1, 0);
+      wg.scale.set(sx * sc, sc, 1); wg.position.set(sx * 0.72, 0.15, -0.25); G.add(wg); }); }
+  // оправа: толстый скруглённый шестиугольник
+  const rim = ext(hexShape(1.12, 1.08), 0.34, 0.16, gp(T.rim, tn === 'elite' ? { metalness: 0.4 } : {})); G.add(rim);
+  const rim2 = ext(hexShape(0.98, 1.08), 0.06, 0.05, gp(T.rimHi, { metalness: 0.5 })); rim2.position.z = 0.25; G.add(rim2);
+  // самоцвет: гранёный (плоские грани), цвет ступени, светится изнутри
+  const gemG = new THREE.CylinderGeometry(0.62, 0.86, 0.5, 6, 1); gemG.rotateX(Math.PI / 2); gemG.rotateZ(Math.PI / 6);
+  const gem = new THREE.Mesh(gemG, new THREE.MeshPhysicalMaterial({ color: L(T.gem), emissive: L(T.gemD), emissiveIntensity: 0.9, roughness: 0.08, metalness: 0.1, clearcoat: 1, flatShading: true }));
+  gem.scale.set(1, 1.08, 1); gem.position.z = 0.42; G.add(gem);
+  // номер: крупный белый с тёмной обводкой (мультяшно)
   const num = i >= 9 ? '★' : String(10 - i);
-  const nt = tex(512, 512, (g) => { g.textAlign = 'center'; g.textBaseline = 'middle'; const big = num.length > 1 ? 330 : 380;
-    g.font = `800 ${i >= 9 ? 330 : big}px IB`; const x = 256, y = 276;
-    g.lineJoin = 'round'; g.lineWidth = 22; g.strokeStyle = 'rgba(0,0,0,.6)'; g.strokeText(num, x + 6, y + 10); g.fillStyle = 'rgba(0,0,0,.6)'; g.fillText(num, x + 6, y + 10);
-    const q = g.createLinearGradient(0, 110, 0, 420); q.addColorStop(0, T.ink[0]); q.addColorStop(0.55, T.ink[1]); q.addColorStop(1, T.ink[1]); g.fillStyle = q; g.fillText(num, x, y);
-    });
-  const np = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.6), new THREE.MeshBasicMaterial({ map: nt, transparent: true, depthWrite: false })); np.position.set(0, -0.05, 0.25); G.add(np);
-  // блик стекла поверх эмали
-  const gl = new THREE.Mesh(new THREE.PlaneGeometry(2, 2.4), new THREE.MeshBasicMaterial({ map: tex(256, 256, (g) => { const q = g.createLinearGradient(0, 0, 256, 256); q.addColorStop(0, 'rgba(255,255,255,.12)'); q.addColorStop(0.45, 'rgba(255,255,255,.02)'); q.addColorStop(0.5, 'rgba(255,255,255,0)'); g.fillStyle = q; g.fillRect(0, 0, 256, 256); }), transparent: true, depthWrite: false }));
-  gl.position.set(0, 0, 0.26); gl.scale.set(0.78, 0.78, 1); G.add(gl);
-  // сверху: звёзды по номеру внутри ступени (1–3), у элиты — корона
-  const top = new THREE.Group(); G.add(top); top.position.set(0, 1.42, 0.05);
-  if (tn === 'elite') {
-    const cr = new THREE.Shape(); cr.moveTo(-0.5, 0); cr.lineTo(-0.56, 0.42); cr.lineTo(-0.26, 0.2); cr.lineTo(0, 0.55); cr.lineTo(0.26, 0.2); cr.lineTo(0.56, 0.42); cr.lineTo(0.5, 0); cr.lineTo(-0.5, 0);
-    const c = ext(cr, 0.12, 0.04, metal('#f0c23a')); c.position.y = 0.12; top.add(c);
-    [-0.56, 0, 0.56].forEach((x, k) => { const b = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), new THREE.MeshBasicMaterial({ color: L('#c6ff3d') })); b.position.set(x, (k === 1 ? 0.55 : 0.42) - 0.275 + 0.12, 0.1); top.add(b); });
-  } else {
-    const n = (i % 3) + 1; for (let k = 0; k < n; k++) { const st = ext(star(0.2, 0.09), 0.06, 0.03, metal(T.hi === '#ffffff' ? '#e8eef8' : T.metal)); st.position.set((k - (n - 1) / 2) * 0.42, 0.12 + (k === (n - 1) / 2 ? 0.06 : 0), 0); top.add(st); }
-  }
-  // лавры у золота и элиты
-  if (tn === 'gold' || tn === 'elite') {
-    const lm = metal(tn === 'elite' ? '#c6ff3d' : T.metal, tn === 'elite' ? { metalness: 0.6, roughness: 0.3, emissive: L('#3c6a00'), emissiveIntensity: 0.6 } : {});
-    [-1, 1].forEach((sx) => {
-      const P = (a, rr = 1.3) => new THREE.Vector3(sx * Math.cos(a) * rr * 0.95, Math.sin(a) * rr - 0.12, -0.12);
-      const a0 = -1.72, a1 = 0.35, stem = new THREE.CatmullRomCurve3([0, 0.25, 0.5, 0.75, 1].map((t) => P(a0 + (a1 - a0) * t)));
-      G.add(new THREE.Mesh(new THREE.TubeGeometry(stem, 40, 0.035, 8), lm));
-      for (let k = 0; k < 8; k++) { const t = 0.08 + k / 8.2, a = a0 + (a1 - a0) * t, sz = 0.85 + 0.25 * Math.sin(t * Math.PI);
-        const pt = P(a), tg = stem.getTangent(Math.min(1, t)); const ang = Math.atan2(tg.y, tg.x);
-        [-1, 1].forEach((side) => { const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.15, 18, 10), lm); leaf.scale.set(0.38 * sz, 1.05 * sz, 0.28);
-          leaf.rotation.z = ang - Math.PI / 2 + side * 0.65; const off = new THREE.Vector3(Math.cos(ang + side * Math.PI / 2), Math.sin(ang + side * Math.PI / 2), 0).multiplyScalar(0.1 * sz);
-          leaf.position.copy(pt).add(off).add(new THREE.Vector3(tg.x, tg.y, 0).multiplyScalar(0.06)); G.add(leaf); }); }
-    });
-  }
-  G.rotation.set(-0.08, -0.32, 0.02);
-  const cam = new THREE.PerspectiveCamera(30, w / h, 0.1, 50); cam.position.set(0, 0.25, 7.6); cam.lookAt(0, 0.12, 0);
+  const nt = tex(512, 512, (g) => { g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `800 ${num.length > 1 ? 300 : 360}px IB`; const x = 256, y = 270;
+    g.lineJoin = 'round'; g.lineWidth = 46; g.strokeStyle = T.gemD; g.strokeText(num, x, y + 10);
+    g.lineWidth = 30; g.strokeStyle = '#1a0a04'; g.strokeText(num, x, y);
+    const q = g.createLinearGradient(0, 120, 0, 400); q.addColorStop(0, '#ffffff'); q.addColorStop(1, '#dfe8ff'); g.fillStyle = q; g.fillText(num, x, y); });
+  const np = new THREE.Mesh(new THREE.PlaneGeometry(1.25, 1.25), new THREE.MeshBasicMaterial({ map: nt, transparent: true, depthWrite: false })); np.position.set(0, -0.02, 0.69); G.add(np);
+  // блик на самоцвете
+  const hl = new THREE.Mesh(new THREE.CircleGeometry(0.16, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.55 })); hl.scale.set(1.4, 0.6, 1); hl.position.set(-0.32, 0.38, 0.7); hl.rotation.z = 0.5; G.add(hl);
+  // сверху: мяч или корона
+  if (T.crown) { const cr = new THREE.Shape(); cr.moveTo(-0.5, 0); cr.lineTo(-0.58, 0.46); cr.lineTo(-0.27, 0.22); cr.lineTo(0, 0.6); cr.lineTo(0.27, 0.22); cr.lineTo(0.58, 0.46); cr.lineTo(0.5, 0); cr.lineTo(-0.5, 0);
+    const c = ext(cr, 0.16, 0.05, gp('#ffc21a', { metalness: 0.5 })); c.position.set(0, 1.42, 0.1); G.add(c);
+  } else { const ball = new THREE.Mesh(new THREE.SphereGeometry(0.26, 32, 24), gp('#ffffff', { metalness: 0 })); ball.position.set(0, 1.42, 0.3); G.add(ball);
+    for (let k = 0; k < 5; k++) { const a = k * 1.2566 + 0.3, pn = new THREE.Mesh(new THREE.CircleGeometry(0.07, 5), new THREE.MeshBasicMaterial({ color: 0x1a1a22 })); pn.position.set(Math.cos(a) * 0.17, 1.42 + Math.sin(a) * 0.17, 0.52); pn.lookAt(0, 1.42, 3); G.add(pn); }
+    const pc = new THREE.Mesh(new THREE.CircleGeometry(0.075, 5), new THREE.MeshBasicMaterial({ color: 0x1a1a22 })); pc.position.set(0, 1.42, 0.565); G.add(pc); }
+  // снизу: звёзды — место внутри ступени (1–3)
+  const n = tn === 'elite' ? 3 : (i % 3) + 1;
+  for (let k = 0; k < n; k++) { const st = ext(star(0.19, 0.085), 0.08, 0.03, gp('#ffd23a', { metalness: 0.4, emissive: L('#7a4a00'), emissiveIntensity: 0.3 })); st.position.set((k - (n - 1) / 2) * 0.42, -1.52 - (k === (n - 1) / 2 ? 0.06 : 0), 0.45); G.add(st); }
+  G.rotation.set(-0.05, -0.22, 0);
+  const cam = new THREE.PerspectiveCamera(30, w / h, 0.1, 50); cam.position.set(0, 0.1, 9.2); cam.lookAt(0, 0.06, 0);
   R.render(s, cam); return R.domElement.toDataURL('image/png');
 };
 </script></body></html>

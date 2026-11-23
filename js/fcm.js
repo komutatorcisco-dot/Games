@@ -100,7 +100,7 @@ const FCM = (() => {
   // ---- дивизионы (5.11, js/division.js) ----
   const carLabel = () => { try { const S0 = ClubPath.S(), c = ClubPath.CH[Math.min(S0.ch, ClubPath.CH.length) - 1]; return `Глава ${c.id} · ${c.t}`; } catch (e) { return 'Сюжет и задания'; } };
   // значок дивизиона (21.11) — 3D-рендер из tools/art/divs.html: щит из металла ступени, номер, звёзды, лавры, корона
-  const dvImg = (i, big) => `img/div/d${Math.max(0, Math.min(9, i))}-${big ? 384 : 192}.webp?v=3`;
+  const dvImg = (i, big) => `img/div/d${Math.max(0, Math.min(9, i))}-${big ? 384 : 192}.webp?v=4`;
   const dvBadge = (i, big) => `<span class="dvb2 ${big ? 'big' : ''}"><i class="dvb2-glow t-${Division.tier(i)}"></i><img src="${dvImg(i, big)}" alt="${esc(Division.name(i))}"></span>`;
   const dvBar = () => { const D = Division, s = D.week(), i = D.idx(), nx = D.START[i + 1]; return { s, i, nx, pct: nx ? Math.max(3, Math.round(100 * (s.pts - D.START[i]) / (nx - D.START[i]))) : 100 }; };
   function divHero() {

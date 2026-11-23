@@ -321,6 +321,16 @@ const PlayerKit = (() => {
   }
 
   // Игрок из карточки (Cards.all()): форма клуба, номер, внешность по card.key
+  // 23.11: внешность звёзд — цвет кожи, причёска и волосы как у настоящего игрока (лицо модели общее, без портрета)
+  const LOOKS = {
+    'Килиан Мбаппе': { skin: 4, hair: '#120c08', style: 'shaved', build: { slim: 0, heavy: 0, muscular: 0.6 }, height: 0.985 },
+    'Винисиус Жуниор': { skin: 4, hair: '#120c08', style: 'afro', build: { slim: 0.6, heavy: 0, muscular: 0 }, height: 0.97 },
+    'Джуд Беллингем': { skin: 3, hair: '#120c08', style: 'buzz', build: { slim: 0, heavy: 0, muscular: 0.5 }, height: 1 },
+    'Эрлинг Холанд': { skin: 0, hair: '#c9a05a', style: 'medium', build: { slim: 0, heavy: 0.3, muscular: 0.9 }, height: 1.04 },
+    'Мохамед Салах': { skin: 3, hair: '#120c08', style: 'afro', build: { slim: 0, heavy: 0, muscular: 0.5 }, height: 0.95 },
+    'Ламин Ямаль': { skin: 3, hair: '#120c08', style: 'short', build: { slim: 0.8, heavy: 0, muscular: 0 }, height: 0.98 },
+    'Николас Джексон': { skin: 5, hair: '#120c08', style: 'buzz', build: { slim: 0.5, heavy: 0, muscular: 0.3 }, height: 1.01 },
+  };
   function forCard(card, extra = {}) {
     const gk = card.pos === 'ВРТ';
     // у легенд позиции крупные: ЗАЩ, ПЗ (= полузащитник), ФРВ; у действующих ПЗ — правый защитник
@@ -329,7 +339,8 @@ const PlayerKit = (() => {
     const seed = hash(card.key || card.name);
     const n = numberOf(card.name, card.club, pos) ?? posNumber(pos, seed >>> 8);
     if (n != null) base.number = n;
-    return random(seed, Object.assign(base, extra), pos);
+    const lk = LOOKS[card.name] ? Object.assign({}, LOOKS[card.name], { hair: HAIR.includes(LOOKS[card.name].hair) ? LOOKS[card.name].hair : HAIR[0] }) : {};
+    return random(seed, Object.assign(base, lk, extra), pos);
   }
 
   // Из формы клуба, как её считает Arena3D.parts.kitFrom (shirt/sleeve/shorts/socks — THREE.Color)

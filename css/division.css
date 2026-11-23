@@ -157,3 +157,10 @@
 @keyframes prOld { 0% { transform: none; } 30% { transform: rotate(-6deg) scale(1.05); } 45% { transform: rotate(6deg) scale(1.05); filter: brightness(2); } 100% { transform: translateY(60vh) rotate(40deg) scale(.6); opacity: 0; } }
 @keyframes prNew { from { opacity: 0; transform: perspective(600px) rotateY(540deg) scale(.2); } to { opacity: 1; transform: perspective(600px) rotateY(0) scale(1); } }
 @media (prefers-reduced-motion: reduce) { .promo *, .promo { animation-duration: .01s !important; animation-delay: 0s !important; } }
+/* 23.11: новый значок шире (крылья) — крупнее на главной и на дороге */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .hm2 .hm-emb .dvb2.big { width: clamp(150px, 22vw, 230px) !important; margin: -20px -14px; }
+  .dr-n.on .dvb2.big { width: clamp(110px, 17vw, 160px) !important; }
+  .dr-i { width: clamp(52px, 9vw, 80px) !important; }
+  .dvb2.big { width: 150px; }
+}
