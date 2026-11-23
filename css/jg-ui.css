@@ -79,3 +79,24 @@ body.fcm-on #modal .btn:focus { outline: none !important; }
   body.fcm-on #app .screen, body.fcm-on #app .screen :is(button, span, b, p, div, small, input) { font-family: var(--jg-font) !important; }
   body.fcm-on #app .attempts { font-weight: 900 !important; color: #fff !important; }
 }
+/* 23.11: драфт лёжа — поле шире (слоты не наезжают), во всю высоту; окно выбора: карточки слева в ряд, справа имя, 6 цифр
+   и кнопка, без мелких строк (клуб, «Позиции», «предв.», счётчики скамейки) */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  body.fcm-on #xd-body:has(> .xd-pitch) > .xd-pitch, body.fcm-on #xd-body .xd-res > .xd-pitch { aspect-ratio: 1.2 !important; height: calc(100dvh - var(--fm-t, 6px) - var(--fm-b, 0px) - 84px) !important; width: auto !important; max-width: 54vw; }
+  body.fcm-on #xd-body .xd-pitch .xd-slot > * { transform: scale(calc(.78 * var(--k, 1))) !important; }
+  body.fcm-on #xd-body .xd-chem i, body.fcm-on #xd-body .xd-bh small { display: none !important; }
+  /* окно выбора: сверху заголовок, ряд из 5 карточек; снизу одна строка — имя и 6 цифр слева, «было → стало» и кнопка справа */
+  body.fcm-on #xd-pick.xp { display: grid !important; grid-template-columns: minmax(0, 1fr) minmax(220px, 34%) !important; grid-template-rows: auto minmax(0, 1fr) auto !important; }
+  body.fcm-on #xd-pick .xp-top { grid-column: 1 / -1; }
+  body.fcm-on #xd-pick .xp-row5 { grid-column: 1 / -1; align-self: center; }
+  body.fcm-on #xd-pick .xp-big { grid-column: 1; grid-row: 3; padding: 8px 12px !important; border-radius: 14px; }
+  body.fcm-on #xd-pick .xp-info > small, body.fcm-on #xd-pick .xp-info .xp-pos, body.fcm-on #xd-pick .xp-d { display: none !important; }
+  body.fcm-on #xd-pick .xp-info { display: flex !important; align-items: center; gap: 14px !important; }
+  body.fcm-on #xd-pick .xp-info > b { font: 900 17px var(--jg-font) !important; white-space: nowrap; }
+  body.fcm-on #xd-pick .xp-st { display: grid !important; grid-template-columns: repeat(6, minmax(34px, auto)) !important; gap: 0 8px !important; }
+  body.fcm-on #xd-pick .xp-st span { display: grid !important; justify-items: center; font: 800 10px var(--jg-font) !important; color: #9fb2cc; }
+  body.fcm-on #xd-pick .xp-st span b { font: 900 18px/1 var(--jg-font) !important; }
+  body.fcm-on #xd-pick .xp-foot { grid-column: 2; grid-row: 3; display: grid !important; grid-template-columns: 1fr !important; gap: 4px; align-self: stretch; align-content: center; }
+  body.fcm-on #xd-pick .xp-sum { font: 800 12px var(--jg-font) !important; gap: 10px !important; min-height: 0 !important; }
+  body.fcm-on #xd-pick .xp-ok { height: 46px; }
+}
