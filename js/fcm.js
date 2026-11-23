@@ -814,7 +814,13 @@ const FCM = (() => {
       PackOpen.reveal(res, () => { if (tab === 'coll') render(); }, { pack: 0, name: P.name });
     } finally { collBusy = false; }
   }
+  // 23.11: галерея как в основной игре (Cards.album: лиги → клубы → карточки, «Можно забрать», «Почти собраны», награды за сбор),
+  // сверху — пак коллекции; карточку открывает своё окно (cardView)
   function coll() {
+    const pk = `<button class="fm-clpk" data-fm-collpk><img src="img/packs/pk0-160.webp?v=b5" alt=""><span><b>Пак коллекции</b><small>6 карт · 4 новых</small></span><em><i class="coin"></i>${(ECON.coll.price).toLocaleString('ru-RU')}</em></button>`;
+    return `<div class="fm-gal">${pk}${Cards.album()}</div>`;
+  }
+  function collOld() {
     const A = Cards.all(), mineN = A.filter(own).length;
     const per = (f) => { const t = A.filter(f); return [t.filter(own).length, t.length]; };
     const bars = [['Серебро', (c) => c.rar === 'silver', '#cfd8e6'], ['Золото', (c) => c.rar === 'gold', '#ffcf3a'], ['Легенды', (c) => c.rar === 'legend', '#c89bff'], ['Особые', (c) => SPECIAL.has(c.rar), '#ff4f66']]
@@ -837,7 +843,7 @@ const FCM = (() => {
   }
   // карточка крупно: качается в 3D за пальцем, справа цифры; ‹ › — соседние в текущем списке
   function cardView(key) {
-    const L = collList(); let i = Math.max(0, L.findIndex((c) => c.key === key));
+    let L = collList(), i = L.findIndex((c) => c.key === key); if (i < 0) { L = [Cards.get(key)].filter(Boolean); i = 0; } // не из текущего списка (галерея, главная) — только эта карточка
     const el = document.createElement('div'); el.className = 'fm-sheet fm-cv-w';
     const draw = () => { const c = L[i] || Cards.get(key), has = own(c), gk = c.pos === 'ВРТ', N = gk ? ['НЫР', 'РУК', 'УДР', 'РЕА', 'СКР', 'ПОЗ'] : ['СКР', 'УДР', 'ПАС', 'ДРБ', 'ЗАЩ', 'ФИЗ'], st = (Cards.stats ? Cards.stats(c) : c.st) || Array(6).fill(c.r);
       const big = Math.min(220, Math.floor((innerHeight - 100) / 1.5));
@@ -956,6 +962,8 @@ const FCM = (() => {
       if (e.target.closest('[data-lg-claim]')) { Sound.play('tap'); return League.claim(() => { if (tab === 'league') render(); }); }
       if (e.target.closest('[data-lg-post]')) { Sound.play('tap'); return leaguePost(); }
       if (e.target.closest('[data-fm-collpk]')) { Sound.play('tap'); return buyColl(); }
+      if (tab === 'coll') { const cc = e.target.closest('.cl-cell [data-card]'); if (cc && Cards.get(cc.dataset.card)) { Sound.play('tap'); return cardView(cc.dataset.card); }
+        const r = Cards.onClick(e); if (r === true) { const sc = root.querySelector('.fm-main'); render(); if (Cards.takeJump()) { const m = root.querySelector('.fm-main'); if (m) m.scrollTop = 0; } else if (sc) { /* остаёмся на месте */ } return; } if (r) return; }
       const lkb = e.target.closest('[data-fm-lock]'); if (lkb) { Sound.play('tap'); return toast(`Откроется на ${lkb.dataset.fmLock} трофеях — играй матчи в дивизионах`); }
       const go = e.target.closest('[data-fm-go]'); if (go) { Sound.play('tap'); const [t, v] = go.dataset.fmGo.split(':'); tab = t; sub[t] = v; return render(); }
       if (e.target.closest('[data-fm-car]')) { Sound.play('tap'); tab = 'events'; sub.events = 'car'; return render(); }
@@ -974,7 +982,7 @@ const FCM = (() => {
       if (e.target.closest('[data-fm-gift]')) { Modal.open('<h2>Билет события</h2><p>Здесь будет подарок события: билет, который открывает главу. В макете награды ещё не выдаются — подключим их с проверкой на сервере.</p>', [{ label: 'Понятно' }]); return; }
     });
     root.addEventListener('change', (e) => { if (tab === 'market') Market.input(e); });
-    root.addEventListener('input', (e) => { if (tab === 'market' && Market.input(e)) return; if (e.target.matches('.fm-swq')) { swapQ = e.target.value; const l = root.querySelector('.fm-swl'), tmp = document.createElement('div'); tmp.innerHTML = swapBar(); const nl = tmp.querySelector('.fm-swl'); if (l && nl) { l.replaceWith(nl); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(nl); } return; }
+    root.addEventListener('input', (e) => { if (tab === 'market' && Market.input(e)) return; if (tab === 'coll' && e.target.id === 'gl-q') { Cards.onInput(e); return; } if (e.target.matches('.fm-swq')) { swapQ = e.target.value; const l = root.querySelector('.fm-swl'), tmp = document.createElement('div'); tmp.innerHTML = swapBar(); const nl = tmp.querySelector('.fm-swl'); if (l && nl) { l.replaceWith(nl); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(nl); } return; }
       if (!e.target.matches('.fm-cq')) return; CQ.q = e.target.value; CQ.n = 48; const g = root.querySelector('.fm-cg'); if (g) { g.innerHTML = collGrid(); if (typeof Photos !== 'undefined' && Photos.hydrate) Photos.hydrate(g); } });
     setInterval(() => { if (tab !== 'play' || document.body.dataset.scr !== 'hub' || document.hidden || !root) return; pkI = (pkI + 1) % PKS.length;
       root.querySelectorAll('.fm-pf').forEach((el) => el.classList.toggle('on', +el.dataset.i === pkI)); }, 3000);

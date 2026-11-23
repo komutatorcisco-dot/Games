@@ -163,3 +163,31 @@ body.fcm-on .mk-sh { overflow: auto; }
   .fm-clpk { grid-template-columns: auto minmax(0, 1fr) !important; grid-template-rows: auto auto; row-gap: 4px; }
   .fm-clpk img { grid-row: 1 / 3; } .fm-clpk b { font-size: 13px !important; white-space: nowrap; } .fm-clpk em { justify-self: start; padding: 3px 8px !important; }
 }
+/* 23.11: галерея (Cards.album) в новом виде лёжа — шире сетки, синие панели, наш шрифт */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-gal { display: grid; gap: 8px; align-content: start; padding-bottom: 12px; }
+  .fm-gal .fm-clpk { width: auto; justify-self: start; min-width: 280px; margin: 0; }
+  .fm-gal :is(b, small, span, button, h3, p, input) { font-family: "Inter Tight", sans-serif !important; }
+  .fm-gal .cl-head b { font: 900 22px "Inter Tight", sans-serif !important; text-transform: uppercase; } .fm-gal .cl-head small { color: #c6ff3d !important; font-weight: 900; }
+  .fm-gal .gl-h { margin: 8px 2px 2px; font: 900 13px "Inter Tight", sans-serif; letter-spacing: .1em; text-transform: uppercase; color: #9fb2cc; }
+  .fm-gal .gl-list { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); margin-top: 0; }
+  .fm-gal .gl-almost { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .fm-gal .gl-ready { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+  .fm-gal .gl-clubs { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
+  .fm-gal .cl-grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)) !important; }
+  .fm-gal :is(.gl-row, .gl-club, .gl-al, .gl-rd, .gl-sum, .gl-tools input) { border: 0 !important; border-radius: 14px !important; background: linear-gradient(180deg, rgba(30,48,88,.94), rgba(12,20,40,.94)) !important;
+    box-shadow: inset 0 1.5px 0 rgba(255,255,255,.12), inset 0 0 0 1px rgba(120,160,230,.2), 0 0 0 1.5px rgba(0,0,0,.35) !important; color: #fff !important; }
+  .fm-gal .gl-club.done { box-shadow: inset 0 0 0 2px #c6ff3d, 0 0 12px rgba(198,255,61,.3) !important; }
+  .fm-gal .gl-back { border: 0; border-radius: 12px; padding: 8px 14px; background: linear-gradient(180deg, #3f7de0, #2152ad) !important; box-shadow: inset 0 -3px 0 #173f8c; color: #fff; font-weight: 900; }
+  .fm-gal .rw-note { display: none; }
+}
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-gal { grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; row-gap: 6px; }
+  .fm-gal > * { grid-column: 1 / -1; }
+  .fm-gal > .fm-clpk { grid-column: 2; grid-row: 1 / 3; align-self: center; min-width: 230px; }
+  .fm-gal > .cl-head { grid-column: 1; grid-row: 1; margin: 0; } .fm-gal > .cl-bar { grid-column: 1; grid-row: 2; }
+  .fm-gal .gl-tools { display: flex !important; gap: 8px; align-items: center; }
+  .fm-gal .gl-tools > :first-child { flex: 1; }
+  .fm-gal .gl-tools button { flex: none; min-width: 48px; height: 40px; padding: 0 14px !important; border: 0; border-radius: 12px !important; background: linear-gradient(180deg, #3f7de0, #2152ad) !important; box-shadow: inset 0 -3px 0 #173f8c !important; color: #fff !important; font-weight: 900; }
+  .fm-gal .gl-tools button.on { background: linear-gradient(180deg, #d6ff6b, #8fe61e) !important; box-shadow: inset 0 -3px 0 #5a9e08 !important; color: #0a1a00 !important; }
+}
