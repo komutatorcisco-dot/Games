@@ -902,9 +902,17 @@ const FCM = (() => {
     // вход в «Команду» (5.11): камера сразу на поле (без наезда), карточки — сразу, с коротким появлением
     // 22.11: карточки ждут, пока сцена отрисуется (первые кадры после входа телефон занят 3D), и только потом выпрыгивают по очереди —
     // иначе анимация пролетала за время этих кадров и состав просто «появлялся»
-    if (entering) { const tm = root.querySelector('.fm-team'); if (tm) { tm.querySelectorAll('.fm-slot3').forEach((el, k) => el.style.setProperty('--k', k)); tm.classList.add('fx-wait');
-      requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { tm.classList.remove('fx-wait'); tm.classList.add('fx-pop'); setTimeout(() => tm.classList.remove('fx-pop'), 800); }, 120))); } } // 120 мс — первые тяжёлые кадры (сборка экрана, фото) проходят до начала анимации
     if (bg3) { bg3.view(tab === 'market' ? 'store' : tab, entering); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
+    // 23.11 (переписано): появление состава — Web Animations прямо на каждой карточке (видеокарта, 60 кадров), без классов и CSS-таймеров.
+    // Карточки скрыты первые 90 мс (пока экран собирается и встают позиции), затем волной от дальних к ближним:
+    // опускаются сверху с прозрачности, чуть «пружинят» и садятся на место.
+    if (entering && !matchMedia('(prefers-reduced-motion: reduce)').matches) { const tm = root.querySelector('.fm-team'); if (tm) {
+      const sl = [...tm.querySelectorAll('.fm-slot3')].map((el) => ({ el, y: +(String(el.style.transform).match(/translate\([^,]+,\s*([\d.-]+)px/) || [0, 0])[1] })).sort((a, b) => a.y - b.y);
+      sl.forEach(({ el }, k) => [...el.children].forEach((ch) => ch.animate([
+        { opacity: 0, transform: 'translate3d(0, -34px, 0) scale(.86)' },
+        { opacity: 1, transform: 'translate3d(0, 3px, 0) scale(1.03)', offset: 0.72 },
+        { opacity: 1, transform: 'translate3d(0, 0, 0) scale(1)' }],
+        { duration: 640, delay: 90 + k * 38, easing: 'cubic-bezier(.22,.7,.3,1)', fill: 'backwards' }))); } }
     { const h3 = tab === 'play' && root.querySelector('.hm-star-3d'); if (h3 && typeof Hero3D !== 'undefined') Hero3D.mount(h3, Cards.get(h3.dataset.key)); } // 23.11: звезда команды — 3D-игрок чеканит мяч
     if (tab === 'market') Market.load();
     if (!render.pre && typeof Squad !== 'undefined' && Cards.preload) { render.pre = 1; const go = () => { try { Cards.preload(Squad.S().xi); } catch (e) { /* нет состава */ } }; if (window.requestIdleCallback) requestIdleCallback(go, { timeout: 2500 }); else setTimeout(go, 1500); }
