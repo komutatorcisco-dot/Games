@@ -122,3 +122,10 @@
 .kick-ball { position: fixed; left: 0; top: 0; z-index: 9990; width: 80px; height: 80px; object-fit: cover; object-position: 50% 76%; border-radius: 50%; pointer-events: none; filter: drop-shadow(0 6px 10px rgba(0,0,0,.5)); }
 .kick-flash { position: fixed; z-index: 9989; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, #fff, rgba(198,255,61,.8) 40%, transparent 70%); animation: kickFl .4s ease-out forwards; }
 @keyframes kickFl { to { transform: scale(18); opacity: 0; } }
+/* 23.11: 3D-звезда только в своей колонке — не залезает на «Дивизион 10» и кнопку; надписи плиток не обрезаются */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .hm-star:has(.on3d) { width: clamp(120px, 17vw, 180px); }
+  .hm-star-3d { left: 0 !important; width: 100% !important; transform: translateY(-50%) !important; overflow: hidden; }
+  .hm2 .hm-t-tx b { white-space: normal !important; font-size: clamp(14px, 1.9vw, 20px) !important; overflow-wrap: anywhere; }
+  .hm2 .hm-ht > b { font-size: clamp(22px, 3.2vw, 40px) !important; }
+}
