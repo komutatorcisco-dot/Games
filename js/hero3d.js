@@ -3,12 +3,12 @@
 'use strict';
 
 const Hero3D = (() => {
-  let cur = null; // { host, renderer, scene, cam, p, ball, raf, key }
+  let cur = null, heroG = null, heroA = null; // { host, renderer, scene, cam, p, ball, raf, key }
   const ok = () => typeof PlayerKit !== 'undefined' && typeof Arena3D !== 'undefined' && Arena3D.supported() && !matchMedia('(prefers-reduced-motion: reduce)').matches;
   function stop() {
     if (!cur) return;
     cancelAnimationFrame(cur.raf);
-    try { PlayerKit.dispose(cur.p); cur.renderer.dispose(); if (cur.renderer.forceContextLoss) cur.renderer.forceContextLoss(); } catch (e) { /* ок */ }
+    try { if (cur.p.userData.mixer) cur.p.userData.mixer.stopAllAction(); cur.renderer.dispose(); if (cur.renderer.forceContextLoss) cur.renderer.forceContextLoss(); } catch (e) { /* ок */ }
     if (cur.renderer.domElement.parentNode) cur.renderer.domElement.remove();
     cur = null;
   }
@@ -27,9 +27,21 @@ const Hero3D = (() => {
     scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x203020, 0.9));
     const key = new THREE.DirectionalLight(0xfff4e0, 1.25); key.position.set(2, 4, 5); scene.add(key);
     const back = new THREE.DirectionalLight(0xffd23c, 1.5); back.position.set(-1, 3, -4); scene.add(back);
-    const p = PlayerKit.make(g, PlayerKit.forCard(c), 'stand'); p.rotation.y = 0.35; scene.add(p);
-    const hasJ = !!THREE.AnimationClip.findByName(g.animations, 'juggle');
-    PlayerKit.play(p, hasJ ? 'juggle' : 'idle', { fade: 0, loop: true });
+    // 23.11: модель из матча 3 на 3 (prototypes/shot/assets/hero.glb, «Мбаппе») + чеканка из общей модели:
+    // скелеты одинаковые (Mixamo), у записи убираем приставку «mixamorig:» и смещение таза. Нет файла — общая модель.
+    let p = null, hasJ = false;
+    const jug = THREE.AnimationClip.findByName(g.animations, 'juggle');
+    try {
+      const hg = await (heroG || (heroG = new Promise((ok, bad) => new THREE.GLTFLoader().load('prototypes/shot/assets/hero.glb', ok, undefined, bad))));
+      p = THREE.SkeletonUtils.clone(hg.scene); p.scale.setScalar(1.95); // стопы на газоне; как HERO.scale в матче (prototypes/shot/shot.js)
+      p.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+      const mixer = new THREE.AnimationMixer(p); p.userData.mixer = mixer;
+      // движения со скелета матча 3 на 3 (assets3d/hero_anims.json: kick_up_soccerball — чеканка; таз уже в единицах своей модели)
+      const A = await (heroA || (heroA = fetch('assets3d/hero_anims.json?v=2').then((r) => r.json())));
+      const cl = THREE.AnimationClip.parse(A.kick_up_soccerball); mixer.clipAction(cl).play(); hasJ = !!A.kick_up_soccerball;
+    } catch (e) { p = null; }
+    if (!p) { p = PlayerKit.make(g, PlayerKit.forCard(c), 'stand'); hasJ = !!jug; PlayerKit.play(p, hasJ ? 'juggle' : 'idle', { fade: 0, loop: true }); }
+    p.rotation.y = 0.35; if (p.userData.lift) p.position.y = p.userData.lift; scene.add(p);
     // мяч: над той ногой, что выше; отскок — по высоте ноги
     const ball = Arena3D.ball ? Arena3D.ball('classic', 0.11) : new THREE.Mesh(new THREE.SphereGeometry(0.11, 24, 16), new THREE.MeshStandardMaterial({ color: 0xffffff }));
     if (hasJ) scene.add(ball);
