@@ -127,3 +127,9 @@
   .fm-slot3.swapin > * { animation: fxSwapIn .35s cubic-bezier(.22,.8,.3,1) both; }
   @keyframes fxSwapIn { from { opacity: 0; transform: translateX(24px) rotateY(-30deg); } to { opacity: 1; transform: none; } }
 }
+/* 23.11: появление состава — только opacity и transform (их ведёт видеокарта, 60 кадров); без filter — он перерисовывал
+   11 карточек на каждом кадре и давал рывки на телефоне */
+@media (orientation: landscape) and (max-height: 620px), (orientation: landscape) and (min-width: 900px) {
+  .fm-team.fx-pop .fm-slot3 > * { animation: fxSquadIn2 .7s cubic-bezier(.22,.8,.3,1) both !important; will-change: transform, opacity; backface-visibility: hidden; }
+  @keyframes fxSquadIn2 { from { opacity: 0; transform: translate3d(0, -16px, 0) scale(.96); } to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); } }
+}

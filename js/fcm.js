@@ -903,7 +903,7 @@ const FCM = (() => {
     // 22.11: карточки ждут, пока сцена отрисуется (первые кадры после входа телефон занят 3D), и только потом выпрыгивают по очереди —
     // иначе анимация пролетала за время этих кадров и состав просто «появлялся»
     if (entering) { const tm = root.querySelector('.fm-team'); if (tm) { tm.querySelectorAll('.fm-slot3').forEach((el, k) => el.style.setProperty('--k', k)); tm.classList.add('fx-wait');
-      requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { tm.classList.remove('fx-wait'); tm.classList.add('fx-pop'); setTimeout(() => tm.classList.remove('fx-pop'), 700); }, 60))); } }
+      requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(() => { tm.classList.remove('fx-wait'); tm.classList.add('fx-pop'); setTimeout(() => tm.classList.remove('fx-pop'), 800); }, 120))); } } // 120 мс — первые тяжёлые кадры (сборка экрана, фото) проходят до начала анимации
     if (bg3) { bg3.view(tab === 'market' ? 'store' : tab, entering); bg3.onFrame = tab === 'team' ? placeCards : null; syncMen(); placeCards(); }
     { const h3 = tab === 'play' && root.querySelector('.hm-star-3d'); if (h3 && typeof Hero3D !== 'undefined') Hero3D.mount(h3, Cards.get(h3.dataset.key)); } // 23.11: звезда команды — 3D-игрок чеканит мяч
     if (tab === 'market') Market.load();
